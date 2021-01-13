@@ -11,6 +11,7 @@ defmodule Payments.Handler do
   def subscribe(handler, listener, request) do
     # Simulate a seen tx after 2s
     :timer.send_after(2000, handler, :tx_seen)
+    IO.puts("after 2s tx_seen")
 
     {:noreply, %{listener: listener, request: request}}
   end
@@ -23,18 +24,22 @@ defmodule Payments.Handler do
   end
 
   @impl true
-  def handle_cast(:tx_seen, state) do
+  def handle_info(:tx_seen, state) do
+    IO.puts("tx seen!")
+
     # Simulate a confirmation
-    :timer.send_after(3000, self(), :tx_seen)
+    :timer.send_after(3000, self(), :new_block)
 
     send(state.listener, :tx_seen)
     {:noreply, state}
   end
 
   @impl true
-  def handle_cast(:new_block, state) do
+  def handle_info(:new_block, state) do
+    IO.puts("block seen!")
+
     # Simulate more confirmations
-    :timer.send_after(1000, self(), :tx_seen)
+    :timer.send_after(1000, self(), :new_block)
 
     send(state.listener, :new_block)
     {:noreply, state}
