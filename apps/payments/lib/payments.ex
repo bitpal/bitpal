@@ -6,4 +6,8 @@ defmodule Payments do
   Contexts are also responsible for managing your data, regardless
   if it comes from the database, an external API or others.
   """
+
+  def init_payment_handler(pid, request) do
+    Payments.Manager.init_handler(pid, request)
+  end
 end
