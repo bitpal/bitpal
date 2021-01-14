@@ -1,7 +1,10 @@
 defmodule Payments.ExchangeRate.Kraken do
+  require Logger
+
   @base "https://api.kraken.com/0/public/Ticker?pair="
 
-  def compute(:bch, :usd) do
+  def compute(pair = {:bch, :usd}) do
+    Logger.info("Computing Kraken exchange rate #{inspect(pair)}")
     get_rate("bchusd")
   end
 
