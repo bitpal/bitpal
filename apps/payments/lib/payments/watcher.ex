@@ -1,5 +1,6 @@
 defmodule Payments.Watcher do
   use GenServer
+  require Logger
 
   # Client API
 
@@ -11,65 +12,102 @@ defmodule Payments.Watcher do
 
   @impl true
   def init(state) do
-    IO.puts("initializing watcher")
-    # IO.inspect(state)
+    Logger.info("watcher: initializing #{inspect(state)}")
+
+    # Callback to initializer routine to not block start_link
+    send(self(), :init)
+
+    {:ok, Map.put(state, :state, :init)}
+  end
+
+  @impl true
+  def handle_info(:init, state = %{state: :init}) do
+    Logger.info("watcher: real init")
+
+    # FIXME load/store this in db for persistance
+    # FIXME get a blockchain connection
+    # FIXME timeout payment request after 24h?
 
     # Simulate a seen tx after 2s
     :timer.send_after(2000, self(), :tx_seen)
 
-    {:ok, state}
+    {:noreply, %{state | state: :wait_for_tx}}
   end
 
   @impl true
   def handle_info(:tx_seen, state) do
-    IO.puts("tx seen!")
-    # IO.inspect(state)
+    Logger.info("watcher: tx seen!")
+
+    # FIXME Superflous?
+    # We'll get a state changed event regardless
+    # send(state.listener, :tx_seen)
 
     if state.request.required_confirmations == 0 do
       # Simulate 0-conf verification after 2s
-      :timer.send_after(2000, self(), :accepted)
+      :timer.send_after(2000, self(), :verified)
+
+      change_state(state, :wait_for_verification)
     else
       # Simulate a confirmation
       :timer.send_after(1000, self(), :new_block)
-    end
 
-    send(state.listener, :tx_seen)
-    {:noreply, state}
+      change_state(state, :wait_for_confirmations)
+    end
   end
 
   @impl true
   def handle_info(:new_block, state) do
-    IO.puts("block seen!")
-    # IO.inspect(state)
+    Logger.info("watcher: block seen!")
 
-    # Simulate more confirmations
-    :timer.send_after(1000, self(), :new_block)
+    # FIXME need to see if the tx is inside the blockchain before we do below
 
-    send(state.listener, :new_block)
-    {:noreply, state}
+    state = Map.update(state, :confirmations, 1, &(&1 + 1))
+
+    send(state.listener, {:confirmation, state.confirmations})
+
+    if state.confirmations >= state.request.required_confirmations do
+      accepted(state)
+    else
+      # Simulate more confirmations
+      :timer.send_after(1000, self(), :new_block)
+
+      {:noreply, state}
+    end
   end
 
   @impl true
-  # FIXME need to track state here as well...
-  def handle_info(:accepted, state) do
-    send(state.listener, :accepted)
-    {:noreply, state}
+  def handle_info(:verified, state = %{state: :wait_for_verification}) do
+    Logger.info("watcher: verified")
+
+    if state.request.required_confirmations == 0 do
+      accepted(state)
+    else
+      change_state(state, :wait_for_confirmations)
+    end
   end
 
-  # @impl true
-  # def handle_info(info, state) do
-  #   IO.puts("unhandled info")
-  #   IO.inspect(info)
-  #   IO.inspect(state)
-  #
-  #   {:noreply, state}
-  # end
+  @impl true
+  def handle_info(info, state) do
+    Logger.warning("unhandled info/state in Watcher #{inspect(info)} #{inspect(state)}")
+    {:noreply, state}
+  end
 
   @impl true
   def terminate(_reason, _state) do
-    IO.puts("terminate watcher")
-    # IO.inspect({:reason, reason})
-    # IO.inspect({:state, state})
+    Logger.info("terminating watcher")
+  end
+
+  defp accepted(state) do
+    send(state.listener, {:state_changed, :accepted})
+    {:stop, :normal, state}
+  end
+
+  defp change_state(state, new_state) do
+    if state.state != new_state do
+      send(state.listener, {:state_changed, new_state})
+      {:noreply, %{state | state: new_state}}
+    else
+      {:noreply, state}
+    end
   end
 end
-
