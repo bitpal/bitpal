@@ -12,7 +12,7 @@ defmodule Payments.Watcher do
   @impl true
   def init(state) do
     IO.puts("initializing watcher")
-    IO.inspect(state)
+    # IO.inspect(state)
 
     # Simulate a seen tx after 2s
     :timer.send_after(2000, self(), :tx_seen)
@@ -25,8 +25,13 @@ defmodule Payments.Watcher do
     IO.puts("tx seen!")
     # IO.inspect(state)
 
-    # Simulate a confirmation
-    :timer.send_after(1000, self(), :new_block)
+    if state.request.required_confirmations == 0 do
+      # Simulate 0-conf verification after 2s
+      :timer.send_after(2000, self(), :accepted)
+    else
+      # Simulate a confirmation
+      :timer.send_after(1000, self(), :new_block)
+    end
 
     send(state.listener, :tx_seen)
     {:noreply, state}
@@ -45,19 +50,26 @@ defmodule Payments.Watcher do
   end
 
   @impl true
-  def handle_info(info, state) do
-    IO.puts("unhandled info")
-    IO.inspect(info)
-    IO.inspect(state)
-
+  # FIXME need to track state here as well...
+  def handle_info(:accepted, state) do
+    send(state.listener, :accepted)
     {:noreply, state}
   end
 
+  # @impl true
+  # def handle_info(info, state) do
+  #   IO.puts("unhandled info")
+  #   IO.inspect(info)
+  #   IO.inspect(state)
+  #
+  #   {:noreply, state}
+  # end
+
   @impl true
-  def terminate(reason, state) do
-    IO.inspect("terminate/2 callback")
-    IO.inspect({:reason, reason})
-    IO.inspect({:state, state})
+  def terminate(_reason, _state) do
+    IO.puts("terminate watcher")
+    # IO.inspect({:reason, reason})
+    # IO.inspect({:state, state})
   end
 end
 
