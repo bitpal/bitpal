@@ -8,12 +8,14 @@ defmodule Payments.Watcher do
     GenServer.start_link(__MODULE__, %{listener: listener, request: request})
   end
 
+  def get_request(watcher) do
+    GenServer.call(watcher, :get_request)
+  end
+
   # Server API
 
   @impl true
   def init(state) do
-    Logger.info("watcher: initializing #{inspect(state)}")
-
     # Callback to initializer routine to not block start_link
     send(self(), :init)
 
@@ -21,15 +23,19 @@ defmodule Payments.Watcher do
   end
 
   @impl true
+  def handle_call(:get_request, _, state) do
+    {:reply, state.request, state}
+  end
+
+  @impl true
   def handle_info(:init, state = %{state: :init}) do
-    Logger.info("watcher: real init")
+    Logger.info("watcher: real init #{inspect(state.request)}")
 
     # FIXME load/store this in db for persistance
     # FIXME get a blockchain connection
     # FIXME timeout payment request after 24h?
 
-    # Simulate a seen tx after 2s
-    :timer.send_after(2000, self(), :tx_seen)
+    Payments.Node.register(state.request, self())
 
     {:noreply, %{state | state: :wait_for_tx}}
   end
@@ -43,14 +49,8 @@ defmodule Payments.Watcher do
     # send(state.listener, :tx_seen)
 
     if state.request.required_confirmations == 0 do
-      # Simulate 0-conf verification after 2s
-      :timer.send_after(2000, self(), :verified)
-
       change_state(state, :wait_for_verification)
     else
-      # Simulate a confirmation
-      :timer.send_after(1000, self(), :new_block)
-
       change_state(state, :wait_for_confirmations)
     end
   end
@@ -68,9 +68,6 @@ defmodule Payments.Watcher do
     if state.confirmations >= state.request.required_confirmations do
       accepted(state)
     else
-      # Simulate more confirmations
-      :timer.send_after(1000, self(), :new_block)
-
       {:noreply, state}
     end
   end

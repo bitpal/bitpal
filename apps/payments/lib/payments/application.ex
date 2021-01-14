@@ -10,9 +10,10 @@ defmodule Payments.Application do
       # Start the Ecto repository
       Payments.Repo,
       # Start the PubSub system
-      {Phoenix.PubSub, name: Payments.PubSub}
+      {Phoenix.PubSub, name: Payments.PubSub},
       # Start a worker by calling: Payments.Worker.start_link(arg)
       # {Payments.Worker, arg}
+      Payments.Node
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Payments.Supervisor)
