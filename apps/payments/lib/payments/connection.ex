@@ -53,56 +53,37 @@ defmodule Payments.Connection do
   # Low-level serialization/deserialization.
 
   # Constants for the protocol.
-  defp tag_positive() do
-    0
+  defp tag_positive(), do: 0
+  defp tag_negative(), do: 1
+  defp tag_string(), do: 2
+  defp tag_byte_array(), do: 3
+  defp tag_true(), do: 4
+  defp tag_false(), do: 5
+  defp tag_double(), do: 6
+
+  defp serialize(key, val) when is_integer(val) and val >= 0 do
+    encode_token_header(key, tag_positive()) <> encode_int(val)
   end
 
-  defp tag_negative() do
-    1
+  defp serialize(key, val) when is_integer(val) and val < 0 do
+    encode_token_header(key, tag_positive()) <> encode_int(-val)
   end
 
-  defp tag_string() do
-    2
+  defp serialize(key, val) when is_binary(val) do
+    encode_token_header(key, tag_string()) <> encode_int(byte_size(val)) <> val
   end
 
-  defp tag_byte_array() do
-    3
+  defp serialize(key, val) when val == true do
+    encode_token_header(key, tag_true())
   end
 
-  defp tag_true() do
-    4
+  defp serialize(key, val) when val == false do
+    encode_token_header(key, tag_false())
   end
 
-  defp tag_false() do
-    5
-  end
-
-  defp tag_double() do
-    6
-  end
-
-  defp serialize(key, val) do
-    cond do
-      is_integer(val) and val >= 0 ->
-        encode_token_header(key, tag_positive()) <> encode_int(val)
-
-      is_integer(val) and val < 0 ->
-        encode_token_header(key, tag_positive()) <> encode_int(-val)
-
-      is_binary(val) ->
-        # This is eiter a string or a byte array... We assume string as that is more likely for now.
-        encode_token_header(key, tag_string()) <> encode_int(byte_size(val)) <> val
-
-      val == true ->
-        encode_token_header(key, tag_true())
-
-      val == false ->
-        encode_token_header(key, tag_false())
-
-      is_float(val) ->
-        # Should be exactly 8 bytes, little endian "native double"
-        encode_token_header(key, tag_double()) <> <<val::little-float>>
-    end
+  defp serialize(key, val) when is_float(val) do
+    # Should be exactly 8 bytes, little endian "native double"
+    encode_token_header(key, tag_double()) <> <<val::little-float>>
   end
 
   # Serialize a sequence of {key, val} tuples.
@@ -122,11 +103,18 @@ defmodule Payments.Connection do
     end
   end
 
-  defp encode_int(value) do
+  def encode_int(value) do
+    encode_int1(value, false)
+  end
+
+  defp encode_int1(value, mark) do
+    here = (value &&& 0x7F) ||| if mark, do: 0x80, else: 0x00
+
     if value < 0x80 do
-      <<value>>
+      <<here>>
     else
-      <<(value &&& 0x7F) ||| 0x80>> <> encode_int(value >>> 7)
+      prev = encode_int1((value >>> 7) - 1, true)
+      prev <> <<here>>
     end
   end
 
@@ -171,6 +159,10 @@ defmodule Payments.Connection do
       tag == tag_double() ->
         <<v::little-float, rest::binary>> = data
         {rest, {key, v}}
+
+        # true ->
+        #   IO.inspect tag
+        #   IO.inspect data
     end
   end
 
@@ -181,7 +173,7 @@ defmodule Payments.Connection do
     tag = first &&& 0x7
 
     cond do
-      tag == 31 ->
+      key == 31 ->
         {rest, key} = decode_int(rest)
         {rest, key, tag}
 
@@ -191,13 +183,16 @@ defmodule Payments.Connection do
   end
 
   # Decode an integer value. Returns { remaining data, value }
-  defp decode_int(message) do
+  def decode_int(message) do
+    decode_int1(message, -1)
+  end
+
+  defp decode_int1(message, prev_val) do
     <<first, rest::binary>> = message
-    value = first &&& 0x7F
+    value = (prev_val + 1) <<< 7 ||| (first &&& 0x7F)
 
     if first >= 0x80 do
-      {rest, more} = decode_int(rest)
-      {rest, value ||| more <<< 7}
+      decode_int1(rest, value)
     else
       {rest, value}
     end
