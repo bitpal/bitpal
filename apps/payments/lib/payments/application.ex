@@ -13,7 +13,8 @@ defmodule Payments.Application do
       {Phoenix.PubSub, name: Payments.PubSub},
       # Start a worker by calling: Payments.Worker.start_link(arg)
       # {Payments.Worker, arg}
-      Payments.Node
+      Payments.Node,
+      Payments.ExchangeRate.Cache
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Payments.Supervisor)
