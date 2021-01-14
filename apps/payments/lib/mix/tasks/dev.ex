@@ -4,8 +4,8 @@ defmodule Mix.Tasks.Dev do
   def run(_) do
     c = Payments.Connection.connect()
     Payments.Connection.send(c, Payments.Protocol.version_request())
-    IO.inspect Payments.Connection.recv(c)
+    IO.inspect(Payments.Connection.recv(c))
     Payments.Connection.close(c)
-    IO.puts "Done!"
+    IO.puts("Done!")
   end
 end
