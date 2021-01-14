@@ -85,8 +85,13 @@ defmodule Payments.Node do
   end
 
   @impl true
-  def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
+  def handle_info({:DOWN, _monitor, :process, pid, _reason}, state) do
+    IO.puts("NEED RESTART?")
+    IO.inspect(pid)
+    IO.inspect(state[:listenPid])
+
     if pid == state[:listenPid] do
+      IO.puts("YUES MOAR RESTART")
       # The Flowee process died. Close our connection and restart it!
       Connection.close(state[:connection])
       {:noreply, start_flowee(state)}
@@ -100,16 +105,16 @@ defmodule Payments.Node do
   def start_flowee(state) do
     # Connect to Flowee, and start listening for messages from it.
     c = Connection.connect()
-    Map.put(state, :connection, c)
+    state = Map.put(state, :connection, c)
 
     # Start receiving messages for it.
     # Sorry I'm not using the "standard" monitoring... This solution has the benefit of being able
     # to restore subscriptions from "state" as needed.
     pid = spawn(fn -> receive_messages(c) end)
-    Map.put(state, :listenPid, pid)
+    state = Map.put(state, :listenPid, pid)
 
     # Monitor it for crashes.
-    Process.monitor(pid)
+    monitor = Process.monitor(pid)
 
     # Start subscribing to new block messages
     Protocol.send_block_subscribe(c)
