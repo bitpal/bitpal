@@ -160,6 +160,8 @@ config :bitpal_web, BitpalWeb.Endpoint,
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :console, format: "[$level] $message\n"
+# Control log level
+config :logger, level: :info
 
 # Initialize plugs at runtime for faster development compilation
 config :phoenix, :plug_init_mode, :runtime
