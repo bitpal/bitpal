@@ -14,7 +14,7 @@ defmodule Payments.Application do
       # Start a worker by calling: Payments.Worker.start_link(arg)
       # {Payments.Worker, arg}
       Payments.Node,
-      Payments.ExchangeRate.Cache
+      Payments.ExchangeRate
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Payments.Supervisor)

@@ -4,8 +4,8 @@ defmodule Payments.Watcher do
 
   # Client API
 
-  def start_link(listener, request) do
-    GenServer.start_link(__MODULE__, %{listener: listener, request: request})
+  def start_link(request) do
+    GenServer.start_link(__MODULE__, %{listener: self(), request: request})
   end
 
   def get_request(watcher) do
