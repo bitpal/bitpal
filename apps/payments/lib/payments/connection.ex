@@ -1,10 +1,29 @@
 defmodule Payments.Connection do
   use Bitwise
 
-  # Connect to localhost.
+  # Binary value used to distinguish strings from binary values in Elixir.
+  defmodule Binary do
+    defstruct data: << >>
+
+    def to_string(binary) do
+      binary[:data]
+    end
+
+    def to_binary(data) do
+      %Binary{data: data}
+    end
+  end
+
+
+  # Connect to localhost. Defaults to connect to "the hub"
   def connect() do
     # According to the doc, we should be able to give it some kind of string....
-    connect({127, 0, 0, 1}, 1235)
+    connect(1235)
+  end
+
+  # Connect to a particular port on localhost.
+  def connect(port) do
+    connect({127, 0, 0, 1}, port)
   end
 
   # Connect to host + post. Host seems to be a tuple of an IPv4 address (possibly IPv6 also)
@@ -71,6 +90,10 @@ defmodule Payments.Connection do
 
   defp serialize(key, val) when is_binary(val) do
     encode_token_header(key, tag_string()) <> encode_int(byte_size(val)) <> val
+  end
+
+  defp serialize(key, %Binary{data: data}) do
+    encode_token_header(key, tag_byte_array()) <> encode_int(byte_size(data)) <> data
   end
 
   defp serialize(key, val) when val == true do
@@ -148,7 +171,7 @@ defmodule Payments.Connection do
       tag == tag_byte_array() ->
         {rem, len} = decode_int(data)
         <<str::binary-size(len), rest::binary>> = rem
-        {rest, {key, str}}
+        {rest, {key,  %Binary{data: str}}}
 
       tag == tag_true() ->
         {data, {key, true}}

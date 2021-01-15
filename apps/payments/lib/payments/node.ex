@@ -87,12 +87,10 @@ defmodule Payments.Node do
 
   @impl true
   def handle_info({:DOWN, _monitor, :process, pid, _reason}, state) do
-    IO.puts("NEED RESTART?")
     IO.inspect(pid)
     IO.inspect(state[:listenPid])
 
     if pid == state[:listenPid] do
-      IO.puts("YUES MOAR RESTART")
       # The Flowee process died. Close our connection and restart it!
       Connection.close(state[:connection])
       {:noreply, start_flowee(state)}
