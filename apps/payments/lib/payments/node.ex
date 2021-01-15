@@ -31,7 +31,7 @@ defmodule Payments.Node do
   @impl true
   def handle_cast({:register, request, watcher}, state) do
     # Simulate behaviour
-    # :timer.send_after(2000, self(), {:tx_seen, watcher})
+    :timer.send_after(2000, self(), {:tx_seen, watcher})
 
     # FIXME register watcher better and use the watcher
     # FIXME maybe use Phoenix PubSub for messages instead?

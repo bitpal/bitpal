@@ -10,7 +10,8 @@ defmodule Payments.Request do
     request
     |> address_with_meta
     |> EQRCode.encode()
-    |> EQRCode.svg()
+    # FIXME need to be able to input styling options here
+    |> EQRCode.svg(background_color: "#F5F7FA", viewbox: false, width: 300)
   end
 
   @doc """
