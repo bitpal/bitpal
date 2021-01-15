@@ -13,6 +13,12 @@ defmodule Payments.Request do
     |> EQRCode.svg()
   end
 
+  @doc """
+  Encodes amount, label and message into a [BIP-21 URI](https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki):
+
+      bitcoin:<address>[?amount=<amount>][?label=<label>][?message=<message>]
+
+  """
   def address_with_meta(request) do
     uri_encode(uri_address(request.address), uri_query(request))
   end
