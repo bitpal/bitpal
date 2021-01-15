@@ -19,6 +19,11 @@ Download the PKGBUILD: https://aur.archlinux.org/packages/flowee/
 - sudo systemctl enable thehub.service
 - sudo systemctl start thehub.service
 
+For the indexer:
+- sudo systemctl enable indexer.service
+- sudo systemctl start indexer.service
+
+
 ## Void linux
 
 ```

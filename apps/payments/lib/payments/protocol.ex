@@ -78,6 +78,38 @@ defmodule Payments.Protocol do
     end
   end
 
+  # Like get_key, but returns nil if the key is not found.
+  defp get_key_opt(key, body) do
+    case body do
+      [{^key, v} | _rest] ->
+        v
+
+      [{_, _} | rest] ->
+        get_key_opt(key, rest)
+
+      [] ->
+        nil
+    end
+  end
+
+
+  # Same as get_keys, but ignores missing keys.
+  defp get_keys_opt(keys, body) do
+    case keys do
+      [{name, first} | rest] ->
+        val = get_key_opt(first, body)
+        k = get_keys_opt(rest, body)
+        if val != nil do
+          Map.put(k, name, val)
+        else
+          k
+        end
+
+      [] ->
+        %{}
+    end
+  end
+
   # Helper to send
   defp send_msg(c, msg) do
     Payments.Connection.send(c, msg)
@@ -108,6 +140,16 @@ defmodule Payments.Protocol do
     send_msg(c, header(@service_blocknotification, 2))
   end
 
+  # List available indexers.
+  def send_find_avail_indexers(c) do
+    send_msg(c, header(@service_indexer, 0))
+  end
+
+  # Find a transaction.
+  def send_find_transaction(c, bytes) do
+    send_msg(c, header(@service_indexer, 2) ++ [{4, bytes}])
+  end
+
   # Structure for received message.
   defmodule Message do
     defstruct type: nil, data: %{}
@@ -118,17 +160,22 @@ defmodule Payments.Protocol do
     %Message{type: type, data: get_keys(keys, body)}
   end
 
+  # Helper to create a message. Does not care if some key is missing.
+  def make_msg_opt(type, keys, body) do
+    %Message{type: type, data: get_keys_opt(keys, body)}
+  end
+
   # Receive some message (blocking)
   def recv(c) do
     msg = get_message(c)
 
     case msg do
-      # Version message
       {@service_api, 1, body} ->
+        # Version message
         make_msg(:version, [version: 1], body)
 
-      # Reply from "blockchain info"
       {@service_blockchain, 1, body} ->
+        # Reply from "blockchain info"
         make_msg(
           :version,
           [
@@ -144,9 +191,18 @@ defmodule Payments.Protocol do
           body
         )
 
-      # Notified of a block
       {@service_blocknotification, 4, body} ->
+        # Notified of a block
         make_msg(:newBlock, [blockHash: 5, blockHeight: 7], body)
+
+      {@service_indexer, 1, body} ->
+        # Indexer reply to what it is indexing.
+        make_msg_opt(:availableIndexers, [address: 21, transaction: 22, spentOutput: 23], body)
+
+      {@service_indexer, 3, body} ->
+        # Indexer reply to "find transaction"
+        make_msg(:transaction, [height: 7, offsetInBlock: 8], body)
+        
     end
   end
 end
