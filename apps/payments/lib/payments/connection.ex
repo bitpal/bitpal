@@ -3,7 +3,7 @@ defmodule Payments.Connection do
 
   # Binary value used to distinguish strings from binary values in Elixir.
   defmodule Binary do
-    defstruct data: << >>
+    defstruct data: <<>>
 
     def to_string(binary) do
       binary[:data]
@@ -14,6 +14,39 @@ defmodule Payments.Connection do
     end
   end
 
+  # Raw message. Holds an unserialized message that represents the header along with any data.
+  defmodule RawMsg do
+    # Note: seqStart och last are only used internally.
+    defstruct service: nil,
+              message: nil,
+              ping: false,
+              pong: false,
+              seqStart: nil,
+              last: nil,
+              data: []
+  end
+
+  # Tags used in the header
+  @header_end 0
+  @header_serviceId 1
+  @header_messageId 2
+  @header_sequenceStart 3
+  @header_lastInSequence 4
+  @header_ping 5
+  @header_pong 6
+
+  # dummy function to disable warnings...
+  def dummy() do
+    [
+      @header_end,
+      @header_serviceId,
+      @header_messageId,
+      @header_sequenceStart,
+      @header_lastInSequence,
+      @header_ping,
+      @header_pong
+    ]
+  end
 
   # Connect to localhost. Defaults to connect to "the hub"
   def connect() do
@@ -35,14 +68,14 @@ defmodule Payments.Connection do
   end
 
   # Send a message (a binary)
-  defp send_bytes(connection, message) do
+  defp send_packet(connection, message) do
     size = byte_size(message) + 2
     size_msg = <<rem(size, 256), div(size, 256)>>
     :gen_tcp.send(connection, size_msg <> message)
   end
 
-  # Receive a message.
-  defp recv_bytes(connection) do
+  # Receive a packet.
+  defp recv_packet(connection) do
     case :gen_tcp.recv(connection, 2) do
       {:ok, <<size_low, size_high>>} ->
         size = size_high * 256 + size_low
@@ -59,62 +92,101 @@ defmodule Payments.Connection do
     :gen_tcp.close(connection)
   end
 
-  # Send a high-level message (a list of key-val tuples)
+  # Send a RawMsg
   def send(connection, msg) do
-    send_bytes(connection, serialize(msg))
+    send_packet(connection, serialize(msg))
   end
 
-  # Receive a high-level message (a list of key-val tuples)
+  # Receive a high-level message. We will parse the header here since we need to merge long messages, etc.
+  # Returns a RawMsg with the appropriate fields set.
   def recv(connection) do
-    deserialize(recv_bytes(connection))
+    {header, rem} = parse_header(recv_packet(connection))
+    recv(connection, header, rem)
+  end
+
+  # Internal helper for receiving messages.
+  defp recv(connection, header, data) do
+    if header.last == false do
+      # More data... Ignore the next header mostly.
+      {newHeader, moreData} = parse_header(recv_packet(connection))
+      # Note: It might be important to check the header here since there might be other messages
+      # that are interleaved with chained messages. The docs does not state if this is a
+      # possibility, but from a quick glance at the code, I don't think so.
+      recv(connection, %{header | last: newHeader.last}, data <> moreData)
+    else
+      # Last packet! Either header.last == true or header.last == nil
+      %{header | data: deserialize(data)}
+    end
   end
 
   # Low-level serialization/deserialization.
 
   # Constants for the protocol.
-  defp tag_positive(), do: 0
-  defp tag_negative(), do: 1
-  defp tag_string(), do: 2
-  defp tag_byte_array(), do: 3
-  defp tag_true(), do: 4
-  defp tag_false(), do: 5
-  defp tag_double(), do: 6
+  @tag_positive 0
+  @tag_negative 1
+  @tag_string 2
+  @tag_byte_array 3
+  @tag_true 4
+  @tag_false 5
+  @tag_double 6
 
   defp serialize(key, val) when is_integer(val) and val >= 0 do
-    encode_token_header(key, tag_positive()) <> encode_int(val)
+    encode_token_header(key, @tag_positive) <> encode_int(val)
   end
 
   defp serialize(key, val) when is_integer(val) and val < 0 do
-    encode_token_header(key, tag_positive()) <> encode_int(-val)
+    encode_token_header(key, @tag_positive) <> encode_int(-val)
   end
 
   defp serialize(key, val) when is_binary(val) do
-    encode_token_header(key, tag_string()) <> encode_int(byte_size(val)) <> val
+    encode_token_header(key, @tag_string) <> encode_int(byte_size(val)) <> val
   end
 
   defp serialize(key, %Binary{data: data}) do
-    encode_token_header(key, tag_byte_array()) <> encode_int(byte_size(data)) <> data
+    encode_token_header(key, @tag_byte_array) <> encode_int(byte_size(data)) <> data
   end
 
   defp serialize(key, val) when val == true do
-    encode_token_header(key, tag_true())
+    encode_token_header(key, @tag_true)
   end
 
   defp serialize(key, val) when val == false do
-    encode_token_header(key, tag_false())
+    encode_token_header(key, @tag_false)
   end
 
   defp serialize(key, val) when is_float(val) do
     # Should be exactly 8 bytes, little endian "native double"
-    encode_token_header(key, tag_double()) <> <<val::little-float>>
+    encode_token_header(key, @tag_double) <> <<val::little-float>>
   end
 
   # Serialize a sequence of {key, val} tuples.
-  defp serialize(message) do
+  defp serialize_data(message) do
     case message do
-      [{key, val} | rest] -> serialize(key, val) <> serialize(rest)
+      [{key, val} | rest] -> serialize(key, val) <> serialize_data(rest)
       [] -> <<>>
     end
+  end
+
+  # Serialize a header into tuples (including the data)
+  defp msg_to_tuples(%RawMsg{service: svc, message: msg, ping: ping, pong: pong, data: data}) do
+    # End of header
+    result = [{@header_end, true} | data]
+
+    # Ping/pong?
+    result = if pong, do: [{@header_pong, true} | result], else: result
+    result = if ping, do: [{@header_ping, true} | result], else: result
+
+    # Message id?
+    result = if msg != nil, do: [{@header_messageId, msg} | result], else: result
+
+    # Service id?
+    result = if svc != nil, do: [{@header_serviceId, svc} | result], else: result
+    result
+  end
+
+  # Serialize an entire RawMsg
+  defp serialize(rawMsg) do
+    serialize_data(msg_to_tuples(rawMsg))
   end
 
   defp encode_token_header(key, type) do
@@ -141,6 +213,37 @@ defmodule Payments.Connection do
     end
   end
 
+  # Parse only the data part of the header. Returns { header, remaining data }
+  defp parse_header(data) do
+    parse_header(data, %RawMsg{})
+  end
+
+  defp parse_header(data, header) do
+    case decode_tuple(data) do
+      {remaining, {@header_end, _}} ->
+        # Done!
+        {header, remaining}
+
+      {remaining, {@header_serviceId, svc}} ->
+        parse_header(remaining, %{header | service: svc})
+
+      {remaining, {@header_messageId, msg}} ->
+        parse_header(remaining, %{header | message: msg})
+
+      {remaining, {@header_sequenceStart, s}} ->
+        parse_header(remaining, %{header | seqStart: s})
+
+      {remaining, {@header_lastInSequence, l}} ->
+        parse_header(remaining, %{header | last: l})
+
+      {remaining, {@header_ping, p}} ->
+        parse_header(remaining, %{header | ping: p})
+
+      {remaining, {@header_pong, p}} ->
+        parse_header(remaining, %{header | pong: p})
+    end
+  end
+
   defp deserialize(data) do
     if byte_size(data) > 0 do
       {rem, tuple} = decode_tuple(data)
@@ -155,31 +258,31 @@ defmodule Payments.Connection do
     {data, key, tag} = decode_token_header(data)
 
     cond do
-      tag == tag_positive() ->
+      tag == @tag_positive ->
         {rem, val} = decode_int(data)
         {rem, {key, val}}
 
-      tag == tag_negative() ->
+      tag == @tag_negative ->
         {rem, val} = decode_int(data)
         {rem, {key, -val}}
 
-      tag == tag_string() ->
+      tag == @tag_string ->
         {rem, len} = decode_int(data)
         <<str::binary-size(len), rest::binary>> = rem
         {rest, {key, str}}
 
-      tag == tag_byte_array() ->
+      tag == @tag_byte_array ->
         {rem, len} = decode_int(data)
         <<str::binary-size(len), rest::binary>> = rem
-        {rest, {key,  %Binary{data: str}}}
+        {rest, {key, %Binary{data: str}}}
 
-      tag == tag_true() ->
+      tag == @tag_true ->
         {data, {key, true}}
 
-      tag == tag_false() ->
+      tag == @tag_false ->
         {data, {key, false}}
 
-      tag == tag_double() ->
+      tag == @tag_double ->
         <<v::little-float, rest::binary>> = data
         {rest, {key, v}}
 
