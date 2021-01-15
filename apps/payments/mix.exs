@@ -41,7 +41,8 @@ defmodule Payments.MixProject do
       {:postgrex, ">= 0.0.0"},
       {:jason, "~> 1.0"},
       {:httpoison, "~> 1.7"},
-      {:poison, "~> 3.1"}
+      {:poison, "~> 3.1"},
+      {:eqrcode, "~> 0.1.7"}
     ]
   end
 

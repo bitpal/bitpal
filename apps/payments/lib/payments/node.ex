@@ -114,7 +114,7 @@ defmodule Payments.Node do
     state = Map.put(state, :listenPid, pid)
 
     # Monitor it for crashes.
-    monitor = Process.monitor(pid)
+    _monitor = Process.monitor(pid)
 
     # Start subscribing to new block messages
     Protocol.send_block_subscribe(c)
