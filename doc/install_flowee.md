@@ -1,6 +1,8 @@
 Installing Flowee
 =================
 
+## Arch Linux
+
 These are installation instructions for Arch Linux.
 
 Download the PKGBUILD: https://aur.archlinux.org/packages/flowee/
@@ -16,3 +18,13 @@ Download the PKGBUILD: https://aur.archlinux.org/packages/flowee/
 - If you create it, make sure the user "flowee" can write to it.
 - sudo systemctl enable thehub.service
 - sudo systemctl start thehub.service
+
+## Void linux
+
+```
+sudo xbps-install -Su libevent-devel boost-devel
+```
+
+(Maybe something else that I've already installed previously)
+
+
