@@ -4,28 +4,40 @@ defmodule Payments.Address do
 
   # Decode a BCH url. Returns the public key, or :error
   # Note: This is actually easier to decode than the legacy base52 format.
+  # Note: This url seems to be more reliable https://documentation.cash/protocol/blockchain/encoding/cashaddr
+  # than this url: https://www.bitcoincash.org/spec/cashaddr.html
+  # Note: The implementation in Flowee seems to follow the incorrect URL. That results in a non-zero
+  # padding of the base32 encoding.
   # Returns { type, key }
   def decode_cash_url(url) do
     "bitcoincash:" <> <<data::binary>> = url
+    nums = base32_to_nums(data)
 
-    raw = decode_base32(String.downcase(data))
-    type_tag = :binary.at(raw, 0)
-    # Either 0 or 8.
-    type = type_tag &&& 0x07
-    hash_size = div(cash_hash_size(type_tag >>> 3 &&& 0x0F), 8)
-    checksum_size = div(40, 8)
-
-    # Check the checksum. That is done in the 5-bit representation.
-    # five_bit_data = data |> :binary.bin_to_list() |> Enum.map(fn x -> decode_base32_digit(x) end) |> :binary.list_to_bin()
+    # Verify the checksum. Conveniently enough, this is done in the 5-bit representation.
     # bitcoincash_lowbits = <<0x02, 0x09, 0x14, 0x03, 0x0F, 0x09, 0x0E, 0x03, 0x01, 0x13, 0x08, 0x00>>
-    # IO.inspect(compute_poly_mod(bitcoincash_lowbits <> five_bit_data))
-    # The value from poly_mod should be zero. It does not work at the moment.
+    # IO.inspect(compute_poly_mod(bitcoincash_lowbits <> nums))
+    # Note: The checksum should be zero. For some reason it is not.
 
-    <<_, hash::binary-size(hash_size), _checksum::binary-size(checksum_size)>> = raw
+    # The first 8 bits (76543210) indicate:
+    # 7: reserved, always zero
+    # 6543: type of address. Either 0 or 1 (other sources say 0 or 8, but I think they account for zeros below)
+    # 210: size.
 
+    # In base32 encoding (which we have here), they are stored as: 76543 210xx. As such, we can read them as:
+    type = :binary.at(nums, 0) &&& 0xF;
+    size_bits = cash_hash_size(:binary.at(nums, 1) >>> 2)
+    size_5 = div((8 + size_bits) + 4, 5) # rounding up, hence +4. The info-byte is included here, hence +8.
+
+    # Now, we can split it into payload and checksum: The checksum is always fixed in size.
+    <<payload::binary-size(size_5), _checksum::binary-size(8)>> = nums
+
+    # The payload is padded with zero bits to an even number of base32 characters. So we can safely decode it.
+    <<info, hash::bitstring>> = convert_5_to_8(payload)
+
+    # Return an appropriate type.
     case type do
       0 -> {:p2kh, hash}
-      8 -> {:p2sh, hash}
+      1 -> {:p2sh, hash}
     end
   end
 
@@ -100,33 +112,33 @@ defmodule Payments.Address do
     binary |> :binary.bin_to_list() |> Enum.reverse() |> :binary.list_to_bin()
   end
 
-  # Decode a base32 number into a binary
-  def decode_base32(str) do
-    numbers = str |> :binary.bin_to_list() |> Enum.map(fn x -> decode_base32_digit(x) end)
-    IO.inspect(numbers)
-    b32_to_numbers(numbers, 0, 0)
+  # Convert a base32 string into 5-bit numbers
+  defp base32_to_nums(str) do
+    str |> :binary.bin_to_list() |> Enum.map(fn x -> decode_base32_digit(x) end) |> :binary.list_to_bin()
   end
 
-  defp b32_to_numbers(numbers, bits_from_prev, val_from_prev) do
+  # Convert a sequence of 5-bit numbers into 8-bit numbers.
+  def convert_5_to_8(str) do
+    convert_5_to_8_i(str, 0, 0)
+  end
+
+  defp convert_5_to_8_i(numbers, bits_from_prev, val_from_prev) do
     case numbers do
-      [first | rest] ->
+      <<first,  rest::bitstring>> ->
         bits = bits_from_prev + 5
         val = (val_from_prev <<< 5) + first
 
         if bits > 8 do
           here = val >>> (bits - 8)
-          <<here>> <> b32_to_numbers(rest, bits - 8, val &&& (1 <<< (bits - 8)) - 1)
+          <<here>> <> convert_5_to_8_i(rest, bits - 8, val &&& (1 <<< (bits - 8)) - 1)
         else
-          b32_to_numbers(rest, bits, val)
+          convert_5_to_8_i(rest, bits, val)
         end
 
-      [] ->
+      <<>> ->
         # Check so that the padding is zero.
         if val_from_prev != 0 do
-          # Note: It seems like this happens in the wild. We still get a valid address from it...
-          # raise("Invalid base32 data! Padding must be zero: " <> inspect(val_from_prev))
-          IO.puts("Note: non-zero padding: " <> inspect(val_from_prev))
-          nil
+          raise("Invalid base32 data! Padding must be zero: " <> inspect(val_from_prev))
         end
 
         <<>>
@@ -181,7 +193,7 @@ defmodule Payments.Address do
   defp compute_poly_mod1(bitstring, c) do
     case bitstring do
       <<first, rest::bitstring>> ->
-        c0 = c >>> 35 && 0xFF
+        c0 = (c >>> 35) && 0xFF
         c = ((c &&& 0x07FFFFFFFF) <<< 5) ^^^ first
 
         c = if (c0 &&& 0x01) != 0, do: c ^^^ 0x98F2BC8E61, else: c
