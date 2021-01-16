@@ -37,16 +37,12 @@ defmodule Payments.Watcher do
 
     Payments.Node.register(state.request, self())
 
-    {:noreply, %{state | state: :wait_for_tx}}
+    change_state(state, :wait_for_tx)
   end
 
   @impl true
   def handle_info(:tx_seen, state) do
     Logger.info("watcher: tx seen!")
-
-    # FIXME Superflous?
-    # We'll get a state changed event regardless
-    # send(state.listener, :tx_seen)
 
     if state.request.required_confirmations == 0 do
       change_state(state, :wait_for_verification)
@@ -100,7 +96,7 @@ defmodule Payments.Watcher do
   end
 
   defp change_state(state, new_state) do
-    if state.state != new_state do
+    if Map.get(state, :state) != new_state do
       send(state.listener, {:state_changed, new_state})
       {:noreply, %{state | state: new_state}}
     else

@@ -1,6 +1,8 @@
 defmodule Payments.Request do
   defstruct address: nil,
             amount: nil,
+            exchange_rate: nil,
+            fiat_amount: nil,
             email: "",
             required_confirmations: 0,
             label: "",

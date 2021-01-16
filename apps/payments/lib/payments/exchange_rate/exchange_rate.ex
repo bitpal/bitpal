@@ -15,6 +15,10 @@ defmodule Payments.ExchangeRate do
     GenServer.cast(__MODULE__, {:compute, pair})
   end
 
+  def require(pair = {:bch, :usd}) do
+    GenServer.call(__MODULE__, {:compute, pair})
+  end
+
   def subscribe, do: PubSub.subscribe(@pubsub, topic())
 
   def unsubscribe, do: PubSub.unsubscribe(@pubsub, topic())
@@ -38,11 +42,29 @@ defmodule Payments.ExchangeRate do
 
   @impl true
   def handle_cast({:compute, pair}, %{rate: last_rate}) do
-    rate = compute(pair, last_rate)
-
-    if rate, do: broadcast(pair, rate)
+    rate = get_rate(pair, last_rate)
 
     {:noreply, %{rate: rate}}
+  end
+
+  @impl true
+  def handle_call({:compute, pair}, _, %{rate: last_rate}) do
+    rate = get_rate(pair, last_rate)
+
+    {:reply, rate, %{rate: rate}}
+  end
+
+  defp get_rate(pair, last_rate) do
+    case compute(pair, last_rate) do
+      nil ->
+        nil
+
+      rate ->
+        # Internally we store them as floats, but we expose them as Decimal to the outside world
+        rate = Decimal.from_float(rate)
+        broadcast(pair, rate)
+        rate
+    end
   end
 
   defp compute(pair, last_rate) do
