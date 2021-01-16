@@ -16,9 +16,10 @@ defmodule Payments.Node do
     GenServer.cast(__MODULE__, {:register, request, watcher})
   end
 
-  # Note: pubkey is encoded as a "hashed output script". See "Payments.Address.createHashedOutputScript" for that.
+  # Note: pubkey is a 20 byte P2PKHAddress (ripe160 hash?)
+  # Use "Address.decode_cash_url" to decode a bitcoincash:...
   def watch_wallet(pubkey) do
-    GenServer.cast(__MODULE__, {:watch, pubkey})
+    GenServer.cast(__MODULE__, {:watch, Payments.Address.create_hashed_output_script(pubkey)})
   end
 
   # Sever API
@@ -26,11 +27,10 @@ defmodule Payments.Node do
   @impl true
   def init(state) do
     Logger.info("Starting Payments.Node")
-    {:ok, state}
 
-    # state = start_flowee(state)
-    #
-    # {:ok, state}
+    state = start_flowee(state)
+
+    {:ok, state}
   end
 
   @impl true
@@ -74,6 +74,10 @@ defmodule Payments.Node do
       %Message{type: :subscribeReply} ->
         # We could read the number of new subscriptions if we want to.
         nil
+
+      %Message{type: :onTransaction, data: data} ->
+        # We got notified of a transaction!
+        on_transaction(data)
 
       %Message{type: :pong} ->
         # Just ignore it
@@ -143,6 +147,19 @@ defmodule Payments.Node do
     else
       # Something else happened.
       {:noreply, state}
+    end
+  end
+
+  # Called when we received a new transaction.
+  # Note: We get the "transaction visible" immediately when we subscribe, as long as it is not accepted into a block.
+  defp on_transaction(data) do
+    # Note: There is more data here that we can track.
+    case data do
+      %{address: _addr, height: _height, amount: amount} ->
+        IO.puts("Transaction accepted into the blockchain: " <> inspect(amount))
+
+      %{address: _addr, amount: amount} ->
+        IO.puts("Transaction visible: " <> inspect(amount))
     end
   end
 
