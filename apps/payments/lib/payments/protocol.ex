@@ -232,7 +232,7 @@ defmodule Payments.Protocol do
         # Sent when an address we monitor is involved in a transaction. Offset is only present when
         # the transaction is accepted in a block.
         make_msg_opt(
-          :transaction,
+          :onTransaction,
           [transactionId: 4, address: 9, amount: 6, height: 7, offset: 8],
           body
         )
@@ -240,7 +240,7 @@ defmodule Payments.Protocol do
       {@service_addressmonitor, 4} ->
         # Sent when a double-spend is found.
         make_msg_opt(
-          :doubleSpend,
+          :onDoubleSpend,
           [transactionId: 4, address: 9, amount: 6, transaction: 1],
           body
         )

@@ -8,7 +8,7 @@ defmodule Payments.Application do
   def start(_type, _args) do
     children = [
       # Start the Ecto repository
-      # Payments.Repo,
+      Payments.Repo,
       # Start the PubSub system
       {Phoenix.PubSub, name: Payments.PubSub},
       # Start a worker by calling: Payments.Worker.start_link(arg)
