@@ -24,9 +24,10 @@ defmodule Payments.Address do
     # 210: size.
 
     # In base32 encoding (which we have here), they are stored as: 76543 210xx. As such, we can read them as:
-    type = :binary.at(nums, 0) &&& 0xF;
+    type = :binary.at(nums, 0) &&& 0xF
     size_bits = cash_hash_size(:binary.at(nums, 1) >>> 2)
-    size_5 = div((8 + size_bits) + 4, 5) # rounding up, hence +4. The info-byte is included here, hence +8.
+    # rounding up, hence +4. The info-byte is included here, hence +8.
+    size_5 = div(8 + size_bits + 4, 5)
 
     # Now, we can split it into payload and checksum: The checksum is always fixed in size.
     <<payload::binary-size(size_5), _checksum::binary-size(8)>> = nums
@@ -114,7 +115,10 @@ defmodule Payments.Address do
 
   # Convert a base32 string into 5-bit numbers
   defp base32_to_nums(str) do
-    str |> :binary.bin_to_list() |> Enum.map(fn x -> decode_base32_digit(x) end) |> :binary.list_to_bin()
+    str
+    |> :binary.bin_to_list()
+    |> Enum.map(fn x -> decode_base32_digit(x) end)
+    |> :binary.list_to_bin()
   end
 
   # Convert a sequence of 5-bit numbers into 8-bit numbers.
@@ -124,7 +128,7 @@ defmodule Payments.Address do
 
   defp convert_5_to_8_i(numbers, bits_from_prev, val_from_prev) do
     case numbers do
-      <<first,  rest::bitstring>> ->
+      <<first, rest::bitstring>> ->
         bits = bits_from_prev + 5
         val = (val_from_prev <<< 5) + first
 
@@ -193,7 +197,7 @@ defmodule Payments.Address do
   defp compute_poly_mod1(bitstring, c) do
     case bitstring do
       <<first, rest::bitstring>> ->
-        c0 = (c >>> 35) && 0xFF
+        c0 = c >>> 35 && 0xFF
         c = ((c &&& 0x07FFFFFFFF) <<< 5) ^^^ first
 
         c = if (c0 &&& 0x01) != 0, do: c ^^^ 0x98F2BC8E61, else: c
