@@ -6,12 +6,11 @@ defmodule Payments.Request do
             label: "",
             message: ""
 
-  def render_qrcode(request) do
+  def render_qrcode(request, opts \\ []) do
     request
     |> address_with_meta
     |> EQRCode.encode()
-    # FIXME need to be able to input styling options here
-    |> EQRCode.svg(background_color: "#F5F7FA", viewbox: false, width: 300)
+    |> EQRCode.svg(opts)
   end
 
   @doc """
