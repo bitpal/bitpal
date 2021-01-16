@@ -14,9 +14,12 @@ defmodule Payments.Address do
     nums = base32_to_nums(data)
 
     # Verify the checksum. Conveniently enough, this is done in the 5-bit representation.
-    # bitcoincash_lowbits = <<0x02, 0x09, 0x14, 0x03, 0x0F, 0x09, 0x0E, 0x03, 0x01, 0x13, 0x08, 0x00>>
-    # IO.inspect(compute_poly_mod(bitcoincash_lowbits <> nums))
-    # Note: The checksum should be zero. For some reason it is not.
+    bitcoincash_lowbits =
+      <<0x02, 0x09, 0x14, 0x03, 0x0F, 0x09, 0x0E, 0x03, 0x01, 0x13, 0x08, 0x00>>
+
+    if compute_poly_mod(bitcoincash_lowbits <> nums) != 0 do
+      raise("Invalid checksum!")
+    end
 
     # The first 8 bits (76543210) indicate:
     # 7: reserved, always zero
@@ -197,7 +200,7 @@ defmodule Payments.Address do
   defp compute_poly_mod1(bitstring, c) do
     case bitstring do
       <<first, rest::bitstring>> ->
-        c0 = c >>> 35 && 0xFF
+        c0 = c >>> 35 &&& 0xFF
         c = ((c &&& 0x07FFFFFFFF) <<< 5) ^^^ first
 
         c = if (c0 &&& 0x01) != 0, do: c ^^^ 0x98F2BC8E61, else: c
