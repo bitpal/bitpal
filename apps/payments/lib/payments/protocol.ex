@@ -116,10 +116,25 @@ defmodule Payments.Protocol do
     send_msg(c, @service_blocknotification, 2, [])
   end
 
-  # Get a block in the blockchain
-  def send_get_block(c, height: h) do
-    # Note: We probably want to specify what we want...
-    send_msg(c, @service_blockchain, 4, [{7, h}, {43, true}])
+  # Get options for the get operation.
+  defp get_output(output) do
+    case output do
+      [] -> []
+      [:transactionId | rest] -> [{43, true} | get_output(rest)]
+      [:offset | rest] -> [{44, true} | get_output(rest)]
+      [:inputs | rest] -> [{46, true} | get_output(rest)]
+      [:outputs | rest] -> [{49, true} | get_output(rest)]
+      [:outputAddrs | rest] -> [{50, true} | get_output(rest)]
+      [:amounts | rest] -> [{47, true} | get_output(rest)]
+    end
+  end
+
+  # Get a block in the blockchain.
+  def send_get_block(c, {:height, h}, outputs) do
+    send_msg(c, @service_blockchain, 4, [{7, h} | get_output(outputs)])
+  end
+  def send_get_block(c, {:hash, h}, outputs) do
+    send_msg(c, @service_blockchain, 4, [{7, %Binary{data: h}} | get_output(outputs)])
   end
 
   # Convert addresses into a message. Handles either a single address or a list of them.
@@ -136,7 +151,7 @@ defmodule Payments.Protocol do
     end
   end
 
-  # Monitor a particular address. "address" is a "script encoded" address. See the Addres module.
+  # Monitor a particular address. "address" is a "script encoded" address. See the Address module.
   def send_address_subscribe(c, address) do
     conv = convert_addresses(address)
     send_msg(c, @service_addressmonitor, 0, conv)
@@ -153,9 +168,9 @@ defmodule Payments.Protocol do
     send_msg(c, @service_indexer, 0, [])
   end
 
-  # Find a transaction.
+  # Find a transaction. Note: Hashes seem to be reversed compared to what is shown on eg. Blockchain Explorer.
   def send_find_transaction(c, bytes) do
-    send_msg(c, @service_indexer, 2, [{4, bytes}])
+    send_msg(c, @service_indexer, 2, [{4, %Binary{data: bytes}}])
   end
 
   # Structure for received message.
@@ -200,6 +215,10 @@ defmodule Payments.Protocol do
           body
         )
 
+      {@service_blockchain, 5} ->
+        # Answer to "get block". This requires more intricate parsing...
+        %Message{type: :block, data: parse_get_block(body)}
+
       {@service_blocknotification, 4} ->
         # Notified of a block
         make_msg(:newBlock, [blockHash: 5, blockHeight: 7], body)
@@ -239,7 +258,126 @@ defmodule Payments.Protocol do
 
       _ ->
         # Unknown message!
-        raise("Unknown message: " <> Kernel.inspect(msg))
+        raise("Unknown message: " <> Kernel.inspect({service, message}) <> " " <> Kernel.inspect(msg.data))
+    end
+  end
+
+  # Parse the data inside a block info message.
+  defp parse_get_block(body) do
+    data = parse_get_block(body, %{transactions: []})
+    Map.put(data, :transactions, Enum.reverse(data[:transactions]))
+  end
+
+  defp parse_get_block(body, data) do
+    case body do
+      [] ->
+        # Done!
+        data
+
+      [{7, height} | rest] ->
+        parse_get_block(rest, Map.put(data, :height, height))
+
+      [{5, %Binary{data: hash}} | rest] ->
+        parse_get_block(rest, Map.put(data, :hash, hash))
+
+      [{1, %Binary{data: raw}} | rest] ->
+        parse_get_block(rest, Map.put(data, :raw, raw))
+
+      [{8, _} | _] ->
+        # Note: Transactions will be in reverse order compared to what we get from flowee. We reverse the list later.
+        {rest, new_transaction} = parse_get_transaction(body, %{})
+        transactions = [new_transaction | data[:transactions]]
+        parse_get_block(rest, Map.put(data, :transactions, transactions))
+    end
+  end
+
+  # Parse a single transaction inside a get_block request. They are terminated by a SEPARATOR tag (id 0)
+  # Returns { remaining, transaction }
+  defp parse_get_transaction(body, data) do
+    case body do
+      [] ->
+        # In case the last separator is missing.
+        { [], fix_transaction(data) }
+
+      [{0, _} | rest] ->
+        # Separator, we're done.
+        { rest, fix_transaction(data) }
+
+      [{8, offset} | rest] ->
+        parse_get_transaction(rest, Map.put(data, :offset, offset))
+
+      [{4, %Binary{data: id}} | rest] ->
+        parse_get_transaction(rest, Map.put(data, :transactionId, id))
+
+      [{20, %Binary{data: txid}} | rest] ->
+        {r, input} = parse_input(rest, %{transactionId: txid})
+        inputs = [input | Map.get(data, :inputs, [])]
+        parse_get_transaction(r, Map.put(data, :inputs, inputs))
+
+      [{22, _} | _] ->
+        # Sometimes there is a lone InputScript (for the first one, usually?)
+        {r, input} = parse_input(body, %{})
+        inputs = [input | Map.get(data, :inputs, [])]
+        parse_get_transaction(r, Map.put(data, :inputs, inputs))
+
+      [{24, id} | rest] ->
+        {r, output} = parse_output(rest, %{id: id})
+        outputs = [output | Map.get(data, :outputs, [])]
+        parse_get_transaction(r, Map.put(data, :outputs, outputs))
+
+    end
+  end
+
+  # Fixup the transaction when we're done with it (i.e. reverse the lists in it)
+  defp fix_transaction(t) do
+    t = case t do
+          %{inputs: i} -> Map.put(t, :inputs, Enum.reverse(i))
+          _ -> t
+        end
+
+    t = case t do
+          %{outputs: o} -> Map.put(t, :outputs, Enum.reverse(o))
+          _ -> t
+        end
+
+    t
+  end
+
+  defp parse_input(body, data) do
+    case body do
+      [] ->
+        { [], data }
+
+      [{21, id} | rest] ->
+        parse_input(rest, Map.put(data, :transactionIndex, id))
+
+      [{22, %Binary{data: script}} | rest] ->
+        parse_input(rest, Map.put(data, :script, script))
+
+      [{id, _} | rest] ->
+        { body, data }
+    end
+  end
+
+  defp parse_output(body, data) do
+    case body do
+      [] ->
+        { [], data }
+
+      [{2, %Binary{data: address}} | rest] ->
+        # Note: This is not in the documentation.........
+        # It is a "ripe160 based P2PKH address"
+        parse_output(rest, Map.put(data, :address, address))
+
+      [{6, amount} | rest] ->
+        parse_output(rest, Map.put(data, :amount, amount))
+
+      [{23, %Binary{data: script}} | rest] ->
+        parse_output(rest, Map.put(data, :script, script))
+
+      [{_, _} | rest] ->
+        # Some other element we don't recognize. Go back to the caller.
+        { body, data }
     end
   end
 end
