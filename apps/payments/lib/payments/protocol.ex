@@ -1,14 +1,7 @@
 defmodule Payments.Protocol do
   use Bitwise
-
-  # Tags used in the header
-  @header_end 0
-  @header_serviceId 1
-  @header_messageId 2
-  @header_sequenceStart 3
-  @header_lastInSequence 4
-  @header_ping 5
-  @header_pong 6
+  alias Payments.Connection.Binary
+  alias Payments.Connection.RawMsg
 
   # Service names
   @service_api 0
@@ -24,13 +17,6 @@ defmodule Payments.Protocol do
   # dummy function to disable warnings...
   def dummy() do
     [
-      @header_end,
-      @header_serviceId,
-      @header_messageId,
-      @header_sequenceStart,
-      @header_lastInSequence,
-      @header_ping,
-      @header_pong,
       @service_api,
       @service_blockchain,
       @service_livetransactions,
@@ -41,18 +27,6 @@ defmodule Payments.Protocol do
       @service_indexer,
       @service_system
     ]
-  end
-
-  # Helper to create a header.
-  defp header(service, message) do
-    [{@header_serviceId, service}, {@header_messageId, message}, {@header_end, true}]
-  end
-
-  # Extract the header information.
-  # Returns { service-id, message-id, message }
-  defp parse_header(message) do
-    [{@header_serviceId, sid}, {@header_messageId, mid}, {@header_end, _} | rest] = message
-    {sid, mid, rest}
   end
 
   # Helper to extract a particular key from a message
@@ -92,13 +66,13 @@ defmodule Payments.Protocol do
     end
   end
 
-
   # Same as get_keys, but ignores missing keys.
   defp get_keys_opt(keys, body) do
     case keys do
       [{name, first} | rest] ->
         val = get_key_opt(first, body)
         k = get_keys_opt(rest, body)
+
         if val != nil do
           Map.put(k, name, val)
         else
@@ -111,43 +85,77 @@ defmodule Payments.Protocol do
   end
 
   # Helper to send
-  defp send_msg(c, msg) do
-    Payments.Connection.send(c, msg)
+  defp send_msg(c, serviceId, messageId, data) do
+    Payments.Connection.send(c, %RawMsg{service: serviceId, message: messageId, data: data})
   end
 
-  # Helper to get a parsed message. Returns {sid, mid, [message...]}
-  defp get_message(c) do
-    parse_header(Payments.Connection.recv(c))
+  # Send a ping to the remote peer. We need to do this about once every minute. Otherwise, we will
+  # be disconnected after 120 s. It seems it does not matter if we send other data, we will still be
+  # disconnected if we don't send ping messages.
+  def send_ping(c) do
+    Payments.Connection.send(c, %RawMsg{service: @service_system, ping: true})
   end
 
   # Send a version request message. Returns a string.
   def send_version(c) do
-    send_msg(c, header(0, 0))
+    send_msg(c, 0, 0, [])
   end
 
   # Ask for blockchain info.
   def send_blockchain_info(c) do
-    send_msg(c, header(@service_blockchain, 0))
+    send_msg(c, @service_blockchain, 0, [])
   end
 
   # Subscribe to get notified of blocks.
   def send_block_subscribe(c) do
-    send_msg(c, header(@service_blocknotification, 0))
+    send_msg(c, @service_blocknotification, 0, [])
   end
 
   # Unsubscribe to get notified of blocks.
   def send_block_unsubscribe(c) do
-    send_msg(c, header(@service_blocknotification, 2))
+    send_msg(c, @service_blocknotification, 2, [])
+  end
+
+  # Get a block in the blockchain
+  def send_get_block(c, height: h) do
+    # Note: We probably want to specify what we want...
+    send_msg(c, @service_blockchain, 4, [{7, h}, {43, true}])
+  end
+
+  # Convert addresses into a message. Handles either a single address or a list of them.
+  defp convert_addresses(address) do
+    case address do
+      [addr | rest] ->
+        [{9, %Binary{data: addr}} | convert_addresses(rest)]
+
+      [] ->
+        []
+
+      a ->
+        [{9, %Binary{data: a}}]
+    end
+  end
+
+  # Monitor a particular address. "address" is a "script encoded" address. See the Addres module.
+  def send_address_subscribe(c, address) do
+    conv = convert_addresses(address)
+    send_msg(c, @service_addressmonitor, 0, conv)
+  end
+
+  # Stop subscribing to an address.
+  def send_address_unsubscribe(c, address) do
+    conv = convert_addresses(address)
+    send_msg(c, @service_addressmonitor, 2, conv)
   end
 
   # List available indexers.
   def send_find_avail_indexers(c) do
-    send_msg(c, header(@service_indexer, 0))
+    send_msg(c, @service_indexer, 0, [])
   end
 
   # Find a transaction.
   def send_find_transaction(c, bytes) do
-    send_msg(c, header(@service_indexer, 2) ++ [{4, bytes}])
+    send_msg(c, @service_indexer, 2, [{4, bytes}])
   end
 
   # Structure for received message.
@@ -167,14 +175,15 @@ defmodule Payments.Protocol do
 
   # Receive some message (blocking)
   def recv(c) do
-    msg = get_message(c)
+    msg = Payments.Connection.recv(c)
+    %RawMsg{service: service, message: message, data: body} = msg
 
-    case msg do
-      {@service_api, 1, body} ->
+    case {service, message} do
+      {@service_api, 1} ->
         # Version message
         make_msg(:version, [version: 1], body)
 
-      {@service_blockchain, 1, body} ->
+      {@service_blockchain, 1} ->
         # Reply from "blockchain info"
         make_msg(
           :version,
@@ -191,18 +200,46 @@ defmodule Payments.Protocol do
           body
         )
 
-      {@service_blocknotification, 4, body} ->
+      {@service_blocknotification, 4} ->
         # Notified of a block
         make_msg(:newBlock, [blockHash: 5, blockHeight: 7], body)
 
-      {@service_indexer, 1, body} ->
+      {@service_addressmonitor, 1} ->
+        # Reply for subscriptions. Note: The documentation is incorrect with the IDs here.
+        make_msg_opt(:subscribeReply, [result: 21, error: 20], body)
+
+      {@service_addressmonitor, 3} ->
+        # Sent when an address we monitor is involved in a transaction. Offset is only present when
+        # the transaction is accepted in a block.
+        make_msg_opt(
+          :transaction,
+          [transactionId: 4, address: 9, amount: 6, height: 7, offset: 8],
+          body
+        )
+
+      {@service_addressmonitor, 4} ->
+        # Sent when a double-spend is found.
+        make_msg_opt(
+          :doubleSpend,
+          [transactionId: 4, address: 9, amount: 6, transaction: 1],
+          body
+        )
+
+      {@service_indexer, 1} ->
         # Indexer reply to what it is indexing.
         make_msg_opt(:availableIndexers, [address: 21, transaction: 22, spentOutput: 23], body)
 
-      {@service_indexer, 3, body} ->
+      {@service_indexer, 3} ->
         # Indexer reply to "find transaction"
         make_msg(:transaction, [height: 7, offsetInBlock: 8], body)
-        
+
+      {@service_system, nil} ->
+        # Probably a ping response. We don't need to be very fancy.
+        %Message{type: :pong}
+
+      _ ->
+        # Unknown message!
+        raise("Unknown message: " <> Kernel.inspect(msg))
     end
   end
 end

@@ -16,6 +16,11 @@ defmodule Payments.Node do
     GenServer.cast(__MODULE__, {:register, request, watcher})
   end
 
+  # Note: pubkey is encoded as a "hashed output script". See "Payments.Address.createHashedOutputScript" for that.
+  def watch_wallet(pubkey) do
+    GenServer.cast(__MODULE__, {:watch, pubkey})
+  end
+
   # Sever API
 
   @impl true
@@ -41,6 +46,22 @@ defmodule Payments.Node do
   end
 
   @impl true
+  def handle_cast({:watch, wallet}, state) do
+    state = Map.put(state, :watching_wallets, [wallet | Map.get(state, :watching_wallets, [])])
+
+    # If the hub is up and running, tell it that we are interested in another wallet.
+    case state do
+      %{hub_connection: c} ->
+        Protocol.send_address_subscribe(c, wallet)
+
+      _ ->
+        nil
+    end
+
+    {:noreply, state}
+  end
+
+  @impl true
   def handle_cast({:message, msg}, state) do
     # We got a message from Flowee, inspect it and act upon it!
     case msg do
@@ -50,8 +71,16 @@ defmodule Payments.Node do
       %Message{type: :version, data: %{version: ver}} ->
         IO.puts("Running version: " <> ver)
 
+      %Message{type: :subscribeReply} ->
+        # We could read the number of new subscriptions if we want to.
+        nil
+
+      %Message{type: :pong} ->
+        # Just ignore it
+        nil
+
       _ ->
-        IO.puts("Unknown message!")
+        IO.puts("Unknown message: " <> Kernel.inspect(msg))
     end
 
     {:noreply, state}
@@ -85,15 +114,32 @@ defmodule Payments.Node do
     {:noreply, state}
   end
 
+  # END simulations for tests
+
+  # Send PING messages to Flowee periodically (approx once a minute). Otherwise it will deconnect from us!
+  @impl true
+  def handle_info({:send_ping}, state) do
+    case state do
+      %{hub_connection: conn} ->
+        # IO.puts("Sending ping")
+        Protocol.send_ping(conn)
+        :timer.send_after(:timer.minutes(1), self(), {:send_ping})
+
+      _ ->
+        # Connection not open. Nothing to do.
+        nil
+    end
+
+    {:noreply, state}
+  end
+
+  # Handle restarts of the Flowee process.
   @impl true
   def handle_info({:DOWN, _monitor, :process, pid, _reason}, state) do
-    IO.inspect(pid)
-    IO.inspect(state[:listenPid])
-
-    if pid == state[:listenPid] do
+    if pid == state[:hub_pid] do
       # The Flowee process died. Close our connection and restart it!
-      Connection.close(state[:connection])
-      {:noreply, start_flowee(state)}
+      Connection.close(state[:hub_connection])
+      {:noreply, start_hub(state)}
     else
       # Something else happened.
       {:noreply, state}
@@ -102,24 +148,42 @@ defmodule Payments.Node do
 
   # (re)start our connection to Flowee
   def start_flowee(state) do
-    # Connect to Flowee, and start listening for messages from it.
+    # Connect to Flowee: The Hub, and start listening for messages from it.
+    state = start_hub(state)
+
+    # TODO: We probably need a connection to the indexer as well. That might be nicer to work with
+    # in a blocking fashion though. We can't subscribe to changes from that.
+
+    state
+  end
+
+  # Connection to The Hub.
+  defp start_hub(state) do
     c = Connection.connect()
-    state = Map.put(state, :connection, c)
+    state = Map.put(state, :hub_connection, c)
 
     # Start receiving messages for it.
     # Sorry I'm not using the "standard" monitoring... This solution has the benefit of being able
     # to restore subscriptions from "state" as needed.
     pid = spawn(fn -> receive_messages(c) end)
-    state = Map.put(state, :listenPid, pid)
+    state = Map.put(state, :hub_pid, pid)
 
     # Monitor it for crashes.
-    _monitor = Process.monitor(pid)
+    Process.monitor(pid)
+
+    # Start sending pings
+    :timer.send_after(:timer.minutes(1), self(), {:send_ping})
 
     # Start subscribing to new block messages
     Protocol.send_block_subscribe(c)
 
-    # Send a version message, just to test.
-    Protocol.send_version(c)
+    # Subscribe to any wallets we were asked to.
+    wallets = Map.get(state, :watching_wallets, [])
+
+    if wallets != [] do
+      # Note: This function handles a list of items!
+      Protocol.send_address_subscribe(c, wallets)
+    end
 
     state
   end
