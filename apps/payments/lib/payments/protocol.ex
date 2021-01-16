@@ -133,6 +133,7 @@ defmodule Payments.Protocol do
   def send_get_block(c, {:height, h}, outputs) do
     send_msg(c, @service_blockchain, 4, [{7, h} | get_output(outputs)])
   end
+
   def send_get_block(c, {:hash, h}, outputs) do
     send_msg(c, @service_blockchain, 4, [{7, %Binary{data: h}} | get_output(outputs)])
   end
@@ -258,7 +259,10 @@ defmodule Payments.Protocol do
 
       _ ->
         # Unknown message!
-        raise("Unknown message: " <> Kernel.inspect({service, message}) <> " " <> Kernel.inspect(msg.data))
+        raise(
+          "Unknown message: " <>
+            Kernel.inspect({service, message}) <> " " <> Kernel.inspect(msg.data)
+        )
     end
   end
 
@@ -297,11 +301,11 @@ defmodule Payments.Protocol do
     case body do
       [] ->
         # In case the last separator is missing.
-        { [], fix_transaction(data) }
+        {[], fix_transaction(data)}
 
       [{0, _} | rest] ->
         # Separator, we're done.
-        { rest, fix_transaction(data) }
+        {rest, fix_transaction(data)}
 
       [{8, offset} | rest] ->
         parse_get_transaction(rest, Map.put(data, :offset, offset))
@@ -324,21 +328,22 @@ defmodule Payments.Protocol do
         {r, output} = parse_output(rest, %{id: id})
         outputs = [output | Map.get(data, :outputs, [])]
         parse_get_transaction(r, Map.put(data, :outputs, outputs))
-
     end
   end
 
   # Fixup the transaction when we're done with it (i.e. reverse the lists in it)
   defp fix_transaction(t) do
-    t = case t do
-          %{inputs: i} -> Map.put(t, :inputs, Enum.reverse(i))
-          _ -> t
-        end
+    t =
+      case t do
+        %{inputs: i} -> Map.put(t, :inputs, Enum.reverse(i))
+        _ -> t
+      end
 
-    t = case t do
-          %{outputs: o} -> Map.put(t, :outputs, Enum.reverse(o))
-          _ -> t
-        end
+    t =
+      case t do
+        %{outputs: o} -> Map.put(t, :outputs, Enum.reverse(o))
+        _ -> t
+      end
 
     t
   end
@@ -346,7 +351,7 @@ defmodule Payments.Protocol do
   defp parse_input(body, data) do
     case body do
       [] ->
-        { [], data }
+        {[], data}
 
       [{21, id} | rest] ->
         parse_input(rest, Map.put(data, :transactionIndex, id))
@@ -354,15 +359,15 @@ defmodule Payments.Protocol do
       [{22, %Binary{data: script}} | rest] ->
         parse_input(rest, Map.put(data, :script, script))
 
-      [{id, _} | rest] ->
-        { body, data }
+      [{_, _} | _] ->
+        {body, data}
     end
   end
 
   defp parse_output(body, data) do
     case body do
       [] ->
-        { [], data }
+        {[], data}
 
       [{2, %Binary{data: address}} | rest] ->
         # Note: This is not in the documentation.........
@@ -375,9 +380,9 @@ defmodule Payments.Protocol do
       [{23, %Binary{data: script}} | rest] ->
         parse_output(rest, Map.put(data, :script, script))
 
-      [{_, _} | rest] ->
+      [{_, _} | _] ->
         # Some other element we don't recognize. Go back to the caller.
-        { body, data }
+        {body, data}
     end
   end
 end

@@ -1,6 +1,5 @@
 defmodule Payments.Address do
   # Address management. Allows converting between different BCH address types.
-  alias Payments.Connection.Binary
 
   # Decode a BCH url. Returns the public key, or :error
   def decode_cash_url(url) do
@@ -43,7 +42,6 @@ defmodule Payments.Address do
   end
 
   defp reverse_binary(binary) do
-    binary |> :binary.bin_to_list |> Enum.reverse |> :binary.list_to_bin
+    binary |> :binary.bin_to_list() |> Enum.reverse() |> :binary.list_to_bin()
   end
-
 end

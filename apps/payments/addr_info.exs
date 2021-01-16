@@ -2,7 +2,9 @@ alias Payments.Connection
 alias Payments.Protocol
 alias Payments.Address
 
-transId = Address.hex_to_binary("89cce90204447b218b996975868a29d8a5460de1346dbd07cbc16a3a7dc500eb")
+transId =
+  Address.hex_to_binary("89cce90204447b218b996975868a29d8a5460de1346dbd07cbc16a3a7dc500eb")
+
 IO.inspect(transId)
 
 # c = Connection.connect(1234)
@@ -14,7 +16,15 @@ IO.inspect(transId)
 
 # Note: This does not work since we get a too large message back.
 c = Connection.connect()
-Protocol.send_get_block(c, {:height, 670468}, [:transactionId, :inputs, :outputs, :amounts, :outputAddrs])
+
+Protocol.send_get_block(c, {:height, 670_468}, [
+  :transactionId,
+  :inputs,
+  :outputs,
+  :amounts,
+  :outputAddrs
+])
+
 transactions = Protocol.recv(c).data[:transactions]
 t = Enum.find(transactions, fn x -> x[:transactionId] === transId end)
 IO.puts(Address.binary_to_hex(t.transactionId))
