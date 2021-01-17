@@ -144,6 +144,19 @@ config :bitpal_web, BitpalWeb.Endpoint,
 # Do not print debug messages in production
 config :logger, level: :info
 
+# Configure Swoosh for mailing
+config :demo, Demo.Mailer,
+  adapter: Swoosh.Adapters.SMTP,
+  relay: "smtp.fastmail.com",
+  username: System.get_env("BITPAL_EMAIL_USERNAME"),
+  password: System.get_env("BITPAL_EMAIL_PASSWORD"),
+  ssl: true,
+  tls: :if_available,
+  auth: :always,
+  port: 465,
+  retries: 2,
+  no_mx_lookups: false
+
 # Finally import the config/prod.secret.exs which loads secrets
 # and configuration from environment variables.
 import_config "prod.secret.exs"
