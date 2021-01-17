@@ -10,7 +10,9 @@ use Mix.Config
 # which you should run after static files are built and
 # before starting your production server.
 config :proxy, Proxy.Endpoint,
-  url: [host: "example.com", port: 80],
+  http: [port: 4000],
+  url: [host: "bitpal.org", port: 80],
+  check_origin: ["https://bitpal.dev/"],
   cache_static_manifest: "priv/static/cache_manifest.json"
 
 # ## SSL Support
@@ -57,7 +59,10 @@ config :proxy, Proxy.Endpoint,
 # which you should run after static files are built and
 # before starting your production server.
 config :demo, Demo.Endpoint,
-  url: [host: "example.com", port: 80],
+  http: [port: 4001],
+  #url: [host: "bitpal.dev", port: 80],
+  check_origin: ["https://bitpal.dev/"],
+  server: false,
   cache_static_manifest: "priv/static/cache_manifest.json"
 
 # ## SSL Support
@@ -104,7 +109,10 @@ config :demo, Demo.Endpoint,
 # which you should run after static files are built and
 # before starting your production server.
 config :bitpal_web, BitpalWeb.Endpoint,
-  url: [host: "example.com", port: 80],
+  http: [port: 4002],
+  #url: [host: "bitpal.dev", port: 80],
+  check_origin: ["https://bitpal.dev/"],
+  server: false,
   cache_static_manifest: "priv/static/cache_manifest.json"
 
 # ## SSL Support

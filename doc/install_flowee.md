@@ -23,6 +23,13 @@ For the indexer:
 - sudo systemctl enable indexer.service
 - sudo systemctl start indexer.service
 
+Enable address indexing (so that we can quickly recover transactions for our account):
+- edit /etc/flowee/indexer.conf
+- Under the [addressdb] section, set "db_driver" to "true" and add a database as suitable.
+- I have tried QSQLITE. That one does not require any additional settings. It is stored in /var/lib/flowee/addresses/
+- The SQLite DB will be one or two gigabytes
+
+To speed up indexing and reduce disk space, it might be beneficial to disable "spentdb" and maybe "txdb". We don't use those.
 
 ## Void linux
 
