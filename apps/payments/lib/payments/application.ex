@@ -14,6 +14,7 @@ defmodule Payments.Application do
       # Start a worker by calling: Payments.Worker.start_link(arg)
       # {Payments.Worker, arg}
       Payments.Node,
+      Payments.Transactions,
       Payments.ExchangeRate
     ]
 

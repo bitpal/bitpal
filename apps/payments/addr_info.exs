@@ -1,6 +1,6 @@
-alias Payments.Connection
-alias Payments.Protocol
-alias Payments.Address
+# alias Payments.Connection
+# alias Payments.Protocol
+# alias Payments.Address
 
 # c = Connection.connect(1234)
 # Protocol.send_find_avail_indexers(c)
@@ -29,9 +29,9 @@ alias Payments.Address
 # IO.inspect(t)
 
 # Perhaps the address is this?
-addr = Address.decode_cash_url("bitcoincash:qrx5lc6m2wjkqncfzefn49wr3cfvx7l36yderrc7x3")
-IO.inspect(addr)
-Payments.Node.watch_wallet(addr)
+# addr = Address.decode_cash_url("bitcoincash:qrx5lc6m2wjkqncfzefn49wr3cfvx7l36yderrc7x3")
+# IO.inspect(addr)
+# Payments.Node.watch_wallet(addr)
 
 # Payments.Node.watch_wallet(addr)
 
