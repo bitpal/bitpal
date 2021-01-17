@@ -60,7 +60,7 @@ config :proxy, Proxy.Endpoint,
 # before starting your production server.
 config :demo, Demo.Endpoint,
   http: [port: 4001],
-  #url: [host: "bitpal.dev", port: 80],
+  # url: [host: "bitpal.dev", port: 80],
   check_origin: ["https://bitpal.dev/"],
   server: false,
   cache_static_manifest: "priv/static/cache_manifest.json"
@@ -110,7 +110,7 @@ config :demo, Demo.Endpoint,
 # before starting your production server.
 config :bitpal_web, BitpalWeb.Endpoint,
   http: [port: 4002],
-  #url: [host: "bitpal.dev", port: 80],
+  # url: [host: "bitpal.dev", port: 80],
   check_origin: ["https://bitpal.dev/"],
   server: false,
   cache_static_manifest: "priv/static/cache_manifest.json"
@@ -151,19 +151,6 @@ config :bitpal_web, BitpalWeb.Endpoint,
 
 # Do not print debug messages in production
 config :logger, level: :info
-
-# Configure Swoosh for mailing
-config :demo, Demo.Mailer,
-  adapter: Swoosh.Adapters.SMTP,
-  relay: "smtp.fastmail.com",
-  username: System.get_env("BITPAL_EMAIL_USERNAME"),
-  password: System.get_env("BITPAL_EMAIL_PASSWORD"),
-  ssl: true,
-  tls: :if_available,
-  auth: :always,
-  port: 465,
-  retries: 2,
-  no_mx_lookups: false
 
 # Finally import the config/prod.secret.exs which loads secrets
 # and configuration from environment variables.

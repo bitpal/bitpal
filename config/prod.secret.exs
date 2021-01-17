@@ -78,6 +78,19 @@ config :bitpal_web, BitpalWeb.Endpoint,
   ],
   secret_key_base: secret_key_base
 
+# Configure Swoosh for mailing
+config :demo, Demo.Mailer,
+  adapter: Swoosh.Adapters.SMTP,
+  relay: "smtp.fastmail.com",
+  username: System.get_env("BITPAL_EMAIL_USERNAME"),
+  password: System.get_env("BITPAL_EMAIL_PASSWORD"),
+  ssl: true,
+  tls: :if_available,
+  auth: :always,
+  port: 465,
+  retries: 2,
+  no_mx_lookups: false
+
 # ## Using releases (Elixir v1.9+)
 #
 # If you are doing OTP releases, you need to instruct Phoenix
