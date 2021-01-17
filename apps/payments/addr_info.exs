@@ -39,3 +39,28 @@
 # Protocol.send_address_subscribe(c, addr)
 # IO.inspect(Protocol.recv(c))
 # Connection.close(c)
+
+# Very simple test of the Watcher API
+# addr = "bitcoincash:qrx5lc6m2wjkqncfzefn49wr3cfvx7l36yderrc7x3"
+
+# request = %Payments.Request{
+#   address: addr,
+#   amount: 0.0001,
+#   exchange_rate: 2,
+#   fiat_amount: 3,
+#   required_confirmations: 1
+# }
+
+# watcher = Payments.Watcher.start_link(request)
+
+# defmodule T do
+#   def wait_msg() do
+#     receive do
+#       {:state_changed, state} -> IO.inspect(state)
+#     end
+
+#     wait_msg()
+#   end
+# end
+
+# T.wait_msg()

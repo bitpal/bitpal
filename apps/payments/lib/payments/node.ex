@@ -75,46 +75,20 @@ defmodule Payments.Node do
         # We got notified of a transaction!
         on_transaction(data, state)
 
+      %Message{type: :onDoubleSpend, data: data} ->
+        # We got notified of a double spend...
+        on_double_spend(data, state)
+
       %Message{type: :pong} ->
         # Just ignore it
         nil
 
       _ ->
-        IO.puts("Unknown message: " <> Kernel.inspect(msg))
+        Logger.info("Unknown message from Flowee: " <> Kernel.inspect(msg))
     end
 
     {:noreply, state}
   end
-
-  # FIXME Simulations for tests, callbacks should come from node instead
-
-  @impl true
-  def handle_info({:tx_seen, watcher}, state) do
-    send(watcher, :tx_seen)
-
-    request = Watcher.get_request(watcher)
-
-    if request.required_confirmations == 0 do
-      :timer.send_after(2000, watcher, :verified)
-    else
-      :timer.send_after(1000, self(), {:issue_blocks, request.required_confirmations, watcher})
-    end
-
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_info({:issue_blocks, num, watcher}, state) do
-    send(watcher, :new_block)
-
-    if num > 0 do
-      :timer.send_after(1000, self(), {:issue_blocks, num - 1, watcher})
-    end
-
-    {:noreply, state}
-  end
-
-  # END simulations for tests
 
   # Send PING messages to Flowee periodically (approx once a minute). Otherwise it will deconnect from us!
   @impl true
@@ -151,7 +125,10 @@ defmodule Payments.Node do
     %{blocks: height} = data
     old_height = Transactions.get_height()
 
-    IO.puts("Block height: " <> inspect(height) <> ", old: " <> old_height)
+    Logger.info(
+      "Startup: new block height: " <> inspect(height) <> ", was: " <> inspect(old_height)
+    )
+
     Transactions.set_height(height)
 
     # TODO: Examine some old blocks!
@@ -160,6 +137,7 @@ defmodule Payments.Node do
   # Called when a new block has been mined (regardless of whether or not it contains one of our transactions)
   defp on_new_block(data, _state) do
     %{height: height} = data
+    Logger.info("New block. Height is now: " <> inspect(height))
     Transactions.set_height(height)
   end
 
@@ -171,7 +149,7 @@ defmodule Payments.Node do
 
     # Convert the transaction, it is a hash:
     %{address: hash} = data
-    address = Map.get(hash_to_addr, hash, nil)
+    address = Map.get(hash_to_addr, hash.data, nil)
 
     if address != nil do
       # We know this address! Tell Transactions about our finding!
@@ -185,9 +163,24 @@ defmodule Payments.Node do
     end
   end
 
+  # Called when we received a double spend.
+  defp on_double_spend(data, state) do
+    hash_to_addr = Map.get(state, :watching_hashes, state)
+
+    # Convert the transaction, it is a hash:
+    %{address: hash, amount: amount} = data
+    address = Map.get(hash_to_addr, hash.data, nil)
+
+    if address != nil do
+      # We know this address! Tell Transactions about our finding!
+      Transaction.doublespend(address, amount)
+    end
+  end
+
   # Start watching a wallet. "wallet" is a "bitcoincash:..." address.
   defp watch_wallet(wallet, state) do
     wallets = Map.get(state, :watching_wallets, %{})
+
     if Map.has_key?(wallets, wallet) do
       # Already there. We don't need to add it!
       state
@@ -202,7 +195,7 @@ defmodule Payments.Node do
       # If the connection is up and running, tell it about the new wallet now.
       case state do
         %{hub_connection: c} ->
-          subscribe_addr(c, wallet)
+          subscribe_addr(c, wallet, hash)
 
         _ ->
           nil
@@ -247,8 +240,9 @@ defmodule Payments.Node do
 
     # Subscribe to any wallets we were asked to.
     wallets = Map.get(state, :watching_wallets, %{})
+
     if wallets != %{} do
-      Enum.each(wallets, fn {_k, v} -> subscribe_addr(c, v) end)
+      Enum.each(wallets, fn {k, v} -> subscribe_addr(c, k, v) end)
     end
 
     # Query the current status of the blockchain. This is so that we can update the current height
@@ -266,8 +260,8 @@ defmodule Payments.Node do
   end
 
   # Helper to subscribe to an address. Accepts the output from "convert_addr".
-  defp subscribe_addr(connection, hash) do
-    IO.puts("Subscribed to " <> inspect(hash))
+  defp subscribe_addr(connection, addr, hash) do
+    Logger.info("Subscribed to new wallet: " <> inspect(addr))
     Protocol.send_address_subscribe(connection, hash)
   end
 

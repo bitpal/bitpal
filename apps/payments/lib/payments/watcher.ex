@@ -2,6 +2,9 @@ defmodule Payments.Watcher do
   use GenServer
   require Logger
 
+  # How long to wait for double spending... (ms)
+  @double_spend_timeout 2000
+
   # Client API
 
   def start_link(request) do
@@ -51,12 +54,19 @@ defmodule Payments.Watcher do
   end
 
   @impl true
+  def handle_info({:doublespend_seen}, state) do
+    send(state.listener, {:state_changed, :denied})
+    {:stop, :normal, state}
+  end
+
+  @impl true
   def handle_info({:new_block, confirmations}, state) do
     Logger.info("watcher: block seen!")
 
     # FIXME need to see if the tx is inside the blockchain before we do below
+    # Don't worry, handled by Transactions.
 
-    state = Map.put(state, :confirmations, confirmations )
+    state = Map.put(state, :confirmations, confirmations)
 
     send(state.listener, {:confirmation, state.confirmations})
 
@@ -68,7 +78,7 @@ defmodule Payments.Watcher do
   end
 
   @impl true
-  def handle_info(:verified, state = %{state: :wait_for_verification}) do
+  def handle_info({:verified}, state = %{state: :wait_for_verification}) do
     Logger.info("watcher: verified")
 
     if state.request.required_confirmations == 0 do
@@ -98,6 +108,13 @@ defmodule Payments.Watcher do
   defp change_state(state, new_state) do
     if Map.get(state, :state) != new_state do
       send(state.listener, {:state_changed, new_state})
+
+      # If now in "wait for verification", we wait a while more in case the transaction is double-spent.
+      if new_state == :wait_for_verification do
+        # Start the timer now.
+        :timer.send_after(@double_spend_timeout, self(), {:verified})
+      end
+
       {:noreply, %{state | state: new_state}}
     else
       {:noreply, state}
