@@ -31,8 +31,7 @@ defmodule Payments.Watcher do
   def handle_info(:init, state = %{state: :init}) do
     Logger.info("watcher: real init #{inspect(state.request)}")
 
-    # FIXME load/store this in db for persistance
-    # FIXME get a blockchain connection
+    # FIXME load/store this in db for persistance - handled by Node at the moment.
     # FIXME timeout payment request after 24h?
 
     Payments.Node.register(state.request, self())
@@ -41,7 +40,7 @@ defmodule Payments.Watcher do
   end
 
   @impl true
-  def handle_info(:tx_seen, state) do
+  def handle_info({:tx_seen}, state) do
     Logger.info("watcher: tx seen!")
 
     if state.request.required_confirmations == 0 do
@@ -52,12 +51,12 @@ defmodule Payments.Watcher do
   end
 
   @impl true
-  def handle_info(:new_block, state) do
+  def handle_info({:new_block, confirmations}, state) do
     Logger.info("watcher: block seen!")
 
     # FIXME need to see if the tx is inside the blockchain before we do below
 
-    state = Map.update(state, :confirmations, 1, &(&1 + 1))
+    state = Map.put(state, :confirmations, confirmations )
 
     send(state.listener, {:confirmation, state.confirmations})
 

@@ -20,7 +20,8 @@ config :master_proxy,
     },
     %{
       host: ~r/^.*$/,
-      phoenix_endpoint: BitpalWeb.Endpoint
+      #phoenix_endpoint: BitpalWeb.Endpoint
+      phoenix_endpoint: Demo.Endpoint
     }
   ]
 

@@ -4,6 +4,8 @@ defmodule Payments.Node do
   alias Payments.Connection
   alias Payments.Protocol
   alias Payments.Protocol.Message
+  alias Payments.Transactions
+  alias Payments.Address
   require Logger
 
   # Client API
@@ -12,14 +14,16 @@ defmodule Payments.Node do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
 
+  # Returns the amount of satoshi to ask for. Note: This will be modified slightly so that the system
+  # is able to differentiate between different transactions.
   def register(request, watcher) do
-    GenServer.cast(__MODULE__, {:register, request, watcher})
+    GenServer.call(__MODULE__, {:register, request, watcher})
   end
 
-  # Note: pubkey is a 20 byte P2PKHAddress (ripe160 hash?)
-  # Use "Address.decode_cash_url" to decode a bitcoincash:...
-  def watch_wallet(pubkey) do
-    GenServer.cast(__MODULE__, {:watch, Payments.Address.create_hashed_output_script(pubkey)})
+  # Address is a "bitcoincash:..." address.
+  # Note: This is mainly intended for testing. Registering requests will automagically start watching addresses.
+  def watch_wallet(address) do
+    GenServer.cast(__MODULE__, {:watch, address})
   end
 
   # Sever API
@@ -34,42 +38,34 @@ defmodule Payments.Node do
   end
 
   @impl true
-  def handle_cast({:register, request, watcher}, state) do
-    # Simulate behaviour
-    :timer.send_after(2000, self(), {:tx_seen, watcher})
+  def handle_call({:register, request, watcher}, _from, state) do
+    # Make sure we are subscribed to the wallet.
+    state = watch_wallet(request.address, state)
 
-    # FIXME register watcher better and use the watcher
-    # FIXME maybe use Phoenix PubSub for messages instead?
-    # Maybe that's overkill? Or is it?
-    # FIXME How to handle unregistering?
-    {:noreply, Map.put(state, request.address, watcher)}
+    # Register the wallet with the Transactions svc.
+    satoshi = Transactions.new(request, watcher)
+
+    # Good to go! Report back!
+    {:reply, satoshi, state}
   end
 
   @impl true
   def handle_cast({:watch, wallet}, state) do
-    state = Map.put(state, :watching_wallets, [wallet | Map.get(state, :watching_wallets, [])])
-
-    # If the hub is up and running, tell it that we are interested in another wallet.
-    case state do
-      %{hub_connection: c} ->
-        Protocol.send_address_subscribe(c, wallet)
-
-      _ ->
-        nil
-    end
-
-    {:noreply, state}
+    {:noreply, watch_wallet(wallet, state)}
   end
 
   @impl true
   def handle_cast({:message, msg}, state) do
     # We got a message from Flowee, inspect it and act upon it!
     case msg do
-      %Message{type: :newBlock, data: _} ->
-        IO.puts("New block!")
+      %Message{type: :info, data: data} ->
+        on_info(data, state)
+
+      %Message{type: :newBlock, data: data} ->
+        on_new_block(data, state)
 
       %Message{type: :version, data: %{version: ver}} ->
-        IO.puts("Running version: " <> ver)
+        Logger.info("Running Flowee server version: " <> ver)
 
       %Message{type: :subscribeReply} ->
         # We could read the number of new subscriptions if we want to.
@@ -77,7 +73,7 @@ defmodule Payments.Node do
 
       %Message{type: :onTransaction, data: data} ->
         # We got notified of a transaction!
-        on_transaction(data)
+        on_transaction(data, state)
 
       %Message{type: :pong} ->
         # Just ignore it
@@ -150,16 +146,72 @@ defmodule Payments.Node do
     end
   end
 
+  # Called when we received information from the blockchain.
+  defp on_info(data, _state) do
+    %{blocks: height} = data
+    old_height = Transactions.get_height()
+
+    IO.puts("Block height: " <> inspect(height) <> ", old: " <> old_height)
+    Transactions.set_height(height)
+
+    # TODO: Examine some old blocks!
+  end
+
+  # Called when a new block has been mined (regardless of whether or not it contains one of our transactions)
+  defp on_new_block(data, _state) do
+    %{height: height} = data
+    Transactions.set_height(height)
+  end
+
   # Called when we received a new transaction.
   # Note: We get the "transaction visible" immediately when we subscribe, as long as it is not accepted into a block.
-  defp on_transaction(data) do
-    # Note: There is more data here that we can track.
-    case data do
-      %{address: _addr, height: _height, amount: amount} ->
-        IO.puts("Transaction accepted into the blockchain: " <> inspect(amount))
+  # Note: Does not get to modify the state!
+  defp on_transaction(data, state) do
+    hash_to_addr = Map.get(state, :watching_hashes, state)
 
-      %{address: _addr, amount: amount} ->
-        IO.puts("Transaction visible: " <> inspect(amount))
+    # Convert the transaction, it is a hash:
+    %{address: hash} = data
+    address = Map.get(hash_to_addr, hash, nil)
+
+    if address != nil do
+      # We know this address! Tell Transactions about our finding!
+      case data do
+        %{height: height, amount: amount} ->
+          Transactions.accepted(address, amount, height)
+
+        %{amount: amount} ->
+          Transactions.seen(address, amount)
+      end
+    end
+  end
+
+  # Start watching a wallet. "wallet" is a "bitcoincash:..." address.
+  defp watch_wallet(wallet, state) do
+    wallets = Map.get(state, :watching_wallets, %{})
+    if Map.has_key?(wallets, wallet) do
+      # Already there. We don't need to add it!
+      state
+    else
+      # Add a mapping from the bitcoin: address and the hashed key and in reverse.
+      hash = convert_addr(wallet)
+      wallets = Map.put(wallets, wallet, hash)
+
+      hashes = Map.get(state, :watching_hashes, %{})
+      hashes = Map.put(hashes, hash, wallet)
+
+      # If the connection is up and running, tell it about the new wallet now.
+      case state do
+        %{hub_connection: c} ->
+          subscribe_addr(c, wallet)
+
+        _ ->
+          nil
+      end
+
+      # Add the wallets back into the state.
+      state = Map.put(state, :watching_wallets, wallets)
+      state = Map.put(state, :watching_hashes, hashes)
+      state
     end
   end
 
@@ -168,8 +220,7 @@ defmodule Payments.Node do
     # Connect to Flowee: The Hub, and start listening for messages from it.
     state = start_hub(state)
 
-    # TODO: We probably need a connection to the indexer as well. That might be nicer to work with
-    # in a blocking fashion though. We can't subscribe to changes from that.
+    # We could start additional connections here.
 
     state
   end
@@ -195,14 +246,29 @@ defmodule Payments.Node do
     Protocol.send_block_subscribe(c)
 
     # Subscribe to any wallets we were asked to.
-    wallets = Map.get(state, :watching_wallets, [])
-
-    if wallets != [] do
-      # Note: This function handles a list of items!
-      Protocol.send_address_subscribe(c, wallets)
+    wallets = Map.get(state, :watching_wallets, %{})
+    if wallets != %{} do
+      Enum.each(wallets, fn {_k, v} -> subscribe_addr(c, v) end)
     end
 
+    # Query the current status of the blockchain. This is so that we can update the current height
+    # of the blockchain and to look for confirmations for transactions we might have missed.
+    Protocol.send_blockchain_info(c)
+
     state
+  end
+
+  # Convert a "bitcoin:..." address to what is needed by Flowee.
+  defp convert_addr(address) do
+    key = Address.decode_cash_url(address)
+    hash = Address.create_hashed_output_script(key)
+    hash
+  end
+
+  # Helper to subscribe to an address. Accepts the output from "convert_addr".
+  defp subscribe_addr(connection, hash) do
+    IO.puts("Subscribed to " <> inspect(hash))
+    Protocol.send_address_subscribe(connection, hash)
   end
 
   # Receive messages. Executed in another process, so it is OK to block here.

@@ -202,7 +202,7 @@ defmodule Payments.Protocol do
       {@service_blockchain, 1} ->
         # Reply from "blockchain info"
         make_msg(
-          :version,
+          :info,
           [
             difficulty: 64,
             medianTime: 65,
@@ -222,7 +222,7 @@ defmodule Payments.Protocol do
 
       {@service_blocknotification, 4} ->
         # Notified of a block
-        make_msg(:newBlock, [blockHash: 5, blockHeight: 7], body)
+        make_msg(:newBlock, [hash: 5, height: 7], body)
 
       {@service_addressmonitor, 1} ->
         # Reply for subscriptions. Note: The documentation is incorrect with the IDs here.
