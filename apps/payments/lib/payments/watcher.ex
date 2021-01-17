@@ -81,7 +81,8 @@ defmodule Payments.Watcher do
 
   @impl true
   def handle_info(info, state) do
-    Logger.warning("unhandled info/state in Watcher #{inspect(info)} #{inspect(state)}")
+    # Note: This is not available on the server.
+    Logger.warn("unhandled info/state in Watcher #{inspect(info)} #{inspect(state)}")
     {:noreply, state}
   end
 
