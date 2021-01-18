@@ -1,6 +1,5 @@
 defmodule Payments.Node do
   use GenServer
-  alias Payments.Watcher
   alias Payments.Connection
   alias Payments.Protocol
   alias Payments.Protocol.Message
@@ -173,7 +172,7 @@ defmodule Payments.Node do
 
     if address != nil do
       # We know this address! Tell Transactions about our finding!
-      Transaction.doublespend(address, amount)
+      Transactions.doublespend(address, amount)
     end
   end
 

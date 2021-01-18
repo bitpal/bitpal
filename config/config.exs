@@ -61,6 +61,10 @@ config :logger, :console,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Configures which address to receive to
+config :demo,
+  address: "bitcoincash:qqpkcce4lzdc8guam5jfys9prfyhr90seqzakyv4tu"
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{Mix.env()}.exs"

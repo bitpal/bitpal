@@ -6,20 +6,24 @@ defmodule Payments.ExchangeRate do
   require Logger
 
   @pubsub Payments.PubSub
+  @pair {:bch, :usd}
 
   def start_link(_) do
     GenServer.start_link(__MODULE__, %{rate: nil}, name: __MODULE__)
   end
 
-  def request(pair = {:bch, :usd}) do
+  def request(pair = @pair) do
     GenServer.cast(__MODULE__, {:compute, pair})
   end
 
-  def require(pair = {:bch, :usd}) do
+  def require(pair = @pair) do
     GenServer.call(__MODULE__, {:compute, pair})
   end
 
-  def subscribe, do: PubSub.subscribe(@pubsub, topic())
+  def subscribe(pair = @pair) do
+    PubSub.subscribe(@pubsub, topic())
+    request(pair)
+  end
 
   def unsubscribe, do: PubSub.unsubscribe(@pubsub, topic())
 

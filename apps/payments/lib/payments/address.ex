@@ -36,7 +36,7 @@ defmodule Payments.Address do
     <<payload::binary-size(size_5), _checksum::binary-size(8)>> = nums
 
     # The payload is padded with zero bits to an even number of base32 characters. So we can safely decode it.
-    <<info, hash::bitstring>> = convert_5_to_8(payload)
+    <<_info, hash::bitstring>> = convert_5_to_8(payload)
 
     # Return an appropriate type.
     case type do
