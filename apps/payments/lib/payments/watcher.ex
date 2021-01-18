@@ -31,15 +31,18 @@ defmodule Payments.Watcher do
   end
 
   @impl true
-  def handle_info(:init, state = %{state: :init}) do
-    Logger.info("watcher: real init #{inspect(state.request)}")
+  def handle_info(:init, state = %{state: :init, request: request}) do
+    Logger.info("watcher: real init #{inspect(request)}")
 
     # FIXME load/store this in db for persistance - handled by Node at the moment.
     # FIXME timeout payment request after 24h?
 
-    Payments.Node.register(state.request, self())
+    satoshis = Payments.Node.register(request, self()) |> IO.inspect()
+    request = Map.put(request, :amount, satoshis_to_bch(satoshis)) |> IO.inspect()
 
-    change_state(state, :wait_for_tx)
+    IO.puts("CHANGED SATOSHIS!!?!?!?")
+
+    change_state(%{state | request: request}, :wait_for_tx)
   end
 
   @impl true
@@ -101,7 +104,7 @@ defmodule Payments.Watcher do
   end
 
   defp accepted(state) do
-    send(state.listener, {:state_changed, :accepted})
+    send(state.listener, {:state_changed, :accepted, state.request})
     {:stop, :normal, state}
   end
 
@@ -119,5 +122,10 @@ defmodule Payments.Watcher do
     else
       {:noreply, state}
     end
+  end
+
+  defp satoshis_to_bch(satoshis) do
+    Decimal.div(Decimal.new(satoshis), Decimal.new(100_000_000))
+    |> Decimal.to_float()
   end
 end

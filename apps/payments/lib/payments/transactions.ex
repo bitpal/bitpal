@@ -74,11 +74,13 @@ defmodule Payments.Transactions do
 
   @impl true
   def handle_call({:new_transaction, request, watcher}, _from, state) do
+    IO.puts("registering new transaction! #{inspect(request.amount)}")
     transactions = Map.get(state, :transactions, %{})
     # Find a suitable addr map:
     for_addr = Map.get(transactions, request.address, %{})
     # Compute the amount to request.
     satoshi = find_amount(for_addr, floor(request.amount * 100_000_000))
+    IO.puts("satoshis to request: #{inspect(satoshi)}")
 
     # Put it back together.
     for_addr =
