@@ -39,4 +39,10 @@ sudo xbps-install -Su libevent-devel boost-devel
 
 (Maybe something else that I've already installed previously)
 
+## Ubuntu
 
+Sometimes we also need to do:
+
+```
+apt-get install erlang-xmerl
+```

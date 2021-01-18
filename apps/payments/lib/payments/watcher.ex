@@ -40,8 +40,6 @@ defmodule Payments.Watcher do
     satoshis = Payments.Node.register(request, self()) |> IO.inspect()
     request = Map.put(request, :amount, Payments.Satoshi.satoshi_to_bch(satoshis)) |> IO.inspect()
 
-    IO.puts("CHANGED SATOSHIS!!?!?!?")
-
     change_state(%{state | request: request}, :wait_for_tx)
   end
 
