@@ -79,7 +79,7 @@ defmodule Payments.Transactions do
     # Find a suitable addr map:
     for_addr = Map.get(transactions, request.address, %{})
     # Compute the amount to request.
-    satoshi = find_amount(for_addr, floor(request.amount * 100_000_000))
+    satoshi = find_amount(for_addr, Payments.Satoshi.bch_to_satoshi(request.amount))
     IO.puts("satoshis to request: #{inspect(satoshi)}")
 
     # Put it back together.

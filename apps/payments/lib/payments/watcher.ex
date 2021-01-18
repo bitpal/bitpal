@@ -38,7 +38,7 @@ defmodule Payments.Watcher do
     # FIXME timeout payment request after 24h?
 
     satoshis = Payments.Node.register(request, self()) |> IO.inspect()
-    request = Map.put(request, :amount, satoshis_to_bch(satoshis)) |> IO.inspect()
+    request = Map.put(request, :amount, Payments.Satoshi.satoshi_to_bch(satoshis)) |> IO.inspect()
 
     IO.puts("CHANGED SATOSHIS!!?!?!?")
 
@@ -122,10 +122,5 @@ defmodule Payments.Watcher do
     else
       {:noreply, state}
     end
-  end
-
-  defp satoshis_to_bch(satoshis) do
-    Decimal.div(Decimal.new(satoshis), Decimal.new(100_000_000))
-    |> Decimal.to_float()
   end
 end
