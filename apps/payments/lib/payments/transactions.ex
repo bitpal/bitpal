@@ -103,8 +103,8 @@ defmodule Payments.Transactions do
     transactions = update_transactions(Map.get(state, :transactions, %{}), height)
     state = Map.put(state, :transactions, transactions)
 
-    IO.puts("After set height:")
-    IO.inspect(state)
+    # IO.puts("After set height:")
+    # IO.inspect(state)
 
     {:noreply, state}
   end
@@ -127,8 +127,9 @@ defmodule Payments.Transactions do
         end
       end
 
-    IO.puts("After 'seen'")
-    IO.inspect(state)
+    # IO.puts("After 'seen'")
+    # IO.inspect(state)
+
     {:noreply, state}
   end
 
@@ -165,8 +166,9 @@ defmodule Payments.Transactions do
         end
       end
 
-    IO.puts("After 'accepted'")
-    IO.inspect(state)
+    # IO.puts("After 'accepted'")
+    # IO.inspect(state)
+
     {:noreply, state}
   end
 
