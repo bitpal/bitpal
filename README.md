@@ -1,6 +1,4 @@
-Main repo for the [Coinparty hackathon](https://coinparty.org/). See the project's [devpost page](https://devpost.com/software/bitpal).
-
-Submission deadline Monday midnight.
+Main repo for [BitPal](https://bitpal.dev/)
 
 
 # Installation
@@ -38,31 +36,3 @@ mix phx.server
 ```
 
 And see console output for which endpoint to visit (the port is different per app). Something like <localhost:4010> or <localhost:4020>.
-
-
-# Parts of the project
-
-* Landing page
-
-  Url: `bitpal.dev`  
-  Apps: `bitpal` and `bitpal_web`
-
-* Demo payment app
-
-  Url: `demo.bitpal.dev`  
-  App: `demo`
-
-* Payment processor lib
-
-  App: `payments`
-
-## Planned
-
-* Documentation
-
-  Url: `docs.bitpal.dev`
-
-* REST API
-
-  Url: `api.bitpal.dev`
-
