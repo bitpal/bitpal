@@ -37,8 +37,10 @@ defmodule Payments.Watcher do
     # FIXME load/store this in db for persistance - handled by Node at the moment.
     # FIXME timeout payment request after 24h?
 
-    satoshis = Payments.Node.register(request, self()) |> IO.inspect()
-    request = Map.put(request, :amount, Payments.Satoshi.satoshi_to_bch(satoshis)) |> IO.inspect()
+    satoshis = Flowee.Node.register(request, self()) |> IO.inspect()
+
+    request =
+      Map.put(request, :amount, Payments.BCH.Satoshi.satoshi_to_bch(satoshis)) |> IO.inspect()
 
     change_state(%{state | request: request}, :wait_for_tx)
   end

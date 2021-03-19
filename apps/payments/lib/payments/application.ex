@@ -13,7 +13,7 @@ defmodule Payments.Application do
       {Phoenix.PubSub, name: Payments.PubSub},
       # Start a worker by calling: Payments.Worker.start_link(arg)
       # {Payments.Worker, arg}
-      Payments.Node,
+      Flowee.Node,
       Payments.Transactions,
       Payments.ExchangeRate
     ]

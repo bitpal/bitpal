@@ -1,4 +1,4 @@
-defmodule Payments.Connection do
+defmodule Flowee.Connection do
   use Bitwise
 
   # Binary value used to distinguish strings from binary values in Elixir.

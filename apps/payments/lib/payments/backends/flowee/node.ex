@@ -1,8 +1,8 @@
-defmodule Payments.Node do
+defmodule Flowee.Node do
   use GenServer
-  alias Payments.Connection
-  alias Payments.Protocol
-  alias Payments.Protocol.Message
+  alias Flowee.Connection
+  alias Flowee.Protocol
+  alias Flowee.Protocol.Message
   alias Payments.Transactions
   alias Payments.Address
   require Logger
@@ -209,8 +209,9 @@ defmodule Payments.Node do
 
   # (re)start our connection to Flowee
   def start_flowee(state) do
+    # FIXME shouldn't be run in tests
     # Connect to Flowee: The Hub, and start listening for messages from it.
-    state = start_hub(state)
+    # state = start_hub(state)
 
     # We could start additional connections here.
 

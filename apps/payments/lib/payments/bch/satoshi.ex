@@ -1,4 +1,4 @@
-defmodule Payments.Satoshi do
+defmodule Payments.BCH.Satoshi do
   @satoshi 100_000_000
 
   # Convert from satoshi integer to BCH float

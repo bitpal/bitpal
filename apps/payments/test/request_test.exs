@@ -1,7 +1,6 @@
 defmodule RequestTest do
   use ExUnit.Case, async: true
   alias Payments.Request
-  alias Payments.Address
 
   test "encode address" do
     address = "bitcoincash:qqpkcce4lzdc8guam5jfys9prfyhr90seqzakyv4tu"
@@ -40,15 +39,5 @@ defmodule RequestTest do
   test "encode query" do
     assert Request.encode_query(%{"a" => nil, "b" => 1, "hello world" => "foo bar", "d" => nil}) ==
              "b=1&hello%20world=foo%20bar"
-  end
-
-  test "decode address" do
-    address = "bitcoincash:qrx5lc6m2wjkqncfzefn49wr3cfvx7l36yderrc7x3"
-
-    wanted =
-      {:p2kh,
-       <<205, 79, 227, 91, 83, 165, 96, 79, 9, 22, 83, 58, 149, 195, 142, 18, 195, 123, 241, 209>>}
-
-    assert Address.decode_cash_url(address) == wanted
   end
 end

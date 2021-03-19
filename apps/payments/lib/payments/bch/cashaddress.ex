@@ -1,4 +1,4 @@
-defmodule Payments.Address do
+defmodule Payments.BCH.Cashaddress do
   # Address management. Allows converting between different BCH address types.
   use Bitwise
 
