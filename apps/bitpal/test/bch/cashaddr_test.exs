@@ -11,4 +11,15 @@ defmodule CashaddressTest do
 
     assert Cashaddress.decode_cash_url(address) == wanted
   end
+
+  test "failing checksum" do
+    address = "bitcoincash:qrx5lc6m2wjkqncfzefn49wr3cfvx7l36ydexxxxxx"
+
+    assert_raise RuntimeError, fn ->
+      Cashaddress.decode_cash_url(address)
+    end
+  end
+
+  # FIXME p2sh test
+  # FIXME some more tests
 end
