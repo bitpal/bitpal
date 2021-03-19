@@ -1,9 +1,9 @@
-defmodule Bitpal.MixProject do
+defmodule BitPal.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :bitpal,
+      app: :payments,
       version: "0.1.0",
       build_path: "../../_build",
       config_path: "../../config/config.exs",
@@ -22,7 +22,7 @@ defmodule Bitpal.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {Bitpal.Application, []},
+      mod: {BitPal.Application, []},
       extra_applications: [:logger, :runtime_tools]
     ]
   end
@@ -36,7 +36,13 @@ defmodule Bitpal.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix_pubsub, "~> 2.0"}
+      {:phoenix_pubsub, "~> 2.0"},
+      {:ecto_sql, "~> 3.4"},
+      {:postgrex, ">= 0.0.0"},
+      {:jason, "~> 1.0"},
+      {:httpoison, "~> 1.7"},
+      {:poison, "~> 3.1"},
+      {:eqrcode, "~> 0.1.7"}
     ]
   end
 
@@ -45,7 +51,10 @@ defmodule Bitpal.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      setup: ["deps.get"]
+      setup: ["deps.get", "ecto.setup"],
+      "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
+      "ecto.reset": ["ecto.drop", "ecto.setup"],
+      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"]
     ]
   end
 end

@@ -1,4 +1,4 @@
-defmodule Payments.ExchangeRate.Kraken do
+defmodule BitPal.ExchangeRate.Kraken do
   require Logger
 
   @base "https://api.kraken.com/0/public/Ticker?pair="

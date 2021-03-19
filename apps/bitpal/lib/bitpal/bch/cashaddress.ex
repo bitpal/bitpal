@@ -1,4 +1,4 @@
-defmodule Payments.BCH.Cashaddress do
+defmodule BitPal.BCH.Cashaddress do
   # Address management. Allows converting between different BCH address types.
   use Bitwise
 

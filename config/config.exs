@@ -39,7 +39,7 @@ config :demo, Demo.Endpoint,
 
 # Configure Mix tasks and generators
 config :payments,
-  ecto_repos: [Payments.Repo]
+  ecto_repos: [BitPal.Repo]
 
 config :bitpal_web,
   generators: [context_app: :bitpal]

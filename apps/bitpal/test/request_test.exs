@@ -1,6 +1,6 @@
 defmodule RequestTest do
   use ExUnit.Case, async: true
-  alias Payments.Request
+  alias BitPal.Request
 
   test "encode address" do
     address = "bitcoincash:qqpkcce4lzdc8guam5jfys9prfyhr90seqzakyv4tu"

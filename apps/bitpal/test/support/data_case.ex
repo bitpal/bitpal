@@ -1,4 +1,4 @@
-defmodule Payments.DataCase do
+defmodule BitPal.DataCase do
   @moduledoc """
   This module defines the setup for tests requiring
   access to the application's data layer.
@@ -10,7 +10,7 @@ defmodule Payments.DataCase do
   we enable the SQL sandbox, so changes done to the database
   are reverted at the end of every test. If you are using
   PostgreSQL, you can even run database tests asynchronously
-  by setting `use Payments.DataCase, async: true`, although
+  by setting `use BitPal.DataCase, async: true`, although
   this option is not recommended for other databases.
   """
 
@@ -18,20 +18,20 @@ defmodule Payments.DataCase do
 
   using do
     quote do
-      alias Payments.Repo
+      alias BitPal.Repo
 
       import Ecto
       import Ecto.Changeset
       import Ecto.Query
-      import Payments.DataCase
+      import BitPal.DataCase
     end
   end
 
   setup tags do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(Payments.Repo)
+    :ok = Ecto.Adapters.SQL.Sandbox.checkout(BitPal.Repo)
 
     unless tags[:async] do
-      Ecto.Adapters.SQL.Sandbox.mode(Payments.Repo, {:shared, self()})
+      Ecto.Adapters.SQL.Sandbox.mode(BitPal.Repo, {:shared, self()})
     end
 
     :ok

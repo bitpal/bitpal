@@ -1,4 +1,4 @@
-defmodule Payments.BCH.Satoshi do
+defmodule BitPal.BCH.Satoshi do
   @satoshi 100_000_000
 
   # Convert from satoshi integer to BCH float

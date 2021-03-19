@@ -1,4 +1,4 @@
-defmodule Payments.Transactions do
+defmodule BitPal.Transactions do
   use GenServer
   require Logger
 
@@ -61,7 +61,7 @@ defmodule Payments.Transactions do
 
   @impl true
   def init(state) do
-    Logger.info("Starting Payments.Transactions")
+    Logger.info("Starting BitPal.Transactions")
 
     # Map of transactions. address -> satoshi value -> {data, watcher}
     state = Map.put(state, :transactions, %{})
@@ -79,7 +79,7 @@ defmodule Payments.Transactions do
     # Find a suitable addr map:
     for_addr = Map.get(transactions, request.address, %{})
     # Compute the amount to request.
-    satoshi = find_amount(for_addr, Payments.Satoshi.bch_to_satoshi(request.amount))
+    satoshi = find_amount(for_addr, BitPal.BCH.Satoshi.bch_to_satoshi(request.amount))
     IO.puts("satoshis to request: #{inspect(satoshi)}")
 
     # Put it back together.
