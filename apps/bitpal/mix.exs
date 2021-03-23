@@ -3,7 +3,7 @@ defmodule BitPal.MixProject do
 
   def project do
     [
-      app: :payments,
+      app: :bitpal,
       version: "0.1.0",
       build_path: "../../_build",
       config_path: "../../config/config.exs",
