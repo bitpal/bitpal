@@ -12,6 +12,9 @@ config :demo, Demo.Endpoint,
   http: [port: 4002],
   server: false
 
+config :bitpal,
+  backends: [BitPal.BackendStub]
+
 # Configure your database
 #
 # The MIX_TEST_PARTITION environment variable can be used

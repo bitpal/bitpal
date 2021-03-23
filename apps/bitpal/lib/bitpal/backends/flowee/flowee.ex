@@ -1,11 +1,14 @@
 defmodule BitPal.Flowee do
   use GenServer
+  require Logger
   alias BitPal.Flowee.Connection
   alias BitPal.Flowee.Protocol
   alias BitPal.Flowee.Protocol.Message
   alias BitPal.Transactions
   alias BitPal.BCH.Cashaddress
-  require Logger
+  alias BitPal.Backend
+
+  @behaviour Backend
 
   # Client API
 
@@ -16,8 +19,14 @@ defmodule BitPal.Flowee do
   # Returns the amount of satoshi to ask for. Note: This will be modified slightly so that the system
   # is able to differentiate between different transactions.
   # FIXME should return the request itself instead
-  def register(request, watcher) do
-    GenServer.call(__MODULE__, {:register, request, watcher})
+  @impl Backend
+  def register(backend, request, watcher) do
+    GenServer.call(backend, {:register, request, watcher})
+  end
+
+  @impl Backend
+  def supported_currencies(_backend) do
+    [:bch]
   end
 
   # Address is a "bitcoincash:..." address.
