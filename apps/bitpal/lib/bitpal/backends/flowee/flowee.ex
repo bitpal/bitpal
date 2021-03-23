@@ -1,10 +1,10 @@
-defmodule Payments.Node do
+defmodule BitPal.Flowee do
   use GenServer
-  alias Payments.Connection
-  alias Payments.Protocol
-  alias Payments.Protocol.Message
-  alias Payments.Transactions
-  alias Payments.Address
+  alias BitPal.Flowee.Connection
+  alias BitPal.Flowee.Protocol
+  alias BitPal.Flowee.Protocol.Message
+  alias BitPal.Transactions
+  alias BitPal.BCH.Cashaddress
   require Logger
 
   # Client API
@@ -15,6 +15,7 @@ defmodule Payments.Node do
 
   # Returns the amount of satoshi to ask for. Note: This will be modified slightly so that the system
   # is able to differentiate between different transactions.
+  # FIXME should return the request itself instead
   def register(request, watcher) do
     GenServer.call(__MODULE__, {:register, request, watcher})
   end
@@ -29,7 +30,7 @@ defmodule Payments.Node do
 
   @impl true
   def init(state) do
-    Logger.info("Starting Payments.Node")
+    Logger.info("Starting Flowee")
 
     state = start_flowee(state)
 
@@ -209,8 +210,9 @@ defmodule Payments.Node do
 
   # (re)start our connection to Flowee
   def start_flowee(state) do
+    # FIXME shouldn't be run in tests
     # Connect to Flowee: The Hub, and start listening for messages from it.
-    state = start_hub(state)
+    # state = start_hub(state)
 
     # We could start additional connections here.
 
@@ -253,8 +255,8 @@ defmodule Payments.Node do
 
   # Convert a "bitcoin:..." address to what is needed by Flowee.
   defp convert_addr(address) do
-    key = Address.decode_cash_url(address)
-    hash = Address.create_hashed_output_script(key)
+    key = Cashaddress.decode_cash_url(address)
+    hash = Cashaddress.create_hashed_output_script(key)
     hash
   end
 

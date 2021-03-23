@@ -1,4 +1,4 @@
-defmodule Payments.ExchangeRate.Cache do
+defmodule BitPal.ExchangeRate.Cache do
   @moduledoc """
   A simple cache as seen in Programming Phoenix >= 1.4
   """

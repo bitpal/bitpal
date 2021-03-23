@@ -1,3 +1,0 @@
-# Payments
-
-**TODO: Add description**

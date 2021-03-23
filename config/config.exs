@@ -12,7 +12,7 @@ use Mix.Config
 config :master_proxy,
   # any Cowboy options are allowed
   http: [:inet6, port: 4000],
-  #https: [:inet6, port: 4443],
+  # https: [:inet6, port: 4443],
   backends: [
     %{
       host: ~r{^demo\.bitpal.*$},
@@ -20,7 +20,7 @@ config :master_proxy,
     },
     %{
       host: ~r/^.*$/,
-      #phoenix_endpoint: BitpalWeb.Endpoint
+      # phoenix_endpoint: BitpalWeb.Endpoint
       phoenix_endpoint: Demo.Endpoint
     }
   ]
@@ -38,8 +38,8 @@ config :demo, Demo.Endpoint,
   server: true
 
 # Configure Mix tasks and generators
-config :payments,
-  ecto_repos: [Payments.Repo]
+config :bitpal,
+  ecto_repos: [BitPal.Repo]
 
 config :bitpal_web,
   generators: [context_app: :bitpal]

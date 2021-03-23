@@ -59,7 +59,7 @@ database_url =
     For example: ecto://USER:PASS@HOST/DATABASE
     """
 
-config :payments, Payments.Repo,
+config :bitpal, BitPal.Repo,
   # ssl: true,
   url: database_url,
   pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")

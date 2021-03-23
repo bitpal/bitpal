@@ -1,11 +1,11 @@
-defmodule Payments.ExchangeRate do
+defmodule BitPal.ExchangeRate do
   use GenServer
-  alias Payments.ExchangeRate.Kraken
-  alias Payments.ExchangeRate.Cache
+  alias BitPal.ExchangeRate.Kraken
+  alias BitPal.ExchangeRate.Cache
   alias Phoenix.PubSub
   require Logger
 
-  @pubsub Payments.PubSub
+  @pubsub BitPal.PubSub
   @pair {:bch, :usd}
 
   def start_link(_) do
@@ -36,10 +36,10 @@ defmodule Payments.ExchangeRate do
   @impl true
   def init(state) do
     children = [
-      Payments.ExchangeRate.Cache
+      BitPal.ExchangeRate.Cache
     ]
 
-    Supervisor.start_link(children, strategy: :one_for_one, name: Payments.ExchangeRate.Supervisor)
+    Supervisor.start_link(children, strategy: :one_for_one, name: BitPal.ExchangeRate.Supervisor)
 
     {:ok, state}
   end

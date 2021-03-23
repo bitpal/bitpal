@@ -94,7 +94,7 @@ config :demo, Demo.Endpoint,
   ]
 
 # Configure your database
-config :payments, Payments.Repo,
+config :bitpal, BitPal.Repo,
   username: "postgres",
   password: "postgres",
   database: "payments_dev",

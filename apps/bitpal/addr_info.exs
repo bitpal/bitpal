@@ -1,6 +1,6 @@
-# alias Payments.Connection
-# alias Payments.Protocol
-# alias Payments.Address
+# alias BitPal.Connection
+# alias BitPal.Protocol
+# alias BitPal.Address
 
 # c = Connection.connect(1234)
 # Protocol.send_find_avail_indexers(c)
@@ -31,9 +31,9 @@
 # Perhaps the address is this?
 # addr = Address.decode_cash_url("bitcoincash:qrx5lc6m2wjkqncfzefn49wr3cfvx7l36yderrc7x3")
 # IO.inspect(addr)
-# Payments.Node.watch_wallet(addr)
+# BitPal.Node.watch_wallet(addr)
 
-# Payments.Node.watch_wallet(addr)
+# BitPal.Node.watch_wallet(addr)
 
 # c = Connection.connect()
 # Protocol.send_address_subscribe(c, addr)
@@ -43,7 +43,7 @@
 # Very simple test of the Watcher API
 # addr = "bitcoincash:qrx5lc6m2wjkqncfzefn49wr3cfvx7l36yderrc7x3"
 
-# request = %Payments.Request{
+# request = %BitPal.Request{
 #   address: addr,
 #   amount: 0.0001,
 #   exchange_rate: 2,
@@ -51,7 +51,7 @@
 #   required_confirmations: 1
 # }
 
-# watcher = Payments.Watcher.start_link(request)
+# watcher = BitPal.Watcher.start_link(request)
 
 # defmodule T do
 #   def wait_msg() do

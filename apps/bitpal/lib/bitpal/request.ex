@@ -1,4 +1,4 @@
-defmodule Payments.Request do
+defmodule BitPal.Request do
   defstruct address: nil,
             amount: nil,
             exchange_rate: nil,

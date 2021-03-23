@@ -1,7 +1,8 @@
-defmodule Payments.Protocol do
+defmodule BitPal.Flowee.Protocol do
   use Bitwise
-  alias Payments.Connection.Binary
-  alias Payments.Connection.RawMsg
+  alias BitPal.Flowee.Connection.Binary
+  alias BitPal.Flowee.Connection.RawMsg
+  alias BitPal.Flowee.Connection
 
   # Service names
   @service_api 0
@@ -86,14 +87,14 @@ defmodule Payments.Protocol do
 
   # Helper to send
   defp send_msg(c, serviceId, messageId, data) do
-    Payments.Connection.send(c, %RawMsg{service: serviceId, message: messageId, data: data})
+    Connection.send(c, %RawMsg{service: serviceId, message: messageId, data: data})
   end
 
   # Send a ping to the remote peer. We need to do this about once every minute. Otherwise, we will
   # be disconnected after 120 s. It seems it does not matter if we send other data, we will still be
   # disconnected if we don't send ping messages.
   def send_ping(c) do
-    Payments.Connection.send(c, %RawMsg{service: @service_system, ping: true})
+    Connection.send(c, %RawMsg{service: @service_system, ping: true})
   end
 
   # Send a version request message. Returns a string.
@@ -191,7 +192,7 @@ defmodule Payments.Protocol do
 
   # Receive some message (blocking)
   def recv(c) do
-    msg = Payments.Connection.recv(c)
+    msg = Connection.recv(c)
     %RawMsg{service: service, message: message, data: body} = msg
 
     case {service, message} do
