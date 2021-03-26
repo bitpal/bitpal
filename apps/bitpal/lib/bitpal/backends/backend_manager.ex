@@ -1,10 +1,10 @@
 defmodule BitPal.BackendManager do
   use Supervisor
   alias BitPal.Backend
+  alias BitPal.Request
+  alias BitPal.Watcher
 
-  @type currency() :: atom()
   @type backend_name() :: atom()
-  @type backend() :: {backend_name(), pid()}
 
   # Client API
 
@@ -13,49 +13,63 @@ defmodule BitPal.BackendManager do
     Supervisor.start_link(__MODULE__, children, name: __MODULE__)
   end
 
-  @spec backends() :: [{backend(), :ok, [currency()]}]
+  @spec register(Request, Watcher) ::
+          {:ok, BitPal.BCH.Satoshi} | {:error, atom()}
+  def register(request, watcher) do
+    case get_currency_backend(request.currency) do
+      {:ok, ref} -> Backend.register(ref, request, watcher)
+      {:error, _} = error -> error
+    end
+  end
+
+  @spec backends() :: [{backend_name(), Backend.backend_ref(), :ok, [Request.currency()]}]
   def backends() do
     Supervisor.which_children(__MODULE__)
     |> Enum.map(fn {name, pid, _worker, [backend]} ->
-      {{name, pid}, :ok, Backend.supported_currencies(backend, pid)}
+      ref = {pid, backend}
+      {name, ref, :ok}
     end)
   end
 
-  @spec get_backend(backend_name()) :: {:ok, pid()} | {:error, :not_found}
+  @spec get_backend(backend_name()) :: {:ok, Backend.backend_ref()} | {:error, :not_found}
   def get_backend(name) do
     backends()
     |> Enum.find_value({:error, :not_found}, fn
-      {{^name, pid}, _, _} -> {:ok, pid}
+      {^name, ref, _} -> {:ok, ref}
       _ -> false
     end)
   end
 
   @spec backend_status(backend_name()) :: :ok | :not_found
-  def backend_status(backend) do
+  def backend_status(name) do
     backends()
     |> Enum.find_value(:not_found, fn
-      {{^backend, _}, status, _} -> status
+      {^name, _, status} -> status
       _ -> false
     end)
   end
 
-  @spec currencies() :: [{currency(), :ok, backend()}]
+  @spec currencies() :: [{Request.currency(), :ok, Backend.backend_ref()}]
   def currencies() do
-    Enum.reduce(backends(), [], fn {id, status, currencies}, acc ->
+    backends()
+    |> Enum.map(fn {_name, ref, status} ->
+      {ref, status, Backend.supported_currencies(ref)}
+    end)
+    |> Enum.reduce([], fn {ref, status, currencies}, acc ->
       Enum.reduce(currencies, acc, fn currency, acc ->
-        [{currency, status, id} | acc]
+        [{currency, status, ref} | acc]
       end)
     end)
   end
 
-  @spec currency_list() :: [currency()]
+  @spec currency_list() :: [Request.currency()]
   def currency_list() do
     currencies()
     |> Enum.reduce([], fn {currency, _, _}, acc -> [currency | acc] end)
     |> Enum.sort()
   end
 
-  @spec currency_status(currency()) :: :ok | :not_found
+  @spec currency_status(Request.currency()) :: :ok | :not_found
   def currency_status(currency) do
     currencies()
     |> Enum.find_value(:not_found, fn
@@ -64,17 +78,15 @@ defmodule BitPal.BackendManager do
     end)
   end
 
-  @spec get_currency_backend(currency()) :: {:ok, pid()} | {:error, :not_found}
+  @spec get_currency_backend(Request.currency()) ::
+          {:ok, Backend.backend_ref()} | {:error, :not_found}
   def get_currency_backend(currency) do
-    backends()
-    |> Enum.find(fn {_id, _status, currencies} ->
-      Enum.member?(currencies, currency)
+    currencies()
+    |> Enum.find_value({:error, :not_found}, fn
+      {^currency, _, ref} -> {:ok, ref}
+      _ -> false
     end)
-    |> get_pid()
   end
-
-  defp get_pid({{_name, pid}, _, _}), do: {:ok, pid}
-  defp get_pid(_), do: {:error, :not_found}
 
   # Server API
 

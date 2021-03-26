@@ -1,11 +1,17 @@
 defmodule BitPal.Backend do
-  @type process() :: pid() | module()
+  @type backend_ref() :: {pid(), module()}
 
-  @callback register(process(), BitPal.Request, BitPal.Watcher) :: BitPal.BCH.Satoshi
-  @callback supported_currencies(process()) :: [atom()]
+  @callback register(pid(), BitPal.Request, BitPal.Watcher) :: BitPal.BCH.Satoshi
+  @callback supported_currencies(pid()) :: [atom()]
 
-  def supported_currencies(backend, process) do
-    backend.supported_currencies(process)
+  @spec register(backend_ref(), BitPal.Request, BitPal.Watcher) :: BitPal.BCH.Satoshi
+  def register({pid, backend}, request, watcher) do
+    backend.register(pid, request, watcher)
+  end
+
+  @spec supported_currencies(backend_ref()) :: [atom()]
+  def supported_currencies({pid, backend}) do
+    backend.supported_currencies(pid)
   end
 
   def supported_currency?(supported, specified) when is_list(supported) do
