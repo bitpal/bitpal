@@ -1,6 +1,9 @@
 defmodule BitPal.Request do
+  @type currency() :: atom()
+
   defstruct address: nil,
             amount: nil,
+            currency: :bch,
             exchange_rate: nil,
             fiat_amount: nil,
             email: "",

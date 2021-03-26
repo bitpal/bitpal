@@ -39,7 +39,8 @@ config :demo, Demo.Endpoint,
 
 # Configure Mix tasks and generators
 config :bitpal,
-  ecto_repos: [BitPal.Repo]
+  ecto_repos: [BitPal.Repo],
+  backends: [BitPal.Flowee]
 
 config :bitpal_web,
   generators: [context_app: :bitpal]

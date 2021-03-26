@@ -8,6 +8,7 @@ defmodule BitPal.Watcher do
 
   # Client API
 
+  # FIXME should hide this impl behind BitPal.init_request or something
   def start_link(request) do
     GenServer.start_link(__MODULE__, %{listener: self(), request: request})
   end
@@ -38,7 +39,8 @@ defmodule BitPal.Watcher do
     # FIXME load/store this in db for persistance - handled by Node at the moment.
     # FIXME timeout payment request after 24h?
 
-    satoshis = Flowee.register(request, self()) |> IO.inspect()
+    # FIXME should go through BackendManager
+    satoshis = Flowee.register(Flowee, request, self()) |> IO.inspect()
 
     request =
       Map.put(request, :amount, BitPal.BCH.Satoshi.satoshi_to_bch(satoshis)) |> IO.inspect()
