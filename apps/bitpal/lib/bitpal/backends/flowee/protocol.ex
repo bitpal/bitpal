@@ -1,8 +1,8 @@
-defmodule BitPal.Flowee.Protocol do
+defmodule BitPal.Backend.Flowee.Protocol do
   use Bitwise
-  alias BitPal.Flowee.Connection.Binary
-  alias BitPal.Flowee.Connection.RawMsg
-  alias BitPal.Flowee.Connection
+  alias BitPal.Backend.Flowee.Connection.Binary
+  alias BitPal.Backend.Flowee.Connection.RawMsg
+  alias BitPal.Backend.Flowee.Connection
 
   # Service names
   @service_api 0

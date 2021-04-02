@@ -1,23 +1,23 @@
-defmodule RequestTest do
+defmodule InvoiceTest do
   use ExUnit.Case, async: true
-  alias BitPal.Request
+  alias BitPal.Invoice
 
   test "encode address" do
     address = "bitcoincash:qqpkcce4lzdc8guam5jfys9prfyhr90seqzakyv4tu"
-    assert Request.address_with_meta(%Request{address: address}) == address
+    assert Invoice.address_with_meta(%Invoice{address: address}) == address
   end
 
   test "encode address without prefix" do
     address = "qqpkcce4lzdc8guam5jfys9prfyhr90seqzakyv4tu"
     wanted = "bitcoincash:" <> address
-    assert Request.address_with_meta(%Request{address: address}) == wanted
+    assert Invoice.address_with_meta(%Invoice{address: address}) == wanted
   end
 
   test "endode with amount" do
     address = "bitcoincash:qqpkcce4lzdc8guam5jfys9prfyhr90seqzakyv4tu"
     amount = 1.337
 
-    assert Request.address_with_meta(%Request{address: address, amount: amount}) ==
+    assert Invoice.address_with_meta(%Invoice{address: address, amount: amount}) ==
              "#{address}?amount=#{amount}"
   end
 
@@ -27,7 +27,7 @@ defmodule RequestTest do
     label = "BitPal"
     message = "Thank you for paying tribute!"
 
-    assert Request.address_with_meta(%Request{
+    assert Invoice.address_with_meta(%Invoice{
              address: address,
              amount: amount,
              label: label,
@@ -37,7 +37,7 @@ defmodule RequestTest do
   end
 
   test "encode query" do
-    assert Request.encode_query(%{"a" => nil, "b" => 1, "hello world" => "foo bar", "d" => nil}) ==
+    assert Invoice.encode_query(%{"a" => nil, "b" => 1, "hello world" => "foo bar", "d" => nil}) ==
              "b=1&hello%20world=foo%20bar"
   end
 end

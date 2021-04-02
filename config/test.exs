@@ -13,7 +13,8 @@ config :demo, Demo.Endpoint,
   server: false
 
 config :bitpal,
-  backends: [BitPal.BackendStub]
+  # Backends should be specified per test
+  backends: []
 
 # Configure your database
 #

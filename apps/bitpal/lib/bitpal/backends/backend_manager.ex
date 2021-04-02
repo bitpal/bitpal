@@ -1,24 +1,29 @@
 defmodule BitPal.BackendManager do
   use Supervisor
   alias BitPal.Backend
-  alias BitPal.Request
-  alias BitPal.Watcher
+  alias BitPal.BackendEvent
+  alias BitPal.Invoice
 
   @type backend_name() :: atom()
 
   # Client API
 
-  # @spec start_link({BitPal.Backend, term()} | [BitPal.Backend]) :: any
+  @spec start_link([Supervisor.child_spec()]) :: Supervisor.on_start()
   def start_link(children) do
     Supervisor.start_link(__MODULE__, children, name: __MODULE__)
   end
 
-  @spec register(Request, Watcher) ::
-          {:ok, BitPal.BCH.Satoshi} | {:error, atom()}
-  def register(request, watcher) do
-    case get_currency_backend(request.currency) do
-      {:ok, ref} -> Backend.register(ref, request, watcher)
-      {:error, _} = error -> error
+  @spec track(Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
+  def track(invoice) do
+    BackendEvent.subscribe(invoice)
+    register(invoice)
+  end
+
+  @spec register(Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
+  def register(invoice) do
+    case get_currency_backend(invoice.currency) do
+      {:ok, ref} -> {:ok, Backend.register(ref, invoice)}
+      {:error, _} = _error -> {:error, :backend_not_found}
     end
   end
 

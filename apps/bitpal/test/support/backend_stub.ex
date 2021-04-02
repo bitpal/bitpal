@@ -2,6 +2,8 @@ defmodule BitPal.BackendStub do
   use GenServer
   require Logger
   alias BitPal.Backend
+  alias BitPal.BackendAddressTrackerStub
+  alias BitPal.Transactions
 
   @behaviour Backend
 
@@ -13,8 +15,8 @@ defmodule BitPal.BackendStub do
   end
 
   @impl Backend
-  def register(backend, request, watcher) do
-    GenServer.call(backend, {:register, request, watcher})
+  def register(backend, invoice) do
+    GenServer.call(backend, {:register, invoice})
   end
 
   @impl Backend
@@ -35,13 +37,43 @@ defmodule BitPal.BackendStub do
 
   @impl true
   def init(opts) do
-    currencies = Keyword.get(opts, :currencies, [:bch])
+    opts =
+      opts
+      |> Enum.into(%{})
+      |> Map.put_new(:currencies, [:bch])
 
-    {:ok, %{currencies: currencies}}
+    {:ok, opts}
   end
 
   @impl true
   def handle_call(:supported_currencies, _, state = %{currencies: currencies}) do
     {:reply, currencies, state}
+  end
+
+  @impl true
+  def handle_call({:register, invoice}, _from, state) do
+    invoice = Transactions.new(invoice)
+
+    # Simulate tx states
+    # FIXME should be inside a DynamicSupervisor?
+    BackendAddressTrackerStub.start_link(invoice: invoice, backend: self())
+
+    {:reply, invoice, state}
+  end
+
+  @impl true
+  def handle_info({:message, msg, invoice}, state) do
+    case msg do
+      :tx_seen ->
+        Transactions.seen(invoice.address, invoice.amount)
+
+      {:new_block, confirmations} ->
+        Transactions.accepted(invoice.address, invoice.amount, confirmations)
+
+      _ ->
+        Logger.warn("Unknown msg for backend stub! #{inspect(msg)}")
+    end
+
+    {:noreply, state}
   end
 end

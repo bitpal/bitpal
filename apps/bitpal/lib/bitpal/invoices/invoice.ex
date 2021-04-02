@@ -1,5 +1,18 @@
-defmodule BitPal.Request do
-  @type currency() :: atom()
+defmodule BitPal.Invoice do
+  @type currency :: atom
+  @type address :: String.t()
+  @type t :: %__MODULE__{
+          address: address,
+          # FIXME should be a BaseUnit
+          amount: Decimal.t(),
+          currency: currency,
+          exchange_rate: Decimal.t(),
+          fiat_amount: Decimal.t(),
+          email: String.t(),
+          required_confirmations: non_neg_integer,
+          label: String.t(),
+          message: String.t()
+        }
 
   defstruct address: nil,
             amount: nil,
@@ -10,6 +23,12 @@ defmodule BitPal.Request do
             required_confirmations: 0,
             label: "",
             message: ""
+
+  @spec id(t) :: binary
+  def id(invoice) do
+    # FIXME generate and store from db
+    Decimal.to_string(invoice.amount, :normal)
+  end
 
   def render_qrcode(request, opts \\ []) do
     request
@@ -24,8 +43,9 @@ defmodule BitPal.Request do
       bitcoin:<address>[?amount=<amount>][?label=<label>][?message=<message>]
 
   """
-  def address_with_meta(request) do
-    uri_encode(uri_address(request.address), uri_query(request))
+  @spec address_with_meta(t) :: address
+  def address_with_meta(invoice) do
+    uri_encode(uri_address(invoice.address), uri_query(invoice))
   end
 
   defp uri_encode(address, ""), do: address

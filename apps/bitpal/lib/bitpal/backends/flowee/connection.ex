@@ -1,4 +1,4 @@
-defmodule BitPal.Flowee.Connection do
+defmodule BitPal.Backend.Flowee.Connection do
   use Bitwise
 
   # Binary value used to distinguish strings from binary values in Elixir.
