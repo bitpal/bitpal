@@ -33,13 +33,26 @@ defmodule BitPal.ExchangeRate.Cache do
     {:ok, schedule_clear(state)}
   end
 
+  def child_spec(arg) do
+    id = Keyword.get(arg, :name) || __MODULE__
+
+    %{
+      id: id,
+      start: {__MODULE__, :start_link, [arg]}
+    }
+  end
+
   def handle_info(:clear, state) do
     :ets.delete_all_objects(state.table)
     {:noreply, schedule_clear(state)}
   end
 
   defp schedule_clear(state) do
-    %{state | timer: Process.send_after(self(), :clear, state.interval)}
+    if state.interval == :never do
+      state
+    else
+      %{state | timer: Process.send_after(self(), :clear, state.interval)}
+    end
   end
 
   defp new_table(name) do

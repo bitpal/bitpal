@@ -1,38 +1,36 @@
 defmodule BackendManagerTest do
-  use ExUnit.Case, async: false
+  use BitPal.BackendCase
+
   alias BitPal.Backend
   alias BitPal.BackendManager
+  alias BitPal.BackendMock
 
-  defp assert_shutdown(pid) do
-    ref = Process.monitor(pid)
-    Process.unlink(pid)
-    Process.exit(pid, :kill)
-
-    assert_receive {:DOWN, ^ref, :process, ^pid, :killed}
-  end
-
+  @tag :dry
   test "initialize and restart" do
-    {:ok, pid} = BackendManager.start_link([BitPal.BackendStub])
+    pid = start_supervised!({BackendManager, [BackendMock]})
 
-    %{active: 1} = Supervisor.count_children(pid)
+    %{active: 1} = DynamicSupervisor.count_children(pid)
 
-    [{_, child_pid, _, _}] = Supervisor.which_children(pid)
+    [{_, child_pid, _, _}] = DynamicSupervisor.which_children(pid)
 
     assert_shutdown(child_pid)
 
-    [{_, new_child_pid, _, _}] = Supervisor.which_children(pid)
+    [{_, new_child_pid, _, _}] = DynamicSupervisor.which_children(pid)
     assert child_pid != new_child_pid
   end
 
+  @tag :dry
   test "backend currency support" do
     assert Backend.supported_currency?(:bch, [:bch, :xmr])
     assert !Backend.supported_currency?([:bch, :xmr], [:bch, :btc])
 
-    {:ok, _} =
-      BackendManager.start_link([
-        {BitPal.BackendStub, name: Bitcoin.Backend, currencies: [:bch, :btc]},
-        {BitPal.BackendStub, name: Monero.Backend, currencies: [:xmr]}
-      ])
+    start_supervised!(
+      {BackendManager,
+       [
+         {BitPal.BackendMock, name: Bitcoin.Backend, currencies: [:bch, :btc]},
+         {BitPal.BackendMock, name: Monero.Backend, currencies: [:xmr]}
+       ]}
+    )
 
     assert BackendManager.backend_status(Bitcoin.Backend) == :ok
     assert BackendManager.backend_status(Monero.Backend) == :ok

@@ -1,9 +1,9 @@
-defmodule BitPal.Flowee do
+defmodule BitPal.Backend.Flowee do
   use GenServer
   require Logger
-  alias BitPal.Flowee.Connection
-  alias BitPal.Flowee.Protocol
-  alias BitPal.Flowee.Protocol.Message
+  alias BitPal.Backend.Flowee.Connection
+  alias BitPal.Backend.Flowee.Protocol
+  alias BitPal.Backend.Flowee.Protocol.Message
   alias BitPal.Transactions
   alias BitPal.BCH.Cashaddress
   alias BitPal.Backend
@@ -18,10 +18,9 @@ defmodule BitPal.Flowee do
 
   # Returns the amount of satoshi to ask for. Note: This will be modified slightly so that the system
   # is able to differentiate between different transactions.
-  # FIXME should return the request itself instead
   @impl Backend
-  def register(backend, request, watcher) do
-    GenServer.call(backend, {:register, request, watcher})
+  def register(backend, invoice) do
+    GenServer.call(backend, {:register, invoice})
   end
 
   @impl Backend
@@ -47,12 +46,12 @@ defmodule BitPal.Flowee do
   end
 
   @impl true
-  def handle_call({:register, request, watcher}, _from, state) do
+  def handle_call({:register, invoice}, _from, state) do
     # Make sure we are subscribed to the wallet.
-    state = watch_wallet(request.address, state)
+    state = watch_wallet(invoice.address, state)
 
     # Register the wallet with the Transactions svc.
-    satoshi = Transactions.new(request, watcher)
+    satoshi = Transactions.new(invoice)
 
     # Good to go! Report back!
     {:reply, satoshi, state}

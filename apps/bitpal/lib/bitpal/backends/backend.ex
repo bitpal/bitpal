@@ -1,12 +1,14 @@
 defmodule BitPal.Backend do
+  alias BitPal.Invoice
+
   @type backend_ref() :: {pid(), module()}
 
-  @callback register(pid(), BitPal.Request, BitPal.Watcher) :: BitPal.BCH.Satoshi
+  @callback register(pid(), Invoide.t()) :: Invoice.t()
   @callback supported_currencies(pid()) :: [atom()]
 
-  @spec register(backend_ref(), BitPal.Request, BitPal.Watcher) :: BitPal.BCH.Satoshi
-  def register({pid, backend}, request, watcher) do
-    backend.register(pid, request, watcher)
+  @spec register(backend_ref(), Invoice.t()) :: Invoice.t()
+  def register({pid, backend}, invoice) do
+    backend.register(pid, invoice)
   end
 
   @spec supported_currencies(backend_ref()) :: [atom()]

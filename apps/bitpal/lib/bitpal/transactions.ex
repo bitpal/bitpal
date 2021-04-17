@@ -1,6 +1,9 @@
 defmodule BitPal.Transactions do
   use GenServer
   require Logger
+  alias BitPal.Invoice
+  alias BitPal.BCH.Satoshi
+  alias BitPal.BackendEvent
 
   # This module is in charge of keeping track of all transactions that are in flight. Eventually,
   # everything in here should be stored in a database in case we need to take down the server
@@ -16,8 +19,16 @@ defmodule BitPal.Transactions do
   # - :pending - not seen yet
   # - :visible - visible in the blockchain
   # - an integer - indicates what block depth it was accepted into
+  #
+  # FIXME Should rename to:
+  # - :not_seen - not seen yet
+  # - :in_mempool - seen, but not confirmed
+  # - {:confirmed, height} - confirmed in the blockchain
+  # - :double_spent - failed, it was double spent
+  # FIXME need to test it all
+  # FIXME look for refactoring opportunities
   defmodule State do
-    defstruct request: nil, watcher: nil, state: :pending
+    defstruct invoice: nil, state: :pending
   end
 
   # Client API
@@ -26,10 +37,12 @@ defmodule BitPal.Transactions do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
 
-  # Store a new transaction (a Request obj). Returns the amount of satoshis to ask for. This might
+  # Store a new transaction (via an Invoice).
+  # Alters the amount of satoshis to ask for. This might
   # differ slightly from the original transaction as we need to keep it unique.
-  def new(request, watcher) do
-    GenServer.call(__MODULE__, {:new_transaction, request, watcher})
+  @spec new(Invoice.t()) :: Invoice.t()
+  def new(invoice) do
+    GenServer.call(__MODULE__, {:new_transaction, invoice})
   end
 
   # Get the current height of the blockchain.
@@ -61,7 +74,7 @@ defmodule BitPal.Transactions do
 
   @impl true
   def init(state) do
-    Logger.info("Starting BitPal.Transactions")
+    # Logger.info("Starting BitPal.Transactions")
 
     # Map of transactions. address -> satoshi value -> {data, watcher}
     state = Map.put(state, :transactions, %{})
@@ -73,23 +86,23 @@ defmodule BitPal.Transactions do
   end
 
   @impl true
-  def handle_call({:new_transaction, request, watcher}, _from, state) do
-    IO.puts("registering new transaction! #{inspect(request.amount)}")
+  def handle_call({:new_transaction, invoice}, _from, state) do
+    # IO.puts("registering new transaction! #{inspect(invoice.amount)}")
     transactions = Map.get(state, :transactions, %{})
     # Find a suitable addr map:
-    for_addr = Map.get(transactions, request.address, %{})
-    # Compute the amount to request.
-    satoshi = find_amount(for_addr, BitPal.BCH.Satoshi.bch_to_satoshi(request.amount))
-    IO.puts("satoshis to request: #{inspect(satoshi)}")
+    for_addr = Map.get(transactions, invoice.address, %{})
+    # Compute the amount to invoice.
+    satoshi = find_amount(for_addr, Satoshi.from_decimal(invoice.amount).amount)
+    # IO.puts("satoshis to invoice: #{inspect(satoshi)}")
+    invoice = %{invoice | amount: Satoshi.to_decimal(%Satoshi{amount: satoshi})}
 
     # Put it back together.
-    for_addr =
-      Map.put(for_addr, satoshi, %State{request: request, watcher: watcher, state: :pending})
+    for_addr = Map.put(for_addr, satoshi, %State{invoice: invoice, state: :pending})
 
-    transactions = Map.put(transactions, request.address, for_addr)
+    transactions = Map.put(transactions, invoice.address, for_addr)
     state = Map.put(state, :transactions, transactions)
 
-    {:reply, satoshi, state}
+    {:reply, invoice, state}
   end
 
   @impl true
@@ -233,9 +246,11 @@ defmodule BitPal.Transactions do
   end
 
   # Find a transaction given its address and amount. Returns nil if it is not found.
+  # FIXME should operate on base units not Decimal
   defp find(address, amount, state) do
     transactions = Map.get(state, :transactions, %{})
     for_addr = Map.get(transactions, address, %{})
+    amount = Satoshi.from_decimal(amount).amount
     Map.get(for_addr, amount, nil)
   end
 
@@ -259,18 +274,18 @@ defmodule BitPal.Transactions do
 
   # Send a message indicating that a transaction was seen.
   defp send_seen(item) do
-    send(item.watcher, {:tx_seen})
+    BackendEvent.broadcast(item.invoice, :tx_seen)
   end
 
   # Send a message indicating we found a doublespend.
   defp send_doublespend(item) do
-    send(item.watcher, {:doublespend_seen})
+    BackendEvent.broadcast(item.invoice, :doublespend)
   end
 
   # Complete a transaction by sending any required messages.
   defp send_update(item, height) do
     if is_integer(item.state) do
-      send(item.watcher, {:new_block, height - item.state + 1})
+      BackendEvent.broadcast(item.invoice, {:confirmations, height - item.state + 1})
     end
   end
 
@@ -285,12 +300,12 @@ defmodule BitPal.Transactions do
 
         :visible ->
           # If visible, we're done if the transaction is zero-conf
-          item.request.required_confirmations <= 0
+          item.invoice.required_confirmations <= 0
 
         nr when is_integer(nr) ->
           # It's a number indicating the height it was seen at.
           # E.g. if curr_height == nr, that's one confirmation.
-          curr_height - nr + 1 >= item.request.required_confirmations
+          curr_height - nr + 1 >= item.invoice.required_confirmations
 
         _ ->
           # Something else. Remove it.
@@ -311,7 +326,7 @@ defmodule BitPal.Transactions do
         if satoshis >= @min_satoshi do
           satoshis
         else
-          # Indicate failure. All amounts over zero and lower than the requested amount were zero.
+          # Indicate failure. All amounts over zero and lower than the invoiceed amount were zero.
           nil
         end
     end

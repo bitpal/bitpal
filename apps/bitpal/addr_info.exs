@@ -56,7 +56,7 @@
 # defmodule T do
 #   def wait_msg() do
 #     receive do
-#       {:state_changed, state} -> IO.inspect(state)
+#       {:state, state} -> IO.inspect(state)
 #     end
 
 #     wait_msg()

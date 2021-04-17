@@ -42,7 +42,9 @@ defmodule BitPal.MixProject do
       {:jason, "~> 1.0"},
       {:httpoison, "~> 1.7"},
       {:poison, "~> 3.1"},
-      {:eqrcode, "~> 0.1.7"}
+      {:eqrcode, "~> 0.1.7"},
+      {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.24", only: :dev, runtime: false}
     ]
   end
 

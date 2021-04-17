@@ -37,10 +37,11 @@ config :demo, Demo.Endpoint,
   live_view: [signing_salt: "bEctYJRI"],
   server: true
 
-# Configure Mix tasks and generators
 config :bitpal,
   ecto_repos: [BitPal.Repo],
-  backends: [BitPal.Flowee]
+  backends: [BitPal.Backend.Flowee]
+
+config :bitpal, BitPal.ExchangeRate, backends: [BitPal.ExchangeRate.Kraken]
 
 config :bitpal_web,
   generators: [context_app: :bitpal]
