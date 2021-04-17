@@ -4,10 +4,10 @@ defmodule BitPal.BackendEvent do
 
   Events:
 
-    * `{:tx_seen, amount}`
+    * `:tx_seen`
     * `:doublespend`
-    * `{:additional_confirmation, confirmations}`
-    * `{:block_reversed, doublespend?, confirmations}`
+    * `{:confirmations, confirmation_count}`
+    * `{:block_reversed, doublespend?, confirmation_count}`
   """
 
   require Logger
@@ -16,14 +16,21 @@ defmodule BitPal.BackendEvent do
 
   @pubsub BitPal.PubSub
 
-  # FIXME maybe these should be address based? Or currency based? Or something?
+  @typep confirmation_count :: non_neg_integer
+  @typep doublespend? :: boolean
+  @type msg ::
+          :tx_seen
+          | :doublespend
+          | {:confirmations, confirmation_count}
+          | {:block_reversed, doublespend?, confirmation_count}
+
   @spec subscribe(Invoice.t()) :: :ok | {:error, term}
   def subscribe(invoice) do
-    Logger.debug("subscribing to #{topic(invoice)}")
+    Logger.debug("subscribing to #{topic(invoice)} #{inspect(self())}")
     PubSub.subscribe(@pubsub, topic(invoice))
   end
 
-  @spec broadcast(Invoice.t(), term) :: :ok | {:error, term}
+  @spec broadcast(Invoice.t(), msg) :: :ok | {:error, term}
   def broadcast(invoice, msg) do
     Logger.debug("broadcasting #{inspect(msg)} to #{topic(invoice)}")
     PubSub.broadcast(@pubsub, topic(invoice), msg)
@@ -31,6 +38,6 @@ defmodule BitPal.BackendEvent do
 
   @spec topic(Invoice.t()) :: binary
   defp topic(invoice) do
-    "addr:" <> invoice.address
+    "backend:" <> Invoice.id(invoice)
   end
 end

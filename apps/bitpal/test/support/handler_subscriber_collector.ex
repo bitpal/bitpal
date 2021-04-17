@@ -1,13 +1,17 @@
-defmodule HandlerSubscriberStub do
+defmodule HandlerSubscriberCollector do
   use GenServer
   alias BitPal.InvoiceManager
+  alias BitPal.InvoiceHandler
 
   # Client API
 
+  @spec create_invoice(Invoice.t()) :: {:ok, Invoice.t(), pid, pid}
   def create_invoice(invoice) do
-    {:ok, pid} = start_link(nil)
-    GenServer.call(pid, {:create_invoice, invoice})
-    {:ok, pid}
+    {:ok, stub} = start_link(nil)
+
+    {invoice, handler} = GenServer.call(stub, {:create_invoice, invoice})
+
+    {:ok, invoice, stub, handler}
   end
 
   def start_link(opts) do
@@ -19,13 +23,18 @@ defmodule HandlerSubscriberStub do
     |> Enum.reverse()
   end
 
-  def await_state_change(handler, state) do
-    await_msg(handler, {:state_changed, state})
+  def await_state(handler, state) do
+    await_msg(handler, {:state, state})
+  end
+
+  def await_endstate(handler, state, invoice) do
+    await_msg(handler, {:state, state, invoice})
   end
 
   def await_msg(handler, msg) do
-    task = Task.async(HandlerSubscriberStub, :sleep_until_msg, [handler, msg])
-    Task.await(task, 50)
+    Task.async(__MODULE__, :sleep_until_msg, [handler, msg])
+    |> Task.await(50)
+
     {:ok, received(handler)}
   end
 
@@ -40,10 +49,11 @@ defmodule HandlerSubscriberStub do
 
   def contains_msg?(handler, msg) do
     received(handler)
-    |> Enum.any?(fn
-      ^msg -> true
-      _ -> false
-    end)
+    |> Enum.any?(fn x -> x == msg end)
+  end
+
+  def is_accepted?(handler) do
+    contains_msg?(handler, {:state, :accepted})
   end
 
   # Server API
@@ -55,8 +65,11 @@ defmodule HandlerSubscriberStub do
 
   @impl true
   def handle_call({:create_invoice, invoice}, _, state) do
-    invoice = InvoiceManager.create_invoice(invoice)
-    {:reply, :ok, Map.put(state, :invoice, invoice)}
+    {:ok, handler} = InvoiceManager.create_invoice_and_subscribe(invoice)
+
+    invoice = InvoiceHandler.get_invoice(handler)
+
+    {:reply, {invoice, handler}, state}
   end
 
   @impl true

@@ -4,7 +4,7 @@ defmodule BitPal.BackendCase do
   alias BitPal.Invoice
   alias BitPal.InvoiceManager
   alias BitPal.BackendManager
-  alias BitPal.BackendStub
+  alias BitPal.BackendMock
   alias BitPal.Transactions
 
   using do
@@ -12,7 +12,7 @@ defmodule BitPal.BackendCase do
       alias BitPal.Invoice
       alias BitPal.InvoiceManager
       alias BitPal.BackendManager
-      alias BitPal.BackendStub
+      alias BitPal.BackendMock
       alias BitPal.Transactions
 
       import BitPal.BackendCase
@@ -31,13 +31,15 @@ defmodule BitPal.BackendCase do
     amount = Decimal.from_float(Keyword.get(args, :amount, 1.3))
     exchange_rate = Decimal.from_float(Keyword.get(args, :exchange_rate, 2.0))
     fiat_amount = Decimal.mult(amount, exchange_rate)
+    required_confirmations = Keyword.get(args, :required_confirmations, 0)
 
     %Invoice{
       address: "bitcoincash:qqpkcce4wlzdc8guam5jfys9prfyhr90seqzakyv4tu",
       amount: amount,
       exchange_rate: exchange_rate,
       fiat_amount: fiat_amount,
-      email: "test@bitpal.dev"
+      email: "test@bitpal.dev",
+      required_confirmations: required_confirmations
     }
   end
 
@@ -56,7 +58,11 @@ defmodule BitPal.BackendCase do
         start_supervised!({BackendManager, backends})
       end
 
-    invoice_manager = start_supervised!(InvoiceManager)
+    invoice_manager =
+      start_supervised!(
+        {InvoiceManager, double_spend_timeout: Map.get(tags, :double_spend_timeout, 100)}
+      )
+
     transactions = start_supervised!(Transactions)
 
     %{
@@ -66,7 +72,7 @@ defmodule BitPal.BackendCase do
     }
   end
 
+  defp backends(%{backends: true}), do: [BackendMock]
   defp backends(%{backends: backends}), do: backends
-  defp backends(%{backend: true}), do: [BackendStub]
   defp backends(_), do: nil
 end

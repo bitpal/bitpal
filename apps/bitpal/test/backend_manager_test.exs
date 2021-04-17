@@ -3,11 +3,11 @@ defmodule BackendManagerTest do
 
   alias BitPal.Backend
   alias BitPal.BackendManager
-  alias BitPal.BackendStub
+  alias BitPal.BackendMock
 
   @tag :dry
   test "initialize and restart" do
-    pid = start_supervised!({BackendManager, [BackendStub]})
+    pid = start_supervised!({BackendManager, [BackendMock]})
 
     %{active: 1} = DynamicSupervisor.count_children(pid)
 
@@ -27,8 +27,8 @@ defmodule BackendManagerTest do
     start_supervised!(
       {BackendManager,
        [
-         {BitPal.BackendStub, name: Bitcoin.Backend, currencies: [:bch, :btc]},
-         {BitPal.BackendStub, name: Monero.Backend, currencies: [:xmr]}
+         {BitPal.BackendMock, name: Bitcoin.Backend, currencies: [:bch, :btc]},
+         {BitPal.BackendMock, name: Monero.Backend, currencies: [:xmr]}
        ]}
     )
 

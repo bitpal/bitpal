@@ -2,7 +2,7 @@ defmodule InvoiceManagerTest do
   use BitPal.BackendCase
   alias BitPal.InvoiceManager
 
-  test "initialize", %{invoice_manager: pid} do
+  test "initialize" do
     inv1 = invoice()
     {:ok, inv1_pid} = InvoiceManager.create_invoice(inv1)
 
@@ -10,10 +10,10 @@ defmodule InvoiceManagerTest do
     {:ok, inv2_pid} = InvoiceManager.create_invoice(inv2)
 
     assert inv1_pid != inv2_pid
-    assert DynamicSupervisor.count_children(pid).workers == 2
+    assert InvoiceManager.count_children() == 2
 
     assert_shutdown(inv2_pid)
 
-    assert DynamicSupervisor.count_children(pid).workers == 2
+    assert InvoiceManager.count_children() == 2
   end
 end

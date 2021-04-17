@@ -279,13 +279,13 @@ defmodule BitPal.Transactions do
 
   # Send a message indicating we found a doublespend.
   defp send_doublespend(item) do
-    BackendEvent.broadcast(item.invoice, :doublespend_seen)
+    BackendEvent.broadcast(item.invoice, :doublespend)
   end
 
   # Complete a transaction by sending any required messages.
   defp send_update(item, height) do
     if is_integer(item.state) do
-      BackendEvent.broadcast(item.invoice, {:new_block, height - item.state + 1})
+      BackendEvent.broadcast(item.invoice, {:confirmations, height - item.state + 1})
     end
   end
 

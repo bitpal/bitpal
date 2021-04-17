@@ -19,7 +19,4 @@ defmodule CashaddressTest do
       Cashaddress.decode_cash_url(address)
     end
   end
-
-  # FIXME p2sh test
-  # FIXME some more tests
 end
