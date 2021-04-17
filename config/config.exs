@@ -41,6 +41,8 @@ config :bitpal,
   ecto_repos: [BitPal.Repo],
   backends: [BitPal.Backend.Flowee]
 
+config :bitpal, BitPal.ExchangeRate, backends: [BitPal.ExchangeRate.Kraken]
+
 config :bitpal_web,
   generators: [context_app: :bitpal]
 

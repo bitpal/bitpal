@@ -1,23 +1,42 @@
 defmodule BitPal.ExchangeRate.Kraken do
   require Logger
+  alias BitPal.ExchangeRate.Result
+
+  @behaviour BitPal.ExchangeRate.Backend
 
   @base "https://api.kraken.com/0/public/Ticker?pair="
+  @http Application.get_env(:bitpal, :http_client, BitPal.HTTPClient)
 
-  def compute(pair = {:bch, :usd}) do
-    Logger.info("Computing Kraken exchange rate #{inspect(pair)}")
-    get_rate("bchusd")
+  @impl true
+  def name(), do: "kraken"
+
+  @impl true
+  def supported_pairs(), do: [{:bch, :usd}, {:bch, :eur}]
+
+  @impl true
+  def compute(pair, _opts \\ []) do
+    Logger.debug("Computing Kraken exchange rate #{inspect(pair)}")
+
+    {:ok,
+     %Result{
+       score: 100,
+       backend: __MODULE__,
+       rate: get_rate(pair)
+     }}
   end
 
   defp get_rate(pair) do
-    pair
-    |> get_body
+    pair = pair2str(pair)
+
+    {:ok, body} = @http.request_body(url(pair))
+
+    body
     |> decode
-    |> rate(pair)
+    |> transform_rate(pair)
   end
 
-  defp get_body(pair) do
-    {:ok, %HTTPoison.Response{status_code: 200, body: body}} = HTTPoison.get(url(pair))
-    body
+  defp pair2str({from, to}) do
+    Atom.to_string(from) <> Atom.to_string(to)
   end
 
   defp url(pair) do
@@ -28,12 +47,12 @@ defmodule BitPal.ExchangeRate.Kraken do
     Poison.decode!(body)
   end
 
-  defp rate(%{"result" => res}, pair) do
+  defp transform_rate(%{"result" => res}, pair) do
     {f, ""} =
       res[String.upcase(pair)]["c"]
       |> List.first()
       |> Float.parse()
 
-    f
+    Decimal.from_float(f)
   end
 end

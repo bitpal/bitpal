@@ -8,12 +8,9 @@ defmodule BitPal.Application do
   def start(_type, _args) do
     children =
       [
-        # Start the Ecto repository
         # BitPal.Repo,
-        # Start the PubSub system
-        {Phoenix.PubSub, name: BitPal.PubSub}
-        # Start a worker by calling: BitPal.Worker.start_link(arg)
-        # {BitPal.Worker, arg}
+        {Phoenix.PubSub, name: BitPal.PubSub},
+        BitPal.ProcessRegistry
       ] ++ children_per_env(Mix.env())
 
     Supervisor.start_link(children, strategy: :one_for_one, name: BitPal.Supervisor)

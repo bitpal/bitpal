@@ -14,7 +14,9 @@ config :demo, Demo.Endpoint,
 
 config :bitpal,
   # Backends should be specified per test
-  backends: []
+  backends: [],
+  # Mocked http requests
+  http_client: BitPal.TestHTTPClient
 
 # Configure your database
 #
