@@ -1,17 +1,5 @@
 use Mix.Config
 
-# We don't run a server during test. If one is required,
-# you can enable the server option below.
-config :proxy, Proxy.Endpoint,
-  http: [port: 4002],
-  server: false
-
-# We don't run a server during test. If one is required,
-# you can enable the server option below.
-config :demo, Demo.Endpoint,
-  http: [port: 4002],
-  server: false
-
 config :bitpal,
   # Backends should be specified per test
   backends: [],
@@ -29,12 +17,6 @@ config :bitpal, BitPal.Repo,
   database: "payments_test#{System.get_env("MIX_TEST_PARTITION")}",
   hostname: "localhost",
   pool: Ecto.Adapters.SQL.Sandbox
-
-# We don't run a server during test. If one is required,
-# you can enable the server option below.
-config :bitpal_web, BitpalWeb.Endpoint,
-  http: [port: 4002],
-  server: false
 
 # Print only warnings and errors during test
 config :logger, level: :warn

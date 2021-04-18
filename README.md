@@ -1,38 +1,54 @@
-Main repo for [BitPal](https://bitpal.dev/)
+BitPal is a self-hosted payment processor.
+
+It's currently in the expiremental development phase.
 
 
-# Installation
+# Installing Flowee
 
-* Install Elixir
-* Install npm + nodejs
-* Install postgresql and setup a database.
+Just some quick instructions to get started.
 
-  See `config/dev.exs` for settings, default is username and password: "postgres".
+## Arch Linux
 
-* Update dependencies: `mix deps.get`
-* Update assets.
+These are installation instructions for Arch Linux.
 
-  In each web app:
+Download the PKGBUILD: https://aur.archlinux.org/packages/flowee/
 
-  ```
-  cd assets && npm install && node node_modules/webpack/bin/webpack.js --mode development
-  ```
+- wget https://aur.archlinux.org/cgit/aur.git/snapshot/flowee.tar.gz
+- tar xvzf flowee.tar.gz
+- cd flowee/
+- sudo pacman -S libevent
+- makepkg
+- Add the line `#define GIT_COMMIT_ID "x"` to the file src/build/include/build.h
+- `sudo pacman -U flowee-2020.08.2-1-x86_64.pkg.tar.zst`
+- Data will be in /var/lib/flowee - make sure you have lots of disk space for that. Recommended is 250 GB
+- If you create it, make sure the user "flowee" can write to it.
+- sudo systemctl enable thehub.service
+- sudo systemctl start thehub.service
 
+For the indexer:
+- sudo systemctl enable indexer.service
+- sudo systemctl start indexer.service
 
-# How to run
+Enable address indexing (so that we can quickly recover transactions for our account):
+- edit /etc/flowee/indexer.conf
+- Under the [addressdb] section, set "db_driver" to "true" and add a database as suitable.
+- I have tried QSQLITE. That one does not require any additional settings. It is stored in /var/lib/flowee/addresses/
+- The SQLite DB will be one or two gigabytes
 
-## With all sites
+To speed up indexing and reduce disk space, it might be beneficial to disable "spentdb" and maybe "txdb". We don't use those.
 
-From root: `mix phx.server`
-
-Demo site: <http://demo.bitpal.lvh.me:4000/>  
-Main site: <http://bitpal.lvh.me:4000/> or <localhost:4000>
-
-## A single app
+## Void linux
 
 ```
-cd apps/bitpal_web
-mix phx.server
+sudo xbps-install -Su libevent-devel boost-devel
 ```
 
-And see console output for which endpoint to visit (the port is different per app). Something like <localhost:4010> or <localhost:4020>.
+(Maybe something else that I've already installed previously)
+
+## Ubuntu
+
+Sometimes we also need to do:
+
+```
+apt-get install erlang-xmerl
+```
