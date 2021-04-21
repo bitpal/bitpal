@@ -28,6 +28,11 @@ defmodule BitPal.Backend.Flowee do
     [:bch]
   end
 
+  @impl Backend
+  def configure(_backend, _opts) do
+    :ok
+  end
+
   # Address is a "bitcoincash:..." address.
   # Note: This is mainly intended for testing. Registering requests will automagically start watching addresses.
   def watch_wallet(address) do

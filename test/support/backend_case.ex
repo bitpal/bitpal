@@ -52,10 +52,13 @@ defmodule BitPal.BackendCase do
   end
 
   defp setup_backend(tags) do
+    start_supervised!({Phoenix.PubSub, name: BitPal.PubSub})
+    start_supervised!(BitPal.ProcessRegistry)
+
     # Only start backend if explicitly told to
     backend_manager =
       if backends = backends(tags) do
-        start_supervised!({BackendManager, backends})
+        start_supervised!({BackendManager, backends: backends})
       end
 
     invoice_manager =

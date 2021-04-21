@@ -7,7 +7,7 @@ defmodule BackendManagerTest do
 
   @tag :dry
   test "initialize and restart" do
-    pid = start_supervised!({BackendManager, [BackendMock]})
+    pid = start_supervised!({BackendManager, backends: [BackendMock]})
 
     %{active: 1} = DynamicSupervisor.count_children(pid)
 
@@ -26,7 +26,7 @@ defmodule BackendManagerTest do
 
     start_supervised!(
       {BackendManager,
-       [
+       backends: [
          {BitPal.BackendMock, name: Bitcoin.Backend, currencies: [:bch, :btc]},
          {BitPal.BackendMock, name: Monero.Backend, currencies: [:xmr]}
        ]}
@@ -44,5 +44,39 @@ defmodule BackendManagerTest do
     assert {:error, :not_found} = BackendManager.get_currency_backend(:bsv)
 
     assert BackendManager.currency_list() === [:bch, :btc, :xmr]
+  end
+
+  @tag :dry
+  test "change config" do
+    start_supervised!(
+      {BackendManager,
+       backends: [
+         {BitPal.BackendMock, name: Bitcoin.Backend, currencies: [:bch]},
+         {BitPal.BackendMock, name: Litecoin.Backend, currencies: [:ltc]}
+       ]}
+    )
+
+    assert {:ok, bit} = BackendManager.get_backend(Bitcoin.Backend)
+    assert {:ok, ^bit} = BackendManager.get_currency_backend(:bch)
+    assert {:error, :not_found} = BackendManager.get_currency_backend(:btc)
+    assert {:ok, ltc} = BackendManager.get_backend(Litecoin.Backend)
+    assert {:ok, ^ltc} = BackendManager.get_currency_backend(:ltc)
+
+    BackendManager.configure(
+      backends: [
+        {BitPal.BackendMock, name: Bitcoin.Backend, currencies: [:bch, :btc]},
+        {BitPal.BackendMock, name: Monero.Backend, currencies: [:xmr]}
+      ]
+    )
+
+    # Doesn't restart the existing backend
+    assert {:ok, ^bit} = BackendManager.get_currency_backend(:bch)
+    assert {:ok, ^bit} = BackendManager.get_currency_backend(:btc)
+    # Removes a backend
+    assert {:error, :not_found} = BackendManager.get_currency_backend(:ltc)
+    # Adds a new backend
+    assert {:ok, xmr} = BackendManager.get_backend(Monero.Backend)
+    assert {:ok, ^xmr} = BackendManager.get_currency_backend(:xmr)
+    assert BackendManager.backends() |> Enum.count() == 2
   end
 end

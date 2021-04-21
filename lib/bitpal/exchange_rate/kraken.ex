@@ -5,7 +5,6 @@ defmodule BitPal.ExchangeRate.Kraken do
   @behaviour BitPal.ExchangeRate.Backend
 
   @base "https://api.kraken.com/0/public/Ticker?pair="
-  @http Application.get_env(:bitpal, :http_client, BitPal.HTTPClient)
 
   @impl true
   def name(), do: "kraken"
@@ -14,7 +13,7 @@ defmodule BitPal.ExchangeRate.Kraken do
   def supported_pairs(), do: [{:bch, :usd}, {:bch, :eur}]
 
   @impl true
-  def compute(pair, _opts \\ []) do
+  def compute(pair, _opts) do
     Logger.debug("Computing Kraken exchange rate #{inspect(pair)}")
 
     {:ok,
@@ -28,7 +27,9 @@ defmodule BitPal.ExchangeRate.Kraken do
   defp get_rate(pair) do
     pair = pair2str(pair)
 
-    {:ok, body} = @http.request_body(url(pair))
+    http = Application.get_env(:bitpal, :http_client, BitPal.HTTPClient)
+
+    {:ok, body} = http.request_body(url(pair))
 
     body
     |> decode

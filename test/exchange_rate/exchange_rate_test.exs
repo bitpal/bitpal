@@ -96,12 +96,18 @@ defmodule BitPal.ExchangeRateTest do
   end
 
   setup tags do
+    start_supervised!({Phoenix.PubSub, name: BitPal.PubSub})
+    start_supervised!(BitPal.ProcessRegistry)
     start_supervised!({ExchangeRate, clear_interval: tags[:cache_clear_interval]})
     start_supervised!(TestSubscriber)
     :ok
   end
 
-  @tag do: true
+  test "direct request" do
+    assert ExchangeRate.request(@bchusd) == {:ok, @bchusd_rate}
+    assert ExchangeRate.require!(@bchusd) == @bchusd_rate
+  end
+
   test "receive after subscribe" do
     TestSubscriber.subscribe(@bchusd)
     TestSubscriber.await_msg_count(1)
@@ -136,6 +142,8 @@ defmodule BitPal.ExchangeRateTest do
       test_timeout: :infinity,
       timeout: :infinity
     )
+
+    Process.sleep(10)
 
     {:already_started, _} = ExchangeRate.async_request(@bchusd)
   end

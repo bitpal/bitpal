@@ -5,9 +5,6 @@ defmodule BitPal.MixProject do
     [
       app: :bitpal,
       version: "0.1.0",
-      # config_path: "../../config/config.exs",
-      # deps_path: "../../deps",
-      # lockfile: "../../mix.lock",
       elixir: "~> 1.11",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -55,7 +52,8 @@ defmodule BitPal.MixProject do
       setup: ["deps.get", "ecto.setup"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"]
+      # test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"]
+      test: "test --no-start"
     ]
   end
 end

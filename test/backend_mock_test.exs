@@ -1,7 +1,9 @@
 defmodule BackendMockTest do
   use BitPal.BackendCase
 
-  @tag backends: [{BitPal.BackendMock, auto: true, time_until_tx_seen: 1, time_between_blocks: 1}]
+  @tag backends: [
+         {BitPal.BackendMock, auto: true, time_until_tx_seen: 10, time_between_blocks: 5}
+       ]
   test "auto" do
     {:ok, inv1, stub1, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(invoice(required_confirmations: 1, amount: 1.0))
