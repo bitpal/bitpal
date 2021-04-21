@@ -2,6 +2,7 @@ defmodule BitPal.InvoiceManager do
   use GenServer
   alias BitPal.Invoice
   alias BitPal.InvoiceHandler
+  import BitPal.ConfigHelpers, only: [update_state: 3]
 
   @supervisor BitPal.InvoiceSupervisor
 
@@ -24,6 +25,11 @@ defmodule BitPal.InvoiceManager do
   @spec count_children() :: non_neg_integer
   def count_children() do
     Supervisor.count_children(@supervisor).workers
+  end
+
+  @spec configure([{:double_spend_timeout, non_neg_integer}]) :: :ok
+  def configure(opts) do
+    GenServer.call(__MODULE__, {:configure, opts})
   end
 
   def tracked_invoices() do
@@ -59,5 +65,12 @@ defmodule BitPal.InvoiceManager do
       )
 
     {:reply, child, state}
+  end
+
+  @impl true
+  def handle_call({:configure, opts}, _, state) do
+    # We could change configs of handlers as well, but the only thing we can change
+    # is `double_spend_timeout` which will be very fast, so it doesn't matter much in practice.
+    {:reply, :ok, update_state(state, opts, :double_spend_timeout)}
   end
 end

@@ -49,12 +49,20 @@ defmodule BitPal.ExchangeRate do
   @spec request(pair, keyword) :: {:ok, Decimal.t()} | {:error, term}
   def request(pair, opts \\ []) do
     case Cache.fetch(@permanent_cache, pair) do
-      res = {:ok, _} ->
-        res
+      {:ok, res} ->
+        {:ok, res.rate}
 
       :error ->
+        Worker.start_worker(pair, opts)
         Worker.await_worker(pair, opts)
-        Cache.fetch(@permanent_cache, pair)
+
+        case Cache.fetch(@permanent_cache, pair) do
+          {:ok, res} ->
+            {:ok, res.rate}
+
+          :error ->
+            {:error, :not_found}
+        end
     end
   end
 

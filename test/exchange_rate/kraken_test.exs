@@ -4,7 +4,7 @@ defmodule BitPal.ExchangeRate.KrakenTest do
   alias BitPal.ExchangeRate.Kraken
 
   test "request and parse" do
-    assert Kraken.compute({:bch, :usd}) ==
+    assert Kraken.compute({:bch, :usd}, []) ==
              {:ok,
               %Result{
                 rate: Decimal.from_float(815.27),

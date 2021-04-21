@@ -1,8 +1,11 @@
 defmodule BitPal.BackendMock do
   use GenServer
   require Logger
+  import BitPal.ConfigHelpers
   alias BitPal.Backend
   alias BitPal.Transactions
+
+  @type backend :: pid() | module()
 
   @behaviour Backend
 
@@ -14,6 +17,11 @@ defmodule BitPal.BackendMock do
   @impl Backend
   def supported_currencies(backend) do
     GenServer.call(backend, :supported_currencies)
+  end
+
+  @impl Backend
+  def configure(backend \\ __MODULE__, opts) do
+    GenServer.call(backend, {:configure, opts})
   end
 
   # Client API
@@ -67,6 +75,20 @@ defmodule BitPal.BackendMock do
   end
 
   @impl true
+  def handle_call({:configure, opts}, _, state) do
+    setup_auto = opts[:auto] && !state[:auto]
+
+    state =
+      update_state(state, opts, [:auto, :time_until_tx_seen, :time_between_blocks, :currencies])
+
+    if setup_auto do
+      setup_auto_blocks(state)
+    end
+
+    {:reply, :ok, state}
+  end
+
+  @impl true
   def handle_call(:supported_currencies, _, state = %{currencies: currencies}) do
     {:reply, currencies, state}
   end
@@ -108,9 +130,7 @@ defmodule BitPal.BackendMock do
   @impl true
   def handle_call({:new_block, invoice}, _from, state) do
     state = incr_height(state)
-
     Transactions.accepted(invoice.address, invoice.amount, state.height)
-
     {:reply, :ok, state}
   end
 

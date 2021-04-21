@@ -4,13 +4,14 @@ defmodule BitPal.BackendManager do
   alias BitPal.BackendEvent
   alias BitPal.Invoice
 
+  @type backend_spec() :: Supervisor.child_spec()
   @type backend_name() :: atom()
 
   # Client API
 
-  @spec start_link([Supervisor.child_spec()]) :: Supervisor.on_start()
-  def start_link(children) do
-    Supervisor.start_link(__MODULE__, children, name: __MODULE__)
+  @spec start_link(keyword) :: Supervisor.on_start()
+  def start_link(opts) do
+    Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
   @spec track(Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
@@ -27,7 +28,7 @@ defmodule BitPal.BackendManager do
     end
   end
 
-  @spec backends() :: [{backend_name(), Backend.backend_ref(), :ok, [Request.currency()]}]
+  @spec backends() :: [{backend_name(), Backend.backend_ref(), :ok, [Invoice.currency()]}]
   def backends() do
     Supervisor.which_children(__MODULE__)
     |> Enum.map(fn {name, pid, _worker, [backend]} ->
@@ -54,7 +55,7 @@ defmodule BitPal.BackendManager do
     end)
   end
 
-  @spec currencies() :: [{Request.currency(), :ok, Backend.backend_ref()}]
+  @spec currencies() :: [{Invoice.currency(), :ok, Backend.backend_ref()}]
   def currencies() do
     backends()
     |> Enum.map(fn {_name, ref, status} ->
@@ -67,14 +68,14 @@ defmodule BitPal.BackendManager do
     end)
   end
 
-  @spec currency_list() :: [Request.currency()]
+  @spec currency_list() :: [Invoice.currency()]
   def currency_list() do
     currencies()
     |> Enum.reduce([], fn {currency, _, _}, acc -> [currency | acc] end)
     |> Enum.sort()
   end
 
-  @spec currency_status(Request.currency()) :: :ok | :not_found
+  @spec currency_status(Invoice.currency()) :: :ok | :not_found
   def currency_status(currency) do
     currencies()
     |> Enum.find_value(:not_found, fn
@@ -83,7 +84,7 @@ defmodule BitPal.BackendManager do
     end)
   end
 
-  @spec get_currency_backend(Request.currency()) ::
+  @spec get_currency_backend(Invoice.currency()) ::
           {:ok, Backend.backend_ref()} | {:error, :not_found}
   def get_currency_backend(currency) do
     currencies()
@@ -93,10 +94,47 @@ defmodule BitPal.BackendManager do
     end)
   end
 
+  @spec configure(backends: backend_spec()) :: :ok
+  def configure(opts) do
+    if backends = opts[:backends] do
+      to_keep =
+        backends
+        |> Enum.map(&start_or_update_backend/1)
+        |> Enum.reduce(%{}, fn pid, acc -> Map.put(acc, pid, true) end)
+
+      Supervisor.which_children(__MODULE__)
+      |> Enum.each(fn {child_id, pid, _, _} ->
+        if !Map.has_key?(to_keep, pid) do
+          :ok = Supervisor.terminate_child(__MODULE__, child_id)
+          # Also removes the child specification, makes it all cleaner and
+          # easier to reason about.
+          :ok = Supervisor.delete_child(__MODULE__, child_id)
+        end
+      end)
+    end
+  end
+
+  defp start_or_update_backend(spec = {backend, opts}) do
+    case Supervisor.start_child(__MODULE__, spec) do
+      {:error, {:already_started, pid}} when is_pid(pid) ->
+        Backend.configure({pid, backend}, opts)
+        pid
+
+      {:ok, pid} when is_pid(pid) ->
+        pid
+    end
+  end
+
+  defp start_or_update_backend(backend) when is_atom(backend) do
+    start_or_update_backend({backend, []})
+  end
+
   # Server API
 
   @impl true
-  def init(children) do
+  def init(opts) do
+    children = opts[:backends] || Application.fetch_env!(:bitpal, :backends)
+
     Supervisor.init(children, strategy: :one_for_one)
   end
 end

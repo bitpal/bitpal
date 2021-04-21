@@ -5,6 +5,7 @@ defmodule BitPal.Backend do
 
   @callback register(pid(), Invoide.t()) :: Invoice.t()
   @callback supported_currencies(pid()) :: [atom()]
+  @callback configure(pid(), map()) :: :ok
 
   @spec register(backend_ref(), Invoice.t()) :: Invoice.t()
   def register({pid, backend}, invoice) do
@@ -14,6 +15,11 @@ defmodule BitPal.Backend do
   @spec supported_currencies(backend_ref()) :: [atom()]
   def supported_currencies({pid, backend}) do
     backend.supported_currencies(pid)
+  end
+
+  @spec configure(backend_ref(), keyword()) :: :ok
+  def configure({pid, backend}, opts) do
+    backend.configure(pid, opts)
   end
 
   def supported_currency?(supported, specified) when is_list(supported) do
