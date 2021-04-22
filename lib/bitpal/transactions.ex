@@ -1,15 +1,17 @@
 defmodule BitPal.Transactions do
+  @moduledoc """
+  This module is in charge of keeping track of all transactions that are in flight. Eventually,
+  everything in here should be stored in a database in case we need to take down the server
+  for maintenance or something like that.
+
+  As such, it is vital that this process does not crash. Otherwise, we will lose transactions.
+  """
+
   use GenServer
   require Logger
   alias BitPal.Invoice
   alias BitPal.BCH.Satoshi
   alias BitPal.BackendEvent
-
-  # This module is in charge of keeping track of all transactions that are in flight. Eventually,
-  # everything in here should be stored in a database in case we need to take down the server
-  # for maintenance or something like that.
-
-  # As such, it is vital that this process does not crash. Otherwise, we will lose transactions.
 
   # Minimum amount allowed in a single transaction.
   @min_satoshi 100
@@ -20,13 +22,11 @@ defmodule BitPal.Transactions do
   # - :visible - visible in the blockchain
   # - an integer - indicates what block depth it was accepted into
   #
-  # FIXME Should rename to:
+  # NOTE Should we rename them?
   # - :not_seen - not seen yet
   # - :in_mempool - seen, but not confirmed
   # - {:confirmed, height} - confirmed in the blockchain
   # - :double_spent - failed, it was double spent
-  # FIXME need to test it all
-  # FIXME look for refactoring opportunities
   defmodule State do
     defstruct invoice: nil, state: :pending
   end
@@ -246,7 +246,6 @@ defmodule BitPal.Transactions do
   end
 
   # Find a transaction given its address and amount. Returns nil if it is not found.
-  # FIXME should operate on base units not Decimal
   defp find(address, amount, state) do
     transactions = Map.get(state, :transactions, %{})
     for_addr = Map.get(transactions, address, %{})

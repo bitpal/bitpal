@@ -9,7 +9,7 @@ defmodule SatoshiTest do
   end
 
   test "convert satoshi to decimal" do
-    satoshi = %Satoshi{amount: 0_750_000}
+    satoshi = %Satoshi{amount: 750_000}
     dec = Decimal.from_float(0.0075)
     assert BitPal.BaseUnit.to_decimal(satoshi) == dec
   end

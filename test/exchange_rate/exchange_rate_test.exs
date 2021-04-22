@@ -78,19 +78,17 @@ defmodule BitPal.ExchangeRateTest do
         Process.sleep(timeout)
       end
 
-      cond do
-        opts[:test_crash] ->
-          raise "boom"
+      if opts[:test_crash] do
+        raise "boom"
+      else
+        score = Keyword.get(opts, :test_score, 2.0)
 
-        true ->
-          score = Keyword.get(opts, :test_score, 2.0)
-
-          {:ok,
-           %Result{
-             score: score,
-             backend: __MODULE__,
-             rate: Decimal.from_float(score)
-           }}
+        {:ok,
+         %Result{
+           score: score,
+           backend: __MODULE__,
+           rate: Decimal.from_float(score)
+         }}
       end
     end
   end
@@ -112,7 +110,7 @@ defmodule BitPal.ExchangeRateTest do
     TestSubscriber.subscribe(@bchusd)
     TestSubscriber.await_msg_count(1)
     assert TestSubscriber.received() == [{:exchange_rate, @bchusd, @bchusd_rate}]
-    assert Enum.count(Task.Supervisor.children(@supervisor)) == 0
+    assert Enum.empty?(Task.Supervisor.children(@supervisor))
   end
 
   test "multiple rates" do
@@ -135,7 +133,6 @@ defmodule BitPal.ExchangeRateTest do
            ]
   end
 
-  # FIXME sometimes causes other things to live on...
   test "multiple requests but only one response until done" do
     TestSubscriber.subscribe(@bchusd,
       backends: [TestBackend],
@@ -152,7 +149,7 @@ defmodule BitPal.ExchangeRateTest do
     TestSubscriber.subscribe(@bchusd, backends: [TestBackend], test_crash: true)
     Process.sleep(20)
     assert TestSubscriber.received() == []
-    assert Enum.count(Task.Supervisor.children(@supervisor)) == 0
+    assert Enum.empty?(Task.Supervisor.children(@supervisor))
   end
 
   test "timeout" do
@@ -164,7 +161,7 @@ defmodule BitPal.ExchangeRateTest do
 
     Process.sleep(20)
     assert TestSubscriber.received() == []
-    assert Enum.count(Task.Supervisor.children(@supervisor)) == 0
+    assert Enum.empty?(Task.Supervisor.children(@supervisor))
   end
 
   @tag cache_clear_interval: 1
@@ -172,7 +169,7 @@ defmodule BitPal.ExchangeRateTest do
     TestSubscriber.subscribe(@bchusd, backends: [TestBackend])
     TestSubscriber.await_msg_count(1)
     assert TestSubscriber.received() == [{:exchange_rate, @bchusd, Decimal.from_float(2.0)}]
-    assert Enum.count(Task.Supervisor.children(@supervisor)) == 0
+    assert Enum.empty?(Task.Supervisor.children(@supervisor))
 
     ExchangeRate.async_request(@bchusd, backends: [TestBackend], test_crash: true)
     TestSubscriber.await_msg_count(2)

@@ -3,7 +3,7 @@ defmodule BitPal.Backend do
 
   @type backend_ref() :: {pid(), module()}
 
-  @callback register(pid(), Invoide.t()) :: Invoice.t()
+  @callback register(pid(), Invoice.t()) :: Invoice.t()
   @callback supported_currencies(pid()) :: [atom()]
   @callback configure(pid(), map()) :: :ok
 
