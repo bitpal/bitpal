@@ -1,4 +1,6 @@
 defmodule BitPal.ExchangeRate.Backend do
+  alias BitPal.ExchangeRate
+
   @callback name() :: String.t()
   @callback supported_pairs() :: [ExchangeRate.pair()]
   @callback compute(ExchangeRate.pair(), keyword()) :: {:ok, BitPal.ExchangeRate.Result.t()}

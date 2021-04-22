@@ -6,15 +6,12 @@ defmodule BitPal.Invoice do
   @type address :: String.t()
   @type t :: %__MODULE__{
           address: address,
-          # FIXME should be a BaseUnit
           amount: Decimal.t(),
           currency: currency,
-          # FIXME should be an ExchangeRateUnit?
           exchange_rate: Decimal.t(),
-          # FIXME should be a FiatUnit or something?
           fiat_amount: Decimal.t(),
           email: String.t(),
-          required_confirmations: non_neg_integer,
+          required_confirmations: non_neg_integer(),
           label: String.t(),
           message: String.t()
         }
@@ -122,10 +119,10 @@ defmodule BitPal.Invoice do
         add_error(changeset, :exchange_rate, "must provide an exchange rate")
 
       amount && fiat_amount ->
-        if !Decimal.eq?(Decimal.mult(amount, exchange_rate), fiat_amount) do
-          add_error(changeset, :fiat_amount, "fiat amount != amount * exchange rate")
-        else
+        if Decimal.eq?(Decimal.mult(amount, exchange_rate), fiat_amount) do
           changeset
+        else
+          add_error(changeset, :fiat_amount, "fiat amount != amount * exchange rate")
         end
 
       !fiat_amount ->
@@ -141,7 +138,6 @@ defmodule BitPal.Invoice do
 
   @spec id(t) :: binary
   def id(invoice) do
-    # FIXME generate and store from db
     Decimal.to_string(Decimal.normalize(invoice.amount), :normal)
   end
 

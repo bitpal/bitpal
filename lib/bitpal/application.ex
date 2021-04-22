@@ -25,7 +25,7 @@ defmodule BitPal.Application do
     BitPal.configure(changed)
     BitPal.configure(new)
 
-    # FIXME where to fetch defaults for removed values?
+    # Where to fetch defaults for removed values?
     # Propagate changed/new/removed instead?
 
     :ok

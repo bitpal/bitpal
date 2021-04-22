@@ -144,7 +144,7 @@ defmodule BitPal.Backend.Flowee do
 
     Transactions.set_height(height)
 
-    # TODO: Examine some old blocks!
+    # NOTE: Examine some old blocks!?
   end
 
   # Called when a new block has been mined (regardless of whether or not it contains one of our transactions)
@@ -223,9 +223,8 @@ defmodule BitPal.Backend.Flowee do
 
   # (re)start our connection to Flowee
   def start_flowee(state) do
-    # FIXME shouldn't be run in tests
     # Connect to Flowee: The Hub, and start listening for messages from it.
-    # state = start_hub(state)
+    state = start_hub(state)
 
     # We could start additional connections here.
 

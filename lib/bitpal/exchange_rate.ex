@@ -14,7 +14,7 @@ defmodule BitPal.ExchangeRate do
 
   defmodule Result do
     @type t :: %__MODULE__{
-            score: :non_neg_integer,
+            score: non_neg_integer(),
             rate: Decimal.t(),
             backend: module()
           }

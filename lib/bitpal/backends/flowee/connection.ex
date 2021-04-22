@@ -16,37 +16,24 @@ defmodule BitPal.Backend.Flowee.Connection do
 
   # Raw message. Holds an unserialized message that represents the header along with any data.
   defmodule RawMsg do
-    # Note: seqStart och last are only used internally.
+    # Note: seq_start och last are only used internally.
     defstruct service: nil,
               message: nil,
               ping: false,
               pong: false,
-              seqStart: nil,
+              seq_start: nil,
               last: nil,
               data: []
   end
 
   # Tags used in the header
   @header_end 0
-  @header_serviceId 1
-  @header_messageId 2
-  @header_sequenceStart 3
-  @header_lastInSequence 4
+  @header_service_id 1
+  @header_message_id 2
+  @header_sequence_start 3
+  @header_last_in_sequence 4
   @header_ping 5
   @header_pong 6
-
-  # dummy function to disable warnings...
-  def dummy() do
-    [
-      @header_end,
-      @header_serviceId,
-      @header_messageId,
-      @header_sequenceStart,
-      @header_lastInSequence,
-      @header_ping,
-      @header_pong
-    ]
-  end
 
   # Connect to localhost. Defaults to connect to "the hub"
   def connect() do
@@ -108,11 +95,11 @@ defmodule BitPal.Backend.Flowee.Connection do
   defp recv(connection, header, data) do
     if header.last == false do
       # More data... Ignore the next header mostly.
-      {newHeader, moreData} = parse_header(recv_packet(connection))
+      {new_header, more_data} = parse_header(recv_packet(connection))
       # Note: It might be important to check the header here since there might be other messages
       # that are interleaved with chained messages. The docs does not state if this is a
       # possibility, but from a quick glance at the code, I don't think so.
-      recv(connection, %{header | last: newHeader.last}, data <> moreData)
+      recv(connection, %{header | last: new_header.last}, data <> more_data)
     else
       # Last packet! Either header.last == true or header.last == nil
       %{header | data: deserialize(data)}
@@ -177,10 +164,10 @@ defmodule BitPal.Backend.Flowee.Connection do
     result = if ping, do: [{@header_ping, true} | result], else: result
 
     # Message id?
-    result = if msg != nil, do: [{@header_messageId, msg} | result], else: result
+    result = if msg != nil, do: [{@header_message_id, msg} | result], else: result
 
     # Service id?
-    result = if svc != nil, do: [{@header_serviceId, svc} | result], else: result
+    result = if svc != nil, do: [{@header_service_id, svc} | result], else: result
     result
   end
 
@@ -224,16 +211,16 @@ defmodule BitPal.Backend.Flowee.Connection do
         # Done!
         {header, remaining}
 
-      {remaining, {@header_serviceId, svc}} ->
+      {remaining, {@header_service_id, svc}} ->
         parse_header(remaining, %{header | service: svc})
 
-      {remaining, {@header_messageId, msg}} ->
+      {remaining, {@header_message_id, msg}} ->
         parse_header(remaining, %{header | message: msg})
 
-      {remaining, {@header_sequenceStart, s}} ->
-        parse_header(remaining, %{header | seqStart: s})
+      {remaining, {@header_sequence_start, s}} ->
+        parse_header(remaining, %{header | seq_start: s})
 
-      {remaining, {@header_lastInSequence, l}} ->
+      {remaining, {@header_last_in_sequence, l}} ->
         parse_header(remaining, %{header | last: l})
 
       {remaining, {@header_ping, p}} ->
@@ -298,13 +285,11 @@ defmodule BitPal.Backend.Flowee.Connection do
     key = (first &&& 0xF8) >>> 3
     tag = first &&& 0x7
 
-    cond do
-      key == 31 ->
-        {rest, key} = decode_int(rest)
-        {rest, key, tag}
-
-      true ->
-        {rest, key, tag}
+    if key == 31 do
+      {rest, key} = decode_int(rest)
+      {rest, key, tag}
+    else
+      {rest, key, tag}
     end
   end
 

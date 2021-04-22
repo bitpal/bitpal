@@ -83,7 +83,6 @@ defmodule BitPal.InvoiceHandler do
   def handle_info({:confirmations, confirmations}, state) do
     Logger.debug("invoice: new block! #{Invoice.id(state.invoice)}")
 
-    # FIXME need to see if the tx is inside the blockchain before we do below
     state = Map.put(state, :confirmations, confirmations)
 
     broadcast(state.invoice, {:confirmations, state.confirmations})

@@ -8,12 +8,12 @@ defmodule BitPal.ExchangeRate.Cache do
   @clear_interval :timer.seconds(60)
 
   def put(name \\ __MODULE__, key, value) do
-    true = :ets.insert(tab_name(name), {key, value})
+    true = :ets.insert(name, {key, value})
     :ok
   end
 
   def fetch(name \\ __MODULE__, key) do
-    {:ok, :ets.lookup_element(tab_name(name), key, 2)}
+    {:ok, :ets.lookup_element(name, key, 2)}
   rescue
     ArgumentError -> :error
   end
@@ -57,7 +57,6 @@ defmodule BitPal.ExchangeRate.Cache do
 
   defp new_table(name) do
     name
-    |> tab_name()
     |> :ets.new([
       :set,
       :named_table,
@@ -66,6 +65,4 @@ defmodule BitPal.ExchangeRate.Cache do
       write_concurrency: true
     ])
   end
-
-  defp tab_name(name), do: :"#{name}_cache"
 end

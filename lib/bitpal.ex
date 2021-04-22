@@ -1,4 +1,5 @@
 defmodule BitPal do
+  alias BitPal.Invoice
   alias BitPal.InvoiceManager
   alias BitPal.BackendManager
 
