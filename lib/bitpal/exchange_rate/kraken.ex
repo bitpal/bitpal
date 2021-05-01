@@ -1,16 +1,16 @@
 defmodule BitPal.ExchangeRate.Kraken do
-  require Logger
-  alias BitPal.ExchangeRate.Result
-
   @behaviour BitPal.ExchangeRate.Backend
+
+  alias BitPal.ExchangeRate.Result
+  require Logger
 
   @base "https://api.kraken.com/0/public/Ticker?pair="
 
   @impl true
-  def name(), do: "kraken"
+  def name, do: "kraken"
 
   @impl true
-  def supported_pairs(), do: [{:bch, :usd}, {:bch, :eur}]
+  def supported_pairs, do: [{:bch, :usd}, {:bch, :eur}]
 
   @impl true
   def compute(pair, _opts) do

@@ -18,7 +18,7 @@ defmodule Mix.Tasks.Bitpal.Ci do
         Pipeline.parallel([
           mix("test"),
           mix("format --check-formatted"),
-          mix("credo --all")
+          mix("credo --all --strict")
         ])
       ]),
       timeout: :timer.minutes(10),

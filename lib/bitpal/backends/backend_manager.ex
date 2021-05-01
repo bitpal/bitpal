@@ -29,7 +29,7 @@ defmodule BitPal.BackendManager do
   end
 
   @spec backends() :: [{backend_name(), Backend.backend_ref(), :ok, [Invoice.currency()]}]
-  def backends() do
+  def backends do
     Supervisor.which_children(__MODULE__)
     |> Enum.map(fn {name, pid, _worker, [backend]} ->
       ref = {pid, backend}
@@ -56,7 +56,7 @@ defmodule BitPal.BackendManager do
   end
 
   @spec currencies() :: [{Invoice.currency(), :ok, Backend.backend_ref()}]
-  def currencies() do
+  def currencies do
     backends()
     |> Enum.map(fn {_name, ref, status} ->
       {ref, status, Backend.supported_currencies(ref)}
@@ -69,7 +69,7 @@ defmodule BitPal.BackendManager do
   end
 
   @spec currency_list() :: [Invoice.currency()]
-  def currency_list() do
+  def currency_list do
     currencies()
     |> Enum.reduce([], fn {currency, _, _}, acc -> [currency | acc] end)
     |> Enum.sort()

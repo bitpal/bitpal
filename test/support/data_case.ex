@@ -15,6 +15,7 @@ defmodule BitPal.DataCase do
   """
 
   use ExUnit.CaseTemplate
+  alias Ecto.Adapters.SQL.Sandbox
 
   using do
     quote do
@@ -28,10 +29,10 @@ defmodule BitPal.DataCase do
   end
 
   setup tags do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(BitPal.Repo)
+    :ok = Sandbox.checkout(BitPal.Repo)
 
     unless tags[:async] do
-      Ecto.Adapters.SQL.Sandbox.mode(BitPal.Repo, {:shared, self()})
+      Sandbox.mode(BitPal.Repo, {:shared, self()})
     end
 
     :ok

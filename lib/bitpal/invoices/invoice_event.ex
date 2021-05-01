@@ -23,9 +23,9 @@ defmodule BitPal.InvoiceEvent do
     * `{:confirmations, confirmation_count}` when a transaction has received a confirmation.
   """
 
-  require Logger
-  alias Phoenix.PubSub
   alias BitPal.Invoice
+  alias Phoenix.PubSub
+  require Logger
 
   @pubsub BitPal.PubSub
 

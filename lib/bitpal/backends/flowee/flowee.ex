@@ -1,14 +1,13 @@
 defmodule BitPal.Backend.Flowee do
+  @behaviour BitPal.Backend
   use GenServer
-  require Logger
+  alias BitPal.Backend
   alias BitPal.Backend.Flowee.Connection
   alias BitPal.Backend.Flowee.Protocol
   alias BitPal.Backend.Flowee.Protocol.Message
-  alias BitPal.Transactions
   alias BitPal.BCH.Cashaddress
-  alias BitPal.Backend
-
-  @behaviour Backend
+  alias BitPal.Transactions
+  require Logger
 
   # Client API
 

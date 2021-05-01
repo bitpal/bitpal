@@ -8,10 +8,10 @@ defmodule BitPal.Transactions do
   """
 
   use GenServer
-  require Logger
-  alias BitPal.Invoice
-  alias BitPal.BCH.Satoshi
   alias BitPal.BackendEvent
+  alias BitPal.BCH.Satoshi
+  alias BitPal.Invoice
+  require Logger
 
   # Minimum amount allowed in a single transaction.
   @min_satoshi 100
@@ -46,7 +46,7 @@ defmodule BitPal.Transactions do
   end
 
   # Get the current height of the blockchain.
-  def get_height() do
+  def get_height do
     GenServer.call(__MODULE__, {:get_height})
   end
 

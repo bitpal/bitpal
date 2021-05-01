@@ -21,7 +21,7 @@ defmodule BitPal.ExchangeRateTest do
       GenServer.call(__MODULE__, {:subscribe, pair, opts})
     end
 
-    def received() do
+    def received do
       GenServer.call(__MODULE__, :received)
     end
 
@@ -67,10 +67,10 @@ defmodule BitPal.ExchangeRateTest do
     @behaviour BitPal.ExchangeRate.Backend
 
     @impl true
-    def name(), do: "test"
+    def name, do: "test"
 
     @impl true
-    def supported_pairs(), do: [{:bch, :usd}, {:bch, :eur}]
+    def supported_pairs, do: [{:bch, :usd}, {:bch, :eur}]
 
     @impl true
     def compute(_, opts) do

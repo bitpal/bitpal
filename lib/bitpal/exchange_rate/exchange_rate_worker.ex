@@ -1,8 +1,8 @@
 defmodule BitPal.ExchangeRate.Worker do
-  alias BitPal.ProcessRegistry
   alias BitPal.ExchangeRate
-  alias BitPal.ExchangeRate.Result
   alias BitPal.ExchangeRate.Cache
+  alias BitPal.ExchangeRate.Result
+  alias BitPal.ProcessRegistry
 
   @backend_cache BitPal.ExchangeRate.BackendCache
   @permanent_cache BitPal.ExchangeRate.PermanentCache

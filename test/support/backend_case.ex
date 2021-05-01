@@ -1,18 +1,18 @@
 defmodule BitPal.BackendCase do
   use ExUnit.CaseTemplate
 
-  alias BitPal.Invoice
-  alias BitPal.InvoiceManager
   alias BitPal.BackendManager
   alias BitPal.BackendMock
+  alias BitPal.Invoice
+  alias BitPal.InvoiceManager
   alias BitPal.Transactions
 
   using do
     quote do
-      alias BitPal.Invoice
-      alias BitPal.InvoiceManager
       alias BitPal.BackendManager
       alias BitPal.BackendMock
+      alias BitPal.Invoice
+      alias BitPal.InvoiceManager
       alias BitPal.Transactions
 
       import BitPal.BackendCase

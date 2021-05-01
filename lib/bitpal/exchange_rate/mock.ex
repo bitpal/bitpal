@@ -1,13 +1,13 @@
 defmodule BitPal.ExchangeRateMock do
-  alias BitPal.ExchangeRate.Result
-
   @behaviour BitPal.ExchangeRate.Backend
 
-  @impl true
-  def name(), do: "mock"
+  alias BitPal.ExchangeRate.Result
 
   @impl true
-  def supported_pairs(), do: [{:bch, :usd}, {:bch, :eur}]
+  def name, do: "mock"
+
+  @impl true
+  def supported_pairs, do: [{:bch, :usd}, {:bch, :eur}]
 
   @impl true
   def compute(_pair, _opts) do
