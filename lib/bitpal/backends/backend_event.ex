@@ -10,9 +10,9 @@ defmodule BitPal.BackendEvent do
     * `{:block_reversed, doublespend?, confirmation_count}`
   """
 
-  require Logger
-  alias Phoenix.PubSub
   alias BitPal.Invoice
+  alias Phoenix.PubSub
+  require Logger
 
   @pubsub BitPal.PubSub
 

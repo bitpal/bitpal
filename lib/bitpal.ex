@@ -1,7 +1,7 @@
 defmodule BitPal do
+  alias BitPal.BackendManager
   alias BitPal.Invoice
   alias BitPal.InvoiceManager
-  alias BitPal.BackendManager
 
   @spec init_invoice(Invoice.t()) :: {:ok, pid}
   def init_invoice(invoice) do

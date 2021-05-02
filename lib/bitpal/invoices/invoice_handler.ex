@@ -1,9 +1,9 @@
 defmodule BitPal.InvoiceHandler do
   use GenServer
-  require Logger
+  alias BitPal.BackendManager
   alias BitPal.Invoice
   alias BitPal.InvoiceEvent
-  alias BitPal.BackendManager
+  require Logger
 
   @type handler :: pid
 

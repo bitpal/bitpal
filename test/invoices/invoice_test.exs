@@ -1,7 +1,7 @@
 defmodule InvoiceTest do
   use ExUnit.Case, async: true
-  alias BitPal.Invoice
   import Ecto.Changeset
+  alias BitPal.Invoice
 
   test "invoice creation" do
     address = "bitcoincash:qqpkcce4lzdc8guam5jfys9prfyhr90seqzakyv4tu"

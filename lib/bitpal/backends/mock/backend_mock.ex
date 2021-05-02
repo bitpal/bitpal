@@ -1,13 +1,13 @@
 defmodule BitPal.BackendMock do
+  @behaviour BitPal.Backend
+
   use GenServer
-  require Logger
   import BitPal.ConfigHelpers
   alias BitPal.Backend
   alias BitPal.Transactions
+  require Logger
 
   @type backend :: pid() | module()
-
-  @behaviour Backend
 
   @impl Backend
   def register(backend, invoice) do

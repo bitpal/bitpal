@@ -36,7 +36,7 @@ defmodule BitPal.Backend.Flowee.Connection do
   @header_pong 6
 
   # Connect to localhost. Defaults to connect to "the hub"
-  def connect() do
+  def connect do
     # According to the doc, we should be able to give it some kind of string....
     connect(1235)
   end

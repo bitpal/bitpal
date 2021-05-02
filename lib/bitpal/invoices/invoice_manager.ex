@@ -1,8 +1,8 @@
 defmodule BitPal.InvoiceManager do
   use GenServer
+  import BitPal.ConfigHelpers, only: [update_state: 3]
   alias BitPal.Invoice
   alias BitPal.InvoiceHandler
-  import BitPal.ConfigHelpers, only: [update_state: 3]
 
   @supervisor BitPal.InvoiceSupervisor
 
@@ -23,7 +23,7 @@ defmodule BitPal.InvoiceManager do
   end
 
   @spec count_children() :: non_neg_integer
-  def count_children() do
+  def count_children do
     Supervisor.count_children(@supervisor).workers
   end
 
@@ -32,7 +32,7 @@ defmodule BitPal.InvoiceManager do
     GenServer.call(__MODULE__, {:configure, opts})
   end
 
-  def tracked_invoices() do
+  def tracked_invoices do
     DynamicSupervisor.which_children(@supervisor)
     |> Enum.map(fn {_, pid, _, _} ->
       InvoiceHandler.get_invoice(pid)

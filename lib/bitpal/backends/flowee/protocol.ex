@@ -1,8 +1,8 @@
 defmodule BitPal.Backend.Flowee.Protocol do
   use Bitwise
+  alias BitPal.Backend.Flowee.Connection
   alias BitPal.Backend.Flowee.Connection.Binary
   alias BitPal.Backend.Flowee.Connection.RawMsg
-  alias BitPal.Backend.Flowee.Connection
 
   # Service names
   @service_api 0
@@ -16,7 +16,7 @@ defmodule BitPal.Backend.Flowee.Protocol do
   @service_system 126
 
   # dummy function to disable warnings...
-  def dummy() do
+  def dummy do
     [
       @service_api,
       @service_blockchain,
