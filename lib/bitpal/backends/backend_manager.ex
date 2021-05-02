@@ -1,7 +1,7 @@
 defmodule BitPal.BackendManager do
   use Supervisor
   alias BitPal.Backend
-  alias BitPal.BackendEvent
+  alias BitPal.Currencies
   alias BitPal.Invoice
 
   @type backend_spec() :: Supervisor.child_spec()
@@ -11,23 +11,32 @@ defmodule BitPal.BackendManager do
 
   @spec start_link(keyword) :: Supervisor.on_start()
   def start_link(opts) do
-    Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
+    case Supervisor.start_link(__MODULE__, opts, name: __MODULE__) do
+      {:ok, _pid} = res ->
+        seed_currencies()
+        res
+
+      err ->
+        err
+    end
   end
 
-  @spec track(Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
-  def track(invoice) do
-    BackendEvent.subscribe(invoice)
-    register(invoice)
+  defp seed_currencies do
+    currencies()
+    |> Enum.each(fn {currency, _, _} ->
+      Currencies.register!(currency)
+    end)
   end
 
   @spec register(Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
   def register(invoice) do
-    case get_currency_backend(invoice.currency) do
+    case get_currency_backend(invoice.currency_id) do
       {:ok, ref} -> {:ok, Backend.register(ref, invoice)}
-      {:error, _} = _error -> {:error, :backend_not_found}
+      {:error, _} -> {:error, :backend_not_found}
     end
   end
 
+  # FIXME should use a registry instead of iterating like this
   @spec backends() :: [{backend_name(), Backend.backend_ref(), :ok, [Invoice.currency()]}]
   def backends do
     Supervisor.which_children(__MODULE__)
@@ -63,7 +72,7 @@ defmodule BitPal.BackendManager do
     end)
     |> Enum.reduce([], fn {ref, status, currencies}, acc ->
       Enum.reduce(currencies, acc, fn currency, acc ->
-        [{currency, status, ref} | acc]
+        [{Currencies.normalize(currency), status, ref} | acc]
       end)
     end)
   end
@@ -77,6 +86,8 @@ defmodule BitPal.BackendManager do
 
   @spec currency_status(Invoice.currency()) :: :ok | :not_found
   def currency_status(currency) do
+    currency = Currencies.normalize(currency)
+
     currencies()
     |> Enum.find_value(:not_found, fn
       {^currency, status, _} -> status
@@ -87,6 +98,8 @@ defmodule BitPal.BackendManager do
   @spec get_currency_backend(Invoice.currency()) ::
           {:ok, Backend.backend_ref()} | {:error, :not_found}
   def get_currency_backend(currency) do
+    currency = Currencies.normalize(currency)
+
     currencies()
     |> Enum.find_value({:error, :not_found}, fn
       {^currency, _, ref} -> {:ok, ref}

@@ -10,7 +10,7 @@ defmodule BitPal.BackendEvent do
     * `{:block_reversed, doublespend?, confirmation_count}`
   """
 
-  alias BitPal.Invoice
+  alias BitPalSchemas.Invoice
   alias Phoenix.PubSub
   require Logger
 
@@ -26,18 +26,21 @@ defmodule BitPal.BackendEvent do
 
   @spec subscribe(Invoice.t()) :: :ok | {:error, term}
   def subscribe(invoice) do
-    Logger.debug("subscribing to #{topic(invoice)} #{inspect(self())}")
-    PubSub.subscribe(@pubsub, topic(invoice))
+    topic = topic(invoice)
+    Logger.debug("subscribing to #{topic} #{inspect(self())}")
+    PubSub.subscribe(@pubsub, topic)
   end
 
   @spec broadcast(Invoice.t(), msg) :: :ok | {:error, term}
   def broadcast(invoice, msg) do
-    Logger.debug("broadcasting #{inspect(msg)} to #{topic(invoice)}")
-    PubSub.broadcast(@pubsub, topic(invoice), msg)
+    topic = topic(invoice)
+    Logger.debug("broadcasting #{inspect(msg)} to #{topic}")
+    PubSub.broadcast(@pubsub, topic, msg)
   end
 
   @spec topic(Invoice.t()) :: binary
   defp topic(invoice) do
-    "backend:" <> Invoice.id(invoice)
+    # FIXME should be per address?
+    "backend:" <> invoice.id
   end
 end

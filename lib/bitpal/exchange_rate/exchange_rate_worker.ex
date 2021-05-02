@@ -130,14 +130,9 @@ defmodule BitPal.ExchangeRate.Worker do
     {:ok, res}
   end
 
+  @spec get_worker(any) :: {:ok, pid} | {:error, :not_found}
   defp get_worker(pair) do
-    case Registry.lookup(ProcessRegistry, via_tuple(pair)) do
-      [{pid, _}] ->
-        {:ok, pid}
-
-      [] ->
-        {:error, :not_found}
-    end
+    ProcessRegistry.get_process(via_tuple(pair))
   end
 
   defp via_tuple(pair) do

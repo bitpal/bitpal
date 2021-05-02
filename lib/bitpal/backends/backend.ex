@@ -1,5 +1,6 @@
 defmodule BitPal.Backend do
-  alias BitPal.Invoice
+  alias BitPal.Currencies
+  alias BitPalSchema.Invoice
 
   @type backend_ref() :: {pid(), module()}
 
@@ -12,9 +13,10 @@ defmodule BitPal.Backend do
     backend.register(pid, invoice)
   end
 
-  @spec supported_currencies(backend_ref()) :: [atom()]
+  @spec supported_currencies(backend_ref()) :: [String.t()]
   def supported_currencies({pid, backend}) do
     backend.supported_currencies(pid)
+    |> Enum.map(&Currencies.normalize/1)
   end
 
   @spec configure(backend_ref(), keyword()) :: :ok
@@ -22,6 +24,7 @@ defmodule BitPal.Backend do
     backend.configure(pid, opts)
   end
 
+  # FIXME need to normalize everything
   def supported_currency?(supported, specified) when is_list(supported) do
     supported =
       supported

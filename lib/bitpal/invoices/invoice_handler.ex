@@ -1,41 +1,29 @@
 defmodule BitPal.InvoiceHandler do
   use GenServer
+  alias BitPal.BackendEvent
   alias BitPal.BackendManager
-  alias BitPal.Invoice
   alias BitPal.InvoiceEvent
+  alias BitPal.Invoices
+  alias BitPal.ProcessRegistry
+  alias BitPalSchemas.Invoice
   require Logger
 
   @type handler :: pid
 
   # Client API
 
-  def start_link(args) do
-    GenServer.start_link(__MODULE__, args)
+  def start_link(opts) do
+    GenServer.start_link(__MODULE__, opts)
   end
 
-  def child_spec(args) do
-    opts = Enum.into(args, %{})
+  def child_spec(opts) do
+    invoice_id = Keyword.fetch!(opts, :invoice_id)
 
     %{
-      id: Invoice.id(opts.invoice),
+      id: invoice_id,
       start: {BitPal.InvoiceHandler, :start_link, [opts]},
       restart: :transient
     }
-  end
-
-  @spec get_invoice(handler) :: Invoice.t()
-  def get_invoice(handler) do
-    GenServer.call(handler, :get_invoice)
-  end
-
-  @spec subscribe_and_get_current(handler) :: :ok | {:error, term}
-  def subscribe_and_get_current(handler) do
-    invoice = get_invoice(handler)
-
-    case InvoiceEvent.subscribe(invoice) do
-      :ok -> update_subscriber(handler)
-      err -> err
-    end
   end
 
   @spec update_subscriber(handler) :: :ok
@@ -43,30 +31,63 @@ defmodule BitPal.InvoiceHandler do
     GenServer.call(handler, {:update_subscriber, self()})
   end
 
+  @spec get_invoice_id(handler) :: Invoice.t()
+  def get_invoice_id(handler) do
+    GenServer.call(handler, :get_invoice_id)
+  end
+
   # Server API
 
   @impl true
-  def init(state) do
+  def init(opts) do
+    invoice_id = Keyword.fetch!(opts, :invoice_id)
+    double_spend_timeout = Keyword.fetch!(opts, :double_spend_timeout)
+
+    Registry.register(ProcessRegistry, via_tuple(invoice_id), invoice_id)
+
     # Callback to initializer routine to not block start_link
     send(self(), :init)
 
-    {:ok, Map.put(state, :state, :init)}
+    {:ok, %{state: :init, double_spend_timeout: double_spend_timeout, invoice_id: invoice_id}}
   end
 
   @impl true
-  def handle_info(:init, state = %{state: :init, invoice: invoice}) do
-    Logger.debug("init handler: #{Invoice.id(invoice)}")
+  def handle_info(:init, state = %{state: :init, invoice_id: invoice_id}) do
+    Logger.debug("init handler: #{invoice_id}")
 
-    {:ok, invoice} = BackendManager.track(invoice)
+    # Locate a new invoice for self-healing purpises.
+    # If we're restarted we need to get the up-to-date invoice.
+    # So this is inefficient in the regular case, maybe we could keep track of a
+    # "have this invoice been handled before by a handler" state somewhere,
+    # to detect if we're restarted?
+    invoice = Invoices.get(invoice_id)
+    if !invoice, do: raise("invoice error")
 
-    change_state(%{state | invoice: invoice}, :wait_for_tx)
+    BackendEvent.subscribe(invoice)
+
+    if invoice.address_id do
+      # If the invoice has been assigned an address, then it means we might have crashed
+      # so we should query the backend for all transactions to this address and
+      # update our state/confirmations, as it's possible we've missed something.
+    end
+
+    # FIXME should only need address, currency and (maybe) amount
+    # once we migrate to purely address based backend events
+    # FIXME should return a changeset
+    {:ok, invoice} = BackendManager.register(invoice)
+    # FIXME here we might update address/amount, should store that to db
+
+    change_state(state, :wait_for_tx, invoice)
   end
 
   @impl true
   def handle_info(:tx_seen, state) do
-    Logger.debug("invoice: tx seen! #{Invoice.id(state.invoice)}")
+    Logger.debug("invoice: tx seen! #{state.invoice_id}")
 
-    if state.invoice.required_confirmations == 0 do
+    # FIXME inefficient
+    required_confirmations = Invoices.get(state.invoice_id).required_confirmations
+
+    if required_confirmations == 0 do
       change_state(state, :wait_for_verification)
     else
       change_state(state, :wait_for_confirmations)
@@ -75,19 +96,22 @@ defmodule BitPal.InvoiceHandler do
 
   @impl true
   def handle_info(:doublespend, state) do
-    broadcast(state.invoice, {:state, {:denied, :doublespend}, state.invoice})
+    broadcast(state.invoice_id, {:state, {:denied, :doublespend}})
     {:stop, :normal, state}
   end
 
   @impl true
   def handle_info({:confirmations, confirmations}, state) do
-    Logger.debug("invoice: new block! #{Invoice.id(state.invoice)}")
+    Logger.debug("invoice: new block! #{state.invoice_id}")
 
     state = Map.put(state, :confirmations, confirmations)
 
-    broadcast(state.invoice, {:confirmations, state.confirmations})
+    broadcast(state.invoice_id, {:confirmations, state.confirmations})
 
-    if state.confirmations >= state.invoice.required_confirmations do
+    # FIXME inefficient
+    required_confirmations = Invoices.get(state.invoice_id).required_confirmations
+
+    if state.confirmations >= required_confirmations do
       accepted(state)
     else
       {:noreply, state}
@@ -96,9 +120,12 @@ defmodule BitPal.InvoiceHandler do
 
   @impl true
   def handle_info(:verified, state = %{state: :wait_for_verification}) do
-    Logger.debug("invoice: verified! #{Invoice.id(state.invoice)}")
+    Logger.debug("invoice: verified! #{state.invoice_id}")
 
-    if state.invoice.required_confirmations == 0 do
+    # FIXME inefficient
+    required_confirmations = Invoices.get(state.invoice_id).required_confirmations
+
+    if required_confirmations == 0 do
       accepted(state)
     else
       change_state(state, :wait_for_confirmations)
@@ -111,10 +138,10 @@ defmodule BitPal.InvoiceHandler do
     {:noreply, state}
   end
 
-  @impl true
-  def handle_call(:get_invoice, _, state) do
-    {:reply, state[:invoice], state}
-  end
+  # @impl true
+  # def handle_call(:get_invoice, _, state) do
+  #   {:reply, state[:invoice], state}
+  # end
 
   @impl true
   def handle_call({:update_subscriber, pid}, _from, state) do
@@ -127,14 +154,27 @@ defmodule BitPal.InvoiceHandler do
     {:reply, :ok, state}
   end
 
+  @impl true
+  def handle_call(:get_invoice_id, _from, state) do
+    {:reply, state.invoice_id, state}
+  end
+
   defp accepted(state) do
-    broadcast(state.invoice, {:state, :accepted, state.invoice})
+    broadcast(state.invoice_id, {:state, :accepted})
     {:stop, :normal, state}
   end
 
   defp change_state(state, new_state) do
+    change_state_msg(state, new_state, {:state, new_state})
+  end
+
+  defp change_state(state, new_state, invoice) do
+    change_state_msg(state, new_state, {:state, new_state, invoice})
+  end
+
+  defp change_state_msg(state, new_state, msg) do
     if Map.get(state, :state) != new_state do
-      broadcast(state.invoice, {:state, new_state})
+      broadcast(state.invoice_id, msg)
 
       # # If now in "wait for verification", we wait a while more in case the transaction is double-spent.
       if new_state == :wait_for_verification do
@@ -148,8 +188,13 @@ defmodule BitPal.InvoiceHandler do
     end
   end
 
-  @spec broadcast(Invoice.t(), term) :: :ok | {:error, term}
-  defp broadcast(invoice, msg) do
-    InvoiceEvent.broadcast(invoice, msg)
+  @spec broadcast(Invoice.id(), term) :: :ok | {:error, term}
+  defp broadcast(invoice_id, msg) do
+    InvoiceEvent.broadcast(invoice_id, msg)
+  end
+
+  @spec via_tuple(Invoice.id()) :: {:via, Registry, any}
+  def via_tuple(invoice_id) do
+    ProcessRegistry.via_tuple({__MODULE__, invoice_id})
   end
 end

@@ -23,7 +23,7 @@ defmodule BitPal.InvoiceEvent do
     * `{:confirmations, confirmation_count}` when a transaction has received a confirmation.
   """
 
-  alias BitPal.Invoice
+  alias BitPalSchemas.Invoice
   alias Phoenix.PubSub
   require Logger
 
@@ -32,33 +32,33 @@ defmodule BitPal.InvoiceEvent do
   @typep confirmation_count :: non_neg_integer
   @type msg ::
           {:state, state}
-          | {:state, endstate, Invoice.t()}
+          | {:state, state_with_invoice, Invoice.t()}
           | {:confirmations, confirmation_count}
   @type state ::
-          :wait_for_tx
-          | :wait_for_verification
+          :wait_for_verification
           | :wait_for_confirmations
-  @type endstate ::
-          :accepted
+          | :accepted
           | {:denied, :doublespend}
           | {:canceled, term}
+  @type state_with_invoice ::
+          :wait_for_tx
 
-  @spec subscribe(Invoice.t()) :: :ok | {:error, term}
-  def subscribe(invoice) do
-    topic = topic(invoice)
+  @spec subscribe(Invoice.id()) :: :ok | {:error, term}
+  def subscribe(invoice_id) do
+    topic = topic(invoice_id)
     Logger.debug("subscribing to #{topic} #{inspect(self())}")
     PubSub.subscribe(@pubsub, topic)
   end
 
-  @spec broadcast(Invoice.t(), msg) :: :ok | {:error, term}
-  def broadcast(invoice, msg) do
-    topic = topic(invoice)
+  @spec broadcast(Invoice.id(), msg) :: :ok | {:error, term}
+  def broadcast(invoice_id, msg) do
+    topic = topic(invoice_id)
     Logger.debug("broadcasting #{inspect(msg)} to #{topic}")
     PubSub.broadcast(@pubsub, topic, msg)
   end
 
-  @spec topic(Invoice.t()) :: binary
-  defp topic(invoice) do
-    "invoice:" <> Invoice.id(invoice)
+  @spec topic(Invoice.id()) :: binary
+  defp topic(invoice_id) do
+    "invoice:" <> invoice_id
   end
 end

@@ -1,14 +1,18 @@
 defmodule InvoiceManagerTest do
-  use BitPal.BackendCase
+  use BitPal.IntegrationCase
+  alias BitPal.Currencies
   alias BitPal.InvoiceManager
 
+  @tag backends: true
   test "initialize" do
-    inv1 = invoice()
-    {:ok, inv1_pid} = InvoiceManager.create_invoice(inv1)
+    Currencies.register!(:bch)
 
-    inv2 = invoice(amount: 5.2)
-    {:ok, inv2_pid} = InvoiceManager.create_invoice(inv2)
+    assert {:ok, inv1_id} = InvoiceManager.register_invoice(%{currency: :bch, amount: 2.5})
+    assert {:ok, inv2_id} = InvoiceManager.register_invoice(%{currency: :bch, amount: 5.2})
 
+    assert inv1_id != inv2_id
+    assert {:ok, inv1_pid} = InvoiceManager.get_handler(inv1_id)
+    assert {:ok, inv2_pid} = InvoiceManager.get_handler(inv2_id)
     assert inv1_pid != inv2_pid
     assert InvoiceManager.count_children() == 2
 
