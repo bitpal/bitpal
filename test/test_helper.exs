@@ -1,5 +1,3 @@
-# Ecto.Adapters.SQL.Sandbox.mode(BitPal.Repo, :manual)
-
 # Ensure that all extra applications that our app depends on are started.
 # During testing we manually setup the individual parts instead.
 Application.load(:bitpal)
