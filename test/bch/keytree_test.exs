@@ -165,4 +165,38 @@ defmodule KeyTreeTest do
     assert KeyTree.inspect_path([0, 3, -9, 8]) == "m/0/3/8'/8"
     assert KeyTree.inspect_path([0, 3, -9, 8, :public]) == "M/0/3/8'/8"
   end
+
+  def derive_bch_key(key, id) do
+    KeyTree.child_key(key, id) |> KeyTree.key_hash() |> BitPal.BCH.Cashaddress.encode_cash_url()
+  end
+
+  test "wallet integration" do
+    # This is the "Master public key" from Electron Cash. By decoding it, we can see that it is on
+    # level 3. Using the seed, we can also verify the derivation path.
+    mk =
+      "xpub6CKqshxWV2qWPwwBYC41dhXMxAJgL1gmo37JNiRfab53xKWZKVPSuD1nCposkYn9kDtWyP3Y1Vu7NoagCgJS9bLNccfiU5nbV8JKqWF1KVU"
+
+    root = KeyTree.import_key(mk)
+
+    assert root.depth == 3
+
+    # Now, we can generate keys and check them. From the master public key, it then derives one key
+    # for each account. This is the "change" part of the address. 0 for external addresses, and 1
+    # for internal.
+    account = KeyTree.child_key(root, 0)
+
+    # Now, we just generate keys sequentially. These are the ID:s visible in Electron Cash.
+    assert derive_bch_key(account, 0) == "bitcoincash:qqkwde7akfsfjl67tt2a2g3tu82u9ramnu8e3guq2u"
+    assert derive_bch_key(account, 1) == "bitcoincash:qpcnj89xr36xq506r8knxyanadafv5nlm5ja2qs4h9"
+    assert derive_bch_key(account, 2) == "bitcoincash:qr6j5u8veq8cghrw8km9qf85dk64sntt5uwz8r5g7n"
+    assert derive_bch_key(account, 3) == "bitcoincash:qzaa7geh05d72lq2eqjwedh9hm7jpp3zlu2v4y4g3h"
+    assert derive_bch_key(account, 4) == "bitcoincash:qrjwhkulh8d9q77w92ryyuz2d3zls3wpry2lh8t06p"
+    assert derive_bch_key(account, 5) == "bitcoincash:qzzmxhxtatajcflx7xnu6fd8rrmy3hzcku3ajz8tk5"
+    assert derive_bch_key(account, 6) == "bitcoincash:qr7rv9w7ehxdusczgcuv8xutwrc2fq8lycz2szxufg"
+    assert derive_bch_key(account, 7) == "bitcoincash:qz5skqndphh4e2nd8cdhrkpw2kg64pzqdusktp0ej0"
+    assert derive_bch_key(account, 8) == "bitcoincash:qqmhfs6tmvk4lhzw6hfgxfn9602cgwgpfycjycuwcz"
+    assert derive_bch_key(account, 9) == "bitcoincash:qzmaacwlml7xn8jyk5mdd6wa66h5ee66fgewtasycm"
+    assert derive_bch_key(account, 10) == "bitcoincash:qr9udgddc6ehhp3y4ltar73mrp3qj9vsrys2m87s87"
+    assert derive_bch_key(account, 11) == "bitcoincash:qqxxkajcr5s75zaqk52tw0hdjgvgqule6s73ew52yy"
+  end
 end
