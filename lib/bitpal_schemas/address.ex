@@ -15,7 +15,7 @@ defmodule BitPalSchemas.Address do
     field(:generation_index, :integer)
     timestamps()
 
-    belongs_to(:currency, Currency, type: :string, references: :ticker)
+    belongs_to(:currency, Currency, type: :string)
     has_many(:invoices, Invoice)
   end
 end

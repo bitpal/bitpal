@@ -16,7 +16,7 @@ defmodule BitPal.Addresses do
     |> Repo.one()
   end
 
-  @spec register(Currency.ticker(), [{String.t(), non_neg_integer}]) ::
+  @spec register(Currency.id(), [{String.t(), non_neg_integer}]) ::
           {:ok, %{String.t() => Address.t()}} | {:error, Ecto.Changeset.t()}
   def register(currency, addresses) do
     Enum.reduce(addresses, Multi.new(), fn {address, index}, multi ->
@@ -25,14 +25,14 @@ defmodule BitPal.Addresses do
     |> Repo.transaction()
   end
 
-  @spec register(Currency.ticker(), String.t(), non_neg_integer) ::
+  @spec register(Currency.id(), String.t(), non_neg_integer) ::
           {:ok, Address.t()} | {:error, Ecto.Changeset.t()}
   def register(currency, address, address_index) do
     register_changeset(currency, address, address_index)
     |> Repo.insert()
   end
 
-  @spec register_changeset(Currency.ticker(), String.t(), non_neg_integer) :: Ecto.Changeset.t()
+  @spec register_changeset(Currency.id(), String.t(), non_neg_integer) :: Ecto.Changeset.t()
   defp register_changeset(currency, address, address_index) do
     change(%Address{
       id: address,
@@ -48,7 +48,7 @@ defmodule BitPal.Addresses do
   When generating addresses we track an unique index for each generation. This returns
   the next index, increasing from 0.
   """
-  @spec next_address_index(Currency.ticker()) :: non_neg_integer
+  @spec next_address_index(Currency.id()) :: non_neg_integer
   def next_address_index(currency) do
     case from(a in Address,
            where: a.currency_id == ^Currencies.normalize(currency),
@@ -68,7 +68,7 @@ defmodule BitPal.Addresses do
   Otherwise the user experience when importing may suffer,
   but if we ever reuse an address for two invoices then privacy may suffer.
   """
-  @spec find_unused_address(Currency.ticker()) :: Address.t() | nil
+  @spec find_unused_address(Currency.id()) :: Address.t() | nil
   def find_unused_address(currency) do
     # How to select rows with no matching entry in another table:
     # https://stackoverflow.com/questions/4076098/how-to-select-rows-with-no-matching-entry-in-another-table

@@ -54,7 +54,6 @@ defmodule BitPal.MixProject do
       setup: ["deps.get", "ecto.setup"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
-      check: ["format --check-formatted", "credo --all --strict"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test --no-start"]
     ]
   end

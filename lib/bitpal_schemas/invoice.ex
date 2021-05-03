@@ -34,6 +34,6 @@ defmodule BitPalSchemas.Invoice do
     timestamps()
 
     belongs_to(:address, Address, type: :string, on_replace: :mark_as_invalid)
-    belongs_to(:currency, Currency, type: :string, references: :ticker)
+    belongs_to(:currency, Currency, type: :string)
   end
 end

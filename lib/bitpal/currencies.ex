@@ -3,29 +3,29 @@ defmodule BitPal.Currencies do
   alias BitPal.Repo
   alias BitPalSchemas.Currency
 
-  @type ticker :: atom | String.t()
+  @type id :: atom | String.t()
 
   def get(nil), do: nil
 
-  def get(ticker) do
-    Repo.one(from(c in Currency, where: c.ticker == ^normalize(ticker)))
+  def get(id) do
+    Repo.one(from(c in Currency, where: c.id == ^normalize(id)))
   end
 
-  def register!(tickers) when is_list(tickers) do
-    Enum.each(tickers, &register!/1)
+  def register!(ids) when is_list(ids) do
+    Enum.each(ids, &register!/1)
   end
 
-  def register!(ticker) do
-    Repo.insert!(%Currency{ticker: normalize(ticker)}, on_conflict: :nothing)
+  def register!(id) do
+    Repo.insert!(%Currency{id: normalize(id)}, on_conflict: :nothing)
   end
 
   def normalize(nil), do: nil
 
-  def normalize(ticker) when is_binary(ticker) do
-    ticker
+  def normalize(id) when is_binary(id) do
+    id
   end
 
-  def normalize(ticker) when is_atom(ticker) do
-    Atom.to_string(ticker) |> String.upcase()
+  def normalize(id) when is_atom(id) do
+    Atom.to_string(id) |> String.upcase()
   end
 end

@@ -3,17 +3,17 @@ defmodule BitPalSchemas.Currency do
   alias BitPalSchemas.Address
   alias BitPalSchemas.Invoice
 
-  @type ticker :: atom | String.t()
+  @type id :: atom | String.t()
 
   @type t :: %__MODULE__{
-          ticker: ticker,
+          id: id,
           addresses: [Address.t()],
           invoices: [Invoice.t()]
         }
 
-  @primary_key {:ticker, :string, []}
+  @primary_key {:id, :string, []}
   schema "currencies" do
-    has_many(:addresses, Address, foreign_key: :currency_id)
-    has_many(:invoices, Invoice, foreign_key: :currency_id)
+    has_many(:addresses, Address)
+    has_many(:invoices, Invoice)
   end
 end
