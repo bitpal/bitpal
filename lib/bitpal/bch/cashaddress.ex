@@ -17,8 +17,6 @@ defmodule BitPal.BCH.Cashaddress do
   Note: This is actually easier to decode than the legacy base52 format.
   Note: This url seems to be more reliable https://documentation.cash/protocol/blockchain/encoding/cashaddr
   than this url: https://www.bitcoincash.org/spec/cashaddr.html
-  Note: The implementation in Flowee seems to follow the incorrect URL. That results in a non-zero
-  padding of the base32 encoding.
   Returns { type, key }
   """
   def decode_cash_url(url) do
@@ -52,7 +50,7 @@ defmodule BitPal.BCH.Cashaddress do
 
     # Return an appropriate type.
     case type do
-      0 -> {:p2kh, hash}
+      0 -> {:p2pkh, hash}
       1 -> {:p2sh, hash}
     end
   end
@@ -65,7 +63,7 @@ defmodule BitPal.BCH.Cashaddress do
 
     type =
       case type do
-        :p2kh -> 0
+        :p2pkh -> 0
         :p2sh -> 1
       end
 
@@ -101,7 +99,7 @@ defmodule BitPal.BCH.Cashaddress do
 
   # Create a hashed output script for a public key. This is what Flowee wants.
   # Accepts what "decode_cash_url" produces.
-  def create_hashed_output_script({:p2kh, pubkey}) do
+  def create_hashed_output_script({:p2pkh, pubkey}) do
     # OP_DUP OP_HASH160, 20-byte push
     p2pkh_prefix = <<0x76, 0xA9, 20>>
     # OP_EQUALVERIFY OP_CHECKSIG
