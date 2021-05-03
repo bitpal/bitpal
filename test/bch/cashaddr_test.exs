@@ -30,4 +30,10 @@ defmodule CashaddressTest do
       Cashaddress.decode_cash_url(address)
     end
   end
+
+  test "roundtrip" do
+    address = "bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa"
+
+    assert Cashaddress.encode_cash_url(Cashaddress.decode_cash_url(address)) == address
+  end
 end

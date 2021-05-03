@@ -6,6 +6,12 @@ defmodule BitPal.BCH.Cashaddress do
   Address management. Allows converting between different BCH address types.
   """
 
+  # ASCII prefix for BCH URL:s.
+  @ascii_prefix "bitcoincash:"
+
+  # Bytes used in checksumming
+  @checksum_prefix <<0x02, 0x09, 0x14, 0x03, 0x0F, 0x09, 0x0E, 0x03, 0x01, 0x13, 0x08, 0x00>>
+
   @doc """
   Decode a BCH url. Returns the public key, or :error
   Note: This is actually easier to decode than the legacy base52 format.
@@ -17,13 +23,11 @@ defmodule BitPal.BCH.Cashaddress do
   """
   def decode_cash_url(url) do
     # Check so that we have a decent prefix.
-    "bitcoincash:" <> <<data::binary>> = url
+    @ascii_prefix <> <<data::binary>> = url
 
     # Decode and check the checksum
-    prefix_5bit = <<0x02, 0x09, 0x14, 0x03, 0x0F, 0x09, 0x0E, 0x03, 0x01, 0x13, 0x08, 0x00>>
-
     payload =
-      case Base32.decode(data, insert: prefix_5bit) do
+      case Base32.decode(data, insert: @checksum_prefix) do
         :error -> raise("Invalid checksum!")
         x -> x
       end
@@ -51,6 +55,34 @@ defmodule BitPal.BCH.Cashaddress do
       0 -> {:p2kh, hash}
       1 -> {:p2sh, hash}
     end
+  end
+
+  @doc """
+  Encode a wallet address into a BCH url. The inverse of decode_cash_url.
+  """
+  def encode_cash_url(hash) do
+    {type, hash} = hash
+
+    type =
+      case type do
+        :p2kh -> 0
+        :p2sh -> 1
+      end
+
+    size =
+      case byte_size(hash) * 8 do
+        160 -> 0
+        192 -> 1
+        224 -> 2
+        256 -> 3
+        320 -> 4
+        384 -> 5
+        448 -> 6
+        512 -> 7
+      end
+
+    info = type <<< 3 ||| size
+    @ascii_prefix <> Base32.encode(<<info>> <> hash, insert: @checksum_prefix)
   end
 
   # Find the cash hash size in bits.

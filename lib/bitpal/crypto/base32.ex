@@ -59,8 +59,20 @@ defmodule BitPal.Crypto.Base32 do
   Encode some data into a base32-string. Appends a checksum using the polymod functionality.
   """
   def encode(data) do
+    encode(data, insert: <<>>)
+  end
+
+  @doc """
+  Encode some data into a base32-string, either insert: data into only the checksumming, or prefix:
+  the entire chunk. insert:ed data will not be encoded, a prefix will be inserted verbatim.
+  """
+  def encode(data, prefix: prefix) do
+    prefix <> encode(data, insert: prefix)
+  end
+
+  def encode(data, insert: insert) do
     data = to_5bit(data)
-    checksum = checksum(data <> <<0, 0, 0, 0, 0, 0, 0, 0>>)
+    checksum = checksum(insert <> data <> <<0, 0, 0, 0, 0, 0, 0, 0>>)
     # Encode it in big endian.
     checksum = <<
       checksum >>> (4 * 8) &&& 0xFF,
