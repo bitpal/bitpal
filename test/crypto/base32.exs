@@ -1,4 +1,4 @@
-defmodule CashaddressTest do
+defmodule Base32Test do
   use ExUnit.Case, async: true
   alias BitPal.Crypto.Base32
 

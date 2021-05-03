@@ -23,6 +23,13 @@ defmodule BitPal.Crypto.Base32 do
   end
 
   @doc """
+  Decode a base32-string into a binary representation, no checksum.
+  """
+  def decode_plain(data) do
+    from_5bit(from_ascii(data))
+  end
+
+  @doc """
   Decode a base32-string into a binary representation.
 
   There are two variants: either provide a prefix that is expected to be found
@@ -63,6 +70,13 @@ defmodule BitPal.Crypto.Base32 do
   end
 
   @doc """
+  Encode data into a base32-string. No checksum.
+  """
+  def encode_plain(data) do
+    to_ascii(to_5bit(data))
+  end
+
+  @doc """
   Encode some data into a base32-string, either insert: data into only the checksumming, or prefix:
   the entire chunk. insert:ed data will not be encoded, a prefix will be inserted verbatim.
   """
@@ -93,7 +107,7 @@ defmodule BitPal.Crypto.Base32 do
   def from_ascii(binary) do
     binary
     |> :binary.bin_to_list()
-    |> Enum.map(fn x -> decode_digit(x) end)
+    |> Enum.map(fn x -> digit_to_num(x) end)
     |> :binary.list_to_bin()
   end
 
@@ -169,7 +183,7 @@ defmodule BitPal.Crypto.Base32 do
   def to_ascii(binary) do
     binary
     |> :binary.bin_to_list()
-    |> Enum.map(fn x -> encode_digit(x) end)
+    |> Enum.map(fn x -> num_to_digit(x) end)
     |> :binary.list_to_bin()
   end
 
@@ -205,7 +219,7 @@ defmodule BitPal.Crypto.Base32 do
   end
 
   # Decode a single base32 digit as specified by Bitcoin and Bitcoin Cash.
-  defp decode_digit(value) do
+  defp digit_to_num(value) do
     case value do
       ?q -> 0
       ?p -> 1
@@ -243,7 +257,7 @@ defmodule BitPal.Crypto.Base32 do
   end
 
   # Encode a single base32 digit as specified by Bitcoin and Bitcoin Cash.
-  defp encode_digit(value) do
+  defp num_to_digit(value) do
     case value do
       0 -> ?q
       1 -> ?p
