@@ -1,7 +1,4 @@
 defmodule BitPal.BCH.KeyTree do
-  alias BitPal.Crypto.EC
-  alias BitPal.Crypto.Base58
-
   @moduledoc """
   This module implements BIP-0032: derivation of private and public keys from a
   public or private master key (see: https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)
@@ -32,6 +29,9 @@ defmodule BitPal.BCH.KeyTree do
   steps. This is since we typically don't start with the master key, but a derived key at some
   level. The symbol :public can be used to enforce a public key at some point.
   """
+
+  alias BitPal.Crypto.Base58
+  alias BitPal.Crypto.EC
 
   defmodule Public do
     @moduledoc """
@@ -281,7 +281,7 @@ defmodule BitPal.BCH.KeyTree do
         parse_path_i(rest)
 
       "M" ->
-        parse_path_i(rest) ++ [:public]
+        Enum.concat(parse_path_i(rest), [:public])
 
       _ ->
         # Consider this as a fragment, and just parse it as if we had a "m/" in the beginning.

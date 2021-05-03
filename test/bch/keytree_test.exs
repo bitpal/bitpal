@@ -1,5 +1,6 @@
 defmodule KeyTreeTest do
   use ExUnit.Case, async: true
+  alias BitPal.BCH.Cashaddress
   alias BitPal.BCH.KeyTree
 
   test "encode public" do
@@ -167,7 +168,7 @@ defmodule KeyTreeTest do
   end
 
   def derive_bch_key(key, id) do
-    KeyTree.child_key(key, id) |> KeyTree.key_hash() |> BitPal.BCH.Cashaddress.encode_cash_url()
+    KeyTree.child_key(key, id) |> KeyTree.key_hash() |> Cashaddress.encode_cash_url()
   end
 
   test "wallet integration" do
