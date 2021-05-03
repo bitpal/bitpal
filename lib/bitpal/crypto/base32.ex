@@ -1,6 +1,4 @@
 defmodule BitPal.Crypto.Base32 do
-  use Bitwise
-
   @moduledoc """
   This module implements the Base32 scheme used in various places in various
   cryptocurrencies. Note that this is *not* the standard Base32 encoding, the
@@ -12,53 +10,58 @@ defmodule BitPal.Crypto.Base32 do
   checksumming is done on the 5-bit chunks rather than 8-bit chunks.
   """
 
-  @doc """
-  Decode a base32-string into a binary representation. Verifies the checksum
-  that is assumed to reside in the last 8 characters.
+  use Bitwise
 
-  Returns :error on invalid checksum.
+  @doc """
+  Decode a base32-string into a binary representation. No checksumming.
   """
   def decode(data) do
-    decode(data, insert: <<>>)
-  end
-
-  @doc """
-  Decode a base32-string into a binary representation, no checksum.
-  """
-  def decode_plain(data) do
     from_5bit(from_ascii(data))
   end
 
   @doc """
-  Decode a base32-string into a binary representation.
+  Decode a base32-string into a binary representation. Use checksum as specified:
+  - :none - no checksum
+  - :polymod - default for Bitcoin Cash
+  """
+  def decode(data, checksum) do
+    decode(data, checksum, insert: <<>>)
+  end
+
+  @doc """
+  Decode a base32-string into a binary representation with the given checksum.
 
   There are two variants: either provide a prefix that is expected to be found
-  in the beginning of "data". Returns :error if data not found.
+  in the beginning of "data" (prefix:), or assume that some data was already in
+  the beginning (insert:). None of the two are included in the decoded data,'
 
-  Or: insert a prefix before computing the checksum.
-
-  Returns :error on invalid checksum.
+  Returns: :error on failure.
   """
-  def decode(data, prefix: prefix) do
-    prefix_sz = byte_size(prefix)
-    <<first::binary-size(prefix_sz), rest::binary>> = data
+  def decode(data, checksum, prefix: prefix) do
+    prefix_size = byte_size(prefix)
+    <<first::binary-size(prefix_size), rest::binary>> = data
 
     if first == prefix do
-      decode(rest, insert: prefix)
+      decode(rest, checksum, insert: prefix)
     else
       :error
     end
   end
 
-  def decode(data, insert: prefix) do
+  def decode(data, checksum, insert: insert) do
     data = from_ascii(data)
+    s = byte_size(data) - hash_size(checksum)
 
-    if checksum(prefix <> data) == 0 do
-      s = byte_size(data) - 8
-      <<payload::binary-size(s), _checksum::binary-size(8)>> = data
-      from_5bit(payload)
-    else
+    if s <= 0 do
       :error
+    else
+      <<payload::binary-size(s), hash::binary>> = data
+
+      if hash_message(checksum, insert <> payload) == hash do
+        from_5bit(payload)
+      else
+        :error
+      end
     end
   end
 
@@ -66,37 +69,55 @@ defmodule BitPal.Crypto.Base32 do
   Encode some data into a base32-string. Appends a checksum using the polymod functionality.
   """
   def encode(data) do
-    encode(data, insert: <<>>)
-  end
-
-  @doc """
-  Encode data into a base32-string. No checksum.
-  """
-  def encode_plain(data) do
     to_ascii(to_5bit(data))
   end
 
   @doc """
-  Encode some data into a base32-string, either insert: data into only the checksumming, or prefix:
-  the entire chunk. insert:ed data will not be encoded, a prefix will be inserted verbatim.
+  Encode data into a base32-string with some checksum:
+  - :none - no checksum
+  - :polymod - default for Bitcoin cash
   """
-  def encode(data, prefix: prefix) do
-    prefix <> encode(data, insert: prefix)
+  def encode(data, checksum) do
+    encode(data, checksum, insert: <<>>)
   end
 
-  def encode(data, insert: insert) do
+  @doc """
+  Encode data into a base32-string with the given checksum.
+
+  There are two variants: either provide a prefix that is expected to be found
+  in the beginning of "data" (prefix:), or assume that some data was already in
+  the beginning (insert:). None of the two are included in the decoded data,'
+
+  Returns: :error on failure.
+  """
+  def encode(data, checksum, prefix: prefix) do
+    prefix <> encode(data, checksum, insert: prefix)
+  end
+
+  def encode(data, checksum, insert: insert) do
     data = to_5bit(data)
-    checksum = checksum(insert <> data <> <<0, 0, 0, 0, 0, 0, 0, 0>>)
-    # Encode it in big endian.
-    checksum = <<
+    to_ascii(data <> hash_message(checksum, insert <> data))
+  end
+
+  # Hash size (base32 encoded size)
+  def hash_size(:none), do: 0
+  def hash_size(:polymod), do: 8
+
+  # Hash data.
+  def hash_message(:none, _message) do
+    <<>>
+  end
+
+  def hash_message(:polymod, message) do
+    checksum = polymod(message <> <<0, 0, 0, 0, 0, 0, 0, 0>>)
+
+    to_5bit(<<
       checksum >>> (4 * 8) &&& 0xFF,
       checksum >>> (3 * 8) &&& 0xFF,
       checksum >>> (2 * 8) &&& 0xFF,
       checksum >>> (1 * 8) &&& 0xFF,
       checksum >>> (0 * 8) &&& 0xFF
-    >>
-
-    to_ascii(data <> to_5bit(checksum))
+    >>)
   end
 
   @doc """
@@ -192,12 +213,12 @@ defmodule BitPal.Crypto.Base32 do
   From here: https://www.bitcoincash.org/spec/cashaddr.html
   Operates on a binary of 5-bit integers and returns a 64-bit integer.
   """
-  def checksum(binary) do
-    checksum_i(binary, 1)
+  def polymod(binary) do
+    polymod_i(binary, 1)
   end
 
-  # Helper for the checksum function.
-  defp checksum_i(binary, c) do
+  # Helper for the polymod function.
+  defp polymod_i(binary, c) do
     case binary do
       <<first, rest::binary>> ->
         c0 = c >>> 35 &&& 0xFF
@@ -211,7 +232,7 @@ defmodule BitPal.Crypto.Base32 do
         c = if (c0 &&& 0x08) != 0, do: c ^^^ 0xAE2EABE2A8, else: c
         c = if (c0 &&& 0x10) != 0, do: c ^^^ 0x1E4F43E470, else: c
 
-        checksum_i(rest, c)
+        polymod_i(rest, c)
 
       <<>> ->
         c ^^^ 1

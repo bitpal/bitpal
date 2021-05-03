@@ -43,4 +43,22 @@ defmodule Base58Test do
     # This is the "correct" one, one less "1" in the string.
     assert Base58.decode("11233QC4") == <<0x00, 0x00, 0x28, 0x7F, 0xB4, 0xCD>>
   end
+
+  test "base58 checksum" do
+    # These examples are from BIP0032: https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+    a =
+      "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
+
+    b =
+      "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+
+    dec_a = Base58.decode(a, :doublesha)
+    dec_b = Base58.decode(b, :doublesha)
+
+    assert dec_a != :error
+    assert dec_b != :error
+
+    assert Base58.encode(dec_a, :doublesha) == a
+    assert Base58.encode(dec_b, :doublesha) == b
+  end
 end

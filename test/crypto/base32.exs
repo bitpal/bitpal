@@ -14,5 +14,6 @@ defmodule Base32Test do
     data = "this is some data for testing"
 
     assert Base32.decode(Base32.encode(data)) == data
+    assert Base32.decode(Base32.encode(data, :polymod), :polymod) == data
   end
 end

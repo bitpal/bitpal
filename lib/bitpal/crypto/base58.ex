@@ -1,6 +1,4 @@
 defmodule BitPal.Crypto.Base58 do
-  use Bitwise
-
   @moduledoc """
   This module implements the Base58 scheme used in various places in Bitcoin and Bitcoin Cash for
   example. Note that there are multiple versions of the Base58 encoding. This module implements the
@@ -10,6 +8,8 @@ defmodule BitPal.Crypto.Base58 do
   In addition to raw encoding/decoding, this module also implements checksumming so that the user of
   the module don't have to worry about that.
   """
+
+  use Bitwise
 
   @doc """
   Encode the binary into base58. No checksumming.
@@ -21,12 +21,59 @@ defmodule BitPal.Crypto.Base58 do
   end
 
   @doc """
+  Encode the binary into base58, optionally adding a checksum.
+
+  Checksums available are:
+  - :none - no checksum
+  - :doublesha - double sha256 - used in Bitcoin
+  """
+  def encode(data, checksum) do
+    encode(data <> hash_message(checksum, data))
+  end
+
+  @doc """
   Decode the string from base58 into a binary. No checksumming.
   """
   def decode(string) do
     string
     |> from_ascii
     |> from_base58
+  end
+
+  @doc """
+  Decode a string with a specified checksum. Returns :error on checksum failure.
+
+  Checksums available are:
+  - :none - no checksum
+  - :doublesha - double sha256 - used in Bitcoin
+  """
+  def decode(string, checksum) do
+    data = decode(string)
+    payload_size = byte_size(data) - hash_size(checksum)
+
+    if payload_size <= 0 do
+      :error
+    else
+      <<payload::binary-size(payload_size), hash::binary>> = data
+
+      if hash == hash_message(checksum, payload) do
+        payload
+      else
+        :error
+      end
+    end
+  end
+
+  # Size of the hash.
+  defp hash_size(:none), do: 0
+  defp hash_size(:doublesha), do: 4
+
+  # Compute hash.
+  defp hash_message(:none, _message), do: <<>>
+
+  defp hash_message(:doublesha, message) do
+    <<hash::binary-size(4), _::binary>> = :crypto.hash(:sha256, :crypto.hash(:sha256, message))
+    hash
   end
 
   # Convert a binary to base 58. We interpret "data" as an integer with the most significant byte

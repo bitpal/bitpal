@@ -1,10 +1,10 @@
 defmodule BitPal.BCH.Cashaddress do
-  use Bitwise
-  alias BitPal.Crypto.Base32
-
   @moduledoc """
   Address management. Allows converting between different BCH address types.
   """
+
+  use Bitwise
+  alias BitPal.Crypto.Base32
 
   # ASCII prefix for BCH URL:s.
   @ascii_prefix "bitcoincash:"
@@ -27,7 +27,7 @@ defmodule BitPal.BCH.Cashaddress do
 
     # Decode and check the checksum
     payload =
-      case Base32.decode(data, insert: @checksum_prefix) do
+      case Base32.decode(data, :polymod, insert: @checksum_prefix) do
         :error -> raise("Invalid checksum!")
         x -> x
       end
@@ -82,7 +82,7 @@ defmodule BitPal.BCH.Cashaddress do
       end
 
     info = type <<< 3 ||| size
-    @ascii_prefix <> Base32.encode(<<info>> <> hash, insert: @checksum_prefix)
+    @ascii_prefix <> Base32.encode(<<info>> <> hash, :polymod, insert: @checksum_prefix)
   end
 
   # Find the cash hash size in bits.
