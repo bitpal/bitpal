@@ -1,48 +1,86 @@
 defmodule BitPal.BCH.Cashaddress do
-  # Address management. Allows converting between different BCH address types.
+  @moduledoc """
+  Address management. Allows converting between different BCH address types.
+  """
+
   use Bitwise
+  alias BitPal.Crypto.Base32
 
-  # Decode a BCH url. Returns the public key, or :error
-  # Note: This is actually easier to decode than the legacy base52 format.
-  # Note: This url seems to be more reliable https://documentation.cash/protocol/blockchain/encoding/cashaddr
-  # than this url: https://www.bitcoincash.org/spec/cashaddr.html
-  # Note: The implementation in Flowee seems to follow the incorrect URL. That results in a non-zero
-  # padding of the base32 encoding.
-  # Returns { type, key }
+  # ASCII prefix for BCH URL:s.
+  @ascii_prefix "bitcoincash:"
+
+  # Bytes used in checksumming
+  @checksum_prefix <<0x02, 0x09, 0x14, 0x03, 0x0F, 0x09, 0x0E, 0x03, 0x01, 0x13, 0x08, 0x00>>
+
+  @doc """
+  Decode a BCH url. Returns the public key, or :error
+  Note: This is actually easier to decode than the legacy base52 format.
+  Note: This url seems to be more reliable https://documentation.cash/protocol/blockchain/encoding/cashaddr
+  than this url: https://www.bitcoincash.org/spec/cashaddr.html
+  Returns { type, key }
+  """
   def decode_cash_url(url) do
-    "bitcoincash:" <> <<data::binary>> = url
-    nums = base32_to_nums(data)
+    # Check so that we have a decent prefix.
+    @ascii_prefix <> <<data::binary>> = url
 
-    # Verify the checksum. Conveniently enough, this is done in the 5-bit representation.
-    bitcoincash_lowbits =
-      <<0x02, 0x09, 0x14, 0x03, 0x0F, 0x09, 0x0E, 0x03, 0x01, 0x13, 0x08, 0x00>>
+    # Decode and check the checksum
+    payload =
+      case Base32.decode(data, :polymod, insert: @checksum_prefix) do
+        :error -> raise("Invalid checksum!")
+        x -> x
+      end
 
-    if compute_poly_mod(bitcoincash_lowbits <> nums) != 0 do
-      raise("Invalid checksum!")
-    end
+    <<info, hash::binary>> = payload
 
     # The first 8 bits (76543210) indicate:
     # 7: reserved, always zero
     # 6543: type of address. Either 0 or 1 (other sources say 0 or 8, but I think they account for zeros below)
     # 210: size.
 
-    # In base32 encoding (which we have here), they are stored as: 76543 210xx. As such, we can read them as:
-    type = :binary.at(nums, 0) &&& 0xF
-    size_bits = cash_hash_size(:binary.at(nums, 1) >>> 2)
-    # rounding up, hence +4. The info-byte is included here, hence +8.
-    size_5 = div(8 + size_bits + 4, 5)
+    type = info >>> 3 &&& 0xF
+    size_bits = cash_hash_size(info &&& 0x07)
 
-    # Now, we can split it into payload and checksum: The checksum is always fixed in size.
-    <<payload::binary-size(size_5), _checksum::binary-size(8)>> = nums
-
-    # The payload is padded with zero bits to an even number of base32 characters. So we can safely decode it.
-    <<_info, hash::bitstring>> = convert_5_to_8(payload)
+    # Check the size. All hash sizes are divisible by 8.
+    if size_bits != 8 * byte_size(hash) do
+      raise(
+        "Incorrect payload size. Expected " <>
+          inspect(size_bits) <> " bits, but got " <> inspect(8 * byte_size(hash)) <> " bits."
+      )
+    end
 
     # Return an appropriate type.
     case type do
-      0 -> {:p2kh, hash}
+      0 -> {:p2pkh, hash}
       1 -> {:p2sh, hash}
     end
+  end
+
+  @doc """
+  Encode a wallet address into a BCH url. The inverse of decode_cash_url.
+  """
+  def encode_cash_url(hash) do
+    {type, hash} = hash
+
+    type =
+      case type do
+        :p2pkh -> 0
+        :p2sh -> 1
+      end
+
+    size =
+      case byte_size(hash) * 8 do
+        160 -> 0
+        192 -> 1
+        224 -> 2
+        256 -> 3
+        320 -> 4
+        384 -> 5
+        448 -> 6
+        512 -> 7
+      end
+
+    info = type <<< 3 ||| size
+    @ascii_prefix <> Base32.encode(<<info>> <> hash, :polymod, insert: @checksum_prefix)
   end
 
   # Find the cash hash size in bits.
@@ -61,7 +99,7 @@ defmodule BitPal.BCH.Cashaddress do
 
   # Create a hashed output script for a public key. This is what Flowee wants.
   # Accepts what "decode_cash_url" produces.
-  def create_hashed_output_script({:p2kh, pubkey}) do
+  def create_hashed_output_script({:p2pkh, pubkey}) do
     # OP_DUP OP_HASH160, 20-byte push
     p2pkh_prefix = <<0x76, 0xA9, 20>>
     # OP_EQUALVERIFY OP_CHECKSIG
@@ -114,105 +152,5 @@ defmodule BitPal.BCH.Cashaddress do
 
   defp reverse_binary(binary) do
     binary |> :binary.bin_to_list() |> Enum.reverse() |> :binary.list_to_bin()
-  end
-
-  # Convert a base32 string into 5-bit numbers
-  defp base32_to_nums(str) do
-    str
-    |> :binary.bin_to_list()
-    |> Enum.map(fn x -> decode_base32_digit(x) end)
-    |> :binary.list_to_bin()
-  end
-
-  # Convert a sequence of 5-bit numbers into 8-bit numbers.
-  def convert_5_to_8(str) do
-    convert_5_to_8_i(str, 0, 0)
-  end
-
-  defp convert_5_to_8_i(numbers, bits_from_prev, val_from_prev) do
-    case numbers do
-      <<first, rest::bitstring>> ->
-        bits = bits_from_prev + 5
-        val = (val_from_prev <<< 5) + first
-
-        if bits > 8 do
-          here = val >>> (bits - 8)
-          <<here>> <> convert_5_to_8_i(rest, bits - 8, val &&& (1 <<< (bits - 8)) - 1)
-        else
-          convert_5_to_8_i(rest, bits, val)
-        end
-
-      <<>> ->
-        # Check so that the padding is zero.
-        if val_from_prev != 0 do
-          raise("Invalid base32 data! Padding must be zero: " <> inspect(val_from_prev))
-        end
-
-        <<>>
-    end
-  end
-
-  # Decode a single base32-digit as specified by Bitcoin Cash (not standard).
-  defp decode_base32_digit(value) do
-    case value do
-      ?q -> 0
-      ?p -> 1
-      ?z -> 2
-      ?r -> 3
-      ?y -> 4
-      ?9 -> 5
-      ?x -> 6
-      ?8 -> 7
-      ?g -> 8
-      ?f -> 9
-      ?2 -> 10
-      ?t -> 11
-      ?v -> 12
-      ?d -> 13
-      ?w -> 14
-      ?0 -> 15
-      ?s -> 16
-      ?3 -> 17
-      ?j -> 18
-      ?n -> 19
-      ?5 -> 20
-      ?4 -> 21
-      ?k -> 22
-      ?h -> 23
-      ?c -> 24
-      ?e -> 25
-      ?6 -> 26
-      ?m -> 27
-      ?u -> 28
-      ?a -> 29
-      ?7 -> 30
-      ?l -> 31
-    end
-  end
-
-  # Checksum function for bitcoin cash URL:s. From here: https://www.bitcoincash.org/spec/cashaddr.html
-  # Takes a binary and returns a 64-bit integer.
-  def compute_poly_mod(bitstring) do
-    compute_poly_mod1(bitstring, 1)
-  end
-
-  # Checksum step.
-  defp compute_poly_mod1(bitstring, c) do
-    case bitstring do
-      <<first, rest::bitstring>> ->
-        c0 = c >>> 35 &&& 0xFF
-        c = ((c &&& 0x07FFFFFFFF) <<< 5) ^^^ first
-
-        c = if (c0 &&& 0x01) != 0, do: c ^^^ 0x98F2BC8E61, else: c
-        c = if (c0 &&& 0x02) != 0, do: c ^^^ 0x79B76D99E2, else: c
-        c = if (c0 &&& 0x04) != 0, do: c ^^^ 0xF33E5FB3C4, else: c
-        c = if (c0 &&& 0x08) != 0, do: c ^^^ 0xAE2EABE2A8, else: c
-        c = if (c0 &&& 0x10) != 0, do: c ^^^ 0x1E4F43E470, else: c
-
-        compute_poly_mod1(rest, c)
-
-      <<>> ->
-        c ^^^ 1
-    end
   end
 end
