@@ -24,7 +24,6 @@ defmodule BitPal.Backend do
     backend.configure(pid, opts)
   end
 
-  # FIXME need to normalize everything
   def supported_currency?(supported, specified) when is_list(supported) do
     supported =
       supported

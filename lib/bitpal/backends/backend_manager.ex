@@ -37,7 +37,6 @@ defmodule BitPal.BackendManager do
     end
   end
 
-  # FIXME should use a registry instead of iterating like this
   @spec backends() :: [{backend_name(), Backend.backend_ref(), :ok, [Currency.id()]}]
   def backends do
     Supervisor.which_children(__MODULE__)

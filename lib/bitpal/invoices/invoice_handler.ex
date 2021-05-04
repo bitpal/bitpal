@@ -60,8 +60,7 @@ defmodule BitPal.InvoiceHandler do
     # So this is inefficient in the regular case, maybe we could keep track of a
     # "have this invoice been handled before by a handler" state somewhere,
     # to detect if we're restarted?
-    invoice = Invoices.get(invoice_id)
-    if !invoice, do: raise("invoice error")
+    invoice = Invoices.fetch!(invoice_id)
 
     BackendEvent.subscribe(invoice)
 
@@ -73,17 +72,18 @@ defmodule BitPal.InvoiceHandler do
 
     {:ok, invoice} = BackendManager.register(invoice)
 
-    change_state(state, :wait_for_tx, invoice)
+    change_state(
+      Map.put(state, :required_confirmations, invoice.required_confirmations),
+      :wait_for_tx,
+      invoice
+    )
   end
 
   @impl true
   def handle_info(:tx_seen, state) do
     Logger.debug("invoice: tx seen! #{state.invoice_id}")
 
-    # FIXME inefficient
-    required_confirmations = Invoices.get(state.invoice_id).required_confirmations
-
-    if required_confirmations == 0 do
+    if state.required_confirmations == 0 do
       change_state(state, :wait_for_verification)
     else
       change_state(state, :wait_for_confirmations)
@@ -104,10 +104,7 @@ defmodule BitPal.InvoiceHandler do
 
     broadcast(state.invoice_id, {:confirmations, state.confirmations})
 
-    # FIXME inefficient
-    required_confirmations = Invoices.get(state.invoice_id).required_confirmations
-
-    if state.confirmations >= required_confirmations do
+    if state.confirmations >= state.required_confirmations do
       accepted(state)
     else
       {:noreply, state}
@@ -118,10 +115,7 @@ defmodule BitPal.InvoiceHandler do
   def handle_info(:verified, state = %{state: :wait_for_verification}) do
     Logger.debug("invoice: verified! #{state.invoice_id}")
 
-    # FIXME inefficient
-    required_confirmations = Invoices.get(state.invoice_id).required_confirmations
-
-    if required_confirmations == 0 do
+    if state.required_confirmations == 0 do
       accepted(state)
     else
       change_state(state, :wait_for_confirmations)
@@ -133,11 +127,6 @@ defmodule BitPal.InvoiceHandler do
     Logger.warn("unhandled info/state in InvoiceHandler #{inspect(info)} #{inspect(state)}")
     {:noreply, state}
   end
-
-  # @impl true
-  # def handle_call(:get_invoice, _, state) do
-  #   {:reply, state[:invoice], state}
-  # end
 
   @impl true
   def handle_call({:update_subscriber, pid}, _from, state) do

@@ -40,7 +40,6 @@ defmodule BitPal.BackendEvent do
 
   @spec topic(Invoice.t()) :: binary
   defp topic(invoice) do
-    # FIXME should be per address?
     "backend:" <> invoice.id
   end
 end

@@ -23,6 +23,15 @@ defmodule BitPal.Invoices do
     |> Repo.one()
   end
 
+  @spec fetch!(Invoice.id()) :: Invoice.t()
+  def fetch!(id) do
+    if invoice = get(id) do
+      invoice
+    else
+      raise("invoice #{id} not found!")
+    end
+  end
+
   @spec register(register_params) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def register(params) do
     %Invoice{}

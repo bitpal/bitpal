@@ -70,7 +70,6 @@ defmodule BitPal.BackendMock do
       |> Map.put_new(:currencies, [:bch])
       |> Map.put_new(:height, 0)
       |> Map.put_new(:auto, false)
-      # FIXME configurable somehow
       |> Map.put_new(:address, "bitcoincash:qqpkcce4lzdc8guam5jfys9prfyhr90seqzakyv4tu")
 
     if opts.auto do

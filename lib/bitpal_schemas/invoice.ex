@@ -16,7 +16,8 @@ defmodule BitPalSchemas.Invoice do
           currency: Currency.t(),
           address_id: String.t(),
           address: Address.t(),
-          status: :pending | :confirmed | :rejected | :canceled
+          status: :pending | :confirmed | :rejected | :canceled,
+          required_confirmations: non_neg_integer
         }
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -24,7 +25,6 @@ defmodule BitPalSchemas.Invoice do
     field(:amount, :decimal)
     field(:fiat_amount, :decimal)
     field(:exchange_rate, :decimal, virtual: true)
-    # FIXME not virtual, or stored somewhere else?
     field(:required_confirmations, :integer, default: 0)
 
     field(:status, Ecto.Enum,
