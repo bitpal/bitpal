@@ -10,7 +10,7 @@ defmodule BitPal.Transactions do
   use GenServer
   alias BitPal.BackendEvent
   alias BitPal.BCH.Satoshi
-  alias BitPal.Invoice
+  alias BitPalSchemas.Invoice
   require Logger
 
   # Minimum amount allowed in a single transaction.
@@ -90,7 +90,7 @@ defmodule BitPal.Transactions do
     # IO.puts("registering new transaction! #{inspect(invoice.amount)}")
     transactions = Map.get(state, :transactions, %{})
     # Find a suitable addr map:
-    for_addr = Map.get(transactions, invoice.address, %{})
+    for_addr = Map.get(transactions, invoice.address_id, %{})
     # Compute the amount to invoice.
     satoshi = find_amount(for_addr, Satoshi.from_decimal(invoice.amount).amount)
     # IO.puts("satoshis to invoice: #{inspect(satoshi)}")
@@ -99,7 +99,8 @@ defmodule BitPal.Transactions do
     # Put it back together.
     for_addr = Map.put(for_addr, satoshi, %State{invoice: invoice, state: :pending})
 
-    transactions = Map.put(transactions, invoice.address, for_addr)
+    transactions = Map.put(transactions, invoice.address_id, for_addr)
+
     state = Map.put(state, :transactions, transactions)
 
     {:reply, invoice, state}

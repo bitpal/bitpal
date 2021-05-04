@@ -8,7 +8,7 @@ defmodule BitPal.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      # BitPal.Repo,
+      BitPal.Repo,
       {Phoenix.PubSub, name: BitPal.PubSub},
       BitPal.ProcessRegistry,
       BitPal.BackendManager,

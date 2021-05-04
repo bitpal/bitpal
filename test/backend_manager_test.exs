@@ -1,11 +1,10 @@
 defmodule BackendManagerTest do
-  use BitPal.BackendCase
+  use BitPal.IntegrationCase, db: true
 
   alias BitPal.Backend
   alias BitPal.BackendManager
   alias BitPal.BackendMock
 
-  @tag :dry
   test "initialize and restart" do
     pid = start_supervised!({BackendManager, backends: [BackendMock]})
 
@@ -19,7 +18,7 @@ defmodule BackendManagerTest do
     assert child_pid != new_child_pid
   end
 
-  @tag :dry
+  @tag do: true
   test "backend currency support" do
     assert Backend.supported_currency?(:bch, [:bch, :xmr])
     assert !Backend.supported_currency?([:bch, :xmr], [:bch, :btc])
@@ -37,16 +36,17 @@ defmodule BackendManagerTest do
     assert BackendManager.backend_status(XXX.Backend) == :not_found
 
     assert BackendManager.currency_status(:bch) == :ok
+    assert BackendManager.currency_status("BCH") == :ok
     assert BackendManager.currency_status(:bsv) == :not_found
 
     assert {:ok, bit} = BackendManager.get_backend(Bitcoin.Backend)
     assert {:ok, ^bit} = BackendManager.get_currency_backend(:bch)
+    assert {:ok, ^bit} = BackendManager.get_currency_backend("BCH")
     assert {:error, :not_found} = BackendManager.get_currency_backend(:bsv)
 
-    assert BackendManager.currency_list() === [:bch, :btc, :xmr]
+    assert BackendManager.currency_list() === ["BCH", "BTC", "XMR"]
   end
 
-  @tag :dry
   test "change config" do
     start_supervised!(
       {BackendManager,

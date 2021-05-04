@@ -1,16 +1,32 @@
 defmodule HandlerSubscriberCollector do
   use GenServer
-  alias BitPal.Invoice
   alias BitPal.InvoiceHandler
   alias BitPal.InvoiceManager
+  alias BitPal.Invoices
+  alias BitPalSchemas.Invoice
 
   # Client API
 
-  @spec create_invoice(Invoice.t()) :: {:ok, Invoice.t(), pid, pid}
-  def create_invoice(invoice) do
+  @spec create_invoice(keyword | map) :: {:ok, Invoice.t(), pid, pid}
+  def create_invoice(params) when is_list(params) do
+    create_invoice(Enum.into(params, %{}))
+  end
+
+  def create_invoice(params) do
     {:ok, stub} = start_link(nil)
 
-    {invoice, handler} = GenServer.call(stub, {:create_invoice, invoice})
+    params =
+      Map.merge(
+        %{
+          currency: :bch,
+          amount: 1.3,
+          exchange_rate: {2.0, "BCH"},
+          required_confirmations: 0
+        },
+        params
+      )
+
+    {invoice, handler} = GenServer.call(stub, {:create_invoice, params})
 
     {:ok, invoice, stub, handler}
   end
@@ -26,10 +42,6 @@ defmodule HandlerSubscriberCollector do
 
   def await_state(handler, state) do
     await_msg(handler, {:state, state})
-  end
-
-  def await_endstate(handler, state, invoice) do
-    await_msg(handler, {:state, state, invoice})
   end
 
   def await_msg(handler, msg) do
@@ -65,10 +77,13 @@ defmodule HandlerSubscriberCollector do
   end
 
   @impl true
-  def handle_call({:create_invoice, invoice}, _, state) do
-    {:ok, handler} = InvoiceManager.create_invoice_and_subscribe(invoice)
+  def handle_call({:create_invoice, params}, _, state) do
+    {:ok, invoice_id} = InvoiceManager.register_invoice(params)
 
-    invoice = InvoiceHandler.get_invoice(handler)
+    {:ok, handler} = InvoiceManager.get_handler(invoice_id)
+    # Block until handler has initialized, which may change invoice details.
+    _ = InvoiceHandler.get_invoice_id(handler)
+    invoice = Invoices.get(invoice_id)
 
     {:reply, {invoice, handler}, state}
   end
