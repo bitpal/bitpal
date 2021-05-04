@@ -53,7 +53,9 @@ defmodule AddressTest do
   end
 
   defp assign_address(address) do
-    assert {:ok, invoice} = Invoices.register(%{currency: :bch, amount: 1.2})
+    assert {:ok, invoice} =
+             Invoices.register(%{currency: :bch, amount: 1.2, exchange_rate: {1.1, "USD"}})
+
     assert {:ok, _} = Invoices.assign_address(invoice, address)
   end
 end

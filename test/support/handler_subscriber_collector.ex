@@ -20,7 +20,7 @@ defmodule HandlerSubscriberCollector do
         %{
           currency: :bch,
           amount: 1.3,
-          exchange_rate: 2.0,
+          exchange_rate: {2.0, "BCH"},
           required_confirmations: 0
         },
         params

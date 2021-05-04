@@ -7,8 +7,19 @@ defmodule InvoiceManagerTest do
   test "initialize" do
     Currencies.register!(:bch)
 
-    assert {:ok, inv1_id} = InvoiceManager.register_invoice(%{currency: :bch, amount: 2.5})
-    assert {:ok, inv2_id} = InvoiceManager.register_invoice(%{currency: :bch, amount: 5.2})
+    assert {:ok, inv1_id} =
+             InvoiceManager.register_invoice(%{
+               currency: :bch,
+               amount: 2.5,
+               exchange_rate: {1.1, "USD"}
+             })
+
+    assert {:ok, inv2_id} =
+             InvoiceManager.register_invoice(%{
+               currency: :bch,
+               amount: 5.2,
+               exchange_rate: {1.1, "USD"}
+             })
 
     assert inv1_id != inv2_id
     assert {:ok, inv1_pid} = InvoiceManager.get_handler(inv1_id)

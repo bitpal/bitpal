@@ -2,16 +2,15 @@ defmodule BitPalSchemas.Invoice do
   use Ecto.Schema
   alias BitPalSchemas.Address
   alias BitPalSchemas.Currency
+  alias BitPalSchemas.ExchangeRateType
 
   @type id :: Ecto.UUID.t()
 
   @type t :: %__MODULE__{
           id: id,
-          # FIXME custom types here
-          # FIXME need to store fiat ticker somehow
           amount: Decimal.t(),
           fiat_amount: Decimal.t(),
-          exchange_rate: Decimal.t(),
+          exchange_rate: ExchangeRateType.t(),
           currency_id: String.t(),
           currency: Currency.t(),
           address_id: String.t(),
@@ -23,8 +22,8 @@ defmodule BitPalSchemas.Invoice do
   @primary_key {:id, :binary_id, autogenerate: true}
   schema "invoices" do
     field(:amount, :decimal)
-    field(:fiat_amount, :decimal)
-    field(:exchange_rate, :decimal, virtual: true)
+    field(:fiat_amount, :decimal, virtual: true)
+    field(:exchange_rate, ExchangeRateType)
     field(:required_confirmations, :integer, default: 0)
 
     field(:status, Ecto.Enum,
