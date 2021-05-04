@@ -5,22 +5,22 @@ defmodule BitPal.Currencies do
 
   @type id :: atom | String.t()
 
-  def get(nil), do: nil
-
+  @spec get(id) :: Currency.t()
   def get(id) do
     Repo.one(from(c in Currency, where: c.id == ^normalize(id)))
   end
 
+  @spec register!([Currency.id()]) :: :ok
   def register!(ids) when is_list(ids) do
     Enum.each(ids, &register!/1)
   end
 
+  @spec register!(Currency.id()) :: :ok
   def register!(id) do
     Repo.insert!(%Currency{id: normalize(id)}, on_conflict: :nothing)
   end
 
-  def normalize(nil), do: nil
-
+  @spec normalize(atom | String.t()) :: String.t()
   def normalize(id) when is_binary(id) do
     id
   end

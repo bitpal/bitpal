@@ -65,11 +65,11 @@ defmodule BitPal.InvoiceHandler do
 
     BackendEvent.subscribe(invoice)
 
-    if invoice.address_id do
-      # If the invoice has been assigned an address, then it means we might have crashed
-      # so we should query the backend for all transactions to this address and
-      # update our state/confirmations, as it's possible we've missed something.
-    end
+    # if invoice.address_id do
+    # If the invoice has been assigned an address, then it means we might have crashed
+    # so we should query the backend for all transactions to this address and
+    # update our state/confirmations, as it's possible we've missed something.
+    # end
 
     # FIXME should only need address, currency and (maybe) amount
     # once we migrate to purely address based backend events

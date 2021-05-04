@@ -5,6 +5,7 @@ defmodule BitPal.InvoiceManager do
   alias BitPal.InvoiceHandler
   alias BitPal.Invoices
   alias BitPal.ProcessRegistry
+  alias BitPalSchemas.Invoice
 
   @supervisor BitPal.InvoiceSupervisor
 

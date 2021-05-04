@@ -2,7 +2,8 @@ defmodule BitPal.BackendManager do
   use Supervisor
   alias BitPal.Backend
   alias BitPal.Currencies
-  alias BitPal.Invoice
+  alias BitPalSchemas.Currency
+  alias BitPalSchemas.Invoice
 
   @type backend_spec() :: Supervisor.child_spec()
   @type backend_name() :: atom()
@@ -37,7 +38,7 @@ defmodule BitPal.BackendManager do
   end
 
   # FIXME should use a registry instead of iterating like this
-  @spec backends() :: [{backend_name(), Backend.backend_ref(), :ok, [Invoice.currency()]}]
+  @spec backends() :: [{backend_name(), Backend.backend_ref(), :ok, [Currency.id()]}]
   def backends do
     Supervisor.which_children(__MODULE__)
     |> Enum.map(fn {name, pid, _worker, [backend]} ->
@@ -46,7 +47,8 @@ defmodule BitPal.BackendManager do
     end)
   end
 
-  @spec get_backend(backend_name()) :: {:ok, Backend.backend_ref()} | {:error, :not_found}
+  @spec get_backend(backend_name()) ::
+          {:ok, Backend.backend_ref()} | {:error, :not_found}
   def get_backend(name) do
     backends()
     |> Enum.find_value({:error, :not_found}, fn
@@ -64,7 +66,7 @@ defmodule BitPal.BackendManager do
     end)
   end
 
-  @spec currencies() :: [{Invoice.currency(), :ok, Backend.backend_ref()}]
+  @spec currencies() :: [{Currency.id(), :ok, Backend.backend_ref()}]
   def currencies do
     backends()
     |> Enum.map(fn {_name, ref, status} ->
@@ -77,14 +79,14 @@ defmodule BitPal.BackendManager do
     end)
   end
 
-  @spec currency_list() :: [Invoice.currency()]
+  @spec currency_list() :: [Currency.id()]
   def currency_list do
     currencies()
     |> Enum.reduce([], fn {currency, _, _}, acc -> [currency | acc] end)
     |> Enum.sort()
   end
 
-  @spec currency_status(Invoice.currency()) :: :ok | :not_found
+  @spec currency_status(Currency.id()) :: :ok | :not_found
   def currency_status(currency) do
     currency = Currencies.normalize(currency)
 
@@ -95,7 +97,7 @@ defmodule BitPal.BackendManager do
     end)
   end
 
-  @spec get_currency_backend(Invoice.currency()) ::
+  @spec get_currency_backend(Currency.id()) ::
           {:ok, Backend.backend_ref()} | {:error, :not_found}
   def get_currency_backend(currency) do
     currency = Currencies.normalize(currency)

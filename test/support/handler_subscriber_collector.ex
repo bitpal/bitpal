@@ -3,6 +3,7 @@ defmodule HandlerSubscriberCollector do
   alias BitPal.InvoiceHandler
   alias BitPal.InvoiceManager
   alias BitPal.Invoices
+  alias BitPalSchemas.Invoice
 
   # Client API
 

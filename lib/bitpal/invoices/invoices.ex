@@ -9,9 +9,9 @@ defmodule BitPal.Invoices do
   require Decimal
 
   @type num :: number | Decimal.t()
-  @type exchange_rate :: {num, Currency.ticker()}
+  @type exchange_rate :: {num, Currency.id()}
   @type register_params :: %{
-          currency: Currency.ticker(),
+          currency: Currency.id(),
           amount: num,
           exchange_rate: exchange_rate,
           required_confirmations: non_neg_integer
@@ -45,13 +45,13 @@ defmodule BitPal.Invoices do
   end
 
   defp assoc_currency(changeset, params, key) do
-    ticker = Currencies.normalize(params[key])
+    ticker = params[key]
 
     if ticker == nil do
       add_error(changeset, key, "can't be blank", validation: :required)
     else
       changeset
-      |> change(%{currency_id: ticker})
+      |> change(%{currency_id: Currencies.normalize(ticker)})
       |> assoc_constraint(:currency)
     end
   end

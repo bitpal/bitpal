@@ -15,7 +15,8 @@ defmodule BitPalSchemas.Invoice do
           currency_id: String.t(),
           currency: Currency.t(),
           address_id: String.t(),
-          address: Address.t()
+          address: Address.t(),
+          status: :pending | :confirmed | :rejected | :canceled
         }
 
   @primary_key {:id, :binary_id, autogenerate: true}

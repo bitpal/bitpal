@@ -10,7 +10,7 @@ defmodule BitPal.Transactions do
   use GenServer
   alias BitPal.BackendEvent
   alias BitPal.BCH.Satoshi
-  alias BitPal.Invoice
+  alias BitPalSchemas.Invoice
   require Logger
 
   # Minimum amount allowed in a single transaction.

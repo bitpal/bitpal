@@ -2,8 +2,10 @@ defmodule BitPal do
   alias BitPal.BackendManager
   alias BitPal.InvoiceManager
   alias BitPal.Invoices
+  alias BitPalSchemas.Invoice
 
-  @spec register_invoice(Invoices.params()) :: {:ok, Invoices.id()} | {:error, Ecto.Changeset.t()}
+  @spec register_invoice(Invoices.register_params()) ::
+          {:ok, Invoice.id()} | {:error, Ecto.Changeset.t()}
   def register_invoice(params) do
     InvoiceManager.register_invoice(params)
   end

@@ -105,7 +105,7 @@ defmodule BitPal.BackendMock do
       if address = Addresses.get(state.address) do
         address
       else
-        {:ok, address} = Addresses.register(invoice.currency_id, state.address, nil)
+        {:ok, address} = Addresses.register(invoice.currency_id, state.address, 0)
         address
       end
 
