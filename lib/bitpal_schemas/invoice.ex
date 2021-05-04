@@ -10,7 +10,7 @@ defmodule BitPalSchemas.Invoice do
           id: id,
           amount: Decimal.t(),
           fiat_amount: Decimal.t(),
-          exchange_rate: ExchangeRateType.t(),
+          exchange_rate: {Decimal.t(), String.t()},
           currency_id: String.t(),
           currency: Currency.t(),
           address_id: String.t(),
