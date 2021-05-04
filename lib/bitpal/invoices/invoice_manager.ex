@@ -19,7 +19,6 @@ defmodule BitPal.InvoiceManager do
     # Validates and register to get an invoice id,
     # then we pass it to the backend that generates a receiving address or
     # alters the requested amount, in an asynchronous manner.
-    # FIXME before registering, we need to check that we support the given currency.
     case Invoices.register(params) do
       {:ok, invoice} ->
         InvoiceEvent.subscribe(invoice.id)

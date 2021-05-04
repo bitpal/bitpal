@@ -56,72 +56,7 @@ defmodule BitPal.Invoices do
     end
   end
 
-  # @spec confirmed(Invoice.t()) ::
-  # def confirmed(invoice) do
-  # end
-
-  # def merge_changeset(changeset, params \\ [])
-  #
-  # def merge_changeset(changeset, params) when is_list(params) do
-  #   merge_changeset(changeset, Enum.into(params, %{}))
-  # end
-  #
-  # def merge_changeset(changeset, params) when is_map(params) and is_struct(changeset.data) do
-  #   invoice_changeset =
-  #     Map.merge(params, Map.from_struct(apply_changes(changeset)))
-  #     |> changeset()
-  #
-  #   merge(changeset, invoice_changeset)
-  # end
-  #
-  # def merge_changeset(changeset, params) when is_map(params) and is_map(changeset.data) do
-  #   invoice_changeset =
-  #     Map.merge(params, apply_changes(changeset))
-  #     |> changeset()
-  #
-  #   # Merging requires that they have the same type
-  #   changeset = %{changeset | data: struct(BitPal.Invoice, changeset.data)}
-  #
-  #   snd_type_merge(changeset, invoice_changeset)
-  # end
-  #
-  # defp snd_type_merge(cs1, cs2) do
-  #   %{merge(cs1, cs2) | types: cs2.types}
-  # end
-
-  # def changeset(params) when is_list(params) do
-  #   changeset(Enum.into(params, %{}))
-  # end
-  #
-  # def changeset(params) when is_map(params) do
-  #   permitted = %{
-  #     address: :binary,
-  #     # Would be nice to say 'Decimal' type
-  #     amount: :any,
-  #     exchange_rate: :any,
-  #     fiat_amount: :any,
-  #     # Would like an `:atom` here, but it doesn't exist?
-  #     currency: :any,
-  #     email: :string,
-  #     required_confirmations: :integer,
-  #     label: :string,
-  #     message: :string
-  #   }
-  #
-  #   {%BitPal.Invoice{}, permitted}
-  #   |> cast(params, Map.keys(permitted))
-  #   |> validate_into_decimal(:amount)
-  #   |> validate_into_decimal(:exchange_rate)
-  #   |> validate_into_decimal(:fiat_amount)
-  #   |> validate_amounts()
-  #   |> validate_format(:email, ~r/^.+@.+$/, message: "Must be a valid email")
-  #   |> validate_number(:required_confirmations, greater_than_or_equal_to: 0)
-  #   |> validate_required(:address)
-  #   |> validate_required(:currency)
-  # end
-
   defp validate_into_decimal(changeset, key) do
-    # FIXME greater_than_or_equal_to 0
     changeset
     |> update_change(key, fn
       x when is_float(x) -> Decimal.from_float(x) |> Decimal.normalize()
@@ -135,36 +70,43 @@ defmodule BitPal.Invoices do
         [{key, "must be a number"}]
       end
     end)
+    |> validate_change(key, fn ^key, val ->
+      if Decimal.lt?(val, Decimal.new(0)) do
+        [{key, "cannot be negative"}]
+      else
+        []
+      end
+    end)
   end
 
-  defp validate_amounts(changeset) do
-    amount = get_field(changeset, :amount)
-    exchange_rate = get_field(changeset, :exchange_rate)
-    fiat_amount = get_field(changeset, :fiat_amount)
-
-    # IO.puts("amount #{amount} rate #{exchange_rate} fiat #{fiat_amount}")
-
-    cond do
-      !exchange_rate ->
-        add_error(changeset, :exchange_rate, "must provide an exchange rate")
-
-      amount && fiat_amount ->
-        if Decimal.eq?(Decimal.mult(amount, exchange_rate), fiat_amount) do
-          changeset
-        else
-          add_error(changeset, :fiat_amount, "fiat amount != amount * exchange rate")
-        end
-
-      !fiat_amount ->
-        change(changeset, fiat_amount: Decimal.mult(amount, exchange_rate))
-
-      !amount ->
-        change(changeset, amount: Decimal.div(fiat_amount, exchange_rate))
-
-      true ->
-        changeset
-    end
-  end
+  # defp validate_amounts(changeset) do
+  #   amount = get_field(changeset, :amount)
+  #   exchange_rate = get_field(changeset, :exchange_rate)
+  #   fiat_amount = get_field(changeset, :fiat_amount)
+  #
+  #   # IO.puts("amount #{amount} rate #{exchange_rate} fiat #{fiat_amount}")
+  #
+  #   cond do
+  #     !exchange_rate ->
+  #       add_error(changeset, :exchange_rate, "must provide an exchange rate")
+  #
+  #     amount && fiat_amount ->
+  #       if Decimal.eq?(Decimal.mult(amount, exchange_rate), fiat_amount) do
+  #         changeset
+  #       else
+  #         add_error(changeset, :fiat_amount, "fiat amount != amount * exchange rate")
+  #       end
+  #
+  #     !fiat_amount ->
+  #       change(changeset, fiat_amount: Decimal.mult(amount, exchange_rate))
+  #
+  #     !amount ->
+  #       change(changeset, amount: Decimal.div(fiat_amount, exchange_rate))
+  #
+  #     true ->
+  #       changeset
+  #   end
+  # end
 
   def render_qrcode(invoice, opts \\ []) do
     invoice

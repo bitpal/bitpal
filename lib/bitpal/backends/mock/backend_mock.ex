@@ -109,14 +109,9 @@ defmodule BitPal.BackendMock do
         address
       end
 
-    # FIXME combine with below
     {:ok, invoice} = Invoices.assign_address(invoice, address)
+    invoice = Transactions.new(invoice)
 
-    invoice =
-      invoice
-      |> Transactions.new()
-
-    # FIXME just temporary idiocy to force an update if Transaction changes anything.
     Repo.update!(
       Changeset.change(%Invoice{id: invoice.id}, %{
         address_id: invoice.address_id,

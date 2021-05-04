@@ -3,7 +3,7 @@ defmodule InvoiceTest do
   # alias BitPal.Invoices
   # import Ecto.Changeset
 
-  # FIXME this should all be moved or thrown out
+  # this should all be moved or thrown out
 
   # test "invoice creation" do
   #   address = "bitcoincash:qqpkcce4lzdc8guam5jfys9prfyhr90seqzakyv4tu"

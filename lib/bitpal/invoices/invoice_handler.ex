@@ -71,11 +71,7 @@ defmodule BitPal.InvoiceHandler do
     # update our state/confirmations, as it's possible we've missed something.
     # end
 
-    # FIXME should only need address, currency and (maybe) amount
-    # once we migrate to purely address based backend events
-    # FIXME should return a changeset
     {:ok, invoice} = BackendManager.register(invoice)
-    # FIXME here we might update address/amount, should store that to db
 
     change_state(state, :wait_for_tx, invoice)
   end
