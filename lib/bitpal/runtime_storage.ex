@@ -1,11 +1,9 @@
-defmodule BitPal.ExchangeRate.Cache do
+defmodule BitPal.RuntimeStorage do
   @moduledoc """
-  A simple cache as seen in Programming Phoenix >= 1.4
+  Runtime storage as a simple wrapper around ets tables.
   """
 
   use GenServer
-
-  @clear_interval :timer.seconds(60)
 
   def put(name \\ __MODULE__, key, value) do
     true = :ets.insert(name, {key, value})
@@ -15,7 +13,8 @@ defmodule BitPal.ExchangeRate.Cache do
   def fetch(name \\ __MODULE__, key) do
     {:ok, :ets.lookup_element(name, key, 2)}
   rescue
-    ArgumentError -> :error
+    ArgumentError ->
+      :error
   end
 
   def start_link(opts) do
@@ -24,13 +23,7 @@ defmodule BitPal.ExchangeRate.Cache do
   end
 
   def init(opts) do
-    state = %{
-      interval: opts[:clear_interval] || @clear_interval,
-      timer: nil,
-      table: new_table(opts[:name])
-    }
-
-    {:ok, schedule_clear(state)}
+    {:ok, %{table: new_table(opts[:name])}}
   end
 
   def child_spec(arg) do
@@ -40,15 +33,6 @@ defmodule BitPal.ExchangeRate.Cache do
       id: id,
       start: {__MODULE__, :start_link, [arg]}
     }
-  end
-
-  def handle_info(:clear, state) do
-    :ets.delete_all_objects(state.table)
-    {:noreply, schedule_clear(state)}
-  end
-
-  defp schedule_clear(state) do
-    %{state | timer: Process.send_after(self(), :clear, state.interval)}
   end
 
   defp new_table(name) do
