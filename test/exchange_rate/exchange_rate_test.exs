@@ -9,8 +9,7 @@ defmodule BitPal.ExchangeRateTest do
     assert {:ok,
             %ExchangeRate{
               rate: Decimal.new(2),
-              a: :BCH,
-              b: :USD
+              pair: {:BCH, :USD}
             }} == ExchangeRate.new(Decimal.new(2), {:BCH, :USD})
 
     assert :error = ExchangeRate.new(Money.parse!(0, "BCH"), Money.parse!(4, "USD"))
@@ -19,8 +18,7 @@ defmodule BitPal.ExchangeRateTest do
     assert {:ok,
             %ExchangeRate{
               rate: Decimal.new(2),
-              a: :BCH,
-              b: :USD
+              pair: {:BCH, :USD}
             }} == ExchangeRate.new(Money.parse!(2, "BCH"), Money.parse!(4, "USD"))
   end
 
@@ -32,14 +30,12 @@ defmodule BitPal.ExchangeRateTest do
 
     rate = %ExchangeRate{
       rate: Decimal.new(2),
-      a: :BCH,
-      b: :USD
+      pair: {:BCH, :USD}
     }
 
     bad_rate = %ExchangeRate{
       rate: Decimal.new(5),
-      a: :BCH,
-      b: :USD
+      pair: {:BCH, :USD}
     }
 
     assert {:ok, ^a, ^b} = ExchangeRate.normalize(rate, a, nil)

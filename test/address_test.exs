@@ -6,12 +6,12 @@ defmodule AddressTest do
   alias BitPal.Invoices
 
   setup do
-    Currencies.register!([:xmr, :bch])
+    Currencies.register!([:XMR, :BCH])
   end
 
   test "address registration" do
-    assert {:ok, _} = Addresses.register(:bch, "bch:main", nil)
-    assert {:ok, _} = Addresses.register(:bch, [{"bch:0", 0}, {"bch:1", 1}])
+    assert {:ok, _} = Addresses.register(:BCH, "bch:main", nil)
+    assert {:ok, _} = Addresses.register(:BCH, [{"bch:0", 0}, {"bch:1", 1}])
     assert {:ok, _} = Addresses.register("BCH", "bch:2", 2)
 
     assert {:error, changeset} = Addresses.register("BCH", "bch:2", 20)
@@ -22,34 +22,34 @@ defmodule AddressTest do
     assert "has already been taken" in errors_on(changeset).generation_index
 
     # Reuse index is ok for other cryptos
-    assert {:ok, _} = Addresses.register(:xmr, [{"xmr:0", 0}, {"xmr:1", 1}])
-    assert {:ok, _} = Addresses.register(:xmr, "xmr:2", 2)
+    assert {:ok, _} = Addresses.register(:XMR, [{"xmr:0", 0}, {"xmr:1", 1}])
+    assert {:ok, _} = Addresses.register(:XMR, "xmr:2", 2)
   end
 
   test "next address" do
-    assert 0 == Addresses.next_address_index(:bch)
+    assert 0 == Addresses.next_address_index(:BCH)
 
-    {:ok, _} = Addresses.register(:bch, [{"bch:0", 0}, {"bch:1", 1}])
-    assert 2 == Addresses.next_address_index(:bch)
-    assert 0 == Addresses.next_address_index(:xmr)
+    {:ok, _} = Addresses.register(:BCH, [{"bch:0", 0}, {"bch:1", 1}])
+    assert 2 == Addresses.next_address_index(:BCH)
+    assert 0 == Addresses.next_address_index(:XMR)
   end
 
   test "unused address" do
-    assert {:ok, _} = Addresses.register(:bch, [{"bch:0", 0}, {"bch:1", 1}])
-    assert {:ok, _} = Addresses.register(:xmr, [{"xmr:0", 0}, {"xmr:1", 1}])
+    assert {:ok, _} = Addresses.register(:BCH, [{"bch:0", 0}, {"bch:1", 1}])
+    assert {:ok, _} = Addresses.register(:XMR, [{"xmr:0", 0}, {"xmr:1", 1}])
 
-    a1 = Addresses.find_unused_address(:bch)
+    a1 = Addresses.find_unused_address(:BCH)
     assert a1 != nil
 
     assign_address(a1)
-    a2 = Addresses.find_unused_address(:bch)
+    a2 = Addresses.find_unused_address(:BCH)
     assert a2 != nil
     assert a2 != a1
 
     assign_address(a2)
-    assert Addresses.find_unused_address(:bch) == nil
+    assert Addresses.find_unused_address(:BCH) == nil
 
-    assert Addresses.find_unused_address(:xmr) != nil
+    assert Addresses.find_unused_address(:XMR) != nil
     assert Addresses.find_unused_address("no") == nil
   end
 

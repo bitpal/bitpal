@@ -6,7 +6,7 @@ defmodule BitPal.Backend.Flowee do
   alias BitPal.Backend.Flowee.Protocol
   alias BitPal.Backend.Flowee.Protocol.Message
   alias BitPal.BCH.Cashaddress
-  alias BitPal.Transactions
+  alias BitPal.TransactionsOld
   require Logger
 
   # Client API
@@ -24,7 +24,7 @@ defmodule BitPal.Backend.Flowee do
 
   @impl Backend
   def supported_currencies(_backend) do
-    [:bch]
+    [:BCH]
   end
 
   @impl Backend
@@ -54,8 +54,8 @@ defmodule BitPal.Backend.Flowee do
     # Make sure we are subscribed to the wallet.
     state = watch_wallet(invoice.address, state)
 
-    # Register the wallet with the Transactions svc.
-    satoshi = Transactions.new(invoice)
+    # Register the wallet with the TransactionsOld svc.
+    satoshi = TransactionsOld.new(invoice)
 
     # Good to go! Report back!
     {:reply, satoshi, state}
@@ -135,13 +135,13 @@ defmodule BitPal.Backend.Flowee do
   # Called when we received information from the blockchain.
   defp on_info(data, _state) do
     %{blocks: height} = data
-    old_height = Transactions.get_height()
+    old_height = TransactionsOld.get_height()
 
     Logger.info(
       "Startup: new block height: " <> inspect(height) <> ", was: " <> inspect(old_height)
     )
 
-    Transactions.set_height(height)
+    TransactionsOld.set_height(height)
 
     # NOTE: Examine some old blocks!?
   end
@@ -150,7 +150,7 @@ defmodule BitPal.Backend.Flowee do
   defp on_new_block(data, _state) do
     %{height: height} = data
     Logger.info("New block. Height is now: " <> inspect(height))
-    Transactions.set_height(height)
+    TransactionsOld.set_height(height)
   end
 
   # Called when we received a new transaction.
@@ -164,13 +164,13 @@ defmodule BitPal.Backend.Flowee do
     address = Map.get(hash_to_addr, hash.data, nil)
 
     if address != nil do
-      # We know this address! Tell Transactions about our finding!
+      # We know this address! Tell TransactionsOld about our finding!
       case data do
         %{height: height, amount: amount} ->
-          Transactions.accepted(address, amount, height)
+          TransactionsOld.accepted(address, amount, height)
 
         %{amount: amount} ->
-          Transactions.seen(address, amount)
+          TransactionsOld.seen(address, amount)
       end
     end
   end
@@ -184,8 +184,8 @@ defmodule BitPal.Backend.Flowee do
     address = Map.get(hash_to_addr, hash.data, nil)
 
     if address != nil do
-      # We know this address! Tell Transactions about our finding!
-      Transactions.doublespend(address, amount)
+      # We know this address! Tell TransactionsOld about our finding!
+      TransactionsOld.doublespend(address, amount)
     end
   end
 

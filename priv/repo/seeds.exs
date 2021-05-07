@@ -23,7 +23,7 @@
 # from("addresses") |> Repo.delete_all()
 # from("currencies") |> Repo.delete_all()
 #
-# Currencies.register!([:xmr, :bch])
+# Currencies.register!([:XMR, :BCH])
 #
 # 1. Ensure tests passes
 # 2. Track invoices in handler

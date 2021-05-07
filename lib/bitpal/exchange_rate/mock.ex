@@ -7,7 +7,7 @@ defmodule BitPal.ExchangeRateMock do
   def name, do: "mock"
 
   @impl true
-  def supported_pairs, do: [{:bch, :usd}, {:bch, :eur}]
+  def supported_pairs, do: [{:BCH, :USD}, {:BCH, :EUR}]
 
   @impl true
   def compute(_pair, _opts) do

@@ -4,10 +4,8 @@ defmodule BitPal.ExchangeRateSupervisor do
   alias BitPal.ExchangeRate
   alias BitPal.ExchangeRate.Worker
   alias BitPal.RuntimeStorage
-  alias Phoenix.PubSub
   require Logger
 
-  @pubsub BitPal.PubSub
   @backend_cache BitPal.ExchangeRate.BackendCache
   @permanent_cache BitPal.ExchangeRate.PermanentCache
   @supervisor BitPal.ExhangeRate.TaskSupervisor
@@ -15,7 +13,7 @@ defmodule BitPal.ExchangeRateSupervisor do
   defmodule Result do
     @type t :: %__MODULE__{
             score: non_neg_integer(),
-            rate: Decimal.t(),
+            rate: ExchangeRate.t(),
             backend: module()
           }
 
@@ -46,7 +44,7 @@ defmodule BitPal.ExchangeRateSupervisor do
     Worker.start_worker(pair, opts)
   end
 
-  @spec request(ExchangeRate.pair(), keyword) :: {:ok, Decimal.t()} | {:error, term}
+  @spec request(ExchangeRate.pair(), keyword) :: {:ok, ExchangeRate.t()} | {:error, term}
   def request(pair, opts \\ []) do
     case Cache.fetch(@permanent_cache, pair) do
       {:ok, res} ->
@@ -66,30 +64,9 @@ defmodule BitPal.ExchangeRateSupervisor do
     end
   end
 
-  @spec require!(ExchangeRate.pair(), keyword) :: Decimal.t()
-  def require!(pair, opts \\ []) do
+  @spec request!(ExchangeRate.pair(), keyword) :: ExchangeRate.t()
+  def request!(pair, opts \\ []) do
     {:ok, rate} = request(pair, opts)
     rate
-  end
-
-  @spec subscribe(ExchangeRate.pair()) :: :ok
-  def subscribe(pair, opts \\ []) do
-    :ok = PubSub.subscribe(@pubsub, topic(pair))
-    async_request(pair, opts)
-    :ok
-  end
-
-  @spec unsubscribe(ExchangeRate.pair()) :: :ok
-  def unsubscribe(pair) do
-    PubSub.unsubscribe(@pubsub, topic(pair))
-  end
-
-  @spec broadcast(ExchangeRate.pair(), Result.t()) :: :ok | {:error, term}
-  def broadcast(pair, res) do
-    PubSub.broadcast(@pubsub, topic(pair), {:exchange_rate, pair, res.rate})
-  end
-
-  defp topic({from, to}) do
-    Atom.to_string(__MODULE__) <> Atom.to_string(from) <> Atom.to_string(to)
   end
 end

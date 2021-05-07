@@ -1,7 +1,6 @@
 defmodule BitPal.ExchangeRate.Worker do
   alias BitPal.Cache
   alias BitPal.ExchangeRate
-  alias BitPal.ExchangeRateSupervisor
   alias BitPal.ExchangeRateSupervisor.Result
   alias BitPal.ProcessRegistry
 
@@ -74,7 +73,7 @@ defmodule BitPal.ExchangeRate.Worker do
 
     case res do
       {:ok, res} ->
-        :ok = ExchangeRateSupervisor.broadcast(pair, res)
+        :ok = ExchangeRate.broadcast(pair, res)
 
       _ ->
         :ok

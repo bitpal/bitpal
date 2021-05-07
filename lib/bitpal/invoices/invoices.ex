@@ -63,11 +63,11 @@ defmodule BitPal.Invoices do
     end
 
     changeset
-    |> validate_change(key, fn ^key, val ->
+    |> validate_change(key, fn ^key, %ExchangeRate{rate: rate, pair: {a, b}} ->
       List.flatten([
-        currency_exists?.(val.a),
-        currency_exists?.(val.b),
-        non_neg_dec(key, val.rate)
+        currency_exists?.(a),
+        currency_exists?.(b),
+        non_neg_dec(key, rate)
       ])
     end)
   end
