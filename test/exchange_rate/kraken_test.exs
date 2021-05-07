@@ -1,7 +1,7 @@
 defmodule BitPal.ExchangeRate.KrakenTest do
   use ExUnit.Case, async: true
   alias BitPal.ExchangeRate.Kraken
-  alias BitPal.ExchangeRate.Result
+  alias BitPal.ExchangeRateSupervisor.Result
 
   test "request and parse" do
     assert Kraken.compute({:bch, :usd}, []) ==

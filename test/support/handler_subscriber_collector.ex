@@ -1,5 +1,6 @@
 defmodule HandlerSubscriberCollector do
   use GenServer
+  alias BitPal.ExchangeRate
   alias BitPal.InvoiceHandler
   alias BitPal.InvoiceManager
   alias BitPal.Invoices
@@ -18,9 +19,8 @@ defmodule HandlerSubscriberCollector do
     params =
       Map.merge(
         %{
-          currency: :bch,
-          amount: 1.3,
-          exchange_rate: {2.0, "BCH"},
+          amount: Money.parse!(1.3, :BCH),
+          exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {:BCH, :USD}),
           required_confirmations: 0
         },
         params

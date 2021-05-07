@@ -2,51 +2,88 @@ defmodule InvoiceCreationTest do
   use BitPal.IntegrationCase, db: true, async: true
   alias BitPal.Addresses
   alias BitPal.Currencies
+  alias BitPal.ExchangeRate
   alias BitPal.Invoices
   alias BitPalSchemas.Address
 
   setup do
-    Currencies.register!([:xmr, :bch])
+    Currencies.register!([:XMR, :BCH, :DGC])
   end
 
   test "invoice registration" do
+    # we don't have to provide fiat_amount
     assert {:ok, invoice} =
              Invoices.register(%{
-               currency: :bch,
-               amount: 1.2,
-               exchange_rate: {1.1, "USD"}
+               amount: Money.parse!(1.2, "BCH"),
+               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "USD"})
              })
 
     invoice = Repo.preload(invoice, :currency)
 
     assert invoice.id != nil
-    assert invoice.amount == Decimal.from_float(1.2)
+    assert invoice.amount == Money.parse!(1.2, "BCH")
+    assert invoice.fiat_amount == Money.parse!(2.4, "USD")
     assert invoice.status == :pending
     assert invoice.currency_id == "BCH"
     assert invoice.currency.id == "BCH"
     assert invoice.address_id == nil
-    assert invoice.exchange_rate == {Decimal.from_float(1.1), "USD"}
 
-    assert {:error, changeset} = Invoices.register(%{amount: 1.2, exchange_rate: {1.1, "USD"}})
+    assert invoice.exchange_rate == %ExchangeRate{
+             rate: Decimal.from_float(2.0),
+             a: :BCH,
+             b: :USD
+           }
 
-    assert "can't be blank" in errors_on(changeset).currency
+    assert in_db = Invoices.fetch!(invoice.id)
+    assert in_db.id == invoice.id
+
+    # it's fine to skip fiat_amount + exchange_rate
+    assert {:ok, invoice} = Invoices.register(%{amount: Money.parse!(1.2, "BCH")})
+
+    assert Money.to_decimal(invoice.amount) == Decimal.from_float(1.2)
+    assert invoice.fiat_amount == nil
+    assert invoice.exchange_rate == nil
+
+    # but we must have either amount or exchange_rate, otherwise we don't
+    # know how much crypto to ask for
+    assert {:error, changeset} = Invoices.register(%{fiat_amount: Money.parse!(1.2, "BCH")})
+
+    assert "must provide either amount or exchange rate" in errors_on(changeset).amount
+
+    # only exchange rate isn't enough either
+    assert {:error, changeset} =
+             Invoices.register(%{
+               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "USD"})
+             })
+
+    assert "must provide amount in either crypto or fiat" in errors_on(changeset).amount
+
+    # other invalid inputs
+    assert {:error, changeset} =
+             Invoices.register(%{
+               amount: Money.parse!(-2.5, "BCH"),
+               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "USD"})
+             })
+
+    assert "cannot be negative" in errors_on(changeset).amount
 
     assert {:error, changeset} =
-             Invoices.register(%{currency: "no-no", amount: 1.2, exchange_rate: {1.1, "USD"}})
-
-    assert "does not exist" in errors_on(changeset).currency
-
-    assert {:error, changeset} =
-             Invoices.register(%{currency: :bch, amount: "xxx", exchange_rate: {1.1, "USD"}})
+             Invoices.register(%{
+               amount: "BORK",
+               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "USD"})
+             })
 
     assert "is invalid" in errors_on(changeset).amount
   end
 
   test "address assigning" do
     assert {:ok, invoice} =
-             Invoices.register(%{currency: :bch, amount: 1.2, exchange_rate: {1.1, "USD"}})
+             Invoices.register(%{
+               amount: Money.parse!(1.2, "BCH"),
+               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "USD"})
+             })
 
-    assert {:ok, address} = Addresses.register(:bch, "bch:0", 0)
+    assert {:ok, address} = Addresses.register(:BCH, "bch:0", 0)
 
     assert {:ok, invoice} = Invoices.assign_address(invoice, address)
     assert invoice.address == address
@@ -59,44 +96,72 @@ defmodule InvoiceCreationTest do
              })
   end
 
-  @tag do: true
   test "amount calculations" do
+    # fiat amount will be calculated from amount + exchange_rate
     assert {:ok, invoice} =
              Invoices.register(%{
-               currency: :bch,
-               amount: 1.2,
-               exchange_rate: {2.0, "USD"}
+               amount: Money.parse!(1.2, "BCH"),
+               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "USD"})
              })
 
-    assert invoice.amount == Decimal.from_float(1.2)
-    assert invoice.fiat_amount == Decimal.from_float(2.4)
+    assert Money.to_decimal(invoice.fiat_amount) == Decimal.from_float(2.4)
 
+    # amount will be calculated from fiat_amount + exchange_rate
     assert {:ok, invoice} =
              Invoices.register(%{
-               currency: :bch,
-               fiat_amount: 1.2,
-               exchange_rate: {2.0, "USD"}
+               fiat_amount: Money.parse!(2.4, :USD),
+               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "USD"})
              })
 
-    assert invoice.amount == Decimal.from_float(0.6)
-    assert invoice.fiat_amount == Decimal.from_float(1.2)
+    assert Money.to_decimal(invoice.amount) == Decimal.from_float(1.2)
 
-    assert {:error, changeset} =
+    # exchange_rate will be calculated from amount + fiat_amount
+    assert {:ok, invoice} =
              Invoices.register(%{
-               currency: :bch,
-               amount: 1,
-               fiat_amount: 1.2
+               amount: Money.parse!(1.2, "BCH"),
+               fiat_amount: Money.parse!(2.4, :USD)
              })
 
-    assert "must provide an exchange rate" in errors_on(changeset).exchange_rate
+    assert invoice.exchange_rate == %ExchangeRate{
+             rate: Decimal.new(2),
+             a: :BCH,
+             b: :USD
+           }
 
-    assert {:error, changeset} =
+    # if we provide them all, they must match
+    assert {:ok, _} =
              Invoices.register(%{
-               currency: :bch,
-               exchange_rate: {2.0, "USD"}
+               amount: Money.parse!(1.2, "BCH"),
+               fiat_amount: Money.parse!(2.4, :USD),
+               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "USD"})
              })
 
-    assert "must provide amount in either crypto or fiat" in errors_on(changeset).amount
-    assert "must provide amount in either crypto or fiat" in errors_on(changeset).fiat_amount
+    assert {:error, _} =
+             Invoices.register(%{
+               amount: Money.parse!(3000, "BCH"),
+               fiat_amount: Money.parse!(2.4, :USD),
+               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "USD"})
+             })
+
+    assert {:error, _} =
+             Invoices.register(%{
+               amount: Money.parse!(1.2, "BCH"),
+               fiat_amount: Money.parse!(2.4, :USD),
+               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "EUR"})
+             })
+  end
+
+  test "large amounts" do
+    assert {:ok, invoice} =
+             Invoices.register(%{
+               amount: Money.parse!(127_000_000_000.000_000_01, :DGC),
+               exchange_rate: ExchangeRate.new!(Decimal.new(2_000_000), {"DGC", "USD"})
+             })
+
+    assert invoice = Invoices.fetch!(invoice.id)
+    assert Money.to_decimal(invoice.amount) == Decimal.from_float(127_000_000_000.000_000_01)
+
+    assert Money.to_decimal(invoice.fiat_amount) ==
+             Decimal.from_float(254_000_000_000_000_000.000_000_02)
   end
 end

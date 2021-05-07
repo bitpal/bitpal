@@ -14,6 +14,7 @@ defmodule BitPal.IntegrationCase do
       import Ecto.Changeset
       import Ecto.Query
       import BitPal.IntegrationCase
+      import BitPal.TestHelpers
 
       alias BitPal.BackendManager
       alias BitPal.BackendMock
@@ -36,30 +37,6 @@ defmodule BitPal.IntegrationCase do
     end
 
     :ok
-  end
-
-  def assert_shutdown(pid) do
-    ref = Process.monitor(pid)
-    Process.unlink(pid)
-    Process.exit(pid, :kill)
-
-    assert_receive {:DOWN, ^ref, :process, ^pid, :killed}
-  end
-
-  @doc """
-  A helper that transforms changeset errors into a map of messages.
-
-      assert {:error, changeset} = Accounts.create_user(%{password: "short"})
-      assert "password is too short" in errors_on(changeset).password
-      assert %{password: ["password is too short"]} = errors_on(changeset)
-
-  """
-  def errors_on(changeset) do
-    Ecto.Changeset.traverse_errors(changeset, fn {message, opts} ->
-      Regex.replace(~r"%{(\w+)}", message, fn _, key ->
-        opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
-      end)
-    end)
   end
 
   defp setup_db(tags) do

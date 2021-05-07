@@ -1,4 +1,4 @@
-defmodule BitPal.ExchangeRate.Cache do
+defmodule BitPal.Cache do
   @moduledoc """
   A simple cache as seen in Programming Phoenix >= 1.4
   """
@@ -48,11 +48,7 @@ defmodule BitPal.ExchangeRate.Cache do
   end
 
   defp schedule_clear(state) do
-    if state.interval == :never do
-      state
-    else
-      %{state | timer: Process.send_after(self(), :clear, state.interval)}
-    end
+    %{state | timer: Process.send_after(self(), :clear, state.interval)}
   end
 
   defp new_table(name) do

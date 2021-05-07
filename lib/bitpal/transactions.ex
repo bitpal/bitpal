@@ -9,7 +9,6 @@ defmodule BitPal.Transactions do
 
   use GenServer
   alias BitPal.BackendEvent
-  alias BitPal.BCH.Satoshi
   alias BitPalSchemas.Invoice
   require Logger
 
@@ -92,9 +91,8 @@ defmodule BitPal.Transactions do
     # Find a suitable addr map:
     for_addr = Map.get(transactions, invoice.address_id, %{})
     # Compute the amount to invoice.
-    satoshi = find_amount(for_addr, Satoshi.from_decimal(invoice.amount).amount)
-    # IO.puts("satoshis to invoice: #{inspect(satoshi)}")
-    invoice = %{invoice | amount: Satoshi.to_decimal(%Satoshi{amount: satoshi})}
+    satoshi = find_amount(for_addr, invoice.amount.amount)
+    invoice = %{invoice | amount: %{invoice.amount | amount: satoshi}}
 
     # Put it back together.
     for_addr = Map.put(for_addr, satoshi, %State{invoice: invoice, state: :pending})
@@ -250,8 +248,7 @@ defmodule BitPal.Transactions do
   defp find(address, amount, state) do
     transactions = Map.get(state, :transactions, %{})
     for_addr = Map.get(transactions, address, %{})
-    amount = Satoshi.from_decimal(amount).amount
-    Map.get(for_addr, amount, nil)
+    Map.get(for_addr, amount.amount, nil)
   end
 
   # Replace a transaction givent its address and amount. Returns new state.

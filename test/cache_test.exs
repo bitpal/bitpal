@@ -1,15 +1,8 @@
 defmodule BitPal.ExchangeRate.CacheTest do
   use ExUnit.Case, async: true
-  alias BitPal.ExchangeRate.Cache
+  import BitPal.TestHelpers
+  alias BitPal.Cache
   @moduletag clear_interval: 100
-
-  defp assert_shutdown(pid) do
-    ref = Process.monitor(pid)
-    Process.unlink(pid)
-    Process.exit(pid, :kill)
-
-    assert_receive {:DOWN, ^ref, :process, ^pid, :killed}
-  end
 
   defp eventually(func) do
     if func.() do
@@ -41,12 +34,6 @@ defmodule BitPal.ExchangeRate.CacheTest do
     assert :ok = Cache.put(name, :key1, :value1)
     assert Cache.fetch(name, :key1) == {:ok, :value1}
     assert eventually(fn -> Cache.fetch(name, :key1) == :error end)
-  end
-
-  @tag clear_interval: :never
-  test "never clear interval", %{name: name} do
-    assert :ok = Cache.put(name, :key1, :value1)
-    assert Cache.fetch(name, :key1) == {:ok, :value1}
   end
 
   @tag clear_interval: 60_000

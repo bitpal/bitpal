@@ -1,5 +1,11 @@
 import Config
 
+config :money, :custom_currencies,
+  BTC: %{name: "Bitcoin", exponent: 8},
+  BCH: %{name: "Bitcoin Cash", exponent: 8},
+  XMR: %{name: "Monero", exponent: 12},
+  DGC: %{name: "Dogecoin", exponent: 8}
+
 case Config.config_env() do
   :dev ->
     # Mocking during development. If you want to test live replace it with a backend of your choice.

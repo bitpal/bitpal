@@ -1,182 +1,54 @@
 defmodule BitPal.ExchangeRateTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
   alias BitPal.ExchangeRate
-  alias BitPal.ExchangeRate.Result
 
-  @bchusd {:bch, :usd}
-  @bchusd_rate Decimal.from_float(815.27)
-  @bcheur {:bch, :eur}
-  @bcheur_rate Decimal.from_float(741.62)
+  test "new" do
+    assert :error = ExchangeRate.new(Decimal.new(2), {:USD, :USD})
+    assert :error = ExchangeRate.new(Decimal.new(-2), {:BCH, :USD})
 
-  @supervisor BitPal.ExhangeRate.TaskSupervisor
+    assert {:ok,
+            %ExchangeRate{
+              rate: Decimal.new(2),
+              a: :BCH,
+              b: :USD
+            }} == ExchangeRate.new(Decimal.new(2), {:BCH, :USD})
 
-  defmodule TestSubscriber do
-    use GenServer
+    assert :error = ExchangeRate.new(Money.parse!(0, "BCH"), Money.parse!(4, "USD"))
+    assert :error = ExchangeRate.new(Money.parse!(2, "USD"), Money.parse!(4, "USD"))
 
-    def start_link(opts) do
-      GenServer.start_link(__MODULE__, opts, name: __MODULE__)
-    end
-
-    def subscribe(pair, opts \\ []) do
-      GenServer.call(__MODULE__, {:subscribe, pair, opts})
-    end
-
-    def received do
-      GenServer.call(__MODULE__, :received)
-    end
-
-    def await_msg_count(count) do
-      Task.async(__MODULE__, :sleep_until_count, [count])
-      |> Task.await(50)
-
-      {:ok, received()}
-    end
-
-    def sleep_until_count(count) do
-      if Enum.count(received()) >= count do
-        :ok
-      else
-        Process.sleep(5)
-        sleep_until_count(count)
-      end
-    end
-
-    @impl true
-    def init(_opts) do
-      {:ok, %{received: []}}
-    end
-
-    @impl true
-    def handle_call({:subscribe, pair, opts}, _from, state) do
-      ExchangeRate.subscribe(pair, opts)
-      {:reply, :ok, state}
-    end
-
-    @impl true
-    def handle_call(:received, _from, state) do
-      {:reply, state.received, state}
-    end
-
-    @impl true
-    def handle_info(msg, state) do
-      {:noreply, Map.update!(state, :received, &[msg | &1])}
-    end
+    assert {:ok,
+            %ExchangeRate{
+              rate: Decimal.new(2),
+              a: :BCH,
+              b: :USD
+            }} == ExchangeRate.new(Money.parse!(2, "BCH"), Money.parse!(4, "USD"))
   end
 
-  defmodule TestBackend do
-    @behaviour BitPal.ExchangeRate.Backend
+  test "normalize" do
+    a = Money.parse!(1.2, "BCH")
+    b = Money.parse!(2.4, "USD")
+    bad_amount = Money.parse!(4.5, "USD")
+    bad_currency = Money.parse!(2.4, "EUR")
 
-    @impl true
-    def name, do: "test"
+    rate = %ExchangeRate{
+      rate: Decimal.new(2),
+      a: :BCH,
+      b: :USD
+    }
 
-    @impl true
-    def supported_pairs, do: [{:bch, :usd}, {:bch, :eur}]
+    bad_rate = %ExchangeRate{
+      rate: Decimal.new(5),
+      a: :BCH,
+      b: :USD
+    }
 
-    @impl true
-    def compute(_, opts) do
-      if timeout = opts[:test_timeout] do
-        Process.sleep(timeout)
-      end
-
-      if opts[:test_crash] do
-        raise "boom"
-      else
-        score = Keyword.get(opts, :test_score, 2.0)
-
-        {:ok,
-         %Result{
-           score: score,
-           backend: __MODULE__,
-           rate: Decimal.from_float(score)
-         }}
-      end
-    end
-  end
-
-  setup tags do
-    start_supervised!({Phoenix.PubSub, name: BitPal.PubSub})
-    start_supervised!(BitPal.ProcessRegistry)
-    start_supervised!({ExchangeRate, clear_interval: tags[:cache_clear_interval]})
-    start_supervised!(TestSubscriber)
-    :ok
-  end
-
-  test "direct request" do
-    assert ExchangeRate.request(@bchusd) == {:ok, @bchusd_rate}
-    assert ExchangeRate.require!(@bchusd) == @bchusd_rate
-  end
-
-  test "receive after subscribe" do
-    TestSubscriber.subscribe(@bchusd)
-    TestSubscriber.await_msg_count(1)
-    assert TestSubscriber.received() == [{:exchange_rate, @bchusd, @bchusd_rate}]
-    assert Enum.empty?(Task.Supervisor.children(@supervisor))
-  end
-
-  test "multiple rates" do
-    TestSubscriber.subscribe(@bchusd)
-    TestSubscriber.subscribe(@bcheur)
-    TestSubscriber.await_msg_count(2)
-
-    assert Enum.sort(TestSubscriber.received()) == [
-             {:exchange_rate, @bcheur, @bcheur_rate},
-             {:exchange_rate, @bchusd, @bchusd_rate}
-           ]
-  end
-
-  test "multiple backends" do
-    TestSubscriber.subscribe(@bchusd, backends: [BitPal.ExchangeRate.Kraken, TestBackend])
-    TestSubscriber.await_msg_count(1)
-
-    assert Enum.sort(TestSubscriber.received()) == [
-             {:exchange_rate, @bchusd, @bchusd_rate}
-           ]
-  end
-
-  test "multiple requests but only one response until done" do
-    TestSubscriber.subscribe(@bchusd,
-      backends: [TestBackend],
-      test_timeout: :infinity,
-      timeout: :infinity
-    )
-
-    Process.sleep(10)
-
-    {:already_started, _} = ExchangeRate.async_request(@bchusd)
-  end
-
-  test "crashing" do
-    TestSubscriber.subscribe(@bchusd, backends: [TestBackend], test_crash: true)
-    Process.sleep(20)
-    assert TestSubscriber.received() == []
-    assert Enum.empty?(Task.Supervisor.children(@supervisor))
-  end
-
-  test "timeout" do
-    TestSubscriber.subscribe(@bchusd,
-      backends: [TestBackend],
-      test_timeout: :infinity,
-      timeout: 10
-    )
-
-    Process.sleep(20)
-    assert TestSubscriber.received() == []
-    assert Enum.empty?(Task.Supervisor.children(@supervisor))
-  end
-
-  @tag cache_clear_interval: 1
-  test "permanent cache failsafe" do
-    TestSubscriber.subscribe(@bchusd, backends: [TestBackend])
-    TestSubscriber.await_msg_count(1)
-    assert TestSubscriber.received() == [{:exchange_rate, @bchusd, Decimal.from_float(2.0)}]
-    assert Enum.empty?(Task.Supervisor.children(@supervisor))
-
-    ExchangeRate.async_request(@bchusd, backends: [TestBackend], test_crash: true)
-    TestSubscriber.await_msg_count(2)
-
-    assert TestSubscriber.received() == [
-             {:exchange_rate, @bchusd, Decimal.from_float(2.0)},
-             {:exchange_rate, @bchusd, Decimal.from_float(2.0)}
-           ]
+    assert {:ok, ^a, ^b} = ExchangeRate.normalize(rate, a, nil)
+    assert {:ok, ^a, ^b} = ExchangeRate.normalize(rate, nil, b)
+    assert {:ok, ^a, ^b} = ExchangeRate.normalize(rate, a, b)
+    assert {:ok, ^a, ^b} = ExchangeRate.normalize(rate, b, a)
+    assert {:error, :bad_params} = ExchangeRate.normalize(rate, nil, nil)
+    assert {:error, :bad_params} = ExchangeRate.normalize(rate, a, bad_currency)
+    assert {:error, :mismatched_exchange_rate} = ExchangeRate.normalize(bad_rate, a, b)
+    assert {:error, :mismatched_exchange_rate} = ExchangeRate.normalize(rate, a, bad_amount)
   end
 end

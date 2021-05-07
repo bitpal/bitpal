@@ -1,7 +1,7 @@
 defmodule BitPal.ExchangeRateMock do
   @behaviour BitPal.ExchangeRate.Backend
 
-  alias BitPal.ExchangeRate.Result
+  alias BitPal.ExchangeRateSupervisor.Result
 
   @impl true
   def name, do: "mock"

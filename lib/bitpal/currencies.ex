@@ -22,7 +22,7 @@ defmodule BitPal.Currencies do
 
   @spec normalize(atom | String.t()) :: String.t()
   def normalize(id) when is_binary(id) do
-    id
+    id |> String.upcase()
   end
 
   def normalize(id) when is_atom(id) do

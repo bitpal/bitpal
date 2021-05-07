@@ -1,6 +1,7 @@
 defmodule InvoiceManagerTest do
   use BitPal.IntegrationCase
   alias BitPal.Currencies
+  alias BitPal.ExchangeRate
   alias BitPal.InvoiceManager
 
   @tag backends: true
@@ -9,16 +10,14 @@ defmodule InvoiceManagerTest do
 
     assert {:ok, inv1_id} =
              InvoiceManager.register_invoice(%{
-               currency: :bch,
-               amount: 2.5,
-               exchange_rate: {1.1, "USD"}
+               amount: Money.parse!(2.5, "BCH"),
+               exchange_rate: ExchangeRate.new!(Decimal.from_float(1.1), {"BCH", "USD"})
              })
 
     assert {:ok, inv2_id} =
              InvoiceManager.register_invoice(%{
-               currency: :bch,
-               amount: 5.2,
-               exchange_rate: {1.1, "USD"}
+               amount: Money.parse!(5.2, "BCH"),
+               exchange_rate: ExchangeRate.new!(Decimal.from_float(1.1), {"BCH", "USD"})
              })
 
     assert inv1_id != inv2_id

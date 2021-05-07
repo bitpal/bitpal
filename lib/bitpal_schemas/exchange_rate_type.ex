@@ -1,5 +1,6 @@
-defmodule BitPalSchemas.ExchangeRateType do
+defmodule BitPalSchemas.Ecto.ExchangeRateType do
   use Ecto.Type
+  import BitPal.NumberHelpers
   require Decimal
 
   @impl true
@@ -7,11 +8,9 @@ defmodule BitPalSchemas.ExchangeRateType do
 
   @impl true
   def cast({amount, ticker}) when is_binary(ticker) do
-    cond do
-      Decimal.is_decimal(amount) -> {:ok, {amount, ticker}}
-      is_float(amount) -> {:ok, {Decimal.from_float(amount) |> Decimal.normalize(), ticker}}
-      is_number(amount) || is_bitstring(amount) -> {:ok, {Decimal.new(amount), ticker}}
-      true -> :error
+    case cast_decimal(amount) do
+      {:ok, dec} -> {:ok, {dec, ticker}}
+      :error -> :error
     end
   end
 

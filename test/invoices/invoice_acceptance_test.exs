@@ -78,13 +78,22 @@ defmodule InvoiceHandlerTest do
   @tag backends: true, double_spend_timeout: 1
   test "multiple invoices" do
     {:ok, inv0, stub0, _} =
-      HandlerSubscriberCollector.create_invoice(amount: 0.1, required_confirmations: 0)
+      HandlerSubscriberCollector.create_invoice(
+        amount: Money.parse!(0.1, :BCH),
+        required_confirmations: 0
+      )
 
     {:ok, inv1, stub1, _} =
-      HandlerSubscriberCollector.create_invoice(amount: 1.0, required_confirmations: 1)
+      HandlerSubscriberCollector.create_invoice(
+        amount: Money.parse!(1.0, :BCH),
+        required_confirmations: 1
+      )
 
     {:ok, inv2, stub2, _} =
-      HandlerSubscriberCollector.create_invoice(amount: 2.0, required_confirmations: 2)
+      HandlerSubscriberCollector.create_invoice(
+        amount: Money.parse!(2.0, :BCH),
+        required_confirmations: 2
+      )
 
     BackendMock.tx_seen(inv0)
     BackendMock.tx_seen(inv1)
@@ -135,9 +144,9 @@ defmodule InvoiceHandlerTest do
            ] = HandlerSubscriberCollector.received(stub2)
   end
 
-  @tag backends: true, do: true
+  @tag backends: true
   test "Invoices of the same amount" do
-    inv = [amount: 1.0, required_confirmations: 1]
+    inv = [amount: Money.parse!(1.0, "BCH"), required_confirmations: 1]
 
     {:ok, inv0, _, handler0} = HandlerSubscriberCollector.create_invoice(inv)
     {:ok, inv1, _, handler1} = HandlerSubscriberCollector.create_invoice(inv)
