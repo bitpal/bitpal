@@ -1,9 +1,9 @@
-defmodule BitPal.Repo.Migrations.InitialInvoice do
+defmodule BitPal.Repo.Migrations.Persistance do
   use Ecto.Migration
 
   def change do
-    execute "CREATE TYPE exchange_rate AS (amount numeric, ticker char(8))",
-            "DROP TYPE exchange_rate"
+    execute "CREATE TYPE public.money_with_currency AS (amount NUMERIC, currency VARCHAR)",
+            "DROP TYPE public.money_with_currency"
 
     create table(:currencies, primary_key: false) do
       add :id, :string, size: 8, primary_key: true
@@ -23,9 +23,8 @@ defmodule BitPal.Repo.Migrations.InitialInvoice do
 
     create table(:invoices, primary_key: false) do
       add :id, :uuid, primary_key: true
-      add :amount, :decimal, null: false
-      add :fiat_amount, :decimal
-      add :exchange_rate, :exchange_rate
+      add :amount, :money_with_currency, null: false
+      add :fiat_amount, :money_with_currency
       add :status, :string
       add :required_confirmations, :integer
       add :currency_id, references(:currencies, type: :string, size: 8), null: false

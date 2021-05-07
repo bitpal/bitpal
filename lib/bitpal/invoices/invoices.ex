@@ -2,18 +2,16 @@ defmodule BitPal.Invoices do
   import Ecto.Changeset
   import Ecto.Query, only: [from: 2]
   alias BitPal.Currencies
+  alias BitPal.ExchangeRate
   alias BitPal.Repo
   alias BitPalSchemas.Address
-  alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
   require Decimal
 
-  @type num :: number | Decimal.t()
-  @type exchange_rate :: {num, Currency.id()}
   @type register_params :: %{
-          currency: Currency.id(),
-          amount: num,
-          exchange_rate: exchange_rate,
+          amount: Money.t(),
+          fiat_amount: Money.t(),
+          exchange_rate: ExchangeRate.t(),
           required_confirmations: non_neg_integer
         }
 
@@ -36,11 +34,11 @@ defmodule BitPal.Invoices do
   def register(params) do
     %Invoice{}
     |> cast(params, [:amount, :fiat_amount, :exchange_rate, :required_confirmations])
-    |> assoc_currency(params, :currency)
-    |> validate_into_decimal(:amount)
-    |> validate_into_decimal(:fiat_amount)
-    |> validate_into_exchange_rate(:exchange_rate)
-    |> validate_amounts()
+    |> validate_amount(:amount)
+    |> validate_amount(:fiat_amount)
+    |> validate_exchange_rate(:exchange_rate)
+    |> validate_into_matching_pairs()
+    |> assoc_currency()
     |> Repo.insert()
   end
 
@@ -55,66 +53,47 @@ defmodule BitPal.Invoices do
     |> Repo.update()
   end
 
-  defp assoc_currency(changeset, params, key) do
-    ticker = params[key]
+  defp validate_exchange_rate(changeset, key) do
+    currency_exists? = fn cur ->
+      if Money.Currency.exists?(cur) do
+        []
+      else
+        [{key, "money #{cur} doesn't exish"}]
+      end
+    end
 
-    if ticker == nil do
-      add_error(changeset, key, "can't be blank", validation: :required)
+    changeset
+    |> validate_change(key, fn ^key, val ->
+      List.flatten([
+        currency_exists?.(val.a),
+        currency_exists?.(val.b),
+        non_neg_dec(key, val.rate)
+      ])
+    end)
+  end
+
+  defp validate_amount(changeset, key) do
+    changeset
+    |> validate_change(key, fn
+      ^key, val ->
+        non_neg_dec(key, val.amount)
+    end)
+  end
+
+  defp non_neg_dec(key, val) do
+    if Decimal.lt?(val, Decimal.new(0)) do
+      [{key, "cannot be negative"}]
     else
-      changeset
-      |> change(%{currency_id: Currencies.normalize(ticker)})
-      |> assoc_constraint(:currency)
+      []
     end
   end
 
-  defp validate_into_decimal(changeset, key) do
-    changeset
-    |> update_change(key, fn
-      x when is_float(x) -> Decimal.from_float(x) |> Decimal.normalize()
-      x when is_number(x) or is_bitstring(x) -> Decimal.new(x)
-      x -> x
-    end)
-    |> validate_change(key, fn ^key, val ->
-      if Decimal.is_decimal(val) do
-        []
-      else
-        [{key, "must be a number"}]
-      end
-    end)
-    |> validate_change(key, fn ^key, val ->
-      if Decimal.lt?(val, Decimal.new(0)) do
-        [{key, "cannot be negative"}]
-      else
-        []
-      end
-    end)
-  end
-
-  defp validate_into_exchange_rate(changeset, key) do
-    changeset
-    |> update_change(key, fn
-      {x, ticker} when is_float(x) -> {Decimal.from_float(x) |> Decimal.normalize(), ticker}
-      {x, ticker} when is_number(x) or is_bitstring(x) -> {Decimal.new(x), ticker}
-      x -> x
-    end)
-    |> validate_change(key, fn ^key, {val, _} ->
-      if Decimal.is_decimal(val) do
-        []
-      else
-        [{key, "must be a number"}]
-      end
-    end)
-  end
-
-  defp validate_amounts(changeset) do
+  defp validate_into_matching_pairs(changeset) do
     amount = get_field(changeset, :amount)
     fiat_amount = get_field(changeset, :fiat_amount)
     exchange_rate = get_field(changeset, :exchange_rate)
 
     cond do
-      !exchange_rate ->
-        add_error(changeset, :exchange_rate, "must provide an exchange rate")
-
       !amount && !fiat_amount ->
         error = "must provide amount in either crypto or fiat"
 
@@ -122,21 +101,51 @@ defmodule BitPal.Invoices do
         |> add_error(:amount, error)
         |> add_error(:fiat_amount, error)
 
-      amount && fiat_amount ->
-        if Decimal.eq?(Decimal.mult(amount, elem(exchange_rate, 0)), fiat_amount) do
-          changeset
-        else
-          add_error(changeset, :fiat_amount, "fiat amount != amount * exchange rate")
+      !amount && !exchange_rate ->
+        error = "must provide either amount or exchange rate"
+
+        changeset
+        |> add_error(:amount, error)
+        |> add_error(:exchange_rate, error)
+
+      exchange_rate ->
+        case ExchangeRate.normalize(exchange_rate, amount, fiat_amount) do
+          {:ok, amount, fiat_amount} ->
+            changeset
+            |> change(amount: amount)
+            |> change(fiat_amount: fiat_amount)
+
+          _ ->
+            add_error(
+              changeset,
+              :exchange_rate,
+              "invalid exchange rate"
+            )
         end
 
-      !fiat_amount ->
-        change(changeset, fiat_amount: Decimal.mult(amount, elem(exchange_rate, 0)))
+      amount && fiat_amount ->
+        case ExchangeRate.new(amount, fiat_amount) do
+          {:ok, rate} ->
+            change(changeset, exchange_rate: rate)
 
-      !amount ->
-        change(changeset, amount: Decimal.div(fiat_amount, elem(exchange_rate, 0)))
+          _ ->
+            add_error(changeset, :exchange_rate, "invalid exchange rate")
+        end
 
       true ->
         changeset
+    end
+  end
+
+  defp assoc_currency(changeset) do
+    amount = get_field(changeset, :amount)
+
+    if amount && amount.currency do
+      changeset
+      |> change(%{currency_id: Currencies.normalize(amount.currency)})
+      |> assoc_constraint(:currency)
+    else
+      changeset
     end
   end
 

@@ -40,6 +40,7 @@ defmodule BitPal.MixProject do
       {:poison, "~> 3.1"},
       {:eqrcode, "~> 0.1.7"},
       {:libsecp256k1, "~> 0.1.9"},
+      {:money, "~> 1.8"},
       {:ex_doc, "~> 0.24", only: :dev, runtime: false},
       {:ci, "~> 0.1.0"},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},

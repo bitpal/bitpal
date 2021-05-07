@@ -1,16 +1,17 @@
 defmodule BitPalSchemas.Invoice do
   use Ecto.Schema
+  alias BitPal.ExchangeRate
   alias BitPalSchemas.Address
   alias BitPalSchemas.Currency
-  alias BitPalSchemas.ExchangeRateType
+  alias Money.Ecto.NumericType
 
   @type id :: Ecto.UUID.t()
 
   @type t :: %__MODULE__{
           id: id,
-          amount: Decimal.t(),
-          fiat_amount: Decimal.t(),
-          exchange_rate: {Decimal.t(), String.t()},
+          amount: Money.t(),
+          fiat_amount: Money.t(),
+          exchange_rate: ExchangeRate.t(),
           currency_id: String.t(),
           currency: Currency.t(),
           address_id: String.t(),
@@ -21,9 +22,9 @@ defmodule BitPalSchemas.Invoice do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   schema "invoices" do
-    field(:amount, :decimal)
-    field(:fiat_amount, :decimal, virtual: true)
-    field(:exchange_rate, ExchangeRateType)
+    field(:amount, NumericType)
+    field(:fiat_amount, NumericType)
+    field(:exchange_rate, :map, virtual: true)
     field(:required_confirmations, :integer, default: 0)
 
     field(:status, Ecto.Enum,

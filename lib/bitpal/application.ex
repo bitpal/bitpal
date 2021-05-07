@@ -14,7 +14,7 @@ defmodule BitPal.Application do
       BitPal.BackendManager,
       BitPal.InvoiceManager,
       BitPal.Transactions,
-      BitPal.ExchangeRate
+      BitPal.ExchangeRateSupervisor
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: BitPal.Supervisor)

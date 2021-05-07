@@ -1,12 +1,11 @@
-defmodule BitPal.ExchangeRate do
+defmodule BitPal.ExchangeRateSupervisor do
   use Supervisor
-  alias BitPal.ExchangeRate.Cache
+  alias BitPal.Cache
+  alias BitPal.ExchangeRate
   alias BitPal.ExchangeRate.Worker
   alias BitPal.RuntimeStorage
   alias Phoenix.PubSub
   require Logger
-
-  @type pair :: {atom, atom}
 
   @pubsub BitPal.PubSub
   @backend_cache BitPal.ExchangeRate.BackendCache
@@ -42,12 +41,12 @@ defmodule BitPal.ExchangeRate do
 
   # Client interface
 
-  @spec async_request(pair, keyword) :: DynamicSupervisor.on_start_child()
+  @spec async_request(ExchangeRate.pair(), keyword) :: DynamicSupervisor.on_start_child()
   def async_request(pair, opts \\ []) do
     Worker.start_worker(pair, opts)
   end
 
-  @spec request(pair, keyword) :: {:ok, Decimal.t()} | {:error, term}
+  @spec request(ExchangeRate.pair(), keyword) :: {:ok, Decimal.t()} | {:error, term}
   def request(pair, opts \\ []) do
     case Cache.fetch(@permanent_cache, pair) do
       {:ok, res} ->
@@ -67,25 +66,25 @@ defmodule BitPal.ExchangeRate do
     end
   end
 
-  @spec require!(pair, keyword) :: Decimal.t()
+  @spec require!(ExchangeRate.pair(), keyword) :: Decimal.t()
   def require!(pair, opts \\ []) do
     {:ok, rate} = request(pair, opts)
     rate
   end
 
-  @spec subscribe(pair) :: :ok
+  @spec subscribe(ExchangeRate.pair()) :: :ok
   def subscribe(pair, opts \\ []) do
     :ok = PubSub.subscribe(@pubsub, topic(pair))
     async_request(pair, opts)
     :ok
   end
 
-  @spec unsubscribe(pair) :: :ok
+  @spec unsubscribe(ExchangeRate.pair()) :: :ok
   def unsubscribe(pair) do
     PubSub.unsubscribe(@pubsub, topic(pair))
   end
 
-  @spec broadcast(pair, Result.t()) :: :ok | {:error, term}
+  @spec broadcast(ExchangeRate.pair(), Result.t()) :: :ok | {:error, term}
   def broadcast(pair, res) do
     PubSub.broadcast(@pubsub, topic(pair), {:exchange_rate, pair, res.rate})
   end

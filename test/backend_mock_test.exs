@@ -6,10 +6,16 @@ defmodule BackendMockTest do
        ]
   test "auto" do
     {:ok, _inv1, stub1, _invoice_handler} =
-      HandlerSubscriberCollector.create_invoice(required_confirmations: 1, amount: 1.0)
+      HandlerSubscriberCollector.create_invoice(
+        required_confirmations: 1,
+        amount: Money.parse!(1.0, :BCH)
+      )
 
     {:ok, _inv3, stub3, _invoice_handler} =
-      HandlerSubscriberCollector.create_invoice(required_confirmations: 3, amount: 3.0)
+      HandlerSubscriberCollector.create_invoice(
+        required_confirmations: 3,
+        amount: Money.parse!(3.0, :BCH)
+      )
 
     HandlerSubscriberCollector.await_state(stub1, :accepted)
     HandlerSubscriberCollector.await_state(stub3, :accepted)

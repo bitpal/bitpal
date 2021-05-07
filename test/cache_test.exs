@@ -1,7 +1,7 @@
 defmodule BitPal.ExchangeRate.CacheTest do
   use ExUnit.Case, async: true
   import BitPal.TestHelpers
-  alias BitPal.ExchangeRate.Cache
+  alias BitPal.Cache
   @moduletag clear_interval: 100
 
   defp eventually(func) do

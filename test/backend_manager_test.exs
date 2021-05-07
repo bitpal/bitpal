@@ -18,7 +18,6 @@ defmodule BackendManagerTest do
     assert child_pid != new_child_pid
   end
 
-  @tag do: true
   test "backend currency support" do
     assert Backend.supported_currency?(:bch, [:bch, :xmr])
     assert !Backend.supported_currency?([:bch, :xmr], [:bch, :btc])
