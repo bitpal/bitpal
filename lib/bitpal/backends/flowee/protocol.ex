@@ -289,7 +289,7 @@ defmodule BitPal.Backend.Flowee.Protocol do
         parse_get_block(rest, Map.put(data, :raw, raw))
 
       [{8, _} | _] ->
-        # Note: Transactions will be in reverse order compared to what we get from flowee. We reverse the list later.
+        # Note: TransactionsOld will be in reverse order compared to what we get from flowee. We reverse the list later.
         {rest, new_transaction} = parse_get_transaction(body, %{})
         transactions = [new_transaction | data[:transactions]]
         parse_get_block(rest, Map.put(data, :transactions, transactions))

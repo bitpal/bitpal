@@ -1,12 +1,18 @@
 defmodule BitPal.ExchangeRateSupervisorTest do
   use ExUnit.Case, async: false
+  alias BitPal.ExchangeRate
   alias BitPal.ExchangeRateSupervisor
   alias BitPal.ExchangeRateSupervisor.Result
 
-  @bchusd {:bch, :usd}
-  @bchusd_rate Decimal.from_float(815.27)
-  @bcheur {:bch, :eur}
-  @bcheur_rate Decimal.from_float(741.62)
+  @bchusd {:BCH, :USD}
+  def bchusd_rate do
+    ExchangeRate.new!(Decimal.from_float(815.27), @bchusd)
+  end
+
+  @bcheur {:BCH, :EUR}
+  def bcheur_rate do
+    ExchangeRate.new!(Decimal.from_float(741.62), @bcheur)
+  end
 
   @supervisor BitPal.ExhangeRate.TaskSupervisor
 
@@ -48,7 +54,7 @@ defmodule BitPal.ExchangeRateSupervisorTest do
 
     @impl true
     def handle_call({:subscribe, pair, opts}, _from, state) do
-      ExchangeRateSupervisor.subscribe(pair, opts)
+      ExchangeRate.subscribe(pair, opts)
       {:reply, :ok, state}
     end
 
@@ -70,10 +76,10 @@ defmodule BitPal.ExchangeRateSupervisorTest do
     def name, do: "test"
 
     @impl true
-    def supported_pairs, do: [{:bch, :usd}, {:bch, :eur}]
+    def supported_pairs, do: [{:BCH, :USD}, {:BCH, :EUR}]
 
     @impl true
-    def compute(_, opts) do
+    def compute(pair, opts) do
       if timeout = opts[:test_timeout] do
         Process.sleep(timeout)
       end
@@ -87,7 +93,7 @@ defmodule BitPal.ExchangeRateSupervisorTest do
          %Result{
            score: score,
            backend: __MODULE__,
-           rate: Decimal.from_float(score)
+           rate: ExchangeRate.new!(Decimal.from_float(score), pair)
          }}
       end
     end
@@ -101,15 +107,16 @@ defmodule BitPal.ExchangeRateSupervisorTest do
     :ok
   end
 
+  @tag do: true
   test "direct request" do
-    assert ExchangeRateSupervisor.request(@bchusd) == {:ok, @bchusd_rate}
-    assert ExchangeRateSupervisor.require!(@bchusd) == @bchusd_rate
+    assert ExchangeRateSupervisor.request(@bchusd) == {:ok, bchusd_rate()}
+    assert ExchangeRateSupervisor.request!(@bchusd) == bchusd_rate()
   end
 
   test "receive after subscribe" do
     TestSubscriber.subscribe(@bchusd)
     TestSubscriber.await_msg_count(1)
-    assert TestSubscriber.received() == [{:exchange_rate, @bchusd, @bchusd_rate}]
+    assert TestSubscriber.received() == [{:exchange_rate, bchusd_rate()}]
     assert Enum.empty?(Task.Supervisor.children(@supervisor))
   end
 
@@ -119,8 +126,8 @@ defmodule BitPal.ExchangeRateSupervisorTest do
     TestSubscriber.await_msg_count(2)
 
     assert Enum.sort(TestSubscriber.received()) == [
-             {:exchange_rate, @bcheur, @bcheur_rate},
-             {:exchange_rate, @bchusd, @bchusd_rate}
+             {:exchange_rate, bcheur_rate()},
+             {:exchange_rate, bchusd_rate()}
            ]
   end
 
@@ -129,7 +136,7 @@ defmodule BitPal.ExchangeRateSupervisorTest do
     TestSubscriber.await_msg_count(1)
 
     assert Enum.sort(TestSubscriber.received()) == [
-             {:exchange_rate, @bchusd, @bchusd_rate}
+             {:exchange_rate, bchusd_rate()}
            ]
   end
 
@@ -168,15 +175,16 @@ defmodule BitPal.ExchangeRateSupervisorTest do
   test "permanent cache failsafe" do
     TestSubscriber.subscribe(@bchusd, backends: [TestBackend])
     TestSubscriber.await_msg_count(1)
-    assert TestSubscriber.received() == [{:exchange_rate, @bchusd, Decimal.from_float(2.0)}]
+    rate = ExchangeRate.new!(Decimal.from_float(2.0), @bchusd)
+    assert TestSubscriber.received() == [{:exchange_rate, rate}]
     assert Enum.empty?(Task.Supervisor.children(@supervisor))
 
     ExchangeRateSupervisor.async_request(@bchusd, backends: [TestBackend], test_crash: true)
     TestSubscriber.await_msg_count(2)
 
     assert TestSubscriber.received() == [
-             {:exchange_rate, @bchusd, Decimal.from_float(2.0)},
-             {:exchange_rate, @bchusd, Decimal.from_float(2.0)}
+             {:exchange_rate, rate},
+             {:exchange_rate, rate}
            ]
   end
 end

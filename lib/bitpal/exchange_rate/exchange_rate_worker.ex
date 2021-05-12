@@ -1,7 +1,6 @@
 defmodule BitPal.ExchangeRate.Worker do
   alias BitPal.Cache
   alias BitPal.ExchangeRate
-  alias BitPal.ExchangeRateSupervisor
   alias BitPal.ExchangeRateSupervisor.Result
   alias BitPal.ProcessRegistry
 
@@ -49,7 +48,10 @@ defmodule BitPal.ExchangeRate.Worker do
   def compute(pair, opts \\ []) do
     Registry.register(ProcessRegistry, via_tuple(pair), pair)
 
-    backends = opts[:backends] || Application.fetch_env!(:bitpal, BitPal.ExchangeRate)[:backends]
+    backends =
+      opts[:backends] ||
+        Application.fetch_env!(:bitpal, BitPal.ExchangeRate)[:backends]
+
     timeout = opts[:timeout] || 2_000
 
     {uncached_backends, cached_results} = fetch_cached_results(backends, pair, opts)
@@ -74,7 +76,7 @@ defmodule BitPal.ExchangeRate.Worker do
 
     case res do
       {:ok, res} ->
-        :ok = ExchangeRateSupervisor.broadcast(pair, res)
+        :ok = ExchangeRate.broadcast(pair, res)
 
       _ ->
         :ok

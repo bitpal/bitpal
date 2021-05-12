@@ -21,7 +21,7 @@ defmodule BitPal.IntegrationCase do
       alias BitPal.InvoiceManager
       alias BitPal.Invoices
       alias BitPal.Repo
-      alias BitPal.Transactions
+      alias BitPal.TransactionsOld
       alias BitPalSchemas.Invoice
     end
   end
@@ -60,7 +60,7 @@ defmodule BitPal.IntegrationCase do
         {BitPal.InvoiceManager, double_spend_timeout: Map.get(tags, :double_spend_timeout, 100)}
       )
 
-    transactions = start_supervised!(BitPal.Transactions)
+    transactions = start_supervised!(BitPal.TransactionsOld)
 
     %{
       backend_manager: backend_manager,

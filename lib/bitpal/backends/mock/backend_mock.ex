@@ -7,7 +7,7 @@ defmodule BitPal.BackendMock do
   alias BitPal.Backend
   alias BitPal.Invoices
   alias BitPal.Repo
-  alias BitPal.Transactions
+  alias BitPal.TransactionsOld
   alias BitPalSchemas.Invoice
   alias Ecto.Changeset
 
@@ -67,7 +67,7 @@ defmodule BitPal.BackendMock do
     opts =
       opts
       |> Enum.into(%{})
-      |> Map.put_new(:currencies, [:bch])
+      |> Map.put_new(:currencies, [:BCH])
       |> Map.put_new(:height, 0)
       |> Map.put_new(:auto, false)
       |> Map.put_new(:address, "bitcoincash:qqpkcce4lzdc8guam5jfys9prfyhr90seqzakyv4tu")
@@ -109,7 +109,7 @@ defmodule BitPal.BackendMock do
       end
 
     {:ok, invoice} = Invoices.assign_address(invoice, address)
-    invoice = Transactions.new(invoice)
+    invoice = TransactionsOld.new(invoice)
 
     Repo.update!(
       Changeset.change(%Invoice{id: invoice.id}, %{
@@ -127,13 +127,13 @@ defmodule BitPal.BackendMock do
 
   @impl true
   def handle_call({:tx_seen, invoice}, _from, state) do
-    Transactions.seen(invoice.address_id, invoice.amount)
+    TransactionsOld.seen(invoice.address_id, invoice.amount.amount)
     {:reply, :ok, state}
   end
 
   @impl true
   def handle_call({:doublespend, invoice}, _from, state) do
-    Transactions.doublespend(invoice.address_id, invoice.amount)
+    TransactionsOld.doublespend(invoice.address_id, invoice.amount.amount)
     {:reply, :ok, state}
   end
 
@@ -142,7 +142,7 @@ defmodule BitPal.BackendMock do
     state = incr_height(state)
 
     Enum.each(invoices, fn invoice ->
-      Transactions.accepted(invoice.address_id, invoice.amount, state.height)
+      TransactionsOld.accepted(invoice.address_id, invoice.amount.amount, state.height)
     end)
 
     {:reply, :ok, state}
@@ -151,7 +151,7 @@ defmodule BitPal.BackendMock do
   @impl true
   def handle_call({:new_block, invoice}, _from, state) do
     state = incr_height(state)
-    Transactions.accepted(invoice.address_id, invoice.amount, state.height)
+    TransactionsOld.accepted(invoice.address_id, invoice.amount.amount, state.height)
     {:reply, :ok, state}
   end
 
@@ -163,7 +163,7 @@ defmodule BitPal.BackendMock do
 
   @impl true
   def handle_info({:auto_tx_seen, invoice}, state) do
-    Transactions.seen(invoice.address_id, invoice.amount)
+    TransactionsOld.seen(invoice.address_id, invoice.amount.amount)
     {:noreply, append_auto_confirm(state, invoice)}
   end
 
@@ -194,7 +194,7 @@ defmodule BitPal.BackendMock do
 
   defp incr_height(state) do
     height = state.height + 1
-    Transactions.set_height(height)
+    TransactionsOld.set_height(height)
 
     %{state | height: height}
     |> auto_confirm_invoices
@@ -210,7 +210,7 @@ defmodule BitPal.BackendMock do
 
   defp auto_confirm_invoices(state = %{auto_confirm: invoices}) do
     Enum.each(invoices, fn invoice ->
-      Transactions.accepted(invoice.address_id, invoice.amount, state.height)
+      TransactionsOld.accepted(invoice.address_id, invoice.amount.amount, state.height)
     end)
 
     Map.delete(state, :auto_confirm)

@@ -31,7 +31,7 @@ defmodule BitPal.InvoiceHandler do
     GenServer.call(handler, {:update_subscriber, self()})
   end
 
-  @spec get_invoice_id(handler) :: Invoice.t()
+  @spec get_invoice_id(handler) :: Invoice.id()
   def get_invoice_id(handler) do
     GenServer.call(handler, :get_invoice_id)
   end

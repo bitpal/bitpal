@@ -1,6 +1,7 @@
 defmodule BitPal.ExchangeRate.Kraken do
   @behaviour BitPal.ExchangeRate.Backend
 
+  alias BitPal.ExchangeRate
   alias BitPal.ExchangeRateSupervisor.Result
   require Logger
 
@@ -10,8 +11,9 @@ defmodule BitPal.ExchangeRate.Kraken do
   def name, do: "kraken"
 
   @impl true
-  def supported_pairs, do: [{:bch, :usd}, {:bch, :eur}]
+  def supported_pairs, do: [{:BCH, :USD}, {:BCH, :EUR}]
 
+  @spec compute(ExchangeRate.pair(), keyword) :: {:ok, Result.t()}
   @impl true
   def compute(pair, _opts) do
     Logger.debug("Computing Kraken exchange rate #{inspect(pair)}")
@@ -20,7 +22,7 @@ defmodule BitPal.ExchangeRate.Kraken do
      %Result{
        score: 100,
        backend: __MODULE__,
-       rate: get_rate(pair)
+       rate: ExchangeRate.new!(get_rate(pair), pair)
      }}
   end
 
