@@ -7,13 +7,15 @@ defmodule BitPal.Application do
 
   @impl true
   def start(_type, _args) do
+    BitPal.Currencies.configure_money()
+
     children = [
       BitPal.Repo,
       {Phoenix.PubSub, name: BitPal.PubSub},
       BitPal.ProcessRegistry,
+      BitPal.TransactionsOld,
       BitPal.BackendManager,
       BitPal.InvoiceManager,
-      BitPal.Transactions,
       BitPal.ExchangeRateSupervisor
     ]
 

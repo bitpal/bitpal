@@ -1,6 +1,7 @@
 defmodule BitPal.ExchangeRateMock do
   @behaviour BitPal.ExchangeRate.Backend
 
+  alias BitPal.ExchangeRate
   alias BitPal.ExchangeRateSupervisor.Result
 
   @impl true
@@ -10,12 +11,12 @@ defmodule BitPal.ExchangeRateMock do
   def supported_pairs, do: [{:BCH, :USD}, {:BCH, :EUR}]
 
   @impl true
-  def compute(_pair, _opts) do
+  def compute(pair, _opts) do
     {:ok,
      %Result{
        score: 10,
        backend: __MODULE__,
-       rate: Decimal.from_float(1.337)
+       rate: ExchangeRate.new!(Decimal.from_float(1.337), pair)
      }}
   end
 end

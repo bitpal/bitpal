@@ -18,9 +18,8 @@ defmodule BitPalSchemas.Invoice do
           address: Address.t(),
           status: :pending | :confirmed | :rejected | :canceled,
           required_confirmations: non_neg_integer,
-          recipent: String.t(),
-          message: String.t(),
-          payment_uri: String.t()
+          description: String.t()
+          # payment_uri: String.t()
         }
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -29,9 +28,8 @@ defmodule BitPalSchemas.Invoice do
     field(:fiat_amount, NumericType)
     field(:exchange_rate, :map, virtual: true)
     field(:required_confirmations, :integer, default: 0)
-    field(:recipent, :string)
-    field(:message, :string)
-    field(:payment_uri, :string, virtual: true)
+    field(:description, :string)
+    # field(:payment_uri, :string, virtual: true)
 
     field(:status, Ecto.Enum,
       values: [:pending, :confirmed, :rejected, :canceled],

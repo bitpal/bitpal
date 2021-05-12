@@ -45,13 +45,15 @@ defmodule BitPal.InvoiceManager do
     ProcessRegistry.get_process(InvoiceHandler.via_tuple(invoice_id))
   end
 
-  #
-  # def tracked_invoices() do
-  #   DynamicSupervisor.which_children(@supervisor)
-  #   |> Enum.map(fn {_, pid, _, _} ->
-  #     InvoiceHandler.get_invoice(pid)
-  #   end)
-  # end
+  @spec tracked_invoices() :: [Invoice.t()]
+  def tracked_invoices do
+    DynamicSupervisor.which_children(@supervisor)
+    |> Enum.map(fn {_, pid, _, _} ->
+      pid
+      |> InvoiceHandler.get_invoice_id()
+      |> Invoices.fetch!()
+    end)
+  end
 
   @impl true
   def init(opts) do

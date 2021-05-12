@@ -92,7 +92,13 @@ defmodule BitPal.TransactionsOld do
     for_addr = Map.get(transactions, invoice.address_id, %{})
     # Compute the amount to invoice.
     satoshi = find_amount(for_addr, invoice.amount.amount)
-    invoice = %{invoice | amount: %{invoice.amount | amount: satoshi}}
+
+    invoice =
+      if satoshi do
+        %{invoice | amount: %{invoice.amount | amount: satoshi}}
+      else
+        %{invoice | amount: nil}
+      end
 
     # Put it back together.
     for_addr = Map.put(for_addr, satoshi, %State{invoice: invoice, state: :pending})
@@ -117,9 +123,6 @@ defmodule BitPal.TransactionsOld do
     transactions = update_transactions(Map.get(state, :transactions, %{}), height)
     state = Map.put(state, :transactions, transactions)
 
-    # IO.puts("After set height:")
-    # IO.inspect(state)
-
     {:noreply, state}
   end
 
@@ -134,15 +137,12 @@ defmodule BitPal.TransactionsOld do
         new_s = %{s | state: :visible}
         send_seen(new_s)
 
-        if done?(new_s, state_height(state)) do
+        if done?(s, state_height(state)) do
           remove(address, amount, state)
         else
           replace(address, amount, new_s, state)
         end
       end
-
-    # IO.puts("After 'seen'")
-    # IO.inspect(state)
 
     {:noreply, state}
   end
@@ -179,9 +179,6 @@ defmodule BitPal.TransactionsOld do
           replace(address, amount, new_s, state)
         end
       end
-
-    # IO.puts("After 'accepted'")
-    # IO.inspect(state)
 
     {:noreply, state}
   end
@@ -248,7 +245,7 @@ defmodule BitPal.TransactionsOld do
   defp find(address, amount, state) do
     transactions = Map.get(state, :transactions, %{})
     for_addr = Map.get(transactions, address, %{})
-    Map.get(for_addr, amount.amount, nil)
+    Map.get(for_addr, amount, nil)
   end
 
   # Replace a transaction givent its address and amount. Returns new state.
@@ -297,7 +294,8 @@ defmodule BitPal.TransactionsOld do
 
         :visible ->
           # If visible, we're done if the transaction is zero-conf
-          item.invoice.required_confirmations <= 0
+          # item.invoice.required_confirmations <= 0
+          false
 
         nr when is_integer(nr) ->
           # It's a number indicating the height it was seen at.

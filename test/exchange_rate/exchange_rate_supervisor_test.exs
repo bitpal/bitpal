@@ -5,9 +5,14 @@ defmodule BitPal.ExchangeRateSupervisorTest do
   alias BitPal.ExchangeRateSupervisor.Result
 
   @bchusd {:BCH, :USD}
-  @bchusd_rate ExchangeRate.new!(Decimal.from_float(815.27), @bchusd)
+  def bchusd_rate do
+    ExchangeRate.new!(Decimal.from_float(815.27), @bchusd)
+  end
+
   @bcheur {:BCH, :EUR}
-  @bcheur_rate ExchangeRate.new!(Decimal.from_float(741.62), @bcheur)
+  def bcheur_rate do
+    ExchangeRate.new!(Decimal.from_float(741.62), @bcheur)
+  end
 
   @supervisor BitPal.ExhangeRate.TaskSupervisor
 
@@ -104,14 +109,14 @@ defmodule BitPal.ExchangeRateSupervisorTest do
 
   @tag do: true
   test "direct request" do
-    assert ExchangeRateSupervisor.request(@bchusd) == {:ok, @bchusd_rate}
-    assert ExchangeRateSupervisor.request!(@bchusd) == @bchusd_rate
+    assert ExchangeRateSupervisor.request(@bchusd) == {:ok, bchusd_rate()}
+    assert ExchangeRateSupervisor.request!(@bchusd) == bchusd_rate()
   end
 
   test "receive after subscribe" do
     TestSubscriber.subscribe(@bchusd)
     TestSubscriber.await_msg_count(1)
-    assert TestSubscriber.received() == [{:exchange_rate, @bchusd_rate}]
+    assert TestSubscriber.received() == [{:exchange_rate, bchusd_rate()}]
     assert Enum.empty?(Task.Supervisor.children(@supervisor))
   end
 
@@ -121,8 +126,8 @@ defmodule BitPal.ExchangeRateSupervisorTest do
     TestSubscriber.await_msg_count(2)
 
     assert Enum.sort(TestSubscriber.received()) == [
-             {:exchange_rate, @bcheur_rate},
-             {:exchange_rate, @bchusd_rate}
+             {:exchange_rate, bcheur_rate()},
+             {:exchange_rate, bchusd_rate()}
            ]
   end
 
@@ -131,7 +136,7 @@ defmodule BitPal.ExchangeRateSupervisorTest do
     TestSubscriber.await_msg_count(1)
 
     assert Enum.sort(TestSubscriber.received()) == [
-             {:exchange_rate, @bchusd_rate}
+             {:exchange_rate, bchusd_rate()}
            ]
   end
 

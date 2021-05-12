@@ -1,8 +1,8 @@
 defmodule BitPal.ExchangeRate.Kraken do
   @behaviour BitPal.ExchangeRate.Backend
 
-  alias BitPal.ExchangeRateSupervisor.Result
   alias BitPal.ExchangeRate
+  alias BitPal.ExchangeRateSupervisor.Result
   require Logger
 
   @base "https://api.kraken.com/0/public/Ticker?pair="

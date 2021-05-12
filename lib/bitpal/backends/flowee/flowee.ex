@@ -1,12 +1,17 @@
 defmodule BitPal.Backend.Flowee do
   @behaviour BitPal.Backend
   use GenServer
+  alias BitPal.Addresses
   alias BitPal.Backend
   alias BitPal.Backend.Flowee.Connection
   alias BitPal.Backend.Flowee.Protocol
   alias BitPal.Backend.Flowee.Protocol.Message
   alias BitPal.BCH.Cashaddress
+  alias BitPal.Invoices
+  alias BitPal.Repo
   alias BitPal.TransactionsOld
+  alias BitPalSchemas.Invoice
+  alias Ecto.Changeset
   require Logger
 
   # Client API
@@ -51,14 +56,33 @@ defmodule BitPal.Backend.Flowee do
 
   @impl true
   def handle_call({:register, invoice}, _from, state) do
+    address_id = Application.fetch_env!(:bitpal, :address)
+
+    address =
+      if address = Addresses.get(address_id) do
+        address
+      else
+        {:ok, address} = Addresses.register(invoice.currency_id, address_id, 0)
+        address
+      end
+
+    {:ok, invoice} = Invoices.assign_address(invoice, address)
+
     # Make sure we are subscribed to the wallet.
-    state = watch_wallet(invoice.address, state)
+    state = watch_wallet(invoice.address_id, state)
 
     # Register the wallet with the TransactionsOld svc.
-    satoshi = TransactionsOld.new(invoice)
+    invoice = TransactionsOld.new(invoice)
+
+    Repo.update!(
+      Changeset.change(%Invoice{id: invoice.id}, %{
+        address_id: invoice.address_id,
+        amount: invoice.amount
+      })
+    )
 
     # Good to go! Report back!
-    {:reply, satoshi, state}
+    {:reply, invoice, state}
   end
 
   @impl true
