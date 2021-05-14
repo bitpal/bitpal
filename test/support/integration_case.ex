@@ -15,6 +15,7 @@ defmodule BitPal.IntegrationCase do
       import Ecto.Query
       import BitPal.IntegrationCase
       import BitPal.TestHelpers
+      import BitPal.IntegrationCase, only: [setup_integration: 0, setup_integration: 1]
 
       alias BitPal.BackendManager
       alias BitPal.BackendMock
@@ -27,6 +28,10 @@ defmodule BitPal.IntegrationCase do
   end
 
   setup tags do
+    setup_integration(tags)
+  end
+
+  def setup_integration(tags \\ []) do
     start_supervised!({Phoenix.PubSub, name: BitPal.PubSub})
     start_supervised!(BitPal.ProcessRegistry)
 
@@ -49,18 +54,20 @@ defmodule BitPal.IntegrationCase do
   end
 
   defp setup_backends(tags) do
+    transactions = start_supervised!(BitPal.TransactionsOld)
+
     # Only start backend if explicitly told to
     backend_manager =
       if backends = backends(tags) do
-        start_supervised!({BitPal.BackendManager, backends: backends})
+        if !Enum.empty?(backends) do
+          start_supervised!({BitPal.BackendManager, backends: backends})
+        end
       end
 
     invoice_manager =
       start_supervised!(
         {BitPal.InvoiceManager, double_spend_timeout: Map.get(tags, :double_spend_timeout, 100)}
       )
-
-    transactions = start_supervised!(BitPal.TransactionsOld)
 
     %{
       backend_manager: backend_manager,

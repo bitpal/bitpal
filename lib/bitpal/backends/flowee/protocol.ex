@@ -86,35 +86,35 @@ defmodule BitPal.Backend.Flowee.Protocol do
   end
 
   # Helper to send
-  defp send_msg(c, serviceId, messageId, data) do
-    Connection.send(c, %RawMsg{service: serviceId, message: messageId, data: data})
+  defp send_msg(tcp_client, c, serviceId, messageId, data) do
+    Connection.send(tcp_client, c, %RawMsg{service: serviceId, message: messageId, data: data})
   end
 
   # Send a ping to the remote peer. We need to do this about once every minute. Otherwise, we will
   # be disconnected after 120 s. It seems it does not matter if we send other data, we will still be
   # disconnected if we don't send ping messages.
-  def send_ping(c) do
-    Connection.send(c, %RawMsg{service: @service_system, ping: true})
+  def send_ping(tcp_client, c) do
+    Connection.send(tcp_client, c, %RawMsg{service: @service_system, ping: true})
   end
 
   # Send a version request message. Returns a string.
-  def send_version(c) do
-    send_msg(c, 0, 0, [])
+  def send_version(tcp_client, c) do
+    send_msg(tcp_client, c, @service_api, 0, [])
   end
 
   # Ask for blockchain info.
-  def send_blockchain_info(c) do
-    send_msg(c, @service_blockchain, 0, [])
+  def send_blockchain_info(tcp_client, c) do
+    send_msg(tcp_client, c, @service_blockchain, 0, [])
   end
 
   # Subscribe to get notified of blocks.
-  def send_block_subscribe(c) do
-    send_msg(c, @service_blocknotification, 0, [])
+  def send_block_subscribe(tcp_client, c) do
+    send_msg(tcp_client, c, @service_blocknotification, 0, [])
   end
 
   # Unsubscribe to get notified of blocks.
-  def send_block_unsubscribe(c) do
-    send_msg(c, @service_blocknotification, 2, [])
+  def send_block_unsubscribe(tcp_client, c) do
+    send_msg(tcp_client, c, @service_blocknotification, 2, [])
   end
 
   # Get options for the get operation.
@@ -131,12 +131,12 @@ defmodule BitPal.Backend.Flowee.Protocol do
   end
 
   # Get a block in the blockchain.
-  def send_get_block(c, {:height, h}, outputs) do
-    send_msg(c, @service_blockchain, 4, [{7, h} | get_output(outputs)])
+  def send_get_block(tcp_client, c, {:height, h}, outputs) do
+    send_msg(tcp_client, c, @service_blockchain, 4, [{7, h} | get_output(outputs)])
   end
 
-  def send_get_block(c, {:hash, h}, outputs) do
-    send_msg(c, @service_blockchain, 4, [{7, %Binary{data: h}} | get_output(outputs)])
+  def send_get_block(tcp_client, c, {:hash, h}, outputs) do
+    send_msg(tcp_client, c, @service_blockchain, 4, [{7, %Binary{data: h}} | get_output(outputs)])
   end
 
   # Convert addresses into a message. Handles either a single address or a list of them.
@@ -154,25 +154,25 @@ defmodule BitPal.Backend.Flowee.Protocol do
   end
 
   # Monitor a particular address. "address" is a "script encoded" address. See the Address module.
-  def send_address_subscribe(c, address) do
+  def send_address_subscribe(tcp_client, c, address) do
     conv = convert_addresses(address)
-    send_msg(c, @service_addressmonitor, 0, conv)
+    send_msg(tcp_client, c, @service_addressmonitor, 0, conv)
   end
 
   # Stop subscribing to an address.
-  def send_address_unsubscribe(c, address) do
+  def send_address_unsubscribe(tcp_client, c, address) do
     conv = convert_addresses(address)
-    send_msg(c, @service_addressmonitor, 2, conv)
+    send_msg(tcp_client, c, @service_addressmonitor, 2, conv)
   end
 
   # List available indexers.
-  def send_find_avail_indexers(c) do
-    send_msg(c, @service_indexer, 0, [])
+  def send_find_avail_indexers(tcp_client, c) do
+    send_msg(tcp_client, c, @service_indexer, 0, [])
   end
 
   # Find a transaction. Note: Hashes seem to be reversed compared to what is shown on eg. Blockchain Explorer.
-  def send_find_transaction(c, bytes) do
-    send_msg(c, @service_indexer, 2, [{4, %Binary{data: bytes}}])
+  def send_find_transaction(tcp_client, c, bytes) do
+    send_msg(tcp_client, c, @service_indexer, 2, [{4, %Binary{data: bytes}}])
   end
 
   # Structure for received message.
@@ -191,8 +191,9 @@ defmodule BitPal.Backend.Flowee.Protocol do
   end
 
   # Receive some message (blocking)
-  def recv(c) do
-    msg = Connection.recv(c)
+  def recv(tcp_client, c) do
+    msg = Connection.recv(tcp_client, c)
+
     %RawMsg{service: service, message: message, data: body} = msg
 
     case {service, message} do

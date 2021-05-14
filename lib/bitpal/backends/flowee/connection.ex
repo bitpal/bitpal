@@ -35,38 +35,26 @@ defmodule BitPal.Backend.Flowee.Connection do
   @header_ping 5
   @header_pong 6
 
-  # Connect to localhost. Defaults to connect to "the hub"
-  def connect do
-    # According to the doc, we should be able to give it some kind of string....
-    connect(1235)
-  end
-
-  # Connect to a particular port on localhost.
-  def connect(port) do
-    connect({127, 0, 0, 1}, port)
-  end
-
   # Connect to host + post. Host seems to be a tuple of an IPv4 address (possibly IPv6 also)
-  def connect(host, port) do
+  def connect(tcp_client, host \\ {127, 0, 0, 1}, port \\ 1235) do
     # Would be nice if we could get a packet in little endian mode. Now, we need to handle that ourselves...
-    opts = [:binary, {:packet, 0}, {:active, false}]
-    {:ok, connection} = :gen_tcp.connect(host, port, opts)
-    connection
+    {:ok, c} = tcp_client.connect(host, port, [:binary, {:packet, 0}, {:active, false}])
+    c
   end
 
   # Send a message (a binary)
-  defp send_packet(connection, message) do
+  defp send_packet(tcp_client, connection, message) do
     size = byte_size(message) + 2
     size_msg = <<rem(size, 256), div(size, 256)>>
-    :gen_tcp.send(connection, size_msg <> message)
+    tcp_client.send(connection, size_msg <> message)
   end
 
   # Receive a packet.
-  defp recv_packet(connection) do
-    case :gen_tcp.recv(connection, 2) do
+  defp recv_packet(tcp_client, connection) do
+    case tcp_client.recv(connection, 2) do
       {:ok, <<size_low, size_high>>} ->
         size = size_high * 256 + size_low
-        {:ok, data} = :gen_tcp.recv(connection, size - 2)
+        {:ok, data} = tcp_client.recv(connection, size - 2)
         data
 
       {:error, msg} ->
@@ -75,31 +63,33 @@ defmodule BitPal.Backend.Flowee.Connection do
   end
 
   # Close the connection.
-  def close(connection) do
-    :gen_tcp.close(connection)
+  def close(tcp_client, connection) do
+    tcp_client.close(connection)
   end
 
   # Send a RawMsg
-  def send(connection, msg) do
-    send_packet(connection, serialize(msg))
+  def send(tcp_client, connection, msg) do
+    send_packet(tcp_client, connection, serialize(msg))
   end
 
   # Receive a high-level message. We will parse the header here since we need to merge long messages, etc.
   # Returns a RawMsg with the appropriate fields set.
-  def recv(connection) do
-    {header, rem} = parse_header(recv_packet(connection))
-    recv(connection, header, rem)
+  def recv(tcp_client, connection) do
+    data = recv_packet(tcp_client, connection)
+    # IO.puts("received: #{inspect(data, limit: :infinity)}")
+    {header, rem} = parse_header(data)
+    recv(tcp_client, connection, header, rem)
   end
 
   # Internal helper for receiving messages.
-  defp recv(connection, header, data) do
+  defp recv(tcp_client, connection, header, data) do
     if header.last == false do
       # More data... Ignore the next header mostly.
-      {new_header, more_data} = parse_header(recv_packet(connection))
+      {new_header, more_data} = parse_header(recv_packet(tcp_client, connection))
       # Note: It might be important to check the header here since there might be other messages
       # that are interleaved with chained messages. The docs does not state if this is a
       # possibility, but from a quick glance at the code, I don't think so.
-      recv(connection, %{header | last: new_header.last}, data <> more_data)
+      recv(tcp_client, connection, %{header | last: new_header.last}, data <> more_data)
     else
       # Last packet! Either header.last == true or header.last == nil
       %{header | data: deserialize(data)}
