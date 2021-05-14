@@ -1,5 +1,8 @@
 import Config
 
+config :bitpal,
+  address: "bitcoincash:qqpkcce4lzdc8guam5jfys9prfyhr90seqzakyv4tu"
+
 case Config.config_env() do
   :dev ->
     # Mocking during development. If you want to test live replace it with a backend of your choice.
@@ -7,9 +10,6 @@ case Config.config_env() do
       backends: [{BitPal.BackendMock, auto: true}]
 
     config :bitpal, BitPal.ExchangeRate, backends: [BitPal.ExchangeRate.Mock]
-
-    config :bitpal,
-      address: "bitcoincash:qqpkcce4lzdc8guam5jfys9prfyhr90seqzakyv4tu"
 
     config :bitpal, BitPal.Repo,
       username: "postgres",

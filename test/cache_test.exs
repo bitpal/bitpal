@@ -4,15 +4,6 @@ defmodule BitPal.ExchangeRate.CacheTest do
   alias BitPal.Cache
   @moduletag clear_interval: 100
 
-  defp eventually(func) do
-    if func.() do
-      true
-    else
-      Process.sleep(10)
-      eventually(func)
-    end
-  end
-
   setup %{test: name, clear_interval: clear_interval} do
     {:ok, pid} = Cache.start_link(name: name, clear_interval: clear_interval)
     {:ok, name: name, pid: pid}

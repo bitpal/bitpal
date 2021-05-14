@@ -16,8 +16,8 @@ defmodule BitPal.Backend.Flowee do
 
   # Client API
 
-  def start_link(_) do
-    GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
+  def start_link(opts) do
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
   # Returns the amount of satoshi to ask for. Note: This will be modified slightly so that the system
@@ -46,8 +46,12 @@ defmodule BitPal.Backend.Flowee do
   # Sever API
 
   @impl true
-  def init(state) do
+  def init(opts) do
     Logger.info("Starting Flowee")
+
+    state =
+      Enum.into(opts, %{})
+      |> Map.put_new(:tcp_client, BitPal.TCPClient)
 
     state = start_flowee(state)
 
@@ -132,8 +136,8 @@ defmodule BitPal.Backend.Flowee do
     case state do
       %{hub_connection: conn} ->
         # IO.puts("Sending ping")
-        Protocol.send_ping(conn)
-        :timer.send_after(:timer.minutes(1), self(), {:send_ping})
+        Protocol.send_ping(state.tcp_client, conn)
+        enqueue_ping(state)
 
       _ ->
         # Connection not open. Nothing to do.
@@ -148,7 +152,7 @@ defmodule BitPal.Backend.Flowee do
   def handle_info({:DOWN, _monitor, :process, pid, _reason}, state) do
     if pid == state[:hub_pid] do
       # The Flowee process died. Close our connection and restart it!
-      Connection.close(state[:hub_connection])
+      Connection.close(state.tcp_client, state[:hub_connection])
       {:noreply, start_hub(state)}
     else
       # Something else happened.
@@ -185,6 +189,7 @@ defmodule BitPal.Backend.Flowee do
 
     # Convert the transaction, it is a hash:
     %{address: hash} = data
+
     address = Map.get(hash_to_addr, hash.data, nil)
 
     if address != nil do
@@ -231,7 +236,7 @@ defmodule BitPal.Backend.Flowee do
       # If the connection is up and running, tell it about the new wallet now.
       case state do
         %{hub_connection: c} ->
-          subscribe_addr(c, wallet, hash)
+          subscribe_addr(state.tcp_client, c, wallet, hash)
 
         _ ->
           nil
@@ -256,36 +261,41 @@ defmodule BitPal.Backend.Flowee do
 
   # Connection to The Hub.
   defp start_hub(state) do
-    c = Connection.connect()
+    c = Connection.connect(state.tcp_client)
     state = Map.put(state, :hub_connection, c)
 
     # Start receiving messages for it.
     # Sorry I'm not using the "standard" monitoring... This solution has the benefit of being able
     # to restore subscriptions from "state" as needed.
-    pid = spawn(fn -> receive_messages(c) end)
+    pid = spawn(fn -> receive_messages(state.tcp_client, c) end)
     state = Map.put(state, :hub_pid, pid)
 
     # Monitor it for crashes.
     Process.monitor(pid)
 
     # Start sending pings
-    :timer.send_after(:timer.minutes(1), self(), {:send_ping})
+    enqueue_ping(state)
 
     # Start subscribing to new block messages
-    Protocol.send_block_subscribe(c)
+    Protocol.send_block_subscribe(state.tcp_client, c)
 
     # Subscribe to any wallets we were asked to.
     wallets = Map.get(state, :watching_wallets, %{})
 
     if wallets != %{} do
-      Enum.each(wallets, fn {k, v} -> subscribe_addr(c, k, v) end)
+      Enum.each(wallets, fn {k, v} -> subscribe_addr(state.tcp_client, c, k, v) end)
     end
 
     # Query the current status of the blockchain. This is so that we can update the current height
     # of the blockchain and to look for confirmations for transactions we might have missed.
-    Protocol.send_blockchain_info(c)
+    Protocol.send_blockchain_info(state.tcp_client, c)
 
     state
+  end
+
+  defp enqueue_ping(state) do
+    timeout = Map.get(state, :ping_timeout, :timer.minutes(1))
+    :timer.send_after(timeout, self(), {:send_ping})
   end
 
   # Convert a "bitcoin:..." address to what is needed by Flowee.
@@ -296,17 +306,17 @@ defmodule BitPal.Backend.Flowee do
   end
 
   # Helper to subscribe to an address. Accepts the output from "convert_addr".
-  defp subscribe_addr(connection, addr, hash) do
+  defp subscribe_addr(tcp_client, connection, addr, hash) do
     Logger.info("Subscribed to new wallet: " <> inspect(addr))
-    Protocol.send_address_subscribe(connection, hash)
+    Protocol.send_address_subscribe(tcp_client, connection, hash)
   end
 
   # Receive messages. Executed in another process, so it is OK to block here.
-  defp receive_messages(c) do
-    msg = Protocol.recv(c)
+  defp receive_messages(tcp_client, c) do
+    msg = Protocol.recv(tcp_client, c)
     GenServer.cast(__MODULE__, {:message, msg})
 
     # Keep on working!
-    receive_messages(c)
+    receive_messages(tcp_client, c)
   end
 end

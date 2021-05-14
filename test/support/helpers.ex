@@ -1,6 +1,15 @@
 defmodule BitPal.TestHelpers do
   import ExUnit.Assertions
 
+  def eventually(func) do
+    if func.() do
+      true
+    else
+      Process.sleep(10)
+      eventually(func)
+    end
+  end
+
   def assert_shutdown(pid) do
     ref = Process.monitor(pid)
     Process.unlink(pid)

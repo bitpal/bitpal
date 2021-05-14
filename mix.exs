@@ -24,7 +24,7 @@ defmodule BitPal.MixProject do
   end
 
   # Specifies which paths to compile per environment.
-  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(:test), do: ["lib", "test/support", "test/fixtures"]
   defp elixirc_paths(_), do: ["lib"]
 
   # Specifies your project dependencies.
@@ -41,6 +41,7 @@ defmodule BitPal.MixProject do
       {:eqrcode, "~> 0.1.7"},
       {:libsecp256k1, "~> 0.1.9"},
       {:money, "~> 1.8"},
+      {:mox, "~> 1.0"},
       {:ex_doc, "~> 0.24", only: :dev, runtime: false},
       {:ci, "~> 0.1.0"},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
