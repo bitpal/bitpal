@@ -18,6 +18,11 @@ defmodule BitPal.Backend.Flowee do
   @cache BitPal.RuntimeStorage
   @bch :BCH
 
+  # Minor Flowee version required.
+  # Versions before this do not always supply TxId when watching for wallets.
+  @flowee_min_major 2021
+  @flowee_min_minor 5
+
   # Client API
 
   def start_link(opts) do
@@ -202,6 +207,8 @@ defmodule BitPal.Backend.Flowee do
   # Connection to The Hub.
   defp start_hub(state) do
     c = Connection.connect(state.tcp_client)
+    check_version(c)
+
     state = Map.put(state, :hub_connection, c)
 
     {:ok, pid} =
@@ -261,6 +268,29 @@ defmodule BitPal.Backend.Flowee do
     Cashaddress.binary_to_hex(data)
   end
 
+  # Ask Flowee for version information, validate it and print an appropriate message on error.
+  defp check_version(connection) do
+    Protocol.send_version(connection)
+    %Message{type: :version, data: %{version: version}} = Protocol.recv(connection)
+
+    case Regex.named_captures(~r/.*\((?<major>[0-9]+)-(?<minor>[0-9]+)\)/, version) do
+      %{"major" => major, "minor" => minor} ->
+        {major, _} = Integer.parse(major)
+        {minor, _} = Integer.parse(minor)
+
+        if major < @flowee_min_major or
+        (major == @flowee_min_major and minor < @flowee_min_minor) do
+          Logger.error("Your version of Flowee is too old. You have #{major}-#{minor}, we require #{@flowee_min_major}-#{@flowee_min_minor} or later.")
+          raise "incompatible flowee version"
+        end
+
+      nil ->
+        Logger.error("Unknown format of the Flowee version string: #{version}.")
+        raise "incompatible flowee version"
+    end
+  end
+
+  # Helper to subscribe to an address. Accepts the output from "convert_addr".
   defp subscribe_addr(conn, addr) do
     hash = create_addr_hash(addr)
     Logger.info("Subscribed to new wallet: " <> inspect(addr))
