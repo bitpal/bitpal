@@ -1,8 +1,37 @@
 defmodule BitPal.Backend.Flowee.Connection do
-  use Bitwise
+  @moduledoc """
+  This is the low-level API to flowee.
 
-  # Binary value used to distinguish strings from binary values in Elixir.
+  Allows connecting to a Flowee server and communicating with it. This module
+  handles the packet-based API with Flowee, and handles serialization and
+  deserialization of the binary format. The binary format essentially consists
+  of a list of key-value tuples, where keys are integers with pre-defined
+  meaning, and values are of any of a few supported data types (integers, strings
+  binaries or floats).
+
+  The responsibilities of this module ends where these tuples are to be interpreted
+  as a higher-level data structure, with meanings specific to some part of Flowee.
+  This is instead handled by the Protocol module.
+
+  Call connect\3 to create a connection, then send\2 and recv\1 to send and receive
+  messages.
+
+  Messages are described by the RawMsg struct, and to distinguish between binaries
+  and strings, binaries are wrapped in the Binary struct (since strings are binaries
+  in Elixir).
+  """
+
+  use Bitwise
+  alias BitPal.Backend.Flowee.Connection
+
+  # Struct for the connection itself. Create using "connect".
+  defstruct client: nil, data: nil
+
   defmodule Binary do
+    @moduledoc """
+    Binary value used to distinguish strings from binary values in Elixir.
+    """
+
     defstruct data: <<>>
 
     def to_string(binary) do
@@ -14,8 +43,11 @@ defmodule BitPal.Backend.Flowee.Connection do
     end
   end
 
-  # Raw message. Holds an unserialized message that represents the header along with any data.
   defmodule RawMsg do
+    @moduledoc """
+    Raw message to/from Flowee. Holds a deserialized message, including header and data.
+    """
+
     # Note: seq_start och last are only used internally.
     defstruct service: nil,
               message: nil,
@@ -35,64 +67,74 @@ defmodule BitPal.Backend.Flowee.Connection do
   @header_ping 5
   @header_pong 6
 
-  # Connect to host + post. Host seems to be a tuple of an IPv4 address (possibly IPv6 also)
+  @doc """
+  Connect to a Flowee host using the supplied tcp_client (default is BitPal.TCPClient for plain TCP connections).
+
+  Returns a connection object that can be passed to send and recv in here.
+  """
   def connect(tcp_client, host \\ {127, 0, 0, 1}, port \\ 1235) do
     # Would be nice if we could get a packet in little endian mode. Now, we need to handle that ourselves...
     {:ok, c} = tcp_client.connect(host, port, [:binary, {:packet, 0}, {:active, false}])
-    c
+    %Connection{client: tcp_client, data: c}
+  end
+
+  @doc """
+  Close the connection.
+  """
+  def close(connection) do
+    connection.client.close(connection.data)
+  end
+
+  @doc """
+  Send a raw message.
+  """
+  def send(connection, msg) do
+    send_packet(connection, serialize(msg))
+  end
+
+  @doc """
+  Receive a high-level message. We will parse the header here since we need to merge long messages, etc.
+  Returns a RawMsg with the appropriate fields set.
+  """
+  def recv(connection) do
+    data = recv_packet(connection)
+    # IO.puts("received: #{inspect(data, limit: :infinity)}")
+    {header, rem} = parse_header(data)
+    recv(connection, header, rem)
+  end
+
+  # Internal helper for receiving messages.
+  defp recv(connection, header, data) do
+    if header.last == false do
+      # More data... Ignore the next header mostly.
+      {new_header, more_data} = parse_header(recv_packet(connection))
+      # Note: It might be important to check the header here since there might be other messages
+      # that are interleaved with chained messages. The docs does not state if this is a
+      # possibility, but from a quick glance at the code, I don't think so.
+      recv(connection, %{header | last: new_header.last}, data <> more_data)
+    else
+      # Last packet! Either header.last == true or header.last == nil
+      %{header | data: deserialize(data)}
+    end
   end
 
   # Send a message (a binary)
-  defp send_packet(tcp_client, connection, message) do
+  defp send_packet(connection, message) do
     size = byte_size(message) + 2
     size_msg = <<rem(size, 256), div(size, 256)>>
-    tcp_client.send(connection, size_msg <> message)
+    connection.client.send(connection.data, size_msg <> message)
   end
 
   # Receive a packet.
-  defp recv_packet(tcp_client, connection) do
-    case tcp_client.recv(connection, 2) do
+  defp recv_packet(connection) do
+    case connection.client.recv(connection.data, 2) do
       {:ok, <<size_low, size_high>>} ->
         size = size_high * 256 + size_low
-        {:ok, data} = tcp_client.recv(connection, size - 2)
+        {:ok, data} = connection.client.recv(connection.data, size - 2)
         data
 
       {:error, msg} ->
         msg
-    end
-  end
-
-  # Close the connection.
-  def close(tcp_client, connection) do
-    tcp_client.close(connection)
-  end
-
-  # Send a RawMsg
-  def send(tcp_client, connection, msg) do
-    send_packet(tcp_client, connection, serialize(msg))
-  end
-
-  # Receive a high-level message. We will parse the header here since we need to merge long messages, etc.
-  # Returns a RawMsg with the appropriate fields set.
-  def recv(tcp_client, connection) do
-    data = recv_packet(tcp_client, connection)
-    # IO.puts("received: #{inspect(data, limit: :infinity)}")
-    {header, rem} = parse_header(data)
-    recv(tcp_client, connection, header, rem)
-  end
-
-  # Internal helper for receiving messages.
-  defp recv(tcp_client, connection, header, data) do
-    if header.last == false do
-      # More data... Ignore the next header mostly.
-      {new_header, more_data} = parse_header(recv_packet(tcp_client, connection))
-      # Note: It might be important to check the header here since there might be other messages
-      # that are interleaved with chained messages. The docs does not state if this is a
-      # possibility, but from a quick glance at the code, I don't think so.
-      recv(tcp_client, connection, %{header | last: new_header.last}, data <> more_data)
-    else
-      # Last packet! Either header.last == true or header.last == nil
-      %{header | data: deserialize(data)}
     end
   end
 
