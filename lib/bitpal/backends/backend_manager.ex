@@ -65,7 +65,7 @@ defmodule BitPal.BackendManager do
     end)
   end
 
-  @spec currencies() :: [{Currency.id(), :ok, Backend.backend_ref()}]
+  @spec currencies() :: [{String.t(), :ok, Backend.backend_ref()}]
   def currencies do
     backends()
     |> Enum.map(fn {_name, ref, status} ->
@@ -102,9 +102,12 @@ defmodule BitPal.BackendManager do
     currency = Currencies.normalize(currency)
 
     currencies()
-    |> Enum.find_value({:error, :not_found}, fn
-      {^currency, _, ref} -> {:ok, ref}
-      _ -> false
+    |> Enum.find_value({:error, :not_found}, fn {c, _, ref} ->
+      if c == currency do
+        {:ok, ref}
+      else
+        false
+      end
     end)
   end
 

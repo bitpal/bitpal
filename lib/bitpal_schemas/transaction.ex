@@ -23,7 +23,6 @@ defmodule BitPalSchemas.Transaction do
     field(:amount, NumericType)
     field(:confirmed_height, :integer)
     field(:double_spent, :boolean, default: false)
-    # field(:double_spend_timeout, :boolean, default: false, virtual: true)
     timestamps()
 
     belongs_to(:address, Address, type: :string)

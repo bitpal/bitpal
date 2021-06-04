@@ -2,6 +2,7 @@ defmodule BitPal.Invoices do
   import Ecto.Changeset
   import Ecto.Query, only: [from: 2]
   alias BitPal.Addresses
+  alias BitPal.Blocks
   alias BitPal.Currencies
   alias BitPal.ExchangeRate
   alias BitPal.FSM
@@ -21,6 +22,11 @@ defmodule BitPal.Invoices do
 
   @spec register(register_params) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def register(params) do
+    params =
+      Map.put_new_lazy(params, :required_confirmations, fn ->
+        Application.fetch_env!(:bitpal, :required_confirmations)
+      end)
+
     %Invoice{}
     |> cast(params, [:amount, :fiat_amount, :exchange_rate, :required_confirmations, :description])
     |> validate_amount(:amount)
@@ -79,6 +85,22 @@ defmodule BitPal.Invoices do
       :gt -> :overpaid
       :eq -> :ok
     end
+  end
+
+  @spec confirmations_until_paid(Invoice.t()) :: non_neg_integer
+  def confirmations_until_paid(invoice) do
+    curr_height = Blocks.fetch_block_height!(invoice.currency_id)
+
+    max_height =
+      from(t in Transaction,
+        where: t.address_id == ^invoice.address_id,
+        select: max(t.confirmed_height)
+      )
+      |> Repo.one()
+
+    max(invoice.required_confirmations - (curr_height - max_height) - 1, 0)
+  rescue
+    _ -> invoice.required_confirmations
   end
 
   @spec one_transaction(Invoice.t()) :: {:ok, Transaction.t()} | :error
@@ -152,7 +174,6 @@ defmodule BitPal.Invoices do
       :amount,
       :fiat_amount,
       :currency_id,
-      # :address_id,
       :required_confirmations
     ])
     |> Repo.update()

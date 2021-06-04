@@ -41,6 +41,14 @@ defmodule BitPal.InvoiceManager do
     end)
   end
 
+  @spec terminate_children() :: :ok
+  def terminate_children do
+    DynamicSupervisor.which_children(@supervisor)
+    |> Enum.each(fn {_, pid, _, _} ->
+      DynamicSupervisor.terminate_child(@supervisor, pid)
+    end)
+  end
+
   @impl true
   def init(opts) do
     # Internal supervisor to reduce the number of modules and it's not doing much

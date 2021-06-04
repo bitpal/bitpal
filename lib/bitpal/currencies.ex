@@ -28,7 +28,7 @@ defmodule BitPal.Currencies do
     Repo.insert!(%Currency{id: normalize(id)}, on_conflict: :nothing)
   end
 
-  @spec normalize(atom | String.t()) :: String.t()
+  @spec normalize(Currency.id()) :: String.t()
   def normalize(id) when is_binary(id) do
     id |> String.upcase()
   end
