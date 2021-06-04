@@ -40,33 +40,32 @@ defmodule HandlerSubscriberCollector do
     |> Enum.reverse()
   end
 
-  def await_state(handler, state) do
-    await_msg(handler, {:state, state})
-  end
-
-  def await_msg(handler, msg) do
-    Task.async(__MODULE__, :sleep_until_msg, [handler, msg])
+  def await_status(handler, status) do
+    Task.async(__MODULE__, :sleep_until_status, [handler, status])
     |> Task.await(50)
 
     {:ok, received(handler)}
   end
 
-  def sleep_until_msg(handler, msg) do
-    if contains_msg?(handler, msg) do
+  def sleep_until_status(handler, status) do
+    if contains_status?(handler, status) do
       :ok
     else
       Process.sleep(10)
-      sleep_until_msg(handler, msg)
+      sleep_until_status(handler, status)
     end
   end
 
-  def contains_msg?(handler, msg) do
+  def contains_status?(handler, status) do
     received(handler)
-    |> Enum.any?(fn x -> x == msg end)
+    |> Enum.any?(fn
+      {:invoice_status, ^status, _} -> true
+      _ -> false
+    end)
   end
 
-  def is_accepted?(handler) do
-    contains_msg?(handler, {:state, :accepted})
+  def is_paid?(handler) do
+    contains_status?(handler, :paid)
   end
 
   # Server API
@@ -78,12 +77,11 @@ defmodule HandlerSubscriberCollector do
 
   @impl true
   def handle_call({:create_invoice, params}, _, state) do
-    {:ok, invoice_id} = InvoiceManager.register_invoice(params)
-
+    {:ok, invoice_id} = BitPal.register_and_finalize(params)
     {:ok, handler} = InvoiceManager.get_handler(invoice_id)
-    # Block until handler has initialized, which may change invoice details.
-    _ = InvoiceHandler.get_invoice_id(handler)
-    invoice = Invoices.get(invoice_id)
+    # Block until handler has finalized the invoice, which may change invoice details.
+    invoice = InvoiceHandler.get_invoice(handler)
+    if !Invoices.finalized?(invoice), do: raise("invoice not finalized yet!")
 
     {:reply, {invoice, handler}, state}
   end

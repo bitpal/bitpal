@@ -1,10 +1,12 @@
 defmodule BitPal.InvoiceHandler do
   use GenServer
-  alias BitPal.BackendEvent
+  alias BitPal.AddressEvents
   alias BitPal.BackendManager
-  alias BitPal.InvoiceEvent
+  alias BitPal.BlockchainEvents
+  alias BitPal.InvoiceEvents
   alias BitPal.Invoices
   alias BitPal.ProcessRegistry
+  alias BitPal.Transactions
   alias BitPalSchemas.Invoice
   require Logger
 
@@ -26,14 +28,9 @@ defmodule BitPal.InvoiceHandler do
     }
   end
 
-  @spec update_subscriber(handler) :: :ok
-  def update_subscriber(handler) do
-    GenServer.call(handler, {:update_subscriber, self()})
-  end
-
-  @spec get_invoice_id(handler) :: Invoice.id()
-  def get_invoice_id(handler) do
-    GenServer.call(handler, :get_invoice_id)
+  @spec get_invoice(handler) :: Invoice.t()
+  def get_invoice(handler) do
+    GenServer.call(handler, :get_invoice)
   end
 
   # Server API
@@ -48,77 +45,111 @@ defmodule BitPal.InvoiceHandler do
     # Callback to initializer routine to not block start_link
     send(self(), :init)
 
-    {:ok, %{state: :init, double_spend_timeout: double_spend_timeout, invoice_id: invoice_id}}
+    {:ok, %{double_spend_timeout: double_spend_timeout, invoice_id: invoice_id}}
   end
 
   @impl true
-  def handle_info(:init, state = %{state: :init, invoice_id: invoice_id}) do
+  def handle_info(:init, state = %{invoice_id: invoice_id}) do
     Logger.debug("init handler: #{invoice_id}")
 
     # Locate a new invoice for self-healing purpises.
     # If we're restarted we need to get the up-to-date invoice.
-    # So this is inefficient in the regular case, maybe we could keep track of a
-    # "have this invoice been handled before by a handler" state somewhere,
-    # to detect if we're restarted?
+    # After finalization invoice details must not change, and invoice states etc
+    # should only be updated from this handler, so we can keep holding it.
     invoice = Invoices.fetch!(invoice_id)
 
-    BackendEvent.subscribe(invoice)
+    case invoice.status do
+      :draft ->
+        finalize(invoice, state)
 
-    # if invoice.address_id do
-    # If the invoice has been assigned an address, then it means we might have crashed
-    # so we should query the backend for all transactions to this address and
-    # update our state/confirmations, as it's possible we've missed something.
-    # end
-
-    {:ok, invoice} = BackendManager.register(invoice)
-
-    change_state(
-      Map.put(state, :required_confirmations, invoice.required_confirmations),
-      :wait_for_tx,
-      invoice
-    )
-  end
-
-  @impl true
-  def handle_info(:tx_seen, state) do
-    Logger.debug("invoice: tx seen! #{state.invoice_id}")
-
-    if state.required_confirmations == 0 do
-      change_state(state, :wait_for_verification)
-    else
-      change_state(state, :wait_for_confirmations)
+      status ->
+        # NOTE this means handler has crashed and we need to recover data
+        Logger.warn("unknown status in handler: '#{status}'")
     end
   end
 
   @impl true
-  def handle_info(:doublespend, state) do
-    broadcast(state.invoice_id, {:state, {:denied, :doublespend}})
-    {:stop, :normal, state}
-  end
+  def handle_info({:tx_seen, tx}, state) do
+    invoice = Invoices.update_amount_paid(state.invoice)
+    state = process_tx(state, tx)
 
-  @impl true
-  def handle_info({:confirmations, confirmations}, state) do
-    Logger.debug("invoice: new block! #{state.invoice_id}")
+    case Invoices.target_amount_reached?(invoice) do
+      :underpaid ->
+        {:noreply, %{state | invoice: invoice}}
 
-    state = Map.put(state, :confirmations, confirmations)
+      _ ->
+        if invoice.required_confirmations == 0 do
+          Process.send_after(self(), {:double_spend_timeout, tx.id}, state.double_spend_timeout)
+        end
 
-    broadcast(state.invoice_id, {:confirmations, state.confirmations})
-
-    if state.confirmations >= state.required_confirmations do
-      accepted(state)
-    else
-      {:noreply, state}
+        process(invoice, state)
     end
   end
 
   @impl true
-  def handle_info(:verified, state = %{state: :wait_for_verification}) do
-    Logger.debug("invoice: verified! #{state.invoice_id}")
+  def handle_info({:tx_confirmed, tx}, state) do
+    invoice = Invoices.update_amount_paid(state.invoice)
 
-    if state.required_confirmations == 0 do
-      accepted(state)
-    else
-      change_state(state, :wait_for_confirmations)
+    state =
+      if Transactions.num_confirmations!(tx) >= invoice.required_confirmations do
+        tx_processed(state, tx.id)
+      else
+        process_tx(state, tx)
+      end
+
+    case Invoices.target_amount_reached?(invoice) do
+      :underpaid ->
+        {:noreply, %{state | invoice: invoice}}
+
+      _ ->
+        {_, state} = process(invoice, state)
+        try_into_paid(state)
+    end
+  end
+
+  @impl true
+  def handle_info({:double_spend_timeout, tx_id}, state) do
+    state
+    |> tx_processed(tx_id)
+    |> try_into_paid()
+  end
+
+  @impl true
+  def handle_info({:tx_double_spent, _tx}, state) do
+    {:ok, invoice} = Invoices.double_spent(state.invoice)
+    InvoiceEvents.broadcast_status(invoice)
+    {:noreply, %{state | invoice: invoice}}
+  end
+
+  @impl true
+  def handle_info({:tx_reversed, _tx}, _state) do
+    # Need to handle reversals
+  end
+
+  @impl true
+  def handle_info({:new_block, _currency, height}, state) do
+    case Map.fetch(state, :processing_txs) do
+      {:ok, txs} when map_size(txs) > 0 ->
+        if state.invoice.required_confirmations > 0 do
+          to_process =
+            Enum.filter(txs, fn
+              {_tx_id, nil} ->
+                true
+
+              {_tx_id, confirmed_height} ->
+                height - confirmed_height + 1 < state.invoice.required_confirmations
+            end)
+            |> Enum.into(%{})
+
+          state
+          |> Map.put(:processing_txs, to_process)
+          |> try_into_paid()
+        else
+          {:noreply, state}
+        end
+
+      _ ->
+        {:noreply, state}
     end
   end
 
@@ -129,53 +160,68 @@ defmodule BitPal.InvoiceHandler do
   end
 
   @impl true
-  def handle_call({:update_subscriber, pid}, _from, state) do
-    send(pid, {:state, state.state})
+  def handle_call(:get_invoice, _from, state) do
+    {:reply, state.invoice, state}
+  end
 
-    if confirmations = state[:confirmations] do
-      send(pid, {:confirmations, confirmations})
+  defp finalize(invoice, state) do
+    {:ok, invoice} = BackendManager.register(invoice)
+
+    :ok = AddressEvents.subscribe(invoice.address_id)
+    :ok = BlockchainEvents.subscribe(invoice.currency_id)
+
+    {:ok, invoice} = Invoices.finalize(invoice)
+
+    InvoiceEvents.broadcast_status(invoice)
+
+    state =
+      state
+      |> Map.delete(:invoice_id)
+      |> Map.put(:invoice, invoice)
+
+    {:noreply, state}
+  end
+
+  defp process(invoice, state) do
+    # It's fine if this fails?
+    case Invoices.process(invoice) do
+      {:ok, invoice} ->
+        InvoiceEvents.broadcast_status(invoice)
+        {:noreply, Map.put(state, :invoice, invoice)}
+
+      {:error, _} ->
+        {:noreply, Map.put(state, :invoice, invoice)}
     end
-
-    {:reply, :ok, state}
   end
 
-  @impl true
-  def handle_call(:get_invoice_id, _from, state) do
-    {:reply, state.invoice_id, state}
+  defp process_tx(state, tx) do
+    Map.update(state, :processing_txs, %{tx.id => tx.confirmed_height}, fn waiting ->
+      Map.put(waiting, tx.id, tx.confirmed_height)
+    end)
   end
 
-  defp accepted(state) do
-    broadcast(state.invoice_id, {:state, :accepted})
-    {:stop, :normal, state}
+  defp tx_processed(state = %{processing_txs: txs}, tx_id) do
+    Map.put(
+      state,
+      :processing_txs,
+      Map.delete(txs, tx_id)
+    )
   end
 
-  defp change_state(state, new_state) do
-    change_state_msg(state, new_state, {:state, new_state})
-  end
+  defp tx_processed(state, _tx_id), do: state
 
-  defp change_state(state, new_state, invoice) do
-    change_state_msg(state, new_state, {:state, new_state, invoice})
-  end
+  defp try_into_paid(state) do
+    done? =
+      Enum.empty?(Map.get(state, :processing_txs, %{})) &&
+        Invoices.target_amount_reached?(state.invoice) != :underpaid
 
-  defp change_state_msg(state, new_state, msg) do
-    if Map.get(state, :state) != new_state do
-      broadcast(state.invoice_id, msg)
-
-      # # If now in "wait for verification", we wait a while more in case the transaction is double-spent.
-      if new_state == :wait_for_verification do
-        # Start the timer now.
-        :timer.send_after(state.double_spend_timeout, self(), :verified)
-      end
-
-      {:noreply, %{state | state: new_state}}
+    if done? do
+      state = Map.put(state, :invoice, Invoices.pay!(state.invoice))
+      InvoiceEvents.broadcast_status(state.invoice)
+      {:stop, :normal, state}
     else
       {:noreply, state}
     end
-  end
-
-  @spec broadcast(Invoice.id(), term) :: :ok | {:error, term}
-  defp broadcast(invoice_id, msg) do
-    InvoiceEvent.broadcast(invoice_id, msg)
   end
 
   @spec via_tuple(Invoice.id()) :: {:via, Registry, any}

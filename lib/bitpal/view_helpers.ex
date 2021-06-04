@@ -1,4 +1,6 @@
 defmodule BitPal.ViewHelpers do
+  alias BitPalSchemas.Invoice
+
   @spec money_to_string(Money.t()) :: String.t()
   def money_to_string(money) do
     Money.to_string(money,

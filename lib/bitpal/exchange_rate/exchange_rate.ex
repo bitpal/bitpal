@@ -1,6 +1,7 @@
 defmodule BitPal.ExchangeRate do
   alias BitPal.Currencies
   alias BitPal.ExchangeRateSupervisor
+  alias BitPal.ExchangeRateSupervisor.Result
   alias Phoenix.PubSub
 
   @pubsub BitPal.PubSub
@@ -125,19 +126,19 @@ defmodule BitPal.ExchangeRate do
 
   # Subscriptions
 
-  @spec subscribe(ExchangeRate.pair()) :: :ok
+  @spec subscribe(pair()) :: :ok
   def subscribe(pair, opts \\ []) do
     :ok = PubSub.subscribe(@pubsub, topic(pair))
     ExchangeRateSupervisor.async_request(pair, opts)
     :ok
   end
 
-  @spec unsubscribe(ExchangeRate.pair()) :: :ok
+  @spec unsubscribe(pair()) :: :ok
   def unsubscribe(pair) do
     PubSub.unsubscribe(@pubsub, topic(pair))
   end
 
-  @spec broadcast(ExchangeRate.pair(), Result.t()) :: :ok | {:error, term}
+  @spec broadcast(pair(), Result.t()) :: :ok | {:error, term}
   def broadcast(pair, res) do
     PubSub.broadcast(@pubsub, topic(pair), {:exchange_rate, res.rate})
   end

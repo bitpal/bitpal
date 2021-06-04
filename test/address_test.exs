@@ -1,13 +1,8 @@
 defmodule AddressTest do
   use BitPal.IntegrationCase
   alias BitPal.Addresses
-  alias BitPal.Currencies
   alias BitPal.ExchangeRate
   alias BitPal.Invoices
-
-  setup do
-    Currencies.register!([:XMR, :BCH])
-  end
 
   test "address registration" do
     assert {:ok, _} = Addresses.register(:BCH, "bch:main", nil)

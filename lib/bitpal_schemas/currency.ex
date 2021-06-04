@@ -15,5 +15,6 @@ defmodule BitPalSchemas.Currency do
   schema "currencies" do
     has_many(:addresses, Address)
     has_many(:invoices, Invoice)
+    has_many(:transactions, through: [:addresses, :transactions])
   end
 end

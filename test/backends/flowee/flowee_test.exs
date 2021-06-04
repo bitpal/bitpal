@@ -3,6 +3,7 @@ defmodule BitPal.Backend.FloweeTest do
   import Mox
   import BitPal.MockTCPClient
   alias BitPal.Backend.FloweeFixtures
+  alias BitPal.Blocks
   alias BitPal.MockTCPClient
 
   @client FloweeMock
@@ -36,11 +37,15 @@ defmodule BitPal.Backend.FloweeTest do
 
   @tag backends: []
   test "new block" do
-    assert TransactionsOld.get_height() == 687_691
+    assert eventually(fn ->
+             Blocks.fetch_block_height(:BCH) == {:ok, 690_637}
+           end)
 
     MockTCPClient.response(@client, FloweeFixtures.new_block())
 
-    assert eventually(fn -> TransactionsOld.get_height() == 687_692 end)
+    assert eventually(fn ->
+             Blocks.fetch_block_height(:BCH) == {:ok, 690_638}
+           end)
   end
 
   @tag backends: [], double_spend_timeout: 1
@@ -52,12 +57,12 @@ defmodule BitPal.Backend.FloweeTest do
       )
 
     MockTCPClient.response(@client, FloweeFixtures.tx_seen())
-    HandlerSubscriberCollector.await_state(stub, :accepted)
+    HandlerSubscriberCollector.await_status(stub, :paid)
 
     assert [
-             {:state, :wait_for_tx, _},
-             {:state, :wait_for_verification},
-             {:state, :accepted}
+             {:invoice_status, :open, _},
+             {:invoice_status, :processing, _},
+             {:invoice_status, :paid, _}
            ] = HandlerSubscriberCollector.received(stub)
   end
 
@@ -70,12 +75,13 @@ defmodule BitPal.Backend.FloweeTest do
       )
 
     MockTCPClient.response(@client, FloweeFixtures.tx_1_conf())
-    HandlerSubscriberCollector.await_state(stub, :accepted)
+    MockTCPClient.response(@client, FloweeFixtures.new_block())
+    HandlerSubscriberCollector.await_status(stub, :paid)
 
     assert [
-             {:state, :wait_for_tx, _},
-             {:confirmations, 1},
-             {:state, :accepted}
+             {:invoice_status, :open, _},
+             {:invoice_status, :processing, _},
+             {:invoice_status, :paid, _}
            ] = HandlerSubscriberCollector.received(stub)
   end
 

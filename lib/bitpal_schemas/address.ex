@@ -2,12 +2,15 @@ defmodule BitPalSchemas.Address do
   use Ecto.Schema
   alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
+  alias BitPalSchemas.Transaction
 
+  @type id :: String.t()
   @type t :: %__MODULE__{
-          id: String.t(),
+          id: id,
           generation_index: non_neg_integer(),
           currency_id: String.t(),
-          currency: Currency.t()
+          currency: Currency.t(),
+          transactions: [Transaction.t()]
         }
 
   @primary_key {:id, :string, []}
@@ -16,6 +19,7 @@ defmodule BitPalSchemas.Address do
     timestamps()
 
     belongs_to(:currency, Currency, type: :string)
-    has_many(:invoices, Invoice)
+    has_one(:invoice, Invoice)
+    has_many(:transactions, Transaction)
   end
 end

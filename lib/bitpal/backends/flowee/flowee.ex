@@ -1,18 +1,19 @@
 defmodule BitPal.Backend.Flowee do
   @behaviour BitPal.Backend
   use GenServer
-  alias BitPal.Addresses
   alias BitPal.Backend
   alias BitPal.Backend.Flowee.Connection
+  alias BitPal.Backend.Flowee.Connection.Binary
   alias BitPal.Backend.Flowee.Protocol
   alias BitPal.Backend.Flowee.Protocol.Message
   alias BitPal.BCH.Cashaddress
+  alias BitPal.Blocks
   alias BitPal.Invoices
-  alias BitPal.Repo
-  alias BitPal.TransactionsOld
-  alias BitPalSchemas.Invoice
-  alias Ecto.Changeset
+  alias BitPal.Transactions
   require Logger
+
+  @supervisor BitPal.Backend.Flowee.TaskSupervisor
+  @bch :BCH
 
   # Client API
 
@@ -29,7 +30,7 @@ defmodule BitPal.Backend.Flowee do
 
   @impl Backend
   def supported_currencies(_backend) do
-    [:BCH]
+    [@bch]
   end
 
   @impl Backend
@@ -60,32 +61,14 @@ defmodule BitPal.Backend.Flowee do
 
   @impl true
   def handle_call({:register, invoice}, _from, state) do
-    address_id = Application.fetch_env!(:bitpal, :address)
+    {:ok, invoice} =
+      Invoices.ensure_address(invoice, fn address_index ->
+        Application.fetch_env!(:bitpal, :xpub)
+        |> Cashaddress.derive_address(address_index)
+      end)
 
-    address =
-      if address = Addresses.get(address_id) do
-        address
-      else
-        {:ok, address} = Addresses.register(invoice.currency_id, address_id, 0)
-        address
-      end
-
-    {:ok, invoice} = Invoices.assign_address(invoice, address)
-
-    # Make sure we are subscribed to the wallet.
     state = watch_wallet(invoice.address_id, state)
 
-    # Register the wallet with the TransactionsOld svc.
-    invoice = TransactionsOld.new(invoice)
-
-    Repo.update!(
-      Changeset.change(%Invoice{id: invoice.id}, %{
-        address_id: invoice.address_id,
-        amount: invoice.amount
-      })
-    )
-
-    # Good to go! Report back!
     {:reply, invoice, state}
   end
 
@@ -101,21 +84,21 @@ defmodule BitPal.Backend.Flowee do
       %Message{type: :info, data: data} ->
         on_info(data, state)
 
-      %Message{type: :newBlock, data: data} ->
+      %Message{type: :new_block, data: data} ->
         on_new_block(data, state)
 
       %Message{type: :version, data: %{version: ver}} ->
         Logger.info("Running Flowee server version: " <> ver)
 
-      %Message{type: :subscribeReply} ->
+      %Message{type: :subscribe_reply} ->
         # We could read the number of new subscriptions if we want to.
         nil
 
-      %Message{type: :onTransaction, data: data} ->
+      %Message{type: :on_transaction, data: data} ->
         # We got notified of a transaction!
         on_transaction(data, state)
 
-      %Message{type: :onDoubleSpend, data: data} ->
+      %Message{type: :on_double_spend, data: data} ->
         # We got notified of a double spend...
         on_double_spend(data, state)
 
@@ -161,60 +144,58 @@ defmodule BitPal.Backend.Flowee do
   end
 
   # Called when we received information from the blockchain.
-  defp on_info(data, _state) do
-    %{blocks: height} = data
-    old_height = TransactionsOld.get_height()
-
-    Logger.info(
-      "Startup: new block height: " <> inspect(height) <> ", was: " <> inspect(old_height)
-    )
-
-    TransactionsOld.set_height(height)
-
-    # NOTE: Examine some old blocks!?
+  defp on_info(%{blocks: height}, _state) do
+    Logger.info("Startup: new block height: #{inspect(height)}")
+    Blocks.set_block_height(@bch, height)
   end
 
   # Called when a new block has been mined (regardless of whether or not it contains one of our transactions)
-  defp on_new_block(data, _state) do
-    %{height: height} = data
+  defp on_new_block(%{height: height}, _state) do
     Logger.info("New block. Height is now: " <> inspect(height))
-    TransactionsOld.set_height(height)
+    Blocks.new_block(@bch, height)
   end
 
   # Called when we received a new transaction.
-  # Note: We get the "transaction visible" immediately when we subscribe, as long as it is not accepted into a block.
+  # Note: We get the "transaction visible" immediately when we subscribe,
+  # as long as it is not accepted into a block.
   # Note: Does not get to modify the state!
   defp on_transaction(data, state) do
     hash_to_addr = Map.get(state, :watching_hashes, state)
 
     # Convert the transaction, it is a hash:
-    %{address: hash} = data
-
-    address = Map.get(hash_to_addr, hash.data, nil)
+    address = Map.get(hash_to_addr, data.address.data, nil)
 
     if address != nil do
-      # We know this address! Tell TransactionsOld about our finding!
+      # We know this address! Tell the world about our finding!
       case data do
-        %{height: height, amount: amount} ->
-          TransactionsOld.accepted(address, amount, height)
+        %{txid: txid, height: height, amount: amount} ->
+          Transactions.confirmed(
+            binary_to_string(txid),
+            address,
+            Money.new(amount, @bch),
+            height
+          )
 
-        %{amount: amount} ->
-          TransactionsOld.seen(address, amount)
+        %{txid: txid, amount: amount} ->
+          Transactions.seen(
+            binary_to_string(txid),
+            address,
+            Money.new(amount, @bch)
+          )
       end
     end
   end
 
   # Called when we received a double spend.
-  defp on_double_spend(data, state) do
+  defp on_double_spend(%{txid: txid, address: hash, amount: amount}, state) do
     hash_to_addr = Map.get(state, :watching_hashes, state)
 
     # Convert the transaction, it is a hash:
-    %{address: hash, amount: amount} = data
     address = Map.get(hash_to_addr, hash.data, nil)
 
     if address != nil do
-      # We know this address! Tell TransactionsOld about our finding!
-      TransactionsOld.doublespend(address, amount)
+      # We know this address! Tell the world about our finding!
+      Transactions.double_spent(txid, address, Money.new(amount, @bch))
     end
   end
 
@@ -228,7 +209,7 @@ defmodule BitPal.Backend.Flowee do
     else
       # Add a mapping from the bitcoin: address and the hashed key and in reverse.
       hash = convert_addr(wallet)
-      wallets = Map.put(wallets, wallet, hash)
+      # wallets = Map.put(wallets, wallet, hash)
 
       hashes = Map.get(state, :watching_hashes, %{})
       hashes = Map.put(hashes, hash, wallet)
@@ -242,15 +223,15 @@ defmodule BitPal.Backend.Flowee do
           nil
       end
 
-      # Add the wallets back into the state.
-      state = Map.put(state, :watching_wallets, wallets)
-      state = Map.put(state, :watching_hashes, hashes)
-      state
+      # Add the wallets back into the state.  state = Map.put(state, :watching_wallets, wallets)
+      Map.put(state, :watching_hashes, hashes)
     end
   end
 
   # (re)start our connection to Flowee
   def start_flowee(state) do
+    Task.Supervisor.start_link(name: @supervisor)
+
     # Connect to Flowee: The Hub, and start listening for messages from it.
     state = start_hub(state)
 
@@ -264,10 +245,15 @@ defmodule BitPal.Backend.Flowee do
     c = Connection.connect(state.tcp_client)
     state = Map.put(state, :hub_connection, c)
 
-    # Start receiving messages for it.
-    # Sorry I'm not using the "standard" monitoring... This solution has the benefit of being able
-    # to restore subscriptions from "state" as needed.
-    pid = spawn(fn -> receive_messages(state.tcp_client, c) end)
+    {:ok, pid} =
+      Task.Supervisor.start_child(
+        @supervisor,
+        __MODULE__,
+        :receive_messages,
+        [state.tcp_client, c]
+      )
+
+    # NOTE register pid in ProcessRegistry instead?
     state = Map.put(state, :hub_pid, pid)
 
     # Monitor it for crashes.
@@ -300,9 +286,13 @@ defmodule BitPal.Backend.Flowee do
 
   # Convert a "bitcoin:..." address to what is needed by Flowee.
   defp convert_addr(address) do
-    key = Cashaddress.decode_cash_url(address)
-    hash = Cashaddress.create_hashed_output_script(key)
-    hash
+    address
+    |> Cashaddress.decode_cash_url()
+    |> Cashaddress.create_hashed_output_script()
+  end
+
+  defp binary_to_string(%Binary{data: data}) do
+    Cashaddress.binary_to_hex(data)
   end
 
   # Helper to subscribe to an address. Accepts the output from "convert_addr".
@@ -312,7 +302,7 @@ defmodule BitPal.Backend.Flowee do
   end
 
   # Receive messages. Executed in another process, so it is OK to block here.
-  defp receive_messages(tcp_client, c) do
+  def receive_messages(tcp_client, c) do
     msg = Protocol.recv(tcp_client, c)
     GenServer.cast(__MODULE__, {:message, msg})
 

@@ -17,12 +17,15 @@ defmodule BitPal.IntegrationCase do
       import BitPal.TestHelpers
       import BitPal.IntegrationCase, only: [setup_integration: 0, setup_integration: 1]
 
+      alias BitPal.Addresses
       alias BitPal.BackendManager
       alias BitPal.BackendMock
+      alias BitPal.Currencies
+      alias BitPal.ExchangeRate
       alias BitPal.InvoiceManager
       alias BitPal.Invoices
       alias BitPal.Repo
-      alias BitPal.TransactionsOld
+      alias BitPal.Transactions
       alias BitPalSchemas.Invoice
     end
   end
@@ -34,12 +37,15 @@ defmodule BitPal.IntegrationCase do
   def setup_integration(tags \\ []) do
     start_supervised!({Phoenix.PubSub, name: BitPal.PubSub})
     start_supervised!(BitPal.ProcessRegistry)
+    start_supervised!(BitPal.RuntimeStorage)
 
     setup_db(tags)
 
     if tags[:backends] do
       setup_backends(tags)
     end
+
+    BitPal.Currencies.register!([:XMR, :BCH, :DGC])
 
     :ok
   end
@@ -54,8 +60,6 @@ defmodule BitPal.IntegrationCase do
   end
 
   defp setup_backends(tags) do
-    transactions = start_supervised!(BitPal.TransactionsOld)
-
     # Only start backend if explicitly told to
     backend_manager =
       if backends = backends(tags) do
@@ -71,8 +75,7 @@ defmodule BitPal.IntegrationCase do
 
     %{
       backend_manager: backend_manager,
-      invoice_manager: invoice_manager,
-      transactions: transactions
+      invoice_manager: invoice_manager
     }
   end
 

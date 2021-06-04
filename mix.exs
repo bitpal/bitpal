@@ -9,7 +9,10 @@ defmodule BitPal.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+      dialyzer: [
+        ignore_warnings: ".dialyzer_ignore.exs"
+      ]
     ]
   end
 
@@ -32,20 +35,20 @@ defmodule BitPal.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix_pubsub, "~> 2.0"},
-      {:ecto_sql, "~> 3.4"},
-      {:postgrex, ">= 0.0.0"},
-      {:jason, "~> 1.0"},
-      {:httpoison, "~> 1.7"},
-      {:poison, "~> 3.1"},
+      {:ci, "~> 0.1.0"},
+      {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
+      {:ecto_sql, "~> 3.6"},
       {:eqrcode, "~> 0.1.7"},
+      {:ex_doc, "~> 0.24", only: :dev, runtime: false},
+      {:httpoison, "~> 1.7"},
+      {:jason, "~> 1.0"},
       {:libsecp256k1, "~> 0.1.9"},
       {:money, "~> 1.8"},
       {:mox, "~> 1.0"},
-      {:ex_doc, "~> 0.24", only: :dev, runtime: false},
-      {:ci, "~> 0.1.0"},
-      {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.0", only: [:dev], runtime: false}
+      {:phoenix_pubsub, "~> 2.0"},
+      {:poison, "~> 3.1"},
+      {:postgrex, ">= 0.0.0"}
     ]
   end
 
