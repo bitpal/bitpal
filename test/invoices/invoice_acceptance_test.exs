@@ -1,4 +1,4 @@
-defmodule InvoiceHandlerTest do
+defmodule BitPal.InvoiceAcceptanceTest do
   use BitPal.IntegrationCase
   alias BitPal.BackendMock
 
@@ -9,31 +9,40 @@ defmodule InvoiceHandlerTest do
 
     BackendMock.tx_seen(inv)
 
-    HandlerSubscriberCollector.await_state(stub, :accepted)
+    HandlerSubscriberCollector.await_status(stub, :paid)
 
     assert [
-             {:state, :wait_for_tx, _},
-             {:state, :wait_for_verification},
-             {:state, :accepted}
+             {:invoice_status, :open, _},
+             {:invoice_status, :processing, _},
+             # {:tx_seen, _, _},
+             {:invoice_status, :paid, _}
            ] = HandlerSubscriberCollector.received(stub)
   end
 
-  @tag backends: true, double_spend_timeout: 1_000
+  @tag backends: true, double_spend_timeout: 1_000, run: true
   test "accept when block is found while waiting for double spend timout" do
     {:ok, inv, stub, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(required_confirmations: 0)
 
     BackendMock.tx_seen(inv)
-    BackendMock.new_block(inv)
+    BackendMock.confirmed_in_new_block(inv)
 
-    HandlerSubscriberCollector.await_state(stub, :accepted)
+    HandlerSubscriberCollector.await_status(stub, :paid)
 
     assert [
-             {:state, :wait_for_tx, _},
-             {:state, :wait_for_verification},
-             {:confirmations, 1},
-             {:state, :accepted}
+             {:invoice_status, :open, _},
+             {:invoice_status, :processing, _},
+             # {:tx_seen, %Transaction{confirmed_height: nil}, _},
+             # {:tx_confirmed, tx, _},
+             # {:tx_confirmed, _, _},
+             {:invoice_status, :paid, _}
+             # {:state, :wait_for_tx, _},
+             # {:state, :wait_for_verification},
+             # {:confirmations, 1},
+             # {:state, :accepted}
            ] = HandlerSubscriberCollector.received(stub)
+
+    # assert Transactions.num_confirmations(tx) == 1
   end
 
   @tag backends: true
@@ -42,40 +51,58 @@ defmodule InvoiceHandlerTest do
       HandlerSubscriberCollector.create_invoice(required_confirmations: 1)
 
     BackendMock.tx_seen(inv)
-    BackendMock.new_block(inv)
+    BackendMock.confirmed_in_new_block(inv)
 
-    HandlerSubscriberCollector.await_state(stub, :accepted)
+    HandlerSubscriberCollector.await_status(stub, :paid)
 
     assert [
-             {:state, :wait_for_tx, _},
-             {:state, :wait_for_confirmations},
-             {:confirmations, 1},
-             {:state, :accepted}
+             {:invoice_status, :open, _},
+             {:invoice_status, :processing, _},
+             {:invoice_status, :paid, _}
            ] = HandlerSubscriberCollector.received(stub)
   end
 
   @tag backends: true
+  test "confirmed without being seen" do
+    {:ok, inv, stub, _invoice_handler} =
+      HandlerSubscriberCollector.create_invoice(required_confirmations: 1)
+
+    BackendMock.confirmed_in_new_block(inv)
+
+    HandlerSubscriberCollector.await_status(stub, :paid)
+
+    assert [
+             {:invoice_status, :open, _},
+             {:invoice_status, :processing, _},
+             {:invoice_status, :paid, _}
+           ] = HandlerSubscriberCollector.received(stub)
+  end
+
+  @tag backends: true, many: true
   test "accepts after multiple confirmations" do
     {:ok, inv, stub, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(required_confirmations: 3)
 
     BackendMock.tx_seen(inv)
-    BackendMock.new_block(inv)
+    BackendMock.confirmed_in_new_block(inv)
     BackendMock.issue_blocks(5)
 
-    HandlerSubscriberCollector.await_state(stub, :accepted)
+    HandlerSubscriberCollector.await_status(stub, :paid)
 
     assert [
-             {:state, :wait_for_tx, _},
-             {:state, :wait_for_confirmations},
-             {:confirmations, 1},
-             {:confirmations, 2},
-             {:confirmations, 3},
-             {:state, :accepted}
+             {:invoice_status, :open, _},
+             {:invoice_status, :processing, _},
+             {:invoice_status, :paid, _}
+             # {:state, :wait_for_tx, _},
+             # {:state, :wait_for_confirmations},
+             # {:confirmations, 1},
+             # {:confirmations, 2},
+             # {:confirmations, 3},
+             # {:state, :accepted}
            ] = HandlerSubscriberCollector.received(stub)
   end
 
-  @tag backends: true, double_spend_timeout: 1
+  @tag backends: true, double_spend_timeout: 1, multi: true
   test "multiple invoices" do
     {:ok, inv0, stub0, _} =
       HandlerSubscriberCollector.create_invoice(
@@ -97,50 +124,49 @@ defmodule InvoiceHandlerTest do
 
     BackendMock.tx_seen(inv0)
     BackendMock.tx_seen(inv1)
-    HandlerSubscriberCollector.await_state(stub0, :accepted)
-    HandlerSubscriberCollector.await_state(stub1, :wait_for_confirmations)
+    HandlerSubscriberCollector.await_status(stub0, :paid)
+    HandlerSubscriberCollector.await_status(stub1, :processing)
 
     assert [
-             {:state, :wait_for_tx, _},
-             {:state, :wait_for_verification},
-             {:state, :accepted}
+             {:invoice_status, :open, _},
+             {:invoice_status, :processing, _},
+             {:invoice_status, :paid, _}
            ] = HandlerSubscriberCollector.received(stub0)
 
     assert [
-             {:state, :wait_for_tx, _},
-             {:state, :wait_for_confirmations}
+             {:invoice_status, :open, _},
+             {:invoice_status, :processing, _}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
-             {:state, :wait_for_tx, _}
+             {:invoice_status, :open, _}
            ] = HandlerSubscriberCollector.received(stub2)
 
-    BackendMock.new_block(inv2)
-    HandlerSubscriberCollector.await_msg(stub2, {:confirmations, 1})
+    BackendMock.confirmed_in_new_block(inv2)
+    HandlerSubscriberCollector.await_status(stub2, :processing)
 
     assert [
-             {:state, :wait_for_tx, _},
-             {:state, :wait_for_confirmations}
+             {:invoice_status, :open, _},
+             {:invoice_status, :processing, _}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
-             {:state, :wait_for_tx, _},
-             {:confirmations, 1}
+             {:invoice_status, :open, _},
+             {:invoice_status, :processing, _}
            ] = HandlerSubscriberCollector.received(stub2)
 
     BackendMock.issue_blocks(2)
-    HandlerSubscriberCollector.await_state(stub2, :accepted)
+    HandlerSubscriberCollector.await_status(stub2, :paid)
 
     assert [
-             {:state, :wait_for_tx, _},
-             {:state, :wait_for_confirmations}
+             {:invoice_status, :open, _},
+             {:invoice_status, :processing, _}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
-             {:state, :wait_for_tx, _},
-             {:confirmations, 1},
-             {:confirmations, 2},
-             {:state, :accepted}
+             {:invoice_status, :open, _},
+             {:invoice_status, :processing, _},
+             {:invoice_status, :paid, _}
            ] = HandlerSubscriberCollector.received(stub2)
   end
 
@@ -151,23 +177,24 @@ defmodule InvoiceHandlerTest do
     {:ok, inv0, _, handler0} = HandlerSubscriberCollector.create_invoice(inv)
     {:ok, inv1, _, handler1} = HandlerSubscriberCollector.create_invoice(inv)
 
-    assert inv0.amount != inv1.amount
+    assert inv0.amount == inv1.amount
+    assert inv0.address_id != inv1.address_id
     assert handler0 != handler1
   end
 
-  @tag backends: true, double_spend_timeout: 1_000
+  @tag backends: true, double_spend_timeout: 1_000, do: true
   test "Detect early 0-conf doublespend" do
     {:ok, inv, stub, _} = HandlerSubscriberCollector.create_invoice(required_confirmations: 0)
 
     BackendMock.tx_seen(inv)
     BackendMock.doublespend(inv)
 
-    HandlerSubscriberCollector.await_state(stub, {:denied, :doublespend})
+    HandlerSubscriberCollector.await_status(stub, :uncollectible)
 
     assert [
-             {:state, :wait_for_tx, _},
-             {:state, :wait_for_verification},
-             {:state, {:denied, :doublespend}}
+             {:invoice_status, :open, _},
+             {:invoice_status, :processing, _},
+             {:invoice_status, :uncollectible, _}
            ] = HandlerSubscriberCollector.received(stub)
   end
 end

@@ -1,14 +1,9 @@
 defmodule InvoiceCreationTest do
-  use BitPal.IntegrationCase, db: true, async: true
+  use BitPal.IntegrationCase, db: true, async: false
   alias BitPal.Addresses
-  alias BitPal.Currencies
   alias BitPal.ExchangeRate
   alias BitPal.Invoices
   alias BitPalSchemas.Address
-
-  setup do
-    Currencies.register!([:XMR, :BCH, :DGC])
-  end
 
   test "invoice registration" do
     # we don't have to provide fiat_amount
@@ -23,15 +18,14 @@ defmodule InvoiceCreationTest do
     assert invoice.id != nil
     assert invoice.amount == Money.parse!(1.2, "BCH")
     assert invoice.fiat_amount == Money.parse!(2.4, "USD")
-    assert invoice.status == :pending
+    assert invoice.status == :draft
     assert invoice.currency_id == "BCH"
     assert invoice.currency.id == "BCH"
     assert invoice.address_id == nil
 
     assert invoice.exchange_rate == %ExchangeRate{
              rate: Decimal.from_float(2.0),
-             a: :BCH,
-             b: :USD
+             pair: {:BCH, :USD}
            }
 
     assert in_db = Invoices.fetch!(invoice.id)
@@ -83,7 +77,7 @@ defmodule InvoiceCreationTest do
                exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "USD"})
              })
 
-    assert {:ok, address} = Addresses.register(:BCH, "bch:0", 0)
+    assert {:ok, address} = Addresses.register(:BCH, "bch:0", Addresses.next_address_index("BCH"))
 
     assert {:ok, invoice} = Invoices.assign_address(invoice, address)
     assert invoice.address == address
@@ -94,6 +88,49 @@ defmodule InvoiceCreationTest do
                generation_index: 1,
                currency_id: "BCH"
              })
+  end
+
+  test "ensuring addresses" do
+    assert {:ok, inv} =
+             Invoices.register(%{
+               amount: Money.parse!(1.2, "BCH"),
+               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "USD"})
+             })
+
+    assert {:ok, one = %{address_id: "one"}} =
+             Invoices.ensure_address(inv, fn _ ->
+               "one"
+             end)
+
+    assert {:ok, ^one} =
+             Invoices.ensure_address(one, fn _ ->
+               "xxx"
+             end)
+
+    assert {:error, _} =
+             Invoices.ensure_address(inv, fn _ ->
+               "one"
+             end)
+
+    assert {:ok, %{address_id: "two"}} =
+             Invoices.ensure_address(inv, fn _ ->
+               "two"
+             end)
+
+    ind = Addresses.next_address_index(:BCH)
+
+    assert {:ok, _} =
+             Invoices.register(%{
+               amount: Money.parse!(1.2, "BCH"),
+               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "USD"})
+             })
+
+    assert {:ok, %{address_id: "three"}} =
+             Invoices.ensure_address(inv, fn _ ->
+               "three"
+             end)
+
+    assert Addresses.next_address_index(:BCH) != ind
   end
 
   test "amount calculations" do
@@ -124,8 +161,7 @@ defmodule InvoiceCreationTest do
 
     assert invoice.exchange_rate == %ExchangeRate{
              rate: Decimal.new(2),
-             a: :BCH,
-             b: :USD
+             pair: {:BCH, :USD}
            }
 
     # if we provide them all, they must match
@@ -163,5 +199,37 @@ defmodule InvoiceCreationTest do
 
     assert Money.to_decimal(invoice.fiat_amount) ==
              Decimal.from_float(254_000_000_000_000_000.000_000_02)
+  end
+
+  @tag backends: true
+  test "register via finalize" do
+    assert {:ok, _} =
+             BitPal.register_and_finalize(%{
+               amount: Money.parse!(1.2, "BCH"),
+               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "USD"})
+             })
+
+    assert {:ok, invoice} =
+             Invoices.register(%{
+               amount: Money.parse!(1.2, "BCH"),
+               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "USD"})
+             })
+
+    assert {:ok, _} = BitPal.finalize(invoice)
+
+    assert {:error, _} =
+             BitPal.finalize(%Invoice{
+               amount: Money.parse!(1.2, "BCH"),
+               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "USD"})
+             })
+
+    assert {:error, _} =
+             BitPal.finalize(%Invoice{
+               id: Ecto.UUID.bingenerate(),
+               amount: Money.parse!(1.2, "BCH"),
+               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "USD"})
+             })
+
+    Process.sleep(200)
   end
 end

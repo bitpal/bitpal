@@ -8,6 +8,8 @@ defmodule BitPal.Addresses do
   alias BitPalSchemas.Invoice
   alias Ecto.Multi
 
+  @type address_index :: non_neg_integer
+
   @spec get(String.t()) :: Address.t() | nil
   def get(address) do
     from(a in Address,
@@ -16,7 +18,7 @@ defmodule BitPal.Addresses do
     |> Repo.one()
   end
 
-  @spec register(Currency.id(), [{String.t(), non_neg_integer}]) ::
+  @spec register(Currency.id(), [{Address.id(), address_index}]) ::
           {:ok, %{String.t() => Address.t()}} | {:error, Ecto.Changeset.t()}
   def register(currency, addresses) do
     Enum.reduce(addresses, Multi.new(), fn {address, index}, multi ->
@@ -25,14 +27,28 @@ defmodule BitPal.Addresses do
     |> Repo.transaction()
   end
 
-  @spec register(Currency.id(), String.t(), non_neg_integer) ::
+  @spec register(Currency.id(), Address.id(), address_index) ::
           {:ok, Address.t()} | {:error, Ecto.Changeset.t()}
   def register(currency, address, address_index) do
     register_changeset(currency, address, address_index)
     |> Repo.insert()
   end
 
-  @spec register_changeset(Currency.id(), String.t(), non_neg_integer) :: Ecto.Changeset.t()
+  @spec register_with(Currency.id(), (address_index -> Address.id())) ::
+          {:ok, Address.t()} | {:error, Ecto.Changeset.t()}
+  def register_with(currency, address_generator) do
+    address_index = next_address_index(currency)
+    address_id = address_generator.(address_index)
+    register(currency, address_id, address_index)
+  end
+
+  @spec register_next_address(Currency.id(), Address.id()) ::
+          {:ok, Address.t()} | {:error, Ecto.Changeset.t()}
+  def register_next_address(currency_id, address_id) do
+    register(currency_id, address_id, next_address_index(currency_id))
+  end
+
+  @spec register_changeset(Currency.id(), Address.id(), address_index) :: Ecto.Changeset.t()
   defp register_changeset(currency, address, address_index) do
     change(%Address{
       id: address,
@@ -48,7 +64,7 @@ defmodule BitPal.Addresses do
   When generating addresses we track an unique index for each generation. This returns
   the next index, increasing from 0.
   """
-  @spec next_address_index(Currency.id()) :: non_neg_integer
+  @spec next_address_index(Currency.id()) :: address_index
   def next_address_index(currency) do
     case from(a in Address,
            where: a.currency_id == ^Currencies.normalize(currency),

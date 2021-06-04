@@ -5,11 +5,12 @@ defmodule BitPal.BackendMock do
   import BitPal.ConfigHelpers
   alias BitPal.Addresses
   alias BitPal.Backend
+  alias BitPal.BCH.Cashaddress
+  alias BitPal.Blocks
   alias BitPal.Invoices
-  alias BitPal.Repo
-  alias BitPal.TransactionsOld
+  alias BitPal.Transactions
+  alias BitPalSchemas.Address
   alias BitPalSchemas.Invoice
-  alias Ecto.Changeset
 
   @type backend :: pid() | module()
 
@@ -52,8 +53,8 @@ defmodule BitPal.BackendMock do
     GenServer.call(backend, {:doublespend, invoice})
   end
 
-  def new_block(backend \\ __MODULE__, invoices) do
-    GenServer.call(backend, {:new_block, invoices})
+  def confirmed_in_new_block(backend \\ __MODULE__, invoice) do
+    GenServer.call(backend, {:confirmed_in_new_block, invoice})
   end
 
   def issue_blocks(backend \\ __MODULE__, block_count, time_between_blocks \\ 0) do
@@ -67,10 +68,17 @@ defmodule BitPal.BackendMock do
     opts =
       opts
       |> Enum.into(%{})
-      |> Map.put_new(:currencies, [:BCH])
+      |> Map.put_new(:currency, :BCH)
       |> Map.put_new(:height, 0)
       |> Map.put_new(:auto, false)
-      |> Map.put_new(:address, "bitcoincash:qqpkcce4lzdc8guam5jfys9prfyhr90seqzakyv4tu")
+      |> Map.put_new(:tx_index, 0)
+      |> (fn map ->
+            if Map.has_key?(map, :address) do
+              map
+            else
+              Map.put_new(map, :xpub, Application.fetch_env!(:bitpal, :xpub))
+            end
+          end).()
 
     if opts.auto do
       setup_auto_blocks(opts)
@@ -84,7 +92,7 @@ defmodule BitPal.BackendMock do
     setup_auto = opts[:auto] && !state[:auto]
 
     state =
-      update_state(state, opts, [:auto, :time_until_tx_seen, :time_between_blocks, :currencies])
+      update_state(state, opts, [:auto, :time_until_tx_seen, :time_between_blocks, :currency])
 
     if setup_auto do
       setup_auto_blocks(state)
@@ -94,29 +102,13 @@ defmodule BitPal.BackendMock do
   end
 
   @impl true
-  def handle_call(:supported_currencies, _, state = %{currencies: currencies}) do
-    {:reply, currencies, state}
+  def handle_call(:supported_currencies, _, state) do
+    {:reply, [state.currency], state}
   end
 
   @impl true
   def handle_call({:register, invoice}, _from, state) do
-    address =
-      if address = Addresses.get(state.address) do
-        address
-      else
-        {:ok, address} = Addresses.register(invoice.currency_id, state.address, 0)
-        address
-      end
-
-    {:ok, invoice} = Invoices.assign_address(invoice, address)
-    invoice = TransactionsOld.new(invoice)
-
-    Repo.update!(
-      Changeset.change(%Invoice{id: invoice.id}, %{
-        address_id: invoice.address_id,
-        amount: invoice.amount
-      })
-    )
+    {:ok, invoice} = ensure_address(invoice, state)
 
     if state.auto do
       setup_auto_invoice(invoice, state)
@@ -127,31 +119,23 @@ defmodule BitPal.BackendMock do
 
   @impl true
   def handle_call({:tx_seen, invoice}, _from, state) do
-    TransactionsOld.seen(invoice.address_id, invoice.amount.amount)
+    # IO.puts("marking as seen #{invoice.address_id}")
+    {:ok, _} = Transactions.seen(generate_txid(), invoice.address_id, invoice.amount)
+
     {:reply, :ok, state}
   end
 
   @impl true
   def handle_call({:doublespend, invoice}, _from, state) do
-    TransactionsOld.doublespend(invoice.address_id, invoice.amount.amount)
+    {:ok, tx} = Invoices.one_transaction(invoice)
+    {:ok, _} = Transactions.double_spent(tx.id, invoice.address_id, tx.amount)
     {:reply, :ok, state}
   end
 
   @impl true
-  def handle_call({:new_block, invoices}, _from, state) when is_list(invoices) do
+  def handle_call({:confirmed_in_new_block, invoice}, _from, state) do
     state = incr_height(state)
-
-    Enum.each(invoices, fn invoice ->
-      TransactionsOld.accepted(invoice.address_id, invoice.amount.amount, state.height)
-    end)
-
-    {:reply, :ok, state}
-  end
-
-  @impl true
-  def handle_call({:new_block, invoice}, _from, state) do
-    state = incr_height(state)
-    TransactionsOld.accepted(invoice.address_id, invoice.amount.amount, state.height)
+    confirm_transactions(invoice, state)
     {:reply, :ok, state}
   end
 
@@ -163,7 +147,7 @@ defmodule BitPal.BackendMock do
 
   @impl true
   def handle_info({:auto_tx_seen, invoice}, state) do
-    TransactionsOld.seen(invoice.address_id, invoice.amount.amount)
+    {:ok, _} = Transactions.seen(generate_txid(), invoice.address_id, invoice.amount)
     {:noreply, append_auto_confirm(state, invoice)}
   end
 
@@ -194,7 +178,7 @@ defmodule BitPal.BackendMock do
 
   defp incr_height(state) do
     height = state.height + 1
-    TransactionsOld.set_height(height)
+    :ok = Blocks.new_block(state.currency, height)
 
     %{state | height: height}
     |> auto_confirm_invoices
@@ -209,9 +193,10 @@ defmodule BitPal.BackendMock do
   end
 
   defp auto_confirm_invoices(state = %{auto_confirm: invoices}) do
-    Enum.each(invoices, fn invoice ->
-      TransactionsOld.accepted(invoice.address_id, invoice.amount.amount, state.height)
-    end)
+    state =
+      Enum.reduce(invoices, state, fn invoice, state ->
+        confirm_transactions(invoice, state)
+      end)
 
     Map.delete(state, :auto_confirm)
   end
@@ -222,5 +207,43 @@ defmodule BitPal.BackendMock do
 
   defp append_auto_confirm(state, invoice) do
     Map.update(state, :auto_confirm, [invoice], fn xs -> [invoice | xs] end)
+  end
+
+  @spec ensure_address(Invoice.t(), map) :: {:ok, Address.t()}
+  defp ensure_address(invoice, %{address: address_id}) do
+    if address = Addresses.get(address_id) do
+      {:ok, address}
+    else
+      Addresses.register_next_address(invoice.currency_id, address_id)
+    end
+  end
+
+  defp ensure_address(invoice, %{xpub: xpub, currency: :BCH}) do
+    Invoices.ensure_address(invoice, fn address_index ->
+      Cashaddress.derive_address(xpub, address_index)
+    end)
+  end
+
+  defp ensure_address(_invoice, %{xpub: _xpub, currency: currency}) do
+    raise RuntimeError, "not implemented mocking with xpub for currency #{currency}"
+  end
+
+  defp generate_txid do
+    "txid:#{System.unique_integer()}"
+  end
+
+  defp confirm_transactions(invoice, state) do
+    txid =
+      case Invoices.one_transaction(invoice) do
+        {:ok, tx} ->
+          tx.id
+
+        _ ->
+          generate_txid()
+      end
+
+    {:ok, _} = Transactions.confirmed(txid, invoice.address_id, invoice.amount, state.height)
+
+    state
   end
 end

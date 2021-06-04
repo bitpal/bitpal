@@ -4,13 +4,30 @@ defmodule BitPal.BCH.Cashaddress do
   """
 
   use Bitwise
+  alias BitPal.BCH.KeyTree
   alias BitPal.Crypto.Base32
+  alias BitPal.RuntimeStorage
 
   # ASCII prefix for BCH URL:s.
   @ascii_prefix "bitcoincash:"
 
   # Bytes used in checksumming
   @checksum_prefix <<0x02, 0x09, 0x14, 0x03, 0x0F, 0x09, 0x0E, 0x03, 0x01, 0x13, 0x08, 0x00>>
+
+  @doc """
+  Derive a BCH address from a raw xpub key.
+  Caches key import using `BitPal.RuntimeStorage`.
+  """
+  def derive_address(xpub = "xpub" <> _, address_index) when address_index >= 0 do
+    RuntimeStorage.get_or_put_lazy({:xpub_account, xpub}, fn ->
+      xpub
+      |> KeyTree.import_key()
+      |> KeyTree.child_key(0)
+    end)
+    |> KeyTree.child_key(address_index)
+    |> KeyTree.key_hash()
+    |> encode_cash_url()
+  end
 
   @doc """
   Decode a BCH url. Returns the public key, or :error

@@ -66,7 +66,7 @@ defmodule BitPal.BCH.KeyTree do
 
   def to_public(key = %Private{}) do
     %Public{
-      key: EC.to_public(key.key),
+      key: EC.to_public!(key.key),
       chaincode: key.chaincode,
       depth: key.depth,
       child_id: key.child_id,
@@ -95,23 +95,23 @@ defmodule BitPal.BCH.KeyTree do
         <<0x00>> <> key.key <> <<id::32>>
       else
         # Normal key
-        EC.to_public(key.key) <> <<id::32>>
+        EC.to_public!(key.key) <> <<id::32>>
       end
 
     <<nkey::binary-size(32), ncode::binary-size(32)>> = hmac_sha512(key.chaincode, seed)
-    nkey = EC.privkey_add(key.key, nkey)
 
-    if nkey == :error do
-      # This means that we got zero, or that "nkey" was out of range (larger than modulo)
-      :error
-    else
-      %Private{
-        key: nkey,
-        chaincode: ncode,
-        depth: key.depth + 1,
-        child_id: id,
-        parent_fingerprint: key_fingerprint(key)
-      }
+    case EC.privkey_add(key.key, nkey) do
+      {:ok, nkey} ->
+        %Private{
+          key: nkey,
+          chaincode: ncode,
+          depth: key.depth + 1,
+          child_id: id,
+          parent_fingerprint: key_fingerprint(key)
+        }
+
+      {:error, _} ->
+        :error
     end
   end
 
@@ -123,19 +123,18 @@ defmodule BitPal.BCH.KeyTree do
     <<nkey::binary-size(32), ncode::binary-size(32)>> =
       hmac_sha512(key.chaincode, key.key <> <<id::32>>)
 
-    nkey = EC.pubkey_add(key.key, nkey)
+    case EC.pubkey_add(key.key, nkey) do
+      {:ok, nkey} ->
+        %Public{
+          key: nkey,
+          chaincode: ncode,
+          depth: key.depth + 1,
+          child_id: id,
+          parent_fingerprint: key_fingerprint(key)
+        }
 
-    if nkey == :error do
-      # This means that we got zero, or that "nkey" was out of range (larger than modulo)
-      :error
-    else
-      %Public{
-        key: nkey,
-        chaincode: ncode,
-        depth: key.depth + 1,
-        child_id: id,
-        parent_fingerprint: key_fingerprint(key)
-      }
+      {:error, _} ->
+        :error
     end
   end
 

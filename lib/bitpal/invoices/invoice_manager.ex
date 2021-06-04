@@ -1,9 +1,7 @@
 defmodule BitPal.InvoiceManager do
   use GenServer
   import BitPal.ConfigHelpers, only: [update_state: 3]
-  alias BitPal.InvoiceEvent
   alias BitPal.InvoiceHandler
-  alias BitPal.Invoices
   alias BitPal.ProcessRegistry
   alias BitPalSchemas.Invoice
 
@@ -13,21 +11,10 @@ defmodule BitPal.InvoiceManager do
     GenServer.start(__MODULE__, opts, name: __MODULE__)
   end
 
-  @spec register_invoice(Invoices.register_params()) ::
-          {:ok, Invoice.id()} | {:error, Ecto.Changeset.t()}
-  def register_invoice(params) do
-    # Validates and register to get an invoice id,
-    # then we pass it to the backend that generates a receiving address or
-    # alters the requested amount, in an asynchronous manner.
-    case Invoices.register(params) do
-      {:ok, invoice} ->
-        InvoiceEvent.subscribe(invoice.id)
-        GenServer.call(__MODULE__, {:track_invoice, invoice.id})
-        {:ok, invoice.id}
-
-      err ->
-        err
-    end
+  @spec track(Invoice.t()) :: {:ok, Invoice.id()} | {:error, Ecto.Changeset.t()}
+  def track(invoice) do
+    GenServer.call(__MODULE__, {:track_invoice, invoice.id})
+    {:ok, invoice.id}
   end
 
   @spec count_children() :: non_neg_integer
@@ -50,8 +37,7 @@ defmodule BitPal.InvoiceManager do
     DynamicSupervisor.which_children(@supervisor)
     |> Enum.map(fn {_, pid, _, _} ->
       pid
-      |> InvoiceHandler.get_invoice_id()
-      |> Invoices.fetch!()
+      |> InvoiceHandler.get_invoice()
     end)
   end
 

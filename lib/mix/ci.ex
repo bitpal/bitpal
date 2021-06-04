@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Bitpal.Ci do
+defmodule Mix.Tasks.Quality.Ci do
   @moduledoc """
   CI, mostly as generated from `mix ci.init`
   """
@@ -16,12 +16,13 @@ defmodule Mix.Tasks.Bitpal.Ci do
       Pipeline.sequence([
         mix("compile --warnings-as-errors"),
         Pipeline.parallel([
+          mix("dialyzer"),
           mix("test"),
           mix("format --check-formatted"),
           mix("credo --all --strict")
         ])
       ]),
-      timeout: :timer.minutes(10),
+      timeout: :timer.minutes(15),
       telemetry_id: [:ci]
     )
     |> report_errors()

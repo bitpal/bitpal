@@ -11,39 +11,22 @@ defmodule BitPal.Crypto.EC do
   @doc """
   Convert a private key (an integer) to a public key (a point).
   """
-  def to_public(key) do
-    {ok, pub} = :libsecp256k1.ec_pubkey_create(key, :compressed)
-
-    if ok do
-      pub
-    else
-      :error
-    end
+  def to_public!(key) do
+    {:ok, pub} = :libsecp256k1.ec_pubkey_create(key, :compressed)
+    pub
   end
 
   @doc """
   Add N times the generator to a point.
   """
   def pubkey_add(key, n) do
-    {ok, pub} = :libsecp256k1.ec_pubkey_tweak_add(key, n)
-
-    if ok do
-      pub
-    else
-      :error
-    end
+    :libsecp256k1.ec_pubkey_tweak_add(key, n)
   end
 
   @doc """
   Add N to the private key (modulo the ring's moduli).
   """
   def privkey_add(key, n) do
-    {ok, pub} = :libsecp256k1.ec_privkey_tweak_add(key, n)
-
-    if ok do
-      pub
-    else
-      :error
-    end
+    :libsecp256k1.ec_privkey_tweak_add(key, n)
   end
 end

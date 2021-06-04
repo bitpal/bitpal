@@ -13,10 +13,10 @@ defmodule BitPal.Application do
       BitPal.Repo,
       {Phoenix.PubSub, name: BitPal.PubSub},
       BitPal.ProcessRegistry,
-      BitPal.TransactionsOld,
-      BitPal.BackendManager,
+      BitPal.RuntimeStorage,
+      BitPal.ExchangeRateSupervisor,
       BitPal.InvoiceManager,
-      BitPal.ExchangeRateSupervisor
+      BitPal.BackendManager
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: BitPal.Supervisor)

@@ -121,7 +121,7 @@ defmodule BitPal.Backend.Flowee.Protocol do
   defp get_output(output) do
     case output do
       [] -> []
-      [:transactionId | rest] -> [{43, true} | get_output(rest)]
+      [:txid | rest] -> [{43, true} | get_output(rest)]
       [:offset | rest] -> [{44, true} | get_output(rest)]
       [:inputs | rest] -> [{46, true} | get_output(rest)]
       [:outputs | rest] -> [{49, true} | get_output(rest)]
@@ -192,9 +192,7 @@ defmodule BitPal.Backend.Flowee.Protocol do
 
   # Receive some message (blocking)
   def recv(tcp_client, c) do
-    msg = Connection.recv(tcp_client, c)
-
-    %RawMsg{service: service, message: message, data: body} = msg
+    %RawMsg{service: service, message: message, data: body} = Connection.recv(tcp_client, c)
 
     case {service, message} do
       {@service_api, 1} ->
@@ -207,13 +205,13 @@ defmodule BitPal.Backend.Flowee.Protocol do
           :info,
           [
             difficulty: 64,
-            medianTime: 65,
-            chainWork: 66,
+            median_time: 65,
+            chain_work: 66,
             chain: 67,
             blocks: 68,
             headers: 69,
-            bestBlockHash: 70,
-            verificationProgress: 71
+            best_block_hash: 70,
+            verification_progress: 71
           ],
           body
         )
@@ -224,32 +222,32 @@ defmodule BitPal.Backend.Flowee.Protocol do
 
       {@service_blocknotification, 4} ->
         # Notified of a block
-        make_msg(:newBlock, [hash: 5, height: 7], body)
+        make_msg(:new_block, [hash: 5, height: 7], body)
 
       {@service_addressmonitor, 1} ->
         # Reply for subscriptions. Note: The documentation is incorrect with the IDs here.
-        make_msg_opt(:subscribeReply, [result: 21, error: 20], body)
+        make_msg_opt(:subscribe_reply, [result: 21, error: 20], body)
 
       {@service_addressmonitor, 3} ->
         # Sent when an address we monitor is involved in a transaction. Offset is only present when
         # the transaction is accepted in a block.
         make_msg_opt(
-          :onTransaction,
-          [transactionId: 4, address: 9, amount: 6, height: 7, offset: 8],
+          :on_transaction,
+          [txid: 4, address: 9, amount: 6, height: 7, offset: 8],
           body
         )
 
       {@service_addressmonitor, 4} ->
         # Sent when a double-spend is found.
         make_msg_opt(
-          :onDoubleSpend,
-          [transactionId: 4, address: 9, amount: 6, transaction: 1],
+          :on_double_spend,
+          [txid: 4, address: 9, amount: 6, transaction: 1],
           body
         )
 
       {@service_indexer, 1} ->
         # Indexer reply to what it is indexing.
-        make_msg_opt(:availableIndexers, [address: 21, transaction: 22, spentOutput: 23], body)
+        make_msg_opt(:available_indexers, [address: 21, transaction: 22, spentOutput: 23], body)
 
       {@service_indexer, 3} ->
         # Indexer reply to "find transaction"
@@ -261,10 +259,7 @@ defmodule BitPal.Backend.Flowee.Protocol do
 
       _ ->
         # Unknown message!
-        raise(
-          "Unknown message: " <>
-            Kernel.inspect({service, message}) <> " " <> Kernel.inspect(msg.data)
-        )
+        raise("Unknown message: #{Kernel.inspect({service, message})} #{Kernel.inspect(body)}")
     end
   end
 
@@ -290,7 +285,7 @@ defmodule BitPal.Backend.Flowee.Protocol do
         parse_get_block(rest, Map.put(data, :raw, raw))
 
       [{8, _} | _] ->
-        # Note: TransactionsOld will be in reverse order compared to what we get from flowee. We reverse the list later.
+        # Note: reverse later?
         {rest, new_transaction} = parse_get_transaction(body, %{})
         transactions = [new_transaction | data[:transactions]]
         parse_get_block(rest, Map.put(data, :transactions, transactions))
@@ -313,10 +308,10 @@ defmodule BitPal.Backend.Flowee.Protocol do
         parse_get_transaction(rest, Map.put(data, :offset, offset))
 
       [{4, %Binary{data: id}} | rest] ->
-        parse_get_transaction(rest, Map.put(data, :transactionId, id))
+        parse_get_transaction(rest, Map.put(data, :txid, id))
 
       [{20, %Binary{data: txid}} | rest] ->
-        {r, input} = parse_input(rest, %{transactionId: txid})
+        {r, input} = parse_input(rest, %{txid: txid})
         inputs = [input | Map.get(data, :inputs, [])]
         parse_get_transaction(r, Map.put(data, :inputs, inputs))
 

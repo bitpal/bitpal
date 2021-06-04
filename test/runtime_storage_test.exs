@@ -8,7 +8,7 @@ defmodule BitPal.RuntimeStorageTest do
     {:ok, name: name, pid: pid}
   end
 
-  test "key value pairs can be put and fetched from cache", %{name: name} do
+  test "key value pairs can be put and geted from cache", %{name: name} do
     assert :ok = RuntimeStorage.put(name, :key1, :value1)
     assert :ok = RuntimeStorage.put(name, :key2, :value2)
 
@@ -25,5 +25,10 @@ defmodule BitPal.RuntimeStorageTest do
     assert_shutdown(pid)
     {:ok, _cache} = RuntimeStorage.start_link(name: name)
     assert RuntimeStorage.fetch(name, :key1) == :error
+  end
+
+  test "get or put lazy", %{name: name} do
+    assert :value1 = RuntimeStorage.get_or_put_lazy(name, :key1, fn -> :value1 end)
+    assert :value1 = RuntimeStorage.get_or_put_lazy(name, :key1, fn -> raise "boom" end)
   end
 end
