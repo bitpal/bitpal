@@ -8,5 +8,5 @@
   {":0:unknown_function Function ExUnit.Callbacks.start_supervised!/1 does not exist."},
   {":0:unknown_function Function Mix.raise/1 does not exist."},
   {":0:unknown_function Function Mix.shell/0 does not exist."},
-  {"lib/mix/ci.ex:1:callback_info_missing Callback info about the Mix.Task behaviour is not available."}
+  {"lib/mix/bitpal/ci.ex:1:callback_info_missing Callback info about the Mix.Task behaviour is not available."}
 ]

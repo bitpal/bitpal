@@ -165,21 +165,25 @@ defmodule BitPal.InvoiceHandler do
   end
 
   defp finalize(invoice, state) do
-    {:ok, invoice} = BackendManager.register(invoice)
+    case BackendManager.register(invoice) do
+      {:ok, invoice} ->
+        :ok = AddressEvents.subscribe(invoice.address_id)
+        :ok = BlockchainEvents.subscribe(invoice.currency_id)
 
-    :ok = AddressEvents.subscribe(invoice.address_id)
-    :ok = BlockchainEvents.subscribe(invoice.currency_id)
+        {:ok, invoice} = Invoices.finalize(invoice)
 
-    {:ok, invoice} = Invoices.finalize(invoice)
+        InvoiceEvents.broadcast_status(invoice)
 
-    InvoiceEvents.broadcast_status(invoice)
+        state =
+          state
+          |> Map.delete(:invoice_id)
+          |> Map.put(:invoice, invoice)
 
-    state =
-      state
-      |> Map.delete(:invoice_id)
-      |> Map.put(:invoice, invoice)
+        {:noreply, state}
 
-    {:noreply, state}
+      {:error, err} ->
+        {:stop, {:shutdown, err}}
+    end
   end
 
   defp process(invoice, state) do

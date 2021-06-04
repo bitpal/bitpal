@@ -229,7 +229,7 @@ defmodule BitPal.BackendMock do
   end
 
   defp generate_txid do
-    "txid:#{System.unique_integer()}"
+    "txid:#{Ecto.UUID.generate()}"
   end
 
   defp confirm_transactions(invoice, state) do

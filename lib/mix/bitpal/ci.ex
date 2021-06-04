@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Quality.Ci do
+defmodule Mix.Tasks.Bitpal.Ci do
   @moduledoc """
   CI, mostly as generated from `mix ci.init`
   """

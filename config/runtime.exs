@@ -3,7 +3,8 @@ import Config
 config :bitpal,
   address: "bitcoincash:qqpkcce4lzdc8guam5jfys9prfyhr90seqzakyv4tu",
   xpub:
-    "xpub6C23JpFE6ABbBudoQfwMU239R5Bm6QGoigtLq1BD3cz3cC6DUTg89H3A7kf95GDzfcTis1K1m7ypGuUPmXCaCvoxDKbeNv6wRBEGEnt1NV7"
+    "xpub6C23JpFE6ABbBudoQfwMU239R5Bm6QGoigtLq1BD3cz3cC6DUTg89H3A7kf95GDzfcTis1K1m7ypGuUPmXCaCvoxDKbeNv6wRBEGEnt1NV7",
+  required_confirmations: 0
 
 case Config.config_env() do
   :dev ->

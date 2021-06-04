@@ -52,6 +52,11 @@ defmodule BitPal do
       BackendManager.configure(backends: backends)
     end
 
+    # NOTE we want to handle this in a more general way later
+    if conf = Keyword.get(opts, :required_confirmations) do
+      Application.put_env(:bitpal, :required_confirmations, conf)
+    end
+
     :ok
   end
 end

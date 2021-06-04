@@ -54,4 +54,4 @@ jobs:
             build-${{ env.CACHE_VERSION }}-${{ github.ref }}-
             build-${{ env.CACHE_VERSION }}-
       - run: mix deps.get
-      - run: mix quality.ci
+      - run: mix bitpal.ci
