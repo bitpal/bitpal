@@ -162,28 +162,32 @@ defmodule BitPal.Backend.Flowee do
   defp on_transaction(data, state) do
     hash_to_addr = Map.get(state, :watching_hashes, state)
 
-    # Convert the transaction, it is a hash:
-    address = Map.get(hash_to_addr, data.address.data, nil)
+    # Check all outputs, there may be more than one output that is interesting to us, but also ones that we should ignore.
+    data.outputs
+    |> Enum.each(fn {address_hash, amount} ->
+      # Convert the transaction, it is a hash:
+      address = Map.get(hash_to_addr, address_hash.data, nil)
 
-    if address != nil do
-      # We know this address! Tell the world about our finding!
-      case data do
-        %{txid: txid, height: height, amount: amount} ->
-          Transactions.confirmed(
-            binary_to_string(txid),
-            address,
-            Money.new(amount, @bch),
-            height
-          )
+      if address != nil do
+        # We know this address! Tell the world about our finding!
+        case data do
+          %{txid: txid, height: height} ->
+            Transactions.confirmed(
+              binary_to_string(txid),
+              address,
+              Money.new(amount, @bch),
+              height
+            )
 
-        %{txid: txid, amount: amount} ->
-          Transactions.seen(
-            binary_to_string(txid),
-            address,
-            Money.new(amount, @bch)
-          )
+          %{txid: txid} ->
+            Transactions.seen(
+              binary_to_string(txid),
+              address,
+              Money.new(amount, @bch)
+            )
+        end
       end
-    end
+    end)
   end
 
   # Called when we received a double spend.
