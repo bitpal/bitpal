@@ -119,7 +119,7 @@ defmodule BitPal.Backend.Flowee do
     case state do
       %{hub_connection: conn} ->
         # IO.puts("Sending ping")
-        Protocol.send_ping(state.tcp_client, conn)
+        Protocol.send_ping(conn)
         enqueue_ping(state)
 
       _ ->
@@ -135,7 +135,7 @@ defmodule BitPal.Backend.Flowee do
   def handle_info({:DOWN, _monitor, :process, pid, _reason}, state) do
     if pid == state[:hub_pid] do
       # The Flowee process died. Close our connection and restart it!
-      Connection.close(state.tcp_client, state[:hub_connection])
+      Connection.close(state[:hub_connection])
       {:noreply, start_hub(state)}
     else
       # Something else happened.
@@ -217,7 +217,7 @@ defmodule BitPal.Backend.Flowee do
       # If the connection is up and running, tell it about the new wallet now.
       case state do
         %{hub_connection: c} ->
-          subscribe_addr(state.tcp_client, c, wallet, hash)
+          subscribe_addr(c, wallet, hash)
 
         _ ->
           nil
@@ -250,7 +250,7 @@ defmodule BitPal.Backend.Flowee do
         @supervisor,
         __MODULE__,
         :receive_messages,
-        [state.tcp_client, c]
+        [c]
       )
 
     # NOTE register pid in ProcessRegistry instead?
@@ -263,18 +263,18 @@ defmodule BitPal.Backend.Flowee do
     enqueue_ping(state)
 
     # Start subscribing to new block messages
-    Protocol.send_block_subscribe(state.tcp_client, c)
+    Protocol.send_block_subscribe(c)
 
     # Subscribe to any wallets we were asked to.
     wallets = Map.get(state, :watching_wallets, %{})
 
     if wallets != %{} do
-      Enum.each(wallets, fn {k, v} -> subscribe_addr(state.tcp_client, c, k, v) end)
+      Enum.each(wallets, fn {k, v} -> subscribe_addr(c, k, v) end)
     end
 
     # Query the current status of the blockchain. This is so that we can update the current height
     # of the blockchain and to look for confirmations for transactions we might have missed.
-    Protocol.send_blockchain_info(state.tcp_client, c)
+    Protocol.send_blockchain_info(c)
 
     state
   end
@@ -296,17 +296,17 @@ defmodule BitPal.Backend.Flowee do
   end
 
   # Helper to subscribe to an address. Accepts the output from "convert_addr".
-  defp subscribe_addr(tcp_client, connection, addr, hash) do
+  defp subscribe_addr(connection, addr, hash) do
     Logger.info("Subscribed to new wallet: " <> inspect(addr))
-    Protocol.send_address_subscribe(tcp_client, connection, hash)
+    Protocol.send_address_subscribe(connection, hash)
   end
 
   # Receive messages. Executed in another process, so it is OK to block here.
-  def receive_messages(tcp_client, c) do
-    msg = Protocol.recv(tcp_client, c)
+  def receive_messages(c) do
+    msg = Protocol.recv(c)
     GenServer.cast(__MODULE__, {:message, msg})
 
     # Keep on working!
-    receive_messages(tcp_client, c)
+    receive_messages(c)
   end
 end

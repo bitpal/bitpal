@@ -114,8 +114,10 @@ defmodule BitPal.BCH.Cashaddress do
     end
   end
 
-  # Create a hashed output script for a public key. This is what Flowee wants.
-  # Accepts what "decode_cash_url" produces.
+  @doc """
+  Create a hashed output script for a public key. This is what Flowee wants.
+  Accepts what "decode_cash_url" produces.
+  """
   def create_hashed_output_script({:p2pkh, pubkey}) do
     # OP_DUP OP_HASH160, 20-byte push
     p2pkh_prefix = <<0x76, 0xA9, 20>>
@@ -134,24 +136,6 @@ defmodule BitPal.BCH.Cashaddress do
     p2sh_postfix = <<0x87>>
 
     to_hash = p2sh_prefix <> binary_part(pubkey, 0, 20) <> p2sh_postfix
-
-    :crypto.hash(:sha256, to_hash)
-  end
-
-  def create_hashed_output_script(pubkey) do
-    # Note: I have no idea why we're doing this. It is ported directly from chashaddr.cpp in Flowee.
-
-    # OP_DUP OP_HASH160, 20-byte push
-    p2pkh_prefix = <<0x76, 0xA9, 20>>
-    # OP_HASH160, 20-byte push
-    # p2sh_prefix = <<0xA9, 20>>
-    # OP_EQUALVERIFY OP_CHECKSIG
-    p2pkh_postfix = <<0x88, 0xAC>>
-    # OP_EQUAL
-    # p2sh_postfix = <<0x87>>
-
-    # If this was a SCRIPT_TYPE (whatever that is), we should use *sh* instead of *phk*
-    to_hash = p2pkh_prefix <> binary_part(pubkey, 0, 20) <> p2pkh_postfix
 
     :crypto.hash(:sha256, to_hash)
   end
