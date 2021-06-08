@@ -13,7 +13,7 @@ defmodule BitPalSchemas.Invoice do
   alias BitPal.ExchangeRate
   alias BitPalSchemas.Address
   alias BitPalSchemas.Currency
-  alias BitPalSchemas.Transaction
+  alias BitPalSchemas.TxOutput
   alias Money.Ecto.NumericType
 
   @type id :: Ecto.UUID.t()
@@ -28,7 +28,7 @@ defmodule BitPalSchemas.Invoice do
           currency: Currency.t(),
           address_id: String.t(),
           address: Address.t(),
-          transactions: [Transaction.t()],
+          tx_outputs: [TxOutput.t()],
           status: status,
           required_confirmations: non_neg_integer,
           description: String.t()
@@ -56,6 +56,6 @@ defmodule BitPalSchemas.Invoice do
 
     belongs_to(:address, Address, type: :string, on_replace: :mark_as_invalid)
     belongs_to(:currency, Currency, type: :string)
-    has_many(:transactions, through: [:address, :transactions])
+    has_many(:tx_outputs, through: [:address, :tx_outputs])
   end
 end

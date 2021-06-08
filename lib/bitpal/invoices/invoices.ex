@@ -9,7 +9,7 @@ defmodule BitPal.Invoices do
   alias BitPal.Repo
   alias BitPalSchemas.Address
   alias BitPalSchemas.Invoice
-  alias BitPalSchemas.Transaction
+  alias BitPalSchemas.TxOutput
   require Decimal
 
   @type register_params :: %{
@@ -92,7 +92,7 @@ defmodule BitPal.Invoices do
     curr_height = Blocks.fetch_block_height!(invoice.currency_id)
 
     max_height =
-      from(t in Transaction,
+      from(t in TxOutput,
         where: t.address_id == ^invoice.address_id,
         select: max(t.confirmed_height)
       )
@@ -103,11 +103,11 @@ defmodule BitPal.Invoices do
     _ -> invoice.required_confirmations
   end
 
-  @spec one_transaction(Invoice.t()) :: {:ok, Transaction.t()} | :error
-  def one_transaction(invoice) do
-    invoice = Repo.preload(invoice, :transactions)
+  @spec one_tx_output(Invoice.t()) :: {:ok, TxOutput.t()} | :error
+  def one_tx_output(invoice) do
+    invoice = Repo.preload(invoice, :tx_outputs)
 
-    if tx = List.first(invoice.transactions) do
+    if tx = List.first(invoice.tx_outputs) do
       {:ok, tx}
     else
       :error
@@ -145,13 +145,13 @@ defmodule BitPal.Invoices do
 
   @spec update_amount_paid(Invoice.t()) :: Invoice.t()
   def update_amount_paid(invoice) do
-    invoice = Repo.preload(invoice, :transactions, force: true)
+    invoice = Repo.preload(invoice, :tx_outputs, force: true)
     %{invoice | amount_paid: calculate_amount_paid(invoice)}
   end
 
   @spec calculate_amount_paid(Invoice.t()) :: Money.t()
   def calculate_amount_paid(invoice) do
-    invoice.transactions
+    invoice.tx_outputs
     |> Enum.reduce(Money.new(0, invoice.currency_id), fn tx, sum ->
       Money.add(tx.amount, sum)
     end)

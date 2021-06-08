@@ -134,7 +134,7 @@ defmodule BitPal.Backend.FloweeFixtures do
   def multi_tx_a_1_conf do
     # bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa
     # amount: 5000
-    # height: 690933
+    # height: 690934
     # txid: ...
     [
       <<86, 0>>,
@@ -142,7 +142,7 @@ defmodule BitPal.Backend.FloweeFixtures do
         114, 130, 85, 57, 225, 101, 84, 87, 239, 252, 200, 122, 185, 53, 18, 128, 157, 185, 48,
         166, 8, 35, 32, 53, 201, 123, 197, 8, 47, 238, 62, 224, 89, 113, 112, 73, 90, 18, 118,
         239, 70, 3, 29, 3, 53, 1, 31, 57, 104, 247, 187, 216, 117, 128, 140, 64, 135, 253, 126,
-        56, 169, 148, 117>>
+        56, 169, 148, 118>>
     ]
   end
 end

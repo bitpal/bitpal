@@ -1,13 +1,14 @@
 defmodule BitPal.AddressEvents do
   alias BitPal.EventHelpers
   alias BitPalSchemas.Address
-  alias BitPalSchemas.Transaction
+  alias BitPalSchemas.TxOutput
 
+  @type height :: non_neg_integer
   @type msg ::
-          {:tx_seen, Transaction.t()}
-          | {:tx_confirmed, Transaction.t()}
-          | {:tx_double_spent, Transaction.t()}
-          | {:tx_reversed, Transaction.t()}
+          {:tx_seen, TxOutput.txid()}
+          | {:tx_confirmed, TxOutput.txid(), height}
+          | {:tx_double_spent, TxOutput.txid()}
+          | {:tx_reversed, TxOutput.txid()}
 
   @spec subscribe(Address.id()) :: :ok | {:error, term}
   def subscribe(address_id) do

@@ -1,18 +1,19 @@
 defmodule BitPal.Transactions do
+  import Ecto.Query, only: [from: 2]
   alias BitPal.AddressEvents
   alias BitPal.Blocks
   alias BitPal.Repo
   alias BitPalSchemas.Address
   alias BitPalSchemas.Currency
-  alias BitPalSchemas.Transaction
-  alias Ecto.Changeset
+  alias BitPalSchemas.TxOutput
   require Logger
 
   @type height :: non_neg_integer
   @type confirmations :: non_neg_integer
+  @type outputs :: [{Address.id(), Money.t()}]
 
-  @spec num_confirmations!(Transaction.t()) :: confirmations
-  def num_confirmations!(%Transaction{confirmed_height: height, currency: currency}) do
+  @spec num_confirmations!(TxOutput.t()) :: confirmations
+  def num_confirmations!(%TxOutput{confirmed_height: height, currency: currency}) do
     num_confirmations!(height, currency.id)
   end
 
@@ -29,91 +30,69 @@ defmodule BitPal.Transactions do
     0
   end
 
-  @spec seen(Transaction.id(), Address.id(), Money.t()) ::
-          {:ok, Transaction.t()} | {:error, Changeset.t()}
-  def seen(txid, address_id, amount) do
-    res =
-      Repo.insert(
-        %Transaction{
-          id: txid,
-          address_id: address_id,
-          amount: amount
-        },
-        on_conflict: :nothing
-      )
-
-    case res do
-      {:ok, tx} ->
-        AddressEvents.broadcast(address_id, {:tx_seen, Repo.preload(tx, :currency)})
-        res
-
-      {:error, changeset} ->
-        Logger.warn("Failed to insert tx: #{inspect(changeset)}")
-        res
-    end
+  @spec seen(TxOutput.txid(), outputs) :: :ok | :error
+  def seen(txid, outputs) do
+    insert(txid, outputs, {:tx_seen, txid})
   end
 
-  @spec confirmed(Transaction.id(), Address.id(), Money.t(), height) ::
-          {:ok, Transaction.t()} | {:error, Changeset.t()}
-  def confirmed(txid, address_id, amount, height) do
-    res = update(txid, address_id, amount, confirmed_height: height)
+  @spec confirmed(TxOutput.txid(), outputs, height) :: :ok | :error
+  def confirmed(txid, outputs, height) do
+    update(txid, outputs, {:tx_confirmed, txid, height}, confirmed_height: height)
+  end
 
-    case res do
-      {:ok, tx} ->
-        AddressEvents.broadcast(address_id, {:tx_confirmed, tx})
-        res
+  @spec double_spent(TxOutput.txid(), outputs) :: :ok | :error
+  def double_spent(txid, outputs) do
+    update(txid, outputs, {:tx_double_spent, txid}, double_spent: true)
+  end
+
+  @spec reversed(TxOutput.txid(), outputs) :: :ok | :error
+  def reversed(txid, outputs) do
+    update(txid, outputs, {:tx_reversed, txid}, confirmed_height: nil)
+  end
+
+  @spec update(TxOutput.txid(), outputs, AddressEvents.msg(), keyword) :: :ok | :error
+  defp update(txid, outputs, msg, changes) do
+    output_count = Enum.count(outputs)
+
+    case Repo.update_all(from(t in TxOutput, where: t.txid == ^txid, update: [set: ^changes]), []) do
+      {^output_count, _} ->
+        broadcast(outputs, msg)
 
       _ ->
-        res
+        insert(txid, outputs, msg, changes)
     end
   end
 
-  @spec double_spent(Transaction.id(), Address.id(), Money.t()) ::
-          {:ok, Transaction.t()} | {:error, Changeset.t()}
-  def double_spent(txid, address_id, amount) do
-    res = update(txid, address_id, amount, double_spent: true)
+  @spec insert(TxOutput.txid(), outputs, AddressEvents.msg(), keyword) :: :ok | :error
+  defp insert(txid, outputs, msg, extra \\ []) do
+    output_count = Enum.count(outputs)
 
-    case res do
-      {:ok, tx} ->
-        AddressEvents.broadcast(address_id, {:tx_double_spent, tx})
-        res
+    case Repo.insert_all(
+           TxOutput,
+           Enum.map(outputs, fn {address_id, amount} ->
+             %{
+               txid: txid,
+               address_id: address_id,
+               amount: amount
+             }
+             |> Map.merge(Enum.into(extra, %{}))
+           end)
+         ) do
+      {^output_count, _} ->
+        broadcast(outputs, msg)
 
-      _ ->
-        res
+      err ->
+        Logger.error("Failed to insert tx #{txid}: #{inspect(err)}")
+        :error
     end
   end
 
-  @spec reversed(Transaction.id(), Address.id(), Money.t(), height) ::
-          {:ok, Transaction.t()} | {:error, Changeset.t()}
-  def reversed(txid, address_id, amount, _height) do
-    res = update(txid, address_id, amount, confirmed_height: nil)
-
-    case res do
-      {:ok, tx} ->
-        AddressEvents.broadcast(address_id, {:tx_reversed, tx})
-        res
-
-      _ ->
-        res
-    end
-  end
-
-  defp update(txid, address_id, amount, changes) do
-    res =
-      case Repo.get(Transaction, txid) do
-        nil -> %Transaction{id: txid, address_id: address_id, amount: amount}
-        tx -> tx
-      end
-      |> Changeset.change(changes)
-      |> Repo.insert_or_update()
-
-    case res do
-      {:error, changeset} ->
-        Logger.warn("Failed to update tx: #{inspect(changeset)}")
-        res
-
-      {:ok, tx} ->
-        {:ok, Repo.preload(tx, :currency)}
-    end
+  @spec broadcast(outputs, AddressEvents.msg()) :: :ok
+  defp broadcast(outputs, msg) do
+    outputs
+    |> Enum.uniq_by(fn {address, _} -> address end)
+    |> Enum.each(fn {address_id, _} ->
+      AddressEvents.broadcast(address_id, msg)
+    end)
   end
 end

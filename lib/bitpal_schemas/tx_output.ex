@@ -1,14 +1,15 @@
-defmodule BitPalSchemas.Transaction do
+defmodule BitPalSchemas.TxOutput do
   use Ecto.Schema
   alias BitPalSchemas.Address
   alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
   alias Money.Ecto.NumericType
 
-  @type id :: String.t()
+  @type txid :: String.t()
 
   @type t :: %__MODULE__{
-          id: id,
+          id: integer,
+          txid: txid,
           amount: Money.t(),
           confirmed_height: non_neg_integer,
           double_spent: boolean,
@@ -18,12 +19,11 @@ defmodule BitPalSchemas.Transaction do
           currency: Currency.t()
         }
 
-  @primary_key {:id, :string, []}
-  schema "transactions" do
+  schema "tx_outputs" do
+    field(:txid, :string)
     field(:amount, NumericType)
     field(:confirmed_height, :integer)
     field(:double_spent, :boolean, default: false)
-    timestamps()
 
     belongs_to(:address, Address, type: :string)
     has_one(:invoice, through: [:address, :invoice])

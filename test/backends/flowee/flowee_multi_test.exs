@@ -3,6 +3,7 @@ defmodule BitPal.Backend.FloweeMultiTest do
   import Mox
   import BitPal.MockTCPClient
   alias BitPal.Backend.FloweeFixtures
+  alias BitPal.Blocks
   alias BitPal.MockTCPClient
 
   @client FloweeMock
@@ -30,14 +31,14 @@ defmodule BitPal.Backend.FloweeMultiTest do
     {:ok, _invoice, stub1, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 0,
-        amount: Money.new(10000, :BCH),
+        amount: Money.new(10_000, :BCH),
         address: {"bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa", -1}
       )
 
     {:ok, _invoice, stub2, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 0,
-        amount: Money.new(20000, :BCH),
+        amount: Money.new(20_000, :BCH),
         address: {"bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc", -2}
       )
 
@@ -63,14 +64,14 @@ defmodule BitPal.Backend.FloweeMultiTest do
     {:ok, _invoice, stub1, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 0,
-        amount: Money.new(15000, :BCH),
+        amount: Money.new(15_000, :BCH),
         address: {"bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa", -1}
       )
 
     {:ok, _invoice, stub2, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 0,
-        amount: Money.new(20000, :BCH),
+        amount: Money.new(20_000, :BCH),
         address: {"bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc", -2}
       )
 
@@ -101,14 +102,14 @@ defmodule BitPal.Backend.FloweeMultiTest do
     {:ok, _invoice, stub1, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 1,
-        amount: Money.new(10000, :BCH),
+        amount: Money.new(10_000, :BCH),
         address: {"bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa", -1}
       )
 
     {:ok, _invoice, stub2, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 1,
-        amount: Money.new(20000, :BCH),
+        amount: Money.new(20_000, :BCH),
         address: {"bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc", -2}
       )
 
@@ -128,6 +129,8 @@ defmodule BitPal.Backend.FloweeMultiTest do
            ] = HandlerSubscriberCollector.received(stub2)
 
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_1_conf())
+    # Manually set blocks to avoid having to find fixtures for all things
+    Blocks.new_block(:BCH, 690_933)
 
     HandlerSubscriberCollector.await_status(stub1, :paid)
     HandlerSubscriberCollector.await_status(stub2, :paid)
@@ -150,15 +153,15 @@ defmodule BitPal.Backend.FloweeMultiTest do
     {:ok, _invoice, stub1, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 1,
-        amount: Money.new(15000, :BCH),
-        address: {"bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa", -1}
+        amount: Money.new(15_000, :BCH),
+        address: {"bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa", 0}
       )
 
     {:ok, _invoice, stub2, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 1,
-        amount: Money.new(20000, :BCH),
-        address: {"bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc", -2}
+        amount: Money.new(20_000, :BCH),
+        address: {"bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc", 1}
       )
 
     # Give 10000 to the first one, and 20000 to the second one
@@ -166,13 +169,14 @@ defmodule BitPal.Backend.FloweeMultiTest do
 
     # Confirm the first transaction.
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_1_conf())
+    # Manually set blocks to avoid having to find fixtures for all things
+    Blocks.new_block(:BCH, 690_933)
 
-    HandlerSubscriberCollector.await_status(stub1, :paid)
-    HandlerSubscriberCollector.await_status(stub2, :processing)
+    HandlerSubscriberCollector.await_status(stub1, :open)
+    HandlerSubscriberCollector.await_status(stub2, :paid)
 
     assert [
-             {:invoice_status, :open, _},
-             {:invoice_status, :processing, _}
+             {:invoice_status, :open, _}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
@@ -186,8 +190,10 @@ defmodule BitPal.Backend.FloweeMultiTest do
 
     # And confirm.
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_a_1_conf())
+    # Manually set blocks to avoid having to find fixtures for all things
+    Blocks.new_block(:BCH, 690_934)
 
-    HandlerSubscriberCollector.await_status(stub2, :paid)
+    HandlerSubscriberCollector.await_status(stub1, :paid)
 
     assert [
              {:invoice_status, :open, _},

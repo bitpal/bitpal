@@ -119,16 +119,15 @@ defmodule BitPal.BackendMock do
 
   @impl true
   def handle_call({:tx_seen, invoice}, _from, state) do
-    # IO.puts("marking as seen #{invoice.address_id}")
-    {:ok, _} = Transactions.seen(generate_txid(), invoice.address_id, invoice.amount)
+    :ok = Transactions.seen(generate_txid(), [{invoice.address_id, invoice.amount}])
 
     {:reply, :ok, state}
   end
 
   @impl true
   def handle_call({:doublespend, invoice}, _from, state) do
-    {:ok, tx} = Invoices.one_transaction(invoice)
-    {:ok, _} = Transactions.double_spent(tx.id, invoice.address_id, tx.amount)
+    {:ok, tx} = Invoices.one_tx_output(invoice)
+    :ok = Transactions.double_spent(tx.txid, [{invoice.address_id, tx.amount}])
     {:reply, :ok, state}
   end
 
@@ -147,7 +146,7 @@ defmodule BitPal.BackendMock do
 
   @impl true
   def handle_info({:auto_tx_seen, invoice}, state) do
-    {:ok, _} = Transactions.seen(generate_txid(), invoice.address_id, invoice.amount)
+    :ok = Transactions.seen(generate_txid(), [{invoice.address_id, invoice.amount}])
     {:noreply, append_auto_confirm(state, invoice)}
   end
 
@@ -234,15 +233,15 @@ defmodule BitPal.BackendMock do
 
   defp confirm_transactions(invoice, state) do
     txid =
-      case Invoices.one_transaction(invoice) do
+      case Invoices.one_tx_output(invoice) do
         {:ok, tx} ->
-          tx.id
+          tx.txid
 
         _ ->
           generate_txid()
       end
 
-    {:ok, _} = Transactions.confirmed(txid, invoice.address_id, invoice.amount, state.height)
+    :ok = Transactions.confirmed(txid, [{invoice.address_id, invoice.amount}], state.height)
 
     state
   end

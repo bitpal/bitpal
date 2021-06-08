@@ -158,49 +158,34 @@ defmodule BitPal.Backend.Flowee do
   # Called when we received a new transaction.
   # Note: We get the "transaction visible" immediately when we subscribe,
   # as long as it is not accepted into a block.
-  # Note: Does not get to modify the state!
-  defp on_transaction(data, state) do
-    hash_to_addr = Map.get(state, :watching_hashes, state)
+  # If we have `height` then the transaction is confirmed, otherwise it's in the mempool.
+  defp on_transaction(%{txid: txid, height: height, outputs: outputs}, state) do
+    Transactions.confirmed(binary_to_string(txid), filter_outputs(outputs, state), height)
+  end
 
-    # Check all outputs, there may be more than one output that is interesting to us, but also ones that we should ignore.
-    data.outputs
-    |> Enum.each(fn {address_hash, amount} ->
-      # Convert the transaction, it is a hash:
-      address = Map.get(hash_to_addr, address_hash.data, nil)
-
-      if address != nil do
-        # We know this address! Tell the world about our finding!
-        case data do
-          %{txid: txid, height: height} ->
-            Transactions.confirmed(
-              binary_to_string(txid),
-              address,
-              Money.new(amount, @bch),
-              height
-            )
-
-          %{txid: txid} ->
-            Transactions.seen(
-              binary_to_string(txid),
-              address,
-              Money.new(amount, @bch)
-            )
-        end
-      end
-    end)
+  defp on_transaction(%{txid: txid, outputs: outputs}, state) do
+    Transactions.seen(binary_to_string(txid), filter_outputs(outputs, state))
   end
 
   # Called when we received a double spend.
-  defp on_double_spend(%{txid: txid, address: hash, amount: amount}, state) do
-    hash_to_addr = Map.get(state, :watching_hashes, state)
+  defp on_double_spend(%{txid: txid, outputs: outputs}, state) do
+    Transactions.double_spent(binary_to_string(txid), filter_outputs(outputs, state))
+  end
 
-    # Convert the transaction, it is a hash:
-    address = Map.get(hash_to_addr, hash.data, nil)
+  defp filter_outputs(outputs, state) do
+    hash_to_addr = Map.get(state, :watching_hashes, %{})
 
-    if address != nil do
-      # We know this address! Tell the world about our finding!
-      Transactions.double_spent(txid, address, Money.new(amount, @bch))
-    end
+    outputs
+    |> Enum.flat_map(fn
+      {address_hash, amount} ->
+        # Convert the transaction, it is a hash:
+        case Map.get(hash_to_addr, address_hash.data) do
+          # We don't know this, skip it
+          nil -> []
+          # Also transform to expected values
+          address -> [{address, Money.new(amount, @bch)}]
+        end
+    end)
   end
 
   # Start watching a wallet. "wallet" is a "bitcoincash:..." address.
