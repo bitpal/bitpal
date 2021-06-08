@@ -66,7 +66,7 @@ defmodule BitPal.Backend.FloweeTest do
            ] = HandlerSubscriberCollector.received(stub)
   end
 
-  @tag backends: [], do: true
+  @tag backends: []
   test "transaction confirmation acceptance" do
     {:ok, _inv, stub, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(

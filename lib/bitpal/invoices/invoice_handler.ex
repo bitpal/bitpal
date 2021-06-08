@@ -64,14 +64,14 @@ defmodule BitPal.InvoiceHandler do
 
       status ->
         # NOTE this means handler has crashed and we need to recover data
-        Logger.warn("unknown status in handler: '#{status}'")
+        Logger.error("unknown status in handler: '#{status}'")
     end
   end
 
   @impl true
-  def handle_info({:tx_seen, tx}, state) do
+  def handle_info({:tx_seen, txid}, state) do
     invoice = Invoices.update_amount_paid(state.invoice)
-    state = process_tx(state, tx)
+    state = process_tx(state, txid, nil)
 
     case Invoices.target_amount_reached?(invoice) do
       :underpaid ->
@@ -79,7 +79,7 @@ defmodule BitPal.InvoiceHandler do
 
       _ ->
         if invoice.required_confirmations == 0 do
-          Process.send_after(self(), {:double_spend_timeout, tx.id}, state.double_spend_timeout)
+          Process.send_after(self(), {:double_spend_timeout, txid}, state.double_spend_timeout)
         end
 
         process(invoice, state)
@@ -87,14 +87,15 @@ defmodule BitPal.InvoiceHandler do
   end
 
   @impl true
-  def handle_info({:tx_confirmed, tx}, state) do
+  def handle_info({:tx_confirmed, txid, height}, state) do
     invoice = Invoices.update_amount_paid(state.invoice)
 
     state =
-      if Transactions.num_confirmations!(tx) >= invoice.required_confirmations do
-        tx_processed(state, tx.id)
+      if Transactions.num_confirmations!(height, invoice.currency_id) >=
+           invoice.required_confirmations do
+        tx_processed(state, txid)
       else
-        process_tx(state, tx)
+        process_tx(state, txid, height)
       end
 
     case Invoices.target_amount_reached?(invoice) do
@@ -108,14 +109,14 @@ defmodule BitPal.InvoiceHandler do
   end
 
   @impl true
-  def handle_info({:double_spend_timeout, tx_id}, state) do
+  def handle_info({:double_spend_timeout, txid}, state) do
     state
-    |> tx_processed(tx_id)
+    |> tx_processed(txid)
     |> try_into_paid()
   end
 
   @impl true
-  def handle_info({:tx_double_spent, _tx}, state) do
+  def handle_info({:tx_double_spent, _txid}, state) do
     {:ok, invoice} = Invoices.double_spent(state.invoice)
     InvoiceEvents.broadcast_status(invoice)
     {:noreply, %{state | invoice: invoice}}
@@ -198,17 +199,17 @@ defmodule BitPal.InvoiceHandler do
     end
   end
 
-  defp process_tx(state, tx) do
-    Map.update(state, :processing_txs, %{tx.id => tx.confirmed_height}, fn waiting ->
-      Map.put(waiting, tx.id, tx.confirmed_height)
+  defp process_tx(state, txid, confirmed_height) do
+    Map.update(state, :processing_txs, %{txid => confirmed_height}, fn waiting ->
+      Map.put(waiting, txid, confirmed_height)
     end)
   end
 
-  defp tx_processed(state = %{processing_txs: txs}, tx_id) do
+  defp tx_processed(state = %{processing_txs: txs}, txid) do
     Map.put(
       state,
       :processing_txs,
-      Map.delete(txs, tx_id)
+      Map.delete(txs, txid)
     )
   end
 

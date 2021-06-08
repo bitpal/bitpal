@@ -27,11 +27,22 @@ defmodule BitPal.Repo.Migrations.Persistance do
       add :fiat_amount, :money_with_currency
       add :status, :string
       add :required_confirmations, :integer
+      add :description, :string
       add :currency_id, references(:currencies, type: :string, size: 8), null: false
       add :address_id, references(:addresses, type: :string)
       timestamps()
     end
 
     create unique_index(:invoices, :id)
+
+    create table(:tx_outputs) do
+      add :txid, :string, null: false
+      add :amount, :money_with_currency, null: false
+      add :confirmed_height, :integer
+      add :double_spent, :boolean
+      add :address_id, references(:addresses, type: :string), null: false
+    end
+
+    create index(:tx_outputs, :txid)
   end
 end

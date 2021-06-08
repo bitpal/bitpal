@@ -224,18 +224,18 @@ defmodule BitPal.Crypto.Base32 do
         c0 = c >>> 35 &&& 0xFF
         # Note: We support binaries containing something other than 5-bit numbers by
         # slicing anything higher than 0x1F off.
-        c = ((c &&& 0x07FFFFFFFF) <<< 5) ^^^ (first &&& 0x1F)
+        c = bxor((c &&& 0x07FFFFFFFF) <<< 5, first &&& 0x1F)
 
-        c = if (c0 &&& 0x01) != 0, do: c ^^^ 0x98F2BC8E61, else: c
-        c = if (c0 &&& 0x02) != 0, do: c ^^^ 0x79B76D99E2, else: c
-        c = if (c0 &&& 0x04) != 0, do: c ^^^ 0xF33E5FB3C4, else: c
-        c = if (c0 &&& 0x08) != 0, do: c ^^^ 0xAE2EABE2A8, else: c
-        c = if (c0 &&& 0x10) != 0, do: c ^^^ 0x1E4F43E470, else: c
+        c = if (c0 &&& 0x01) != 0, do: bxor(c, 0x98F2BC8E61), else: c
+        c = if (c0 &&& 0x02) != 0, do: bxor(c, 0x79B76D99E2), else: c
+        c = if (c0 &&& 0x04) != 0, do: bxor(c, 0xF33E5FB3C4), else: c
+        c = if (c0 &&& 0x08) != 0, do: bxor(c, 0xAE2EABE2A8), else: c
+        c = if (c0 &&& 0x10) != 0, do: bxor(c, 0x1E4F43E470), else: c
 
         polymod_i(rest, c)
 
       <<>> ->
-        c ^^^ 1
+        bxor(c, 1)
     end
   end
 

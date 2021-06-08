@@ -1,5 +1,6 @@
 defmodule HandlerSubscriberCollector do
   use GenServer
+  alias BitPal.Addresses
   alias BitPal.ExchangeRate
   alias BitPal.InvoiceHandler
   alias BitPal.InvoiceManager
@@ -73,6 +74,22 @@ defmodule HandlerSubscriberCollector do
   @impl true
   def init(_init_args) do
     {:ok, %{received: []}}
+  end
+
+  @impl true
+  def handle_call({:create_invoice, params = %{address: {address, id}}}, _, state) do
+    # Address specified, force the address.
+    {:ok, invoice} = BitPal.register_invoice(Map.delete(params, :address))
+    {:ok, addr} = Addresses.register(invoice.currency_id, address, id)
+    Invoices.assign_address(invoice, addr)
+    :ok = BitPal.subscribe(invoice)
+    {:ok, invoice_id} = BitPal.finalize(invoice)
+    {:ok, handler} = InvoiceManager.get_handler(invoice_id)
+    # Block until handler has finalized the invoice, which may change invoice details.
+    invoice = InvoiceHandler.get_invoice(handler)
+    if !Invoices.finalized?(invoice), do: raise("invoice not finalized yet!")
+
+    {:reply, {invoice, handler}, state}
   end
 
   @impl true

@@ -60,6 +60,20 @@ defmodule BitPal.Backend.Flowee.Protocol do
     end
   end
 
+  # Get a list of all keys with the same tag.
+  defp get_key_list(key, body) do
+    case body do
+      [{^key, v} | rest] ->
+        [v | get_key_list(key, rest)]
+
+      [{_, _} | rest] ->
+        get_key_list(key, rest)
+
+      [] ->
+        []
+    end
+  end
+
   # Like get_key, but returns nil if the key is not found.
   defp get_key_opt(key, body) do
     case body do
@@ -189,6 +203,12 @@ defmodule BitPal.Backend.Flowee.Protocol do
   Monitor one or more particular addresses. 
 
   The `address` parameter is a script encoded address. This can be generated from the `BitPal.BCH.CashAddress` module.
+
+  Flowee will send one message when the transaction is first seen:
+  `%Message{type: :on_transaction, data: ${txid: <txid>, outputs: [{<address>, <amount>}, ...]}}`
+
+  Flowee then sends another message when it is accepted into a block:
+  `%Message{type: :on_transaction, data: ${txid: <txid>, height: <height>, hash: <hash>, outputs: [{<address>, <amount>}, ...]}}`
   """
   def send_address_subscribe(c, address) do
     conv = convert_addresses(address)
@@ -285,11 +305,7 @@ defmodule BitPal.Backend.Flowee.Protocol do
       {@service_addressmonitor, 3} ->
         # Sent when an address we monitor is involved in a transaction. Offset is only present when
         # the transaction is accepted in a block.
-        make_msg_opt(
-          :on_transaction,
-          [txid: 4, address: 9, amount: 6, height: 7, offset: 8],
-          body
-        )
+        %Message{type: :on_transaction, data: parse_on_transaction(body)}
 
       {@service_addressmonitor, 4} ->
         # Sent when a double-spend is found.
@@ -315,6 +331,16 @@ defmodule BitPal.Backend.Flowee.Protocol do
         # Unknown message!
         raise("Unknown message: #{Kernel.inspect({service, message})} #{Kernel.inspect(body)}")
     end
+  end
+
+  # Parse data inside a on transaction message.
+  defp parse_on_transaction(body) do
+    base = get_keys_opt([txid: 4, height: 7, offset: 8], body)
+
+    addr = get_key_list(9, body)
+    amts = get_key_list(6, body)
+
+    Map.put(base, :outputs, List.zip([addr, amts]))
   end
 
   # Parse the data inside a block info message.
