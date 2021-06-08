@@ -62,9 +62,8 @@ defmodule BitPal.InvoiceHandler do
       :draft ->
         finalize(invoice, state)
 
-      status ->
-        # NOTE this means handler has crashed and we need to recover data
-        Logger.error("unknown status in handler: '#{status}'")
+      _ ->
+        recover(invoice, state)
     end
   end
 
@@ -185,6 +184,20 @@ defmodule BitPal.InvoiceHandler do
       {:error, err} ->
         {:stop, {:shutdown, err}}
     end
+  end
+
+  defp recover(invoice, state) do
+    :ok = AddressEvents.subscribe(invoice.address_id)
+    :ok = BlockchainEvents.subscribe(invoice.currency_id)
+
+    state =
+      state
+      |> Map.delete(:invoice_id)
+      |> Map.put(:invoice, invoice)
+
+    # FIXME need to recheck txs in db to see if invoice was paid or not
+
+    {:noreply, state}
   end
 
   defp process(invoice, state) do
