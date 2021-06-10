@@ -3,7 +3,6 @@ defmodule BitPal.ExchangeRateSupervisor do
   alias BitPal.Cache
   alias BitPal.ExchangeRate
   alias BitPal.ExchangeRate.Worker
-  alias BitPal.RuntimeStorage
   require Logger
 
   @backend_cache BitPal.ExchangeRate.BackendCache
@@ -30,7 +29,7 @@ defmodule BitPal.ExchangeRateSupervisor do
   def init(opts) do
     children = [
       {Cache, name: @backend_cache, clear_interval: opts[:clear_interval]},
-      {RuntimeStorage, name: @permanent_cache},
+      {Cache, name: @permanent_cache, clear_interval: :inf},
       {Task.Supervisor, name: @supervisor}
     ]
 

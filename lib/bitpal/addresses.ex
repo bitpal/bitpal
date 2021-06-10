@@ -11,11 +11,15 @@ defmodule BitPal.Addresses do
   @type address_index :: non_neg_integer
 
   @spec get(String.t()) :: Address.t() | nil
-  def get(address) do
-    from(a in Address,
-      where: a.id == ^address
-    )
+  def get(address_id) do
+    from(a in Address, where: a.id == ^address_id)
     |> Repo.one()
+  end
+
+  @spec exists?(String.t()) :: boolean
+  def exists?(address_id) do
+    from(a in Address, where: a.id == ^address_id)
+    |> Repo.exists?()
   end
 
   @spec register(Currency.id(), [{Address.id(), address_index}]) ::

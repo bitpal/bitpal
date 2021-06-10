@@ -48,7 +48,8 @@ defmodule BitPal.MixProject do
       {:mox, "~> 1.0"},
       {:phoenix_pubsub, "~> 2.0"},
       {:poison, "~> 3.1"},
-      {:postgrex, ">= 0.0.0"}
+      {:postgrex, ">= 0.0.0"},
+      {:typed_ecto_schema, "~> 0.2"}
     ]
   end
 

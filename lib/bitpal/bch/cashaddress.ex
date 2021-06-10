@@ -5,6 +5,7 @@ defmodule BitPal.BCH.Cashaddress do
 
   use Bitwise
   alias BitPal.BCH.KeyTree
+  alias BitPal.Cache
   alias BitPal.Crypto.Base32
   alias BitPal.RuntimeStorage
 
@@ -19,7 +20,7 @@ defmodule BitPal.BCH.Cashaddress do
   Caches key import using `BitPal.RuntimeStorage`.
   """
   def derive_address(xpub = "xpub" <> _, address_index) when address_index >= 0 do
-    RuntimeStorage.get_or_put_lazy({:xpub_account, xpub}, fn ->
+    Cache.get_or_put_lazy(RuntimeStorage, {:xpub_account, xpub}, fn ->
       xpub
       |> KeyTree.import_key()
       |> KeyTree.child_key(0)
