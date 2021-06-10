@@ -118,7 +118,6 @@ defmodule BitPal.Backend.Flowee do
   def handle_info({:send_ping}, state) do
     case state do
       %{hub_connection: conn} ->
-        # IO.puts("Sending ping")
         Protocol.send_ping(conn)
         enqueue_ping(state)
 

@@ -1,8 +1,7 @@
 defmodule BitPal.Currencies do
-  import Ecto.Query, only: [from: 2]
-  # import Config, only: [config: 3]
   alias BitPal.Repo
   alias BitPalSchemas.Currency
+  alias Ecto.Changeset
 
   @currencies %{
     BCH: %{name: "Bitcoin Cash", exponent: 8, symbol: "BCH"},
@@ -11,11 +10,9 @@ defmodule BitPal.Currencies do
     XMR: %{name: "Monero", exponent: 12, symbol: "XMR"}
   }
 
-  @type id :: atom | String.t()
-
-  @spec get(id) :: Currency.t()
-  def get(id) do
-    Repo.one(from(c in Currency, where: c.id == ^normalize(id)))
+  @spec get!(Currency.id()) :: Currency.t()
+  def get!(id) do
+    Repo.get!(Currency, normalize(id))
   end
 
   @spec register!([Currency.id()]) :: :ok
@@ -26,6 +23,11 @@ defmodule BitPal.Currencies do
   @spec register!(Currency.id()) :: :ok
   def register!(id) do
     Repo.insert!(%Currency{id: normalize(id)}, on_conflict: :nothing)
+  end
+
+  @spec set_height!(Currency.id(), non_neg_integer) :: :ok
+  def set_height!(id, height) do
+    Repo.update!(Changeset.change(%Currency{id: normalize(id)}, block_height: height))
   end
 
   @spec normalize(Currency.id()) :: String.t()

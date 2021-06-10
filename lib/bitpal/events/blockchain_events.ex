@@ -3,24 +3,23 @@ defmodule BitPal.BlockchainEvents do
   alias BitPal.EventHelpers
   alias BitPalSchemas.Currency
 
-  @type currency_id :: Currency.id()
   @type height :: non_neg_integer()
   @type msg ::
-          {:set_block_height, currency_id, height}
-          | {:new_block, currency_id, height}
-          | {:block_reversed, currency_id, height}
+          {:set_block_height, Currency.id(), height}
+          | {:new_block, Currency.id(), height}
+          | {:block_reversed, Currency.id(), height}
 
-  @spec subscribe(currency_id) :: :ok | {:error, term}
-  def subscribe(currency_id) do
-    EventHelpers.subscribe(topic(currency_id))
+  @spec subscribe(Currency.id()) :: :ok | {:error, term}
+  def subscribe(id) do
+    EventHelpers.subscribe(topic(id))
   end
 
-  @spec broadcast(currency_id, msg) :: :ok | {:error, term}
-  def broadcast(currency_id, msg) do
-    EventHelpers.broadcast(topic(currency_id), msg)
+  @spec broadcast(Currency.id(), msg) :: :ok | {:error, term}
+  def broadcast(id, msg) do
+    EventHelpers.broadcast(topic(id), msg)
   end
 
-  defp topic(currency_id) do
-    "blockchain:" <> Currencies.normalize(currency_id)
+  defp topic(id) do
+    "blockchain:" <> Currencies.normalize(id)
   end
 end

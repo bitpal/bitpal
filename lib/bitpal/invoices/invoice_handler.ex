@@ -3,11 +3,13 @@ defmodule BitPal.InvoiceHandler do
   alias BitPal.AddressEvents
   alias BitPal.BackendManager
   alias BitPal.BlockchainEvents
+  alias BitPal.Blocks
   alias BitPal.InvoiceEvents
   alias BitPal.Invoices
   alias BitPal.ProcessRegistry
   alias BitPal.Transactions
   alias BitPalSchemas.Invoice
+  alias BitPalSchemas.TxOutput
   require Logger
 
   @type handler :: pid
@@ -62,16 +64,15 @@ defmodule BitPal.InvoiceHandler do
       :draft ->
         finalize(invoice, state)
 
-      status ->
-        # NOTE this means handler has crashed and we need to recover data
-        Logger.error("unknown status in handler: '#{status}'")
+      _ ->
+        recover(invoice, state)
     end
   end
 
   @impl true
   def handle_info({:tx_seen, txid}, state) do
     invoice = Invoices.update_amount_paid(state.invoice)
-    state = process_tx(state, txid, nil)
+    state = put_tx_to_process(state, txid, nil)
 
     case Invoices.target_amount_reached?(invoice) do
       :underpaid ->
@@ -79,7 +80,7 @@ defmodule BitPal.InvoiceHandler do
 
       _ ->
         if invoice.required_confirmations == 0 do
-          Process.send_after(self(), {:double_spend_timeout, txid}, state.double_spend_timeout)
+          send_double_spend_timeout(txid, state)
         end
 
         process(invoice, state)
@@ -95,7 +96,7 @@ defmodule BitPal.InvoiceHandler do
            invoice.required_confirmations do
         tx_processed(state, txid)
       else
-        process_tx(state, txid, height)
+        put_tx_to_process(state, txid, height)
       end
 
     case Invoices.target_amount_reached?(invoice) do
@@ -104,6 +105,7 @@ defmodule BitPal.InvoiceHandler do
 
       _ ->
         {_, state} = process(invoice, state)
+
         try_into_paid(state)
     end
   end
@@ -128,30 +130,18 @@ defmodule BitPal.InvoiceHandler do
   end
 
   @impl true
-  def handle_info({:new_block, _currency, height}, state) do
-    case Map.fetch(state, :processing_txs) do
-      {:ok, txs} when map_size(txs) > 0 ->
-        if state.invoice.required_confirmations > 0 do
-          to_process =
-            Enum.filter(txs, fn
-              {_tx_id, nil} ->
-                true
-
-              {_tx_id, confirmed_height} ->
-                height - confirmed_height + 1 < state.invoice.required_confirmations
-            end)
-            |> Enum.into(%{})
-
-          state
-          |> Map.put(:processing_txs, to_process)
-          |> try_into_paid()
-        else
-          {:noreply, state}
-        end
-
-      _ ->
-        {:noreply, state}
+  def handle_info({:new_block, _currency, height}, state = %{processing_txs: txs}) do
+    if state.invoice.required_confirmations > 0 do
+      state
+      |> clear_processed_txs(txs, height)
+      |> try_into_paid()
+    else
+      {:noreply, state}
     end
+  end
+
+  def handle_info({:new_block, _currency, _height}, state) do
+    {:noreply, state}
   end
 
   @impl true
@@ -187,6 +177,33 @@ defmodule BitPal.InvoiceHandler do
     end
   end
 
+  defp recover(invoice, state) do
+    :ok = AddressEvents.subscribe(invoice.address_id)
+    :ok = BlockchainEvents.subscribe(invoice.currency_id)
+
+    # Should always have a block since we're trying to recover
+    height = Blocks.fetch_block_height!(invoice.currency_id)
+
+    invoice = Invoices.update_amount_paid(invoice)
+
+    txs =
+      Enum.map(invoice.tx_outputs, fn tx ->
+        if tx.confirmed_height == nil do
+          send_double_spend_timeout(tx.txid, state)
+        end
+
+        {tx.txid, tx.confirmed_height}
+      end)
+      |> Enum.into(%{})
+
+    state
+    |> Map.delete(:invoice_id)
+    |> Map.put(:invoice, invoice)
+    |> ensure_invoice_is_processing(txs)
+    |> clear_processed_txs(txs, height)
+    |> try_into_paid()
+  end
+
   defp process(invoice, state) do
     # It's fine if this fails?
     case Invoices.process(invoice) do
@@ -199,7 +216,16 @@ defmodule BitPal.InvoiceHandler do
     end
   end
 
-  defp process_tx(state, txid, confirmed_height) do
+  defp ensure_invoice_is_processing(state, txs) do
+    if map_size(txs) > 0 && state.invoice.status == :open do
+      {_, state} = process(state.invoice, state)
+      state
+    else
+      state
+    end
+  end
+
+  defp put_tx_to_process(state, txid, confirmed_height) do
     Map.update(state, :processing_txs, %{txid => confirmed_height}, fn waiting ->
       Map.put(waiting, txid, confirmed_height)
     end)
@@ -214,6 +240,29 @@ defmodule BitPal.InvoiceHandler do
   end
 
   defp tx_processed(state, _tx_id), do: state
+
+  @spec clear_processed_txs(map, %{TxOutput.txid() => TxOutput.height()}, non_neg_integer) :: map
+  defp clear_processed_txs(state, txs, curr_height) when map_size(txs) > 0 do
+    required_confirmations = state.invoice.required_confirmations
+
+    to_process =
+      Enum.filter(txs, fn
+        {_tx_id, nil} ->
+          true
+
+        {_tx_id, confirmed_height} ->
+          curr_height - confirmed_height + 1 < required_confirmations
+      end)
+      |> Enum.into(%{})
+
+    Map.put(state, :processing_txs, to_process)
+  end
+
+  defp clear_processed_txs(state, _txs, _curr_height), do: state
+
+  defp send_double_spend_timeout(txid, state) do
+    Process.send_after(self(), {:double_spend_timeout, txid}, state.double_spend_timeout)
+  end
 
   defp try_into_paid(state) do
     done? =

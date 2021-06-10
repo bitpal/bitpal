@@ -6,12 +6,13 @@ defmodule BitPalSchemas.TxOutput do
   alias Money.Ecto.NumericType
 
   @type txid :: String.t()
+  @type height :: non_neg_integer | nil
 
   @type t :: %__MODULE__{
           id: integer,
           txid: txid,
           amount: Money.t(),
-          confirmed_height: non_neg_integer,
+          confirmed_height: height,
           double_spent: boolean,
           address_id: Address.id(),
           address: Address.t(),

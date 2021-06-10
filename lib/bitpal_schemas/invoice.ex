@@ -22,6 +22,7 @@ defmodule BitPalSchemas.Invoice do
   @type t :: %__MODULE__{
           id: id,
           amount: Money.t(),
+          amount_paid: Money.t(),
           fiat_amount: Money.t(),
           exchange_rate: ExchangeRate.t(),
           currency_id: String.t(),
@@ -31,7 +32,9 @@ defmodule BitPalSchemas.Invoice do
           tx_outputs: [TxOutput.t()],
           status: status,
           required_confirmations: non_neg_integer,
-          description: String.t()
+          description: String.t(),
+          inserted_at: Date.t(),
+          updated_at: Date.t()
           # payment_uri: String.t()
         }
 
