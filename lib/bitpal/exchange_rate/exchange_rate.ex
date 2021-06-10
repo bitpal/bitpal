@@ -1,12 +1,12 @@
 defmodule BitPal.ExchangeRate do
-  alias BitPal.Currencies
   alias BitPal.ExchangeRateSupervisor
   alias BitPal.ExchangeRateSupervisor.Result
+  alias BitPalSchemas.Currency
   alias Phoenix.PubSub
 
   @pubsub BitPal.PubSub
 
-  @type pair :: {Currencies.id(), Currencies.id()}
+  @type pair :: {Currency.id(), Currency.id()}
   @type t :: %__MODULE__{
           rate: Decimal.t(),
           pair: pair
@@ -147,7 +147,7 @@ defmodule BitPal.ExchangeRate do
     Atom.to_string(__MODULE__) <> Atom.to_string(from) <> Atom.to_string(to)
   end
 
-  @spec normalize_currency(Currencies.id()) :: {:ok, atom} | :error
+  @spec normalize_currency(Currency.id()) :: {:ok, atom} | :error
   defp normalize_currency(currency) do
     {:ok, Money.Currency.to_atom(currency)}
   rescue

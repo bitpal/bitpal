@@ -7,6 +7,7 @@ defmodule BitPal.Repo.Migrations.Persistance do
 
     create table(:currencies, primary_key: false) do
       add :id, :string, size: 8, primary_key: true
+      add :block_height, :integer
     end
 
     create unique_index(:currencies, :id)

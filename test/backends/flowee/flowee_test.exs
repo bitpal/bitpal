@@ -38,13 +38,13 @@ defmodule BitPal.Backend.FloweeTest do
   @tag backends: []
   test "new block" do
     assert eventually(fn ->
-             Blocks.fetch_block_height(:BCH) == {:ok, 690_637}
+             Blocks.fetch_block_height!(:BCH) == 690_637
            end)
 
     MockTCPClient.response(@client, FloweeFixtures.new_block())
 
     assert eventually(fn ->
-             Blocks.fetch_block_height(:BCH) == {:ok, 690_638}
+             Blocks.fetch_block_height!(:BCH) == 690_638
            end)
   end
 

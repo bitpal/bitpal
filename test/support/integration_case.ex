@@ -41,11 +41,11 @@ defmodule BitPal.IntegrationCase do
 
     setup_db(tags)
 
+    BitPal.Currencies.register!([:XMR, :BCH, :DGC])
+
     if tags[:backends] do
       setup_backends(tags)
     end
-
-    BitPal.Currencies.register!([:XMR, :BCH, :DGC])
 
     :ok
   end
