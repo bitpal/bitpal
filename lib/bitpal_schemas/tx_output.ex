@@ -4,11 +4,12 @@ defmodule BitPalSchemas.TxOutput do
   alias Money.Ecto.NumericType
 
   @type txid :: String.t()
+  @type height :: non_neg_integer | nil
 
   typed_schema "tx_outputs" do
     field(:txid, :string)
     field(:amount, NumericType) :: Money.t()
-    field(:confirmed_height, :integer) :: non_neg_integer | nil
+    field(:confirmed_height, :integer) :: height
     field(:double_spent, :boolean, default: false)
 
     belongs_to(:address, Address, type: :string)

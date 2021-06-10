@@ -3,7 +3,7 @@ defmodule BitPalSchemas.Currency do
   alias BitPalSchemas.Address
   alias BitPalSchemas.Invoice
 
-  @type id :: String.t()
+  @type id :: String.t() | atom
 
   @primary_key {:id, :string, []}
   typed_schema "currencies" do
