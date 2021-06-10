@@ -15,12 +15,11 @@ defmodule BitPal.Currencies do
     Repo.get!(Currency, normalize(id))
   end
 
-  @spec register!([Currency.id()]) :: :ok
+  @spec register!([Currency.id()] | Currency.id()) :: :ok
   def register!(ids) when is_list(ids) do
     Enum.each(ids, &register!/1)
   end
 
-  @spec register!(Currency.id()) :: :ok
   def register!(id) do
     Repo.insert!(%Currency{id: normalize(id)}, on_conflict: :nothing)
   end

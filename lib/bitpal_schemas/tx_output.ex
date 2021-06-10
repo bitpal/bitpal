@@ -1,29 +1,14 @@
 defmodule BitPalSchemas.TxOutput do
-  use Ecto.Schema
+  use TypedEctoSchema
   alias BitPalSchemas.Address
-  alias BitPalSchemas.Currency
-  alias BitPalSchemas.Invoice
   alias Money.Ecto.NumericType
 
   @type txid :: String.t()
-  @type height :: non_neg_integer | nil
 
-  @type t :: %__MODULE__{
-          id: integer,
-          txid: txid,
-          amount: Money.t(),
-          confirmed_height: height,
-          double_spent: boolean,
-          address_id: Address.id(),
-          address: Address.t(),
-          invoice: Invoice.t(),
-          currency: Currency.t()
-        }
-
-  schema "tx_outputs" do
+  typed_schema "tx_outputs" do
     field(:txid, :string)
-    field(:amount, NumericType)
-    field(:confirmed_height, :integer)
+    field(:amount, NumericType) :: Money.t()
+    field(:confirmed_height, :integer) :: non_neg_integer | nil
     field(:double_spent, :boolean, default: false)
 
     belongs_to(:address, Address, type: :string)

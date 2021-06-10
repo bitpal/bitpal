@@ -3,6 +3,8 @@ defmodule BitPalSchemas.Currency do
   alias BitPalSchemas.Address
   alias BitPalSchemas.Invoice
 
+  @type id :: String.t()
+
   @primary_key {:id, :string, []}
   typed_schema "currencies" do
     field(:block_height, :integer) :: non_neg_integer | nil

@@ -1,6 +1,6 @@
 defmodule BitPal.Invoices do
   import Ecto.Changeset
-  import Ecto.Query, only: [from: 2]
+  import Ecto.Query
   alias BitPal.Addresses
   alias BitPal.Blocks
   alias BitPal.Currencies
@@ -8,6 +8,7 @@ defmodule BitPal.Invoices do
   alias BitPal.FSM
   alias BitPal.Repo
   alias BitPalSchemas.Address
+  alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.TxOutput
   require Decimal
@@ -71,6 +72,42 @@ defmodule BitPal.Invoices do
     else
       :error
     end
+  end
+
+  @spec open_addresses(Currency.id()) :: [Address.t()]
+  def open_addresses(currency_id) do
+    "invoices"
+    |> with_status(:open)
+    |> with_currency(currency_id)
+    |> select([i], i.address_id)
+    |> Repo.all()
+  end
+
+  @spec all_open() :: [Invoice.t()]
+  def all_open do
+    "invoices"
+    |> with_status(:open)
+    |> Repo.all()
+  end
+
+  @spec is_address_open?(Address.t()) :: boolean
+  def is_address_open?(address_id) do
+    "invoices"
+    |> with_status(:open)
+    |> with_address(address_id)
+    |> Repo.exists?()
+  end
+
+  defp with_status(query, status) do
+    from(i in query, where: i.status == ^Atom.to_string(status))
+  end
+
+  defp with_currency(query, currency_id) do
+    from(i in query, where: i.currency_id == ^Currencies.normalize(currency_id))
+  end
+
+  defp with_address(query, address_id) do
+    from(i in query, where: i.address_id == ^address_id)
   end
 
   @spec finalized?(Invoice.t()) :: boolean

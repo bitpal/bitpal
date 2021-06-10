@@ -4,6 +4,8 @@ defmodule BitPalSchemas.Address do
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.TxOutput
 
+  @type id :: String.t()
+
   @primary_key {:id, :string, []}
   typed_schema "addresses" do
     field(:generation_index, :integer) :: non_neg_integer
