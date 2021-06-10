@@ -14,7 +14,6 @@ defmodule BitPal.InvoiceAcceptanceTest do
     assert [
              {:invoice_status, :open, _},
              {:invoice_status, :processing, _},
-             # {:tx_seen, _, _},
              {:invoice_status, :paid, _}
            ] = HandlerSubscriberCollector.received(stub)
   end
@@ -32,17 +31,8 @@ defmodule BitPal.InvoiceAcceptanceTest do
     assert [
              {:invoice_status, :open, _},
              {:invoice_status, :processing, _},
-             # {:tx_seen, %Transaction{confirmed_height: nil}, _},
-             # {:tx_confirmed, tx, _},
-             # {:tx_confirmed, _, _},
              {:invoice_status, :paid, _}
-             # {:state, :wait_for_tx, _},
-             # {:state, :wait_for_verification},
-             # {:confirmations, 1},
-             # {:state, :accepted}
            ] = HandlerSubscriberCollector.received(stub)
-
-    # assert Transactions.num_confirmations(tx) == 1
   end
 
   @tag backends: true
@@ -93,12 +83,6 @@ defmodule BitPal.InvoiceAcceptanceTest do
              {:invoice_status, :open, _},
              {:invoice_status, :processing, _},
              {:invoice_status, :paid, _}
-             # {:state, :wait_for_tx, _},
-             # {:state, :wait_for_confirmations},
-             # {:confirmations, 1},
-             # {:confirmations, 2},
-             # {:confirmations, 3},
-             # {:state, :accepted}
            ] = HandlerSubscriberCollector.received(stub)
   end
 
