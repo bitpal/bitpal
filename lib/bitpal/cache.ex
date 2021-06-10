@@ -18,6 +18,19 @@ defmodule BitPal.Cache do
     ArgumentError -> :error
   end
 
+  @spec get_or_put_lazy(atom, term, (() -> term)) :: term
+  def get_or_put_lazy(name \\ __MODULE__, key, default) do
+    case fetch(name, key) do
+      {:ok, res} ->
+        res
+
+      _ ->
+        value = default.()
+        :ok = put(name, key, value)
+        value
+    end
+  end
+
   def start_link(opts) do
     opts = Keyword.put_new(opts, :name, __MODULE__)
     GenServer.start_link(__MODULE__, opts, name: opts[:name])
@@ -48,7 +61,11 @@ defmodule BitPal.Cache do
   end
 
   defp schedule_clear(state) do
-    %{state | timer: Process.send_after(self(), :clear, state.interval)}
+    if state.interval == :inf do
+      state
+    else
+      %{state | timer: Process.send_after(self(), :clear, state.interval)}
+    end
   end
 
   defp new_table(name) do

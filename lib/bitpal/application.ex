@@ -13,7 +13,7 @@ defmodule BitPal.Application do
       BitPal.Repo,
       {Phoenix.PubSub, name: BitPal.PubSub},
       BitPal.ProcessRegistry,
-      BitPal.RuntimeStorage,
+      {BitPal.Cache, name: BitPal.RuntimeStorage, clear_interval: :inf},
       BitPal.ExchangeRateSupervisor,
       BitPal.InvoiceManager,
       BitPal.BackendManager

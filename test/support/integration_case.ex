@@ -37,7 +37,7 @@ defmodule BitPal.IntegrationCase do
   def setup_integration(tags \\ []) do
     start_supervised!({Phoenix.PubSub, name: BitPal.PubSub})
     start_supervised!(BitPal.ProcessRegistry)
-    start_supervised!(BitPal.RuntimeStorage)
+    start_supervised!({BitPal.Cache, name: BitPal.RuntimeStorage, clear_interval: :inf})
 
     setup_db(tags)
 
