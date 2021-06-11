@@ -23,17 +23,15 @@ defmodule BitPal.Invoices do
 
   @spec register(register_params) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def register(params) do
-    params =
-      Map.put_new_lazy(params, :required_confirmations, fn ->
-        Application.fetch_env!(:bitpal, :required_confirmations)
-      end)
-
     %Invoice{}
     |> cast(params, [:amount, :fiat_amount, :exchange_rate, :required_confirmations, :description])
     |> validate_amount(:amount)
     |> validate_amount(:fiat_amount)
     |> validate_exchange_rate(:exchange_rate)
     |> validate_into_matching_pairs()
+    |> with_default_lazy(:required_confirmations, fn ->
+      Application.fetch_env!(:bitpal, :required_confirmations)
+    end)
     |> assoc_currency()
     |> Repo.insert()
   end
@@ -369,6 +367,15 @@ defmodule BitPal.Invoices do
       |> assoc_constraint(:currency)
     else
       changeset
+    end
+  end
+
+  defp with_default_lazy(changeset, key, val) do
+    if get_change(changeset, key) do
+      changeset
+    else
+      changeset
+      |> change(%{key => val.()})
     end
   end
 end
