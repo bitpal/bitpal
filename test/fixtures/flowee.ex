@@ -87,7 +87,7 @@ defmodule BitPal.Backend.FloweeFixtures do
     # bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc
     # amount: 10000
     # amount: 20000
-    # txid: ...
+    # txid: 56d1c1a4dcda2c50f2c659c4cf47061e18dcca219d66e0f93ddf89ab922cf697
     [
       <<116, 0>>,
       <<8, 17, 16, 3, 4, 75, 32, 155, 134, 125, 18, 44, 85, 192, 201, 165, 210, 104, 235, 218, 84,
@@ -102,7 +102,7 @@ defmodule BitPal.Backend.FloweeFixtures do
   def multi_tx_a_seen do
     # bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa
     # amount: 5000
-    # txid: ...
+    # txid: 8c8075d8bbf768391f0135031d0346ef76125a49707159e03eee2f08c57bc935
     [
       <<78, 0>>,
       <<8, 17, 16, 3, 4, 75, 32, 155, 134, 125, 18, 44, 85, 192, 201, 165, 210, 104, 235, 218, 84,
@@ -118,7 +118,7 @@ defmodule BitPal.Backend.FloweeFixtures do
     # amount: 10000
     # amount: 20000
     # height: 690933
-    # txid: ...
+    # txid: 56d1c1a4dcda2c50f2c659c4cf47061e18dcca219d66e0f93ddf89ab922cf697
     [
       <<124, 0>>,
       <<8, 17, 16, 3, 4, 75, 32, 155, 134, 125, 18, 44, 85, 192, 201, 165, 210, 104, 235, 218, 84,
@@ -135,7 +135,7 @@ defmodule BitPal.Backend.FloweeFixtures do
     # bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa
     # amount: 5000
     # height: 690934
-    # txid: ...
+    # txid: 8c8075d8bbf768391f0135031d0346ef76125a49707159e03eee2f08c57bc935
     [
       <<86, 0>>,
       <<8, 17, 16, 3, 4, 75, 32, 155, 134, 125, 18, 44, 85, 192, 201, 165, 210, 104, 235, 218, 84,

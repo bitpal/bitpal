@@ -169,20 +169,51 @@ defmodule BitPal.Backend.Flowee.Protocol do
       [:offset | rest] -> [{44, true} | get_output(rest)]
       [:inputs | rest] -> [{46, true} | get_output(rest)]
       [:outputs | rest] -> [{49, true} | get_output(rest)]
+      [:outputScripts | rest] -> [{48, true} | get_output(rest)]
       [:outputAddrs | rest] -> [{50, true} | get_output(rest)]
+      [:outputHash | rest] -> [{51, true} | get_output(rest)]
       [:amounts | rest] -> [{47, true} | get_output(rest)]
+    end
+  end
+
+  # Get filters for the get operation.
+  defp get_filters(filters) do
+    case filters do
+      [] -> []
+      [{:hash, hash} | rest] -> [{42, %Binary{data: hash}} | get_filters(rest)]
     end
   end
 
   @doc """
   Get a block in the blockchain, either based on height or on its hash.
+
+  `outputs` is a list of things to include in the reply:
+  - `:txid`: include transaction id
+  - `:offset`: include the offset in the block (seems to be done by default at the moment)
+  - `:inputs`: include input addresses.
+  - `:amounts`: include output amounts.
+  - `:outputs`: include all outputs.
+  - `:outputScripts`: include output scripts.
+  - `:outputAddrs`: include output addresses (for p2pkh or p2pk).
+  - `:outputHash`: include script hashes of the outputs (all transactions).
+
+  `filters` is a list of filters to filter the transactions in the requested block.
+  - `{:hash, hash}`: filter with transactions of a particular hashed transaction (can appear multiple times).
+    Use `Cashaddr.create_hashed_output_script` to generate these.
   """
-  def send_get_block(c, {:height, h}, outputs) do
-    send_msg(c, @service_blockchain, 4, [{7, h} | get_output(outputs)])
+  def send_get_block(c, block, outputs, filters \\ [])
+
+  def send_get_block(c, {:height, h}, outputs, filters) do
+    send_msg(c, @service_blockchain, 4, [{7, h} | get_filters(filters)] ++ get_output(outputs))
   end
 
-  def send_get_block(c, {:hash, h}, outputs) do
-    send_msg(c, @service_blockchain, 4, [{7, %Binary{data: h}} | get_output(outputs)])
+  def send_get_block(c, {:hash, h}, outputs, filters) do
+    send_msg(
+      c,
+      @service_blockchain,
+      4,
+      [{7, %Binary{data: h}} | get_filters(filters)] ++ get_output(outputs)
+    )
   end
 
   # Convert addresses into a message. Handles either a single address or a list of them.
