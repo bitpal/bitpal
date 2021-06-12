@@ -279,8 +279,13 @@ defmodule BitPal.Backend.Flowee do
         {minor, _} = Integer.parse(minor)
 
         if major < @flowee_min_major or
-        (major == @flowee_min_major and minor < @flowee_min_minor) do
-          Logger.error("Your version of Flowee is too old. You have #{major}-#{minor}, we require #{@flowee_min_major}-#{@flowee_min_minor} or later.")
+             (major == @flowee_min_major and minor < @flowee_min_minor) do
+          Logger.error(
+            "Your version of Flowee is too old. You have #{major}-#{minor}, we require #{
+              @flowee_min_major
+            }-#{@flowee_min_minor} or later."
+          )
+
           raise "incompatible flowee version"
         end
 

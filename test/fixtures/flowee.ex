@@ -27,6 +27,15 @@ defmodule BitPal.Backend.FloweeFixtures do
     ]
   end
 
+  def version_msg do
+    # Version: Flowee: 1 (2021-05) (note: this version might not actually exist).
+    [
+      <<27, 0>>,
+      <<8, 0, 16, 1, 4, 10, 18, 70, 108, 111, 119, 101, 101, 58, 49, 32, 40, 50, 48, 50, 49, 45,
+        48, 53, 41>>
+    ]
+  end
+
   def blockchain_info do
     # blocks: 690637,
     # chain: "main",
