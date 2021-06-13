@@ -13,6 +13,7 @@ defmodule BitPal.Backend.FloweeTest do
   setup tags do
     init_mock(@client)
 
+    MockTCPClient.response(@client, FloweeFixtures.version_msg())
     MockTCPClient.response(@client, FloweeFixtures.blockchain_info())
 
     start_supervised!(
