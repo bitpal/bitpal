@@ -43,6 +43,23 @@ defmodule BitPal.Backend.FloweeFixtures do
     ]
   end
 
+  def blockchain_verifying_info do
+    # This is captured when Flowee was just started, and have not yet had time to download
+    # the blockchain. This can be seen by the "verification_progress".
+    # blocks: 7246
+    # chain: "main"
+    # verification_progress: 2.1309...e-5
+    [
+      <<120, 0>>,
+      <<8, 1, 16, 1, 4, 250, 67, 4, 109, 97, 105, 110, 248, 68, 183, 78, 248, 69, 157, 152, 121,
+        251, 70, 32, 10, 53, 213, 74, 198, 114, 43, 25, 36, 209, 80, 186, 86, 65, 88, 110, 178,
+        60, 79, 227, 160, 76, 155, 168, 143, 251, 35, 38, 0, 0, 0, 0, 254, 64, 0, 0, 0, 0, 0, 0,
+        240, 63, 248, 65, 131, 204, 229, 168, 117, 254, 71, 220, 179, 74, 219, 49, 249, 246, 62,
+        251, 66, 32, 78, 28, 78, 28, 78, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0>>
+    ]
+  end
+
   def new_block do
     # height: 690638
     [
