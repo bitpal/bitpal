@@ -1,6 +1,6 @@
 defmodule BitPal.TestHTTPClient do
-  @kraken_bchusd File.read!("test/fixtures/kraken_bchusd.json")
-  @kraken_bcheur File.read!("test/fixtures/kraken_bcheur.json")
+  @kraken_bchusd File.read!("test/bitpal/fixtures/kraken_bchusd.json")
+  @kraken_bcheur File.read!("test/bitpal/fixtures/kraken_bcheur.json")
 
   @spec request_body(String.t()) :: {:ok, String.t()}
   def request_body(url) do

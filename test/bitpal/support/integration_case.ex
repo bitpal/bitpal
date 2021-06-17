@@ -51,7 +51,7 @@ defmodule BitPal.IntegrationCase do
   end
 
   defp setup_db(tags) do
-    start_supervised!(BitPal.Repo)
+    start_supervised(BitPal.Repo)
     :ok = Sandbox.checkout(BitPal.Repo)
 
     unless tags[:async] do
