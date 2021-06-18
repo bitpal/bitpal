@@ -31,7 +31,7 @@ jobs:
       - uses: erlef/setup-elixir@v1
         with:
           otp-version: 23.1
-          elixir-version: 1.11.3
+          elixir-version: 1.12.1
 
       - uses: actions/setup-go@v2
         with:
