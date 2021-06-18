@@ -44,7 +44,7 @@ defmodule HandlerSubscriberCollector do
 
   def await_status(handler, status) do
     Task.async(__MODULE__, :sleep_until_status, [handler, status])
-    |> Task.await(50)
+    |> Task.await(1_000)
 
     {:ok, received(handler)}
   end
