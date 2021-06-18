@@ -6,8 +6,6 @@ defmodule BitPal.Application do
   use Application
 
   @impl true
-  # NOTE instead of starting it in a weird way in test cases,
-  # send args here and control setup.
   def start(_type, _args) do
     BitPal.Currencies.configure_money()
 
@@ -32,8 +30,7 @@ defmodule BitPal.Application do
 
   @impl true
   def config_change(changed, new, removed) do
-    BitPal.configure(changed)
-    BitPal.configure(new)
+    BitPalConfig.config_change(changed, new, removed)
     BitPalApi.Endpoint.config_change(changed, removed)
     BitPalWeb.Endpoint.config_change(changed, removed)
     :ok

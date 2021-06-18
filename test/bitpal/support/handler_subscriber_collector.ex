@@ -5,6 +5,7 @@ defmodule HandlerSubscriberCollector do
   alias BitPal.InvoiceHandler
   alias BitPal.InvoiceManager
   alias BitPal.Invoices
+  alias BitPal.InvoiceEvents
   alias BitPalSchemas.Invoice
 
   # Client API
@@ -79,11 +80,11 @@ defmodule HandlerSubscriberCollector do
   @impl true
   def handle_call({:create_invoice, params = %{address: {address, id}}}, _, state) do
     # Address specified, force the address.
-    {:ok, invoice} = BitPal.register_invoice(Map.delete(params, :address))
+    {:ok, invoice} = Invoices.register(Map.delete(params, :address))
     {:ok, addr} = Addresses.register(invoice.currency_id, address, id)
     Invoices.assign_address(invoice, addr)
-    :ok = BitPal.subscribe(invoice)
-    {:ok, invoice_id} = BitPal.finalize(invoice)
+    :ok = InvoiceEvents.subscribe(invoice)
+    {:ok, invoice_id} = InvoiceManager.track(invoice)
     {:ok, handler} = InvoiceManager.get_handler(invoice_id)
     # Block until handler has finalized the invoice, which may change invoice details.
     invoice = InvoiceHandler.get_invoice(handler)
@@ -94,7 +95,9 @@ defmodule HandlerSubscriberCollector do
 
   @impl true
   def handle_call({:create_invoice, params}, _, state) do
-    {:ok, invoice_id} = BitPal.register_and_finalize(params)
+    {:ok, invoice} = Invoices.register(params)
+    :ok = InvoiceEvents.subscribe(invoice)
+    {:ok, invoice_id} = InvoiceManager.track(invoice)
     {:ok, handler} = InvoiceManager.get_handler(invoice_id)
     # Block until handler has finalized the invoice, which may change invoice details.
     invoice = InvoiceHandler.get_invoice(handler)
