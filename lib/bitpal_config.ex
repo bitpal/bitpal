@@ -1,6 +1,6 @@
 defmodule BitPalConfig do
-  alias BitPal.InvoiceManager
   alias BitPal.BackendManager
+  alias BitPal.InvoiceManager
 
   @spec config_change(keyword, keyword, keyword) :: :ok
   def config_change(changed, new, _removed) do

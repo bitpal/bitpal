@@ -2,10 +2,10 @@ defmodule HandlerSubscriberCollector do
   use GenServer
   alias BitPal.Addresses
   alias BitPal.ExchangeRate
+  alias BitPal.InvoiceEvents
   alias BitPal.InvoiceHandler
   alias BitPal.InvoiceManager
   alias BitPal.Invoices
-  alias BitPal.InvoiceEvents
   alias BitPalSchemas.Invoice
 
   # Client API
