@@ -200,36 +200,4 @@ defmodule InvoiceCreationTest do
     assert Money.to_decimal(invoice.fiat_amount) ==
              Decimal.from_float(254_000_000_000_000_000.000_000_02)
   end
-
-  @tag backends: true
-  test "register via finalize" do
-    assert {:ok, _} =
-             BitPal.register_and_finalize(%{
-               amount: Money.parse!(1.2, "BCH"),
-               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "USD"})
-             })
-
-    assert {:ok, invoice} =
-             Invoices.register(%{
-               amount: Money.parse!(1.2, "BCH"),
-               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "USD"})
-             })
-
-    assert {:ok, _} = BitPal.finalize(invoice)
-
-    assert {:error, _} =
-             BitPal.finalize(%Invoice{
-               amount: Money.parse!(1.2, "BCH"),
-               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "USD"})
-             })
-
-    assert {:error, _} =
-             BitPal.finalize(%Invoice{
-               id: Ecto.UUID.bingenerate(),
-               amount: Money.parse!(1.2, "BCH"),
-               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "USD"})
-             })
-
-    Process.sleep(200)
-  end
 end
