@@ -41,6 +41,11 @@ defmodule BitPal.Backend.Flowee do
     :ok
   end
 
+  @impl Backend
+  def ready?(backend) do
+    GenServer.call(backend, {:ready?})
+  end
+
   # Address is a "bitcoincash:..." address.
   # Note: This is mainly intended for testing. Registering requests will automagically start watching addresses.
   def watch_address(address) do
@@ -56,6 +61,7 @@ defmodule BitPal.Backend.Flowee do
     state =
       Enum.into(opts, %{})
       |> Map.put_new(:tcp_client, BitPal.TCPClient)
+      |> Map.put_new(:backend_ready, false)
 
     state = start_flowee(state)
 
@@ -74,6 +80,19 @@ defmodule BitPal.Backend.Flowee do
   end
 
   @impl true
+  def handle_call({:ready?}, _from, state) do
+    r = Map.get(state, :backend_ready, false)
+    {:reply, r, state}
+  end
+
+  @impl true
+  def handle_cast({:set_ready}, state) do
+    # Note: This is where we would broadcast "we're ready" if we need that.
+    state = Map.put(state, :backend_ready, true)
+    {:noreply, state}
+  end
+
+  @impl true
   def handle_cast({:watch, address}, state) do
     {:noreply, watch_address(address, state)}
   end
@@ -83,7 +102,7 @@ defmodule BitPal.Backend.Flowee do
     # We got a message from Flowee, inspect it and act upon it!
     case msg do
       %Message{type: :info, data: data} ->
-        on_info(data)
+        on_info(Map.get(state, :hub_connection), data)
 
       %Message{type: :new_block, data: data} ->
         on_new_block(data)
@@ -102,6 +121,9 @@ defmodule BitPal.Backend.Flowee do
       %Message{type: :on_double_spend, data: data} ->
         # We got notified of a double spend...
         on_double_spend(data)
+
+      %Message{type: :block, data: data} ->
+        on_block(Map.get(state, :hub_connection), data)
 
       %Message{type: :pong} ->
         # Just ignore it
@@ -140,46 +162,22 @@ defmodule BitPal.Backend.Flowee do
     end
   end
 
-  # Called when we received information from the blockchain.
-  defp on_info(%{blocks: height, verification_progress: progress}) do
-    Logger.info("Startup: new block height: #{inspect(height)}")
-    recover_blocks(height)
-    Blocks.set_block_height(@bch, height)
+  # Called when we need to wait for Flowee to become ready.
+  @impl true
+  def handle_info(:wait_for_flowee, state) do
+    c = Map.get(state, :hub_connection)
 
-    if progress < 0.9999 do
-      # Note: We have a mock "blockchain_verifying_info" that generates this error.
-      Logger.warning("Startup: Flowee has not yet verified the blockchain.")
-    end
+    # Ask Flowee for its status again. This will re-check if it is ready and act appropriately.
+    Protocol.send_blockchain_info(c)
+    {:noreply, state}
   end
 
   # Called when a new block has been mined (regardless of whether or not it contains one of our transactions)
   defp on_new_block(%{height: height}) do
     Logger.info("New block. Height is now: " <> inspect(height))
-    recover_blocks(height)
+    # Save the block height. This means that during recovery, we don't have to examine this block.
     Blocks.new_block(@bch, height)
   end
-
-  defp recover_blocks(height) do
-    case Blocks.fetch_block_height(@bch) do
-      {:ok, prev_height} ->
-        recover_blocks_between(prev_height, height)
-
-      _ ->
-        nil
-    end
-  end
-
-  defp recover_blocks_between(prev, next) when next - prev > 1 do
-    Enum.each((prev + 1)..(next - 1), fn height ->
-      # FIXME do something with height here
-      # Probably want to issue a "send_get_block", and parse results in an async manner.
-      # We should filter by addresses from `Invoices.active_addresses(@bch)`, so we only receive
-      # relevant data.
-      IO.puts("TODO recover block #{height}")
-    end)
-  end
-
-  defp recover_blocks_between(_prev, _next), do: nil
 
   # Called when we received a new transaction.
   # Note: We get the "transaction visible" immediately when we subscribe,
@@ -232,6 +230,7 @@ defmodule BitPal.Backend.Flowee do
   defp start_hub(state) do
     c = Connection.connect(state.tcp_client)
     state = Map.put(state, :hub_connection, c)
+    state = Map.put(state, :backend_ready, false)
 
     {:ok, pid} =
       Task.Supervisor.start_child(
@@ -250,9 +249,6 @@ defmodule BitPal.Backend.Flowee do
     # Start sending pings
     enqueue_ping(state)
 
-    # Start subscribing to new block messages
-    Protocol.send_block_subscribe(c)
-
     # Supscribe to invoices we should be tracking
     Enum.each(Invoices.active_addresses(@bch), fn address ->
       subscribe_addr(c, address)
@@ -260,9 +256,99 @@ defmodule BitPal.Backend.Flowee do
 
     # Query the current status of the blockchain. This is so that we can update the current height
     # of the blockchain and to look for confirmations for transactions we might have missed.
+    # Note: We don't want to subscribe for block notifications before this, since it might cause
+    # us to update the block height "too early".
     Protocol.send_blockchain_info(c)
 
     state
+  end
+
+  # Called by the recovery logic when it is done. This is the final parts of startup.
+  defp finish_startup(connection) do
+    # Mark ourself as "done".
+    GenServer.cast(self(), {:set_ready})
+
+    # Also, subscribe for block notifications now.
+    Protocol.send_block_subscribe(connection)
+  end
+
+  # Called when we received information from the blockend. This is done during startup of the Flowee backend.
+  defp on_info(connection, %{blocks: height, verification_progress: progress}) do
+    Logger.info("Startup: new block height: #{inspect(height)}")
+
+    # Do we need to recover any blocks?
+    if recover_blocks_until(connection, height) do
+      # If any recovery needed, we should not do anything more now.
+    else
+      # Done, update the block height (might already have been done, but does not hurt to do an extra time).
+      Blocks.set_block_height(@bch, height)
+
+      # See if Flowee is up to date.
+      if progress < 0.9999 do
+        # No, we need to wait for it... Poll it every ~30 seconds or so.
+        Process.send_after(self(), :wait_for_flowee, 30 * 1000);
+      else
+        finish_startup(connection)
+      end
+    end
+  end
+
+  # See if we need to recover some blocks. Returns "true" if we initiated any recovery.
+  defp recover_blocks_until(connection, height) do
+    case Blocks.fetch_block_height(@bch) do
+      {:ok, prev_height} ->
+        recover_blocks_between(connection, prev_height, height)
+
+      _ ->
+        # No previous block height, nothing we can recover from.
+        false
+    end
+  end
+
+  # See if we need to recover blocks in the interval (old, new). Returns "true" if we initiated recovery.
+  defp recover_blocks_between(connection, checked, current) do
+    if (checked < current) do
+      # Check block "checked + 1" and see if we have something to do there.
+      active = Invoices.active_addresses(@bch)
+      if Enum.empty?(active) do
+        # No addresses. Nothing to do, even if we are behind.
+        false
+      else
+        # We have addresses, send a request and see if we missed something.
+        hashes = Enum.map(active, fn x -> {:address, create_addr_hash(x)} end)
+        Protocol.send_get_block(connection, {:height, checked + 1}, [:txid, :amounts, :outputHash], hashes)
+      end
+    else
+      # Nothing to do.
+      false
+    end
+  end
+
+  # Reply from a "get_block" question.
+  defp on_block(connection, %Message{data: %{height: height, transactions: transactions}}) do
+    # Look at all transactions.
+    Enum.each(transactions, fn %{outputs: outputs, txid: txid} ->
+      Transactions.confirmed(binary_to_string(txid), filter_info_outputs(outputs), height)
+    end)
+
+    # Now, we can save that we have processed this block. If we do it any earlier, we might miss
+    # blocks in case we crash during recovery.
+    Blocks.set_block_height(@bch, height)
+
+    # Send a new info message. This will trigger "on_info" again, and cause recovery to continue.
+    Protocol.send_blockchain_info(connection)
+  end
+
+  # Version of "filter_info_outputs" for the format from "on_block_info".
+  defp filter_info_outputs(outputs) do
+    Enum.flat_map(outputs, fn %{amount: amount, outputHash: hash} ->
+      with {:ok, address} <- fetch_hash_to_addr(hash),
+           true <- Addresses.exists?(address) do
+        [{address, Money.new(amount, @bch)}]
+      else
+        _ -> []
+      end
+    end)
   end
 
   defp enqueue_ping(state) do

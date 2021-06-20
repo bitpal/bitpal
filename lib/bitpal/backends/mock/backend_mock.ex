@@ -29,6 +29,11 @@ defmodule BitPal.BackendMock do
     GenServer.call(backend, {:configure, opts})
   end
 
+  @impl Backend
+  def ready?(_backend) do
+    true
+  end
+
   # Client API
 
   def start_link(opts) do
