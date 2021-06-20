@@ -180,7 +180,7 @@ defmodule BitPal.Backend.Flowee.Protocol do
   defp get_filters(filters) do
     case filters do
       [] -> []
-      [{:hash, hash} | rest] -> [{42, %Binary{data: hash}} | get_filters(rest)]
+      [{:address, hash} | rest] -> [{42, %Binary{data: hash}} | get_filters(rest)]
     end
   end
 
@@ -198,8 +198,9 @@ defmodule BitPal.Backend.Flowee.Protocol do
   - `:outputHash`: include script hashes of the outputs (all transactions).
 
   `filters` is a list of filters to filter the transactions in the requested block.
-  - `{:hash, hash}`: filter with transactions of a particular hashed transaction (can appear multiple times).
-    Use `Cashaddr.create_hashed_output_script` to generate these.
+  - `{:address, <hash>}`: filter transactions based on the output addresses involved.
+    Use `Cashaddr.create_hashed_output_script` to generate hashes for an address (the format is
+    the same as for subscribing to an address).
   """
   def send_get_block(c, block, outputs, filters \\ [])
 
