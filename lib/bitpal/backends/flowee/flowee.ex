@@ -286,7 +286,7 @@ defmodule BitPal.Backend.Flowee do
       # See if Flowee is up to date.
       if progress < 0.9999 do
         # No, we need to wait for it... Poll it every ~30 seconds or so.
-        Process.send_after(self(), :wait_for_flowee, 30 * 1000);
+        Process.send_after(self(), :wait_for_flowee, 30 * 1000)
       else
         finish_startup(connection)
       end
@@ -307,16 +307,23 @@ defmodule BitPal.Backend.Flowee do
 
   # See if we need to recover blocks in the interval (old, new). Returns "true" if we initiated recovery.
   defp recover_blocks_between(connection, checked, current) do
-    if (checked < current) do
+    if checked < current do
       # Check block "checked + 1" and see if we have something to do there.
       active = Invoices.active_addresses(@bch)
+
       if Enum.empty?(active) do
         # No addresses. Nothing to do, even if we are behind.
         false
       else
         # We have addresses, send a request and see if we missed something.
         hashes = Enum.map(active, fn x -> {:address, create_addr_hash(x)} end)
-        Protocol.send_get_block(connection, {:height, checked + 1}, [:txid, :amounts, :outputHash], hashes)
+
+        Protocol.send_get_block(
+          connection,
+          {:height, checked + 1},
+          [:txid, :amounts, :outputHash],
+          hashes
+        )
       end
     else
       # Nothing to do.
