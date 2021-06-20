@@ -479,11 +479,15 @@ defmodule BitPal.Backend.Flowee.Protocol do
         # It is a "ripe160 based P2PKH address"
         parse_output(rest, Map.put(data, :address, address))
 
+      [{9, %Binary{data: hash}} | rest] ->
+        # Note: This is not in the documentation...
+        parse_output(rest, Map.put(data, :outputHash, hash))
+
       [{6, amount} | rest] ->
         parse_output(rest, Map.put(data, :amount, amount))
 
       [{23, %Binary{data: script}} | rest] ->
-        parse_output(rest, Map.put(data, :script, script))
+        parse_output(rest, Map.put(data, :outputScript, script))
 
       [{_, _} | _] ->
         # Some other element we don't recognize. Go back to the caller.
