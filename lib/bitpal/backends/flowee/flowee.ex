@@ -279,6 +279,7 @@ defmodule BitPal.Backend.Flowee do
     # Do we need to recover any blocks?
     if recover_blocks_until(connection, height) do
       # If any recovery needed, we should not do anything more now.
+      Logger.info("Startup: recovering block: #{inspect(height + 1)}")
     else
       # Done, update the block height (might already have been done, but does not hurt to do an extra time).
       Blocks.set_block_height(@bch, height)
@@ -332,7 +333,7 @@ defmodule BitPal.Backend.Flowee do
   end
 
   # Reply from a "get_block" question.
-  defp on_block(connection, %Message{data: %{height: height, transactions: transactions}}) do
+  defp on_block(connection, %{height: height, transactions: transactions}) do
     # Look at all transactions.
     Enum.each(transactions, fn %{outputs: outputs, txid: txid} ->
       Transactions.confirmed(binary_to_string(txid), filter_info_outputs(outputs), height)

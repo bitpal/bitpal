@@ -89,6 +89,7 @@ defmodule BitPal.Backend.Flowee.Connection do
   Send a raw message.
   """
   def send(connection, msg) do
+    # IO.puts("sent: #{inspect(serialize(msg), limit: :infinity)}")
     send_packet(connection, serialize(msg))
   end
 

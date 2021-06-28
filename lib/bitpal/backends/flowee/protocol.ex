@@ -415,10 +415,10 @@ defmodule BitPal.Backend.Flowee.Protocol do
       [{8, offset} | rest] ->
         parse_get_transaction(rest, Map.put(data, :offset, offset))
 
-      [{4, %Binary{data: id}} | rest] ->
+      [{4, id} | rest] ->
         parse_get_transaction(rest, Map.put(data, :txid, id))
 
-      [{20, %Binary{data: txid}} | rest] ->
+      [{20, txid} | rest] ->
         {r, input} = parse_input(rest, %{txid: txid})
         inputs = [input | Map.get(data, :inputs, [])]
         parse_get_transaction(r, Map.put(data, :inputs, inputs))

@@ -43,6 +43,26 @@ defmodule BitPal.Backend.FloweeFixtures do
     ]
   end
 
+  def blockchain_info_690933 do
+    # blocks: 690933,
+    # chain: "main",
+    # verification_progress: 0.999999....
+    # other things
+
+    # Note: This is a copy of the message above, but with the height modified. The block hash for
+    # this block is not correct wrt "the world". It is OK for tests since we don't currently care
+    # about the block hashes, only the block height.
+    [
+      <<121, 0>>,
+      <<8, 1, 16, 1, 4, 250, 67, 4, 109, 97, 105, 110, 248, 68, 169, 148, 117, 248, 69, 169, 146,
+        77, 251, 70, 32, 174, 24, 235, 131, 167, 234, 90, 172, 94, 143, 153, 48, 60, 164, 140,
+        219, 240, 22, 239, 83, 5, 65, 77, 2, 0, 0, 0, 0, 0, 0, 0, 0, 254, 64, 110, 183, 46, 254,
+        113, 30, 85, 66, 248, 65, 133, 132, 226, 147, 43, 254, 71, 189, 3, 196, 42, 254, 255, 239,
+        63, 251, 66, 32, 168, 2, 151, 75, 224, 43, 183, 138, 37, 250, 110, 1, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>>
+    ]
+  end
+
   def blockchain_verifying_info do
     # This is captured when Flowee was just started, and have not yet had time to download
     # the blockchain. This can be seen by the "verification_progress".
@@ -163,8 +183,27 @@ defmodule BitPal.Backend.FloweeFixtures do
     ]
   end
 
-  def block_info_690934 do
-    # Information for block 960934, filtered on the two addresses in multi_tx_1_conf.
+  def block_info_query_690933_a do
+    # The query Flowee needs to send to get the block_info below:
+    <<87, 0, 8, 1, 16, 4, 4, 56, 169, 148, 117, 251, 42, 32, 155, 134, 125, 18, 44, 85, 192, 201,
+      165, 210, 104, 235, 218, 84, 114, 130, 85, 57, 225, 101, 84, 87, 239, 252, 200, 122, 185,
+      53, 18, 128, 157, 185, 251, 42, 32, 74, 68, 61, 59, 35, 8, 83, 181, 175, 68, 97, 96, 214,
+      136, 211, 35, 0, 33, 218, 212, 156, 151, 129, 121, 140, 251, 126, 6, 23, 125, 222, 45, 252,
+      43, 252, 47, 252, 51>>
+  end
+
+  def block_info_query_690933_b do
+    # The query Flowee needs to send to get the block_info below:
+    # Here, the two addresses we look for are reversed. This is semantically the same as the _a version, but differs in its binary representation.
+    <<8, 1, 16, 4, 4, 56, 169, 148, 118, 251, 42, 32, 74, 68, 61, 59, 35, 8, 83, 181, 175, 68, 97,
+      96, 214, 136, 211, 35, 0, 33, 218, 212, 156, 151, 129, 121, 140, 251, 126, 6, 23, 125, 222,
+      45, 251, 42, 32, 155, 134, 125, 18, 44, 85, 192, 201, 165, 210, 104, 235, 218, 84, 114, 130,
+      85, 57, 225, 101, 84, 87, 239, 252, 200, 122, 185, 53, 18, 128, 157, 185, 252, 43, 252, 47,
+      252, 51>>
+  end
+
+  def block_info_690933 do
+    # Information for block 960933, filtered on the two addresses in multi_tx_1_conf.
     [
       # 320 bytes
       <<64, 1>>,
