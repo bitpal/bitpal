@@ -1,5 +1,4 @@
 defmodule BitPal.BlockchainEvents do
-  alias BitPal.Currencies
   alias BitPal.EventHelpers
   alias BitPalSchemas.Currency
 
@@ -20,6 +19,6 @@ defmodule BitPal.BlockchainEvents do
   end
 
   defp topic(id) do
-    "blockchain:" <> Currencies.normalize(id)
+    "blockchain:" <> Atom.to_string(id)
   end
 end

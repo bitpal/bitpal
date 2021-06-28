@@ -16,7 +16,7 @@ defmodule BitPal.ViewHelpersTest do
 
   test "endode with amount" do
     address = "bitcoincash:qqpkcce4lzdc8guam5jfys9prfyhr90seqzakyv4tu"
-    amount = Money.parse!(1.337, "BCH")
+    amount = Money.parse!(1.337, :BCH)
 
     assert ViewHelpers.address_with_meta(%Invoice{address_id: address, amount: amount}) ==
              "#{address}?amount=1.337"
@@ -28,7 +28,7 @@ defmodule BitPal.ViewHelpersTest do
     assert ViewHelpers.address_with_meta(
              %Invoice{
                address_id: address,
-               amount: Money.parse!(1.337, "BCH"),
+               amount: Money.parse!(1.337, :BCH),
                description: "Thank you for paying tribute!"
              },
              recipent: "BitPalTest"

@@ -1,6 +1,7 @@
 defmodule BitPal.ExchangeRate do
   alias BitPal.ExchangeRateSupervisor
   alias BitPalSchemas.Currency
+  alias BitPal.Currencies
 
   @type pair :: {Currency.id(), Currency.id()}
   @type t :: %__MODULE__{
@@ -28,8 +29,8 @@ defmodule BitPal.ExchangeRate do
 
   def new(rate, {a, b}) do
     with false <- Decimal.lt?(rate, Decimal.new(0)),
-         {:ok, a} <- normalize_currency(a),
-         {:ok, b} <- normalize_currency(b) do
+         {:ok, a} <- Currencies.cast(a),
+         {:ok, b} <- Currencies.cast(b) do
       {:ok,
        %__MODULE__{
          rate: rate,
@@ -56,18 +57,6 @@ defmodule BitPal.ExchangeRate do
            pair: {a.currency, b.currency}
          }}
     end
-  end
-
-  # Requests
-
-  @spec request(pair(), keyword) :: {:ok, t()} | {:error, term}
-  def request(pair, opts \\ []) do
-    ExchangeRateSupervisor.request(pair, opts)
-  end
-
-  @spec request!(pair(), keyword) :: t()
-  def request!(pair, opts \\ []) do
-    ExchangeRateSupervisor.request!(pair, opts)
   end
 
   # Handling
@@ -118,12 +107,5 @@ defmodule BitPal.ExchangeRate do
   @spec eq?(t, t) :: boolean
   def eq?(a, b) do
     a.pair == b.pair && Decimal.eq?(a.rate, b.rate)
-  end
-
-  @spec normalize_currency(Currency.id()) :: {:ok, atom} | :error
-  defp normalize_currency(currency) do
-    {:ok, Money.Currency.to_atom(currency)}
-  rescue
-    _ -> :error
   end
 end

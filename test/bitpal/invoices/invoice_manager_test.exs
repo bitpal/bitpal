@@ -10,16 +10,16 @@ defmodule InvoiceManagerTest do
 
     assert {:ok, inv1} =
              Invoices.register(%{
-               amount: Money.parse!(2.5, "BCH"),
-               exchange_rate: ExchangeRate.new!(Decimal.from_float(1.1), {"BCH", "USD"})
+               amount: Money.parse!(2.5, :BCH),
+               exchange_rate: ExchangeRate.new!(Decimal.from_float(1.1), {:BCH, :USD})
              })
 
     assert {:ok, inv1_id} = InvoiceManager.track(inv1)
 
     assert {:ok, inv2} =
              Invoices.register(%{
-               amount: Money.parse!(5.2, "BCH"),
-               exchange_rate: ExchangeRate.new!(Decimal.from_float(1.1), {"BCH", "USD"})
+               amount: Money.parse!(5.2, :BCH),
+               exchange_rate: ExchangeRate.new!(Decimal.from_float(1.1), {:BCH, :USD})
              })
 
     assert {:ok, inv2_id} = InvoiceManager.track(inv2)

@@ -11,7 +11,7 @@ defmodule BitPalSchemas.Address do
     field(:generation_index, :integer) :: non_neg_integer
     timestamps()
 
-    belongs_to(:currency, Currency, type: :string)
+    belongs_to(:currency, Currency, type: Ecto.Atom)
     has_one(:invoice, Invoice)
     has_many(:tx_outputs, TxOutput)
   end

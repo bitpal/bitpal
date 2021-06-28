@@ -1,7 +1,6 @@
 defmodule BitPal.ExchangeRateEvents do
   alias BitPal.EventHelpers
   alias BitPal.ExchangeRate
-  alias BitPal.ExchangeRateSupervisor
   alias BitPal.ExchangeRateSupervisor.Result
 
   @spec subscribe(ExchangeRate.pair(), keyword) :: :ok | {:error, term}

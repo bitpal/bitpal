@@ -156,7 +156,7 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
   @tag backends: true
   test "Invoices of the same amount" do
-    inv = [amount: Money.parse!(1.0, "BCH"), required_confirmations: 1]
+    inv = [amount: Money.parse!(1.0, :BCH), required_confirmations: 1]
 
     {:ok, inv0, _, handler0} = HandlerSubscriberCollector.create_invoice(inv)
     {:ok, inv1, _, handler1} = HandlerSubscriberCollector.create_invoice(inv)

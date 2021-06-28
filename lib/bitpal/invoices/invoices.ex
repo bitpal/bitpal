@@ -101,7 +101,7 @@ defmodule BitPal.Invoices do
   end
 
   defp with_currency(query, currency_id) do
-    from(i in query, where: i.currency_id == ^Currencies.normalize(currency_id))
+    from(i in query, where: i.currency_id == ^Atom.to_string(currency_id))
   end
 
   defp with_address(query, address_id) do
@@ -363,7 +363,7 @@ defmodule BitPal.Invoices do
 
     if amount && amount.currency do
       changeset
-      |> change(%{currency_id: Currencies.normalize(amount.currency)})
+      |> change(%{currency_id: amount.currency})
       |> assoc_constraint(:currency)
     else
       changeset

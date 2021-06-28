@@ -4,7 +4,7 @@ defmodule BitPal.Currencies do
   alias Ecto.Changeset
 
   @currencies %{
-    BCH: %{name: "Bitcoin Cash", exponent: 8, symbol: "BCH"},
+    BCH: %{name: "Bitcoin Cash", exponent: 8, symbol: :BCH},
     BTC: %{name: "Bitcoin", exponent: 8, symbol: "BTC"},
     DGC: %{name: "Dogecoin", exponent: 8, symbol: "DGC"},
     XMR: %{name: "Monero", exponent: 12, symbol: "XMR"}
@@ -12,7 +12,7 @@ defmodule BitPal.Currencies do
 
   @spec get!(Currency.id()) :: Currency.t()
   def get!(id) do
-    Repo.get!(Currency, normalize(id))
+    Repo.get!(Currency, id)
   end
 
   @spec register!([Currency.id()] | Currency.id()) :: :ok
@@ -21,21 +21,19 @@ defmodule BitPal.Currencies do
   end
 
   def register!(id) do
-    Repo.insert!(%Currency{id: normalize(id)}, on_conflict: :nothing)
+    Repo.insert!(%Currency{id: id}, on_conflict: :nothing)
   end
 
   @spec set_height!(Currency.id(), non_neg_integer) :: :ok
   def set_height!(id, height) do
-    Repo.update!(Changeset.change(%Currency{id: normalize(id)}, block_height: height))
+    Repo.update!(Changeset.change(%Currency{id: id}, block_height: height))
   end
 
-  @spec normalize(Currency.id()) :: String.t()
-  def normalize(id) when is_binary(id) do
-    id |> String.upcase()
-  end
-
-  def normalize(id) when is_atom(id) do
-    Atom.to_string(id) |> String.upcase()
+  @spec cast(atom | String.t()) :: {:ok, Currency.id()} | :error
+  def cast(id) do
+    {:ok, Money.Currency.to_atom(id)}
+  catch
+    _ -> :error
   end
 
   def configure_money do
