@@ -3,16 +3,9 @@ defmodule BitPal.ExchangeRateEvents do
   alias BitPal.ExchangeRate
   alias BitPal.ExchangeRateSupervisor.Result
 
-  @spec subscribe(ExchangeRate.pair(), keyword) :: :ok | {:error, term}
-  def subscribe(pair, opts \\ []) do
-    case EventHelpers.subscribe(topic(pair)) do
-      :ok ->
-        ExchangeRateSupervisor.async_request(pair, opts)
-        :ok
-
-      err ->
-        err
-    end
+  @spec subscribe(ExchangeRate.pair()) :: :ok | {:error, term}
+  def subscribe(pair) do
+    EventHelpers.subscribe(topic(pair))
   end
 
   @spec unsubscribe(ExchangeRate.pair()) :: :ok

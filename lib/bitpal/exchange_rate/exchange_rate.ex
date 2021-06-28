@@ -1,7 +1,6 @@
 defmodule BitPal.ExchangeRate do
-  alias BitPal.ExchangeRateSupervisor
-  alias BitPalSchemas.Currency
   alias BitPal.Currencies
+  alias BitPalSchemas.Currency
 
   @type pair :: {Currency.id(), Currency.id()}
   @type t :: %__MODULE__{

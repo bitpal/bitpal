@@ -5,6 +5,8 @@ defmodule Ecto.Atom do
 
   use Ecto.Type
 
+  @type t :: atom
+
   @impl true
   def type, do: :string
 

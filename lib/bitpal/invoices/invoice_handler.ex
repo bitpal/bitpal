@@ -85,7 +85,7 @@ defmodule BitPal.InvoiceHandler do
         {:noreply, %{state | invoice: invoice}}
 
       _ ->
-        process(invoice, state)
+        {:noreply, process(state, invoice)}
     end
   end
 
@@ -106,9 +106,9 @@ defmodule BitPal.InvoiceHandler do
         {:noreply, %{state | invoice: invoice}}
 
       _ ->
-        {_, state} = process(invoice, state)
-
-        try_into_paid(state)
+        state
+        |> process(invoice)
+        |> try_into_paid()
     end
   end
 
@@ -122,7 +122,7 @@ defmodule BitPal.InvoiceHandler do
   @impl true
   def handle_info({:tx_double_spent, _txid}, state) do
     {:ok, invoice} = Invoices.double_spent(state.invoice)
-    InvoiceEvents.broadcast_status(invoice)
+    InvoiceEvents.broadcast({:invoice_uncollectible, %{id: invoice.id, reason: :double_spent}})
     {:noreply, %{state | invoice: invoice}}
   end
 
@@ -165,7 +165,7 @@ defmodule BitPal.InvoiceHandler do
 
         {:ok, invoice} = Invoices.finalize(invoice)
 
-        InvoiceEvents.broadcast_status(invoice)
+        InvoiceEvents.broadcast({:invoice_finalized, invoice})
 
         state =
           state
@@ -206,22 +206,24 @@ defmodule BitPal.InvoiceHandler do
     |> try_into_paid()
   end
 
-  defp process(invoice, state) do
+  defp process(state, invoice) do
     # It's fine if this fails?
     case Invoices.process(invoice) do
       {:ok, invoice} ->
-        InvoiceEvents.broadcast_status(invoice)
-        {:noreply, Map.put(state, :invoice, invoice)}
+        InvoiceEvents.broadcast(
+          {:invoice_processing, %{id: invoice.id, reason: Invoices.processing_reason(invoice)}}
+        )
+
+        Map.put(state, :invoice, invoice)
 
       {:error, _} ->
-        {:noreply, Map.put(state, :invoice, invoice)}
+        Map.put(state, :invoice, invoice)
     end
   end
 
   defp ensure_invoice_is_processing(state, txs) do
     if map_size(txs) > 0 && state.invoice.status == :open do
-      {_, state} = process(state.invoice, state)
-      state
+      process(state, state.invoice)
     else
       state
     end
@@ -266,14 +268,19 @@ defmodule BitPal.InvoiceHandler do
     Process.send_after(self(), {:double_spend_timeout, txid}, state.double_spend_timeout)
   end
 
-  defp try_into_paid(state) do
+  defp try_into_paid(state = %{invoice: invoice}) do
     done? =
       Enum.empty?(Map.get(state, :processing_txs, %{})) &&
-        Invoices.target_amount_reached?(state.invoice) != :underpaid
+        Invoices.target_amount_reached?(invoice) != :underpaid
 
     if done? do
-      state = Map.put(state, :invoice, Invoices.pay!(state.invoice))
-      InvoiceEvents.broadcast_status(state.invoice)
+      state = Map.put(state, :invoice, Invoices.pay!(invoice))
+
+      InvoiceEvents.broadcast(
+        {:invoice_paid,
+         %{id: invoice.id, overpaid_amount: Money.subtract(invoice.amount_paid, invoice.amount)}}
+      )
+
       {:stop, :normal, state}
     else
       {:noreply, state}

@@ -60,6 +60,10 @@ defmodule BitPalApi do
   def channel do
     quote do
       use Phoenix.Channel
+      import Phoenix.View
+      import BitPalApi.ChannelHelpers
+
+      alias BitPalApi.InvoiceView
     end
   end
 

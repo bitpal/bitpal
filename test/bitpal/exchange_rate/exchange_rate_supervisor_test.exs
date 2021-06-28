@@ -1,6 +1,7 @@
 defmodule BitPal.ExchangeRateSupervisorTest do
   use ExUnit.Case, async: false
   alias BitPal.ExchangeRate
+  alias BitPal.ExchangeRate.Worker
   alias BitPal.ExchangeRateEvents
   alias BitPal.ExchangeRateSupervisor
   alias BitPal.ExchangeRateSupervisor.Result
@@ -55,7 +56,8 @@ defmodule BitPal.ExchangeRateSupervisorTest do
 
     @impl true
     def handle_call({:subscribe, pair, opts}, _from, state) do
-      ExchangeRateEvents.subscribe(pair, opts)
+      ExchangeRateEvents.subscribe(pair)
+      ExchangeRateSupervisor.async_request(pair, opts)
       {:reply, :ok, state}
     end
 
@@ -108,7 +110,6 @@ defmodule BitPal.ExchangeRateSupervisorTest do
     :ok
   end
 
-  @tag do: true
   test "direct request" do
     assert ExchangeRateSupervisor.request(@bchusd) == {:ok, bchusd_rate()}
     assert ExchangeRateSupervisor.request!(@bchusd) == bchusd_rate()
@@ -150,7 +151,8 @@ defmodule BitPal.ExchangeRateSupervisorTest do
 
     Process.sleep(10)
 
-    {:already_started, _} = ExchangeRateSupervisor.async_request(@bchusd)
+    {:ok, pid} = Worker.get_worker(@bchusd)
+    {:ok, ^pid} = ExchangeRateSupervisor.async_request(@bchusd)
   end
 
   test "crashing" do

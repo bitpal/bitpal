@@ -192,6 +192,15 @@ defmodule BitPal.Invoices do
     end)
   end
 
+  def processing_reason(invoice = %Invoice{status: :processing}) do
+    if invoice.required_confirmations == 0 do
+      :verifying
+    else
+      # FIXME
+      {:confirming, 0}
+    end
+  end
+
   @spec delete(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def delete(invoice) do
     if finalized?(invoice) do

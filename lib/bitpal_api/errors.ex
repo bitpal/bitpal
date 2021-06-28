@@ -37,7 +37,7 @@ defmodule BitPalApi.RequestFailedError do
   @moduledoc """
   402 - Request Failed, The parameters were valid but the request failed.
   """
-  defexception message: "Request failed", plug_status: 402
+  defexception message: "Request Failed", plug_status: 402
 end
 
 defmodule BitPalApi.ForbiddenError do
@@ -51,5 +51,5 @@ defmodule BitPalApi.NotFoundError do
   @moduledoc """
   404 - Not Found, The requested resource doesn't exist.
   """
-  defexception message: "Custom not found error", plug_status: 404
+  defexception message: "Not Found", plug_status: 404
 end
