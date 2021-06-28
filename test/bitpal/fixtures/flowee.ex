@@ -194,7 +194,8 @@ defmodule BitPal.Backend.FloweeFixtures do
 
   def block_info_query_690933_b do
     # The query Flowee needs to send to get the block_info below:
-    # Here, the two addresses we look for are reversed. This is semantically the same as the _a version, but differs in its binary representation.
+    # Here, the two addresses we look for are reversed. This is semantically the same as the _a
+    # version, but differs in its binary representation.
     <<8, 1, 16, 4, 4, 56, 169, 148, 118, 251, 42, 32, 74, 68, 61, 59, 35, 8, 83, 181, 175, 68, 97,
       96, 214, 136, 211, 35, 0, 33, 218, 212, 156, 151, 129, 121, 140, 251, 126, 6, 23, 125, 222,
       45, 251, 42, 32, 155, 134, 125, 18, 44, 85, 192, 201, 165, 210, 104, 235, 218, 84, 114, 130,

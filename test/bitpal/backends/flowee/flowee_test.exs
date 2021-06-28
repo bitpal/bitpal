@@ -2,6 +2,7 @@ defmodule BitPal.Backend.FloweeTest do
   use BitPal.IntegrationCase
   import Mox
   import BitPal.MockTCPClient
+  alias BitPal.Backend.Flowee
   alias BitPal.Backend.FloweeFixtures
   alias BitPal.Blocks
   alias BitPal.MockTCPClient
@@ -273,11 +274,11 @@ defmodule BitPal.Backend.FloweeTest do
     :timer.sleep(10)
 
     # It should not be ready yet, Flowee is still preparing.
-    assert BitPal.Backend.Flowee.ready?(BitPal.Backend.Flowee) == false
+    assert Flowee.ready?(BitPal.Backend.Flowee) == false
 
     # Give it a new message, now it should be done!
     MockTCPClient.response(@client, FloweeFixtures.blockchain_info())
-    assert eventually(fn -> BitPal.Backend.Flowee.ready?(BitPal.Backend.Flowee) end)
+    assert eventually(fn -> Flowee.ready?(BitPal.Backend.Flowee) end)
   end
 
   @tag backends: [], init_message: false
@@ -313,7 +314,7 @@ defmodule BitPal.Backend.FloweeTest do
            end)
 
     # At this point, Flowee should not report being ready.
-    assert BitPal.Backend.Flowee.ready?(BitPal.Backend.Flowee) == false
+    assert Flowee.ready?(BitPal.Backend.Flowee) == false
 
     # Tell it what happened:
     MockTCPClient.response(@client, FloweeFixtures.block_info_690933())
@@ -327,7 +328,7 @@ defmodule BitPal.Backend.FloweeTest do
     HandlerSubscriberCollector.await_status(stub2, :paid)
 
     # It should also be ready now.
-    assert BitPal.Backend.Flowee.ready?(BitPal.Backend.Flowee) == true
+    assert Flowee.ready?(BitPal.Backend.Flowee) == true
   end
 
   # Things we need to test:
