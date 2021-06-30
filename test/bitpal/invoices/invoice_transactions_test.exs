@@ -33,17 +33,17 @@ defmodule BitPal.InvoiceTransactionsTest do
 
   test "amount paid calculation", %{invoice: invoice, address: address} do
     assert :ok = Transactions.confirmed("tx:0", [{address.id, Money.parse!(0.4, :BCH)}], 0)
-    invoice = Invoices.update_amount_paid(invoice)
+    invoice = Invoices.update_info_from_txs(invoice, nil)
     assert invoice.amount_paid == Money.parse!(0.4, :BCH)
     assert :underpaid == Invoices.target_amount_reached?(invoice)
 
     assert :ok = Transactions.confirmed("tx:1", [{address.id, Money.parse!(0.8, :BCH)}], 1)
-    invoice = Invoices.update_amount_paid(invoice)
+    invoice = Invoices.update_info_from_txs(invoice, nil)
     assert invoice.amount_paid == Money.parse!(1.2, :BCH)
     assert :ok == Invoices.target_amount_reached?(invoice)
 
     assert :ok = Transactions.confirmed("tx:2", [{address.id, Money.parse!(0.5, :BCH)}], 2)
-    invoice = Invoices.update_amount_paid(invoice)
+    invoice = Invoices.update_info_from_txs(invoice, nil)
     assert invoice.amount_paid == Money.parse!(1.7, :BCH)
     assert :overpaid == Invoices.target_amount_reached?(invoice)
   end

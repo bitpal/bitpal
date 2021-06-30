@@ -1,4 +1,5 @@
 defmodule BitPal.Currencies do
+  import Ecto.Query
   alias BitPal.Repo
   alias BitPalSchemas.Currency
   alias Ecto.Changeset
@@ -27,6 +28,11 @@ defmodule BitPal.Currencies do
   @spec set_height!(Currency.id(), non_neg_integer) :: :ok
   def set_height!(id, height) do
     Repo.update!(Changeset.change(%Currency{id: id}, block_height: height))
+  end
+
+  def fetch_height!(id) do
+    from(c in Currency, where: c.id == ^id, select: c.block_height)
+    |> Repo.one!()
   end
 
   @spec cast(atom | String.t()) :: {:ok, Currency.id()} | :error

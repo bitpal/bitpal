@@ -4,7 +4,6 @@ defmodule BitPal.InvoiceHandler do
   alias BitPal.BackendManager
   alias BitPal.BlockchainEvents
   alias BitPal.Blocks
-  alias BitPal.InvoiceEvents
   alias BitPal.Invoices
   alias BitPal.ProcessRegistry
   alias BitPal.Transactions
@@ -47,7 +46,7 @@ defmodule BitPal.InvoiceHandler do
     # Callback to initializer routine to not block start_link
     send(self(), :init)
 
-    {:ok, %{double_spend_timeout: double_spend_timeout, invoice_id: invoice_id}}
+    {:ok, %{double_spend_timeout: double_spend_timeout, invoice_id: invoice_id, block_height: 0}}
   end
 
   @impl true
@@ -71,7 +70,8 @@ defmodule BitPal.InvoiceHandler do
 
   @impl true
   def handle_info({:tx_seen, txid}, state) do
-    invoice = Invoices.update_amount_paid(state.invoice)
+    block_height = state.block_height
+    invoice = Invoices.update_info_from_txs(state.invoice, block_height)
     state = put_tx_to_process(state, txid, nil)
 
     # For 0-conf, clear txn after a short timeout from the processing waiting list,
@@ -82,20 +82,26 @@ defmodule BitPal.InvoiceHandler do
 
     case Invoices.target_amount_reached?(invoice) do
       :underpaid ->
+        Invoices.broadcast_underpaid(invoice)
         {:noreply, %{state | invoice: invoice}}
 
-      _ ->
-        {:noreply, process(state, invoice)}
+      :overpaid ->
+        Invoices.broadcast_overpaid(invoice)
+        {:noreply, %{state | invoice: ensure_processing!(invoice)}}
+
+      :ok ->
+        {:noreply, %{state | invoice: ensure_processing!(invoice)}}
     end
   end
 
   @impl true
   def handle_info({:tx_confirmed, txid, height}, state) do
-    invoice = Invoices.update_amount_paid(state.invoice)
+    block_height = state.block_height
+    invoice = Invoices.update_info_from_txs(state.invoice, block_height)
+    new_tx? = !processing_tx?(state, txid)
 
     state =
-      if Transactions.num_confirmations!(height, invoice.currency_id) >=
-           invoice.required_confirmations do
+      if Transactions.calc_confirmations(height, block_height) >= invoice.required_confirmations do
         tx_processed(state, txid)
       else
         put_tx_to_process(state, txid, height)
@@ -103,11 +109,17 @@ defmodule BitPal.InvoiceHandler do
 
     case Invoices.target_amount_reached?(invoice) do
       :underpaid ->
+        if new_tx?, do: Invoices.broadcast_underpaid(invoice)
         {:noreply, %{state | invoice: invoice}}
 
-      _ ->
-        state
-        |> process(invoice)
+      :overpaid ->
+        if new_tx?, do: Invoices.broadcast_overpaid(invoice)
+
+        %{state | invoice: ensure_processing!(invoice)}
+        |> try_into_paid()
+
+      :ok ->
+        %{state | invoice: ensure_processing!(invoice)}
         |> try_into_paid()
     end
   end
@@ -121,8 +133,7 @@ defmodule BitPal.InvoiceHandler do
 
   @impl true
   def handle_info({:tx_double_spent, _txid}, state) do
-    {:ok, invoice} = Invoices.double_spent(state.invoice)
-    InvoiceEvents.broadcast({:invoice_uncollectible, %{id: invoice.id, reason: :double_spent}})
+    invoice = Invoices.double_spent!(state.invoice)
     {:noreply, %{state | invoice: invoice}}
   end
 
@@ -133,17 +144,20 @@ defmodule BitPal.InvoiceHandler do
 
   @impl true
   def handle_info({:new_block, _currency, height}, state = %{processing_txs: txs}) do
+    state = Map.put(state, :block_height, height)
+
     if state.invoice.required_confirmations > 0 do
       state
-      |> clear_processed_txs(txs, height)
+      |> broadcast_processed_if_needed()
+      |> clear_processed_txs(txs)
       |> try_into_paid()
     else
       {:noreply, state}
     end
   end
 
-  def handle_info({:new_block, _currency, _height}, state) do
-    {:noreply, state}
+  def handle_info({:new_block, _currency, height}, state) do
+    {:noreply, Map.put(state, :block_height, height)}
   end
 
   @impl true
@@ -163,9 +177,7 @@ defmodule BitPal.InvoiceHandler do
         :ok = AddressEvents.subscribe(invoice.address_id)
         :ok = BlockchainEvents.subscribe(invoice.currency_id)
 
-        {:ok, invoice} = Invoices.finalize(invoice)
-
-        InvoiceEvents.broadcast({:invoice_finalized, invoice})
+        invoice = Invoices.finalize!(invoice)
 
         state =
           state
@@ -184,9 +196,8 @@ defmodule BitPal.InvoiceHandler do
     :ok = BlockchainEvents.subscribe(invoice.currency_id)
 
     # Should always have a block since we're trying to recover
-    height = Blocks.fetch_block_height!(invoice.currency_id)
-
-    invoice = Invoices.update_amount_paid(invoice)
+    block_height = Blocks.fetch_block_height!(invoice.currency_id)
+    invoice = Invoices.update_info_from_txs(invoice, block_height)
 
     txs =
       Enum.map(invoice.tx_outputs, fn tx ->
@@ -199,35 +210,24 @@ defmodule BitPal.InvoiceHandler do
       |> Enum.into(%{})
 
     state
+    |> Map.put(:block_height, block_height)
     |> Map.delete(:invoice_id)
     |> Map.put(:invoice, invoice)
     |> ensure_invoice_is_processing(txs)
-    |> clear_processed_txs(txs, height)
+    |> clear_processed_txs(txs)
     |> try_into_paid()
-  end
-
-  defp process(state, invoice) do
-    # It's fine if this fails?
-    case Invoices.process(invoice) do
-      {:ok, invoice} ->
-        InvoiceEvents.broadcast(
-          {:invoice_processing, %{id: invoice.id, reason: Invoices.processing_reason(invoice)}}
-        )
-
-        Map.put(state, :invoice, invoice)
-
-      {:error, _} ->
-        Map.put(state, :invoice, invoice)
-    end
   end
 
   defp ensure_invoice_is_processing(state, txs) do
     if map_size(txs) > 0 && state.invoice.status == :open do
-      process(state, state.invoice)
+      %{state | invoice: ensure_processing!(state.invoice)}
     else
       state
     end
   end
+
+  def ensure_processing!(invoice = %Invoice{status: :processing}), do: invoice
+  def ensure_processing!(invoice), do: Invoices.process!(invoice)
 
   defp put_tx_to_process(state, txid, confirmed_height) do
     Map.update(state, :processing_txs, %{txid => confirmed_height}, fn waiting ->
@@ -243,10 +243,17 @@ defmodule BitPal.InvoiceHandler do
     )
   end
 
-  defp tx_processed(state, _tx_id), do: state
+  defp tx_processed(state, _txid), do: state
 
-  @spec clear_processed_txs(map, %{TxOutput.txid() => TxOutput.height()}, non_neg_integer) :: map
-  defp clear_processed_txs(state, txs, curr_height) when map_size(txs) > 0 do
+  defp processing_tx?(%{processing_txs: txs}, txid) do
+    Map.has_key?(txs, txid)
+  end
+
+  defp processing_tx?(_state, _txid), do: false
+
+  @spec clear_processed_txs(map, %{TxOutput.txid() => TxOutput.height()}) :: map
+  defp clear_processed_txs(state, txs) when map_size(txs) > 0 do
+    block_height = state.block_height
     required_confirmations = state.invoice.required_confirmations
 
     to_process =
@@ -255,14 +262,30 @@ defmodule BitPal.InvoiceHandler do
           true
 
         {_tx_id, confirmed_height} ->
-          curr_height - confirmed_height + 1 < required_confirmations
+          block_height - confirmed_height + 1 < required_confirmations
       end)
       |> Enum.into(%{})
 
     Map.put(state, :processing_txs, to_process)
   end
 
-  defp clear_processed_txs(state, _txs, _curr_height), do: state
+  defp clear_processed_txs(state, _txs), do: state
+
+  defp broadcast_processed_if_needed(state = %{invoice: %Invoice{status: :processing}}) do
+    prev = state.invoice.confirmations_due
+    invoice = Invoices.update_info_from_txs(state.invoice, state.block_height)
+
+    # We only send a 0 confirmations due notice if it's confirmed in the same block the tx is discovered.
+    # This handles a multiple confirmations case, so clients gets live updates when the required confs
+    # decreases.
+    if invoice.confirmations_due != prev && invoice.confirmations_due > 0 do
+      Invoices.broadcast_processing(invoice)
+    end
+
+    Map.put(state, :invoice, invoice)
+  end
+
+  defp broadcast_processed_if_needed(state), do: state
 
   defp send_double_spend_timeout(txid, state) do
     Process.send_after(self(), {:double_spend_timeout, txid}, state.double_spend_timeout)
@@ -275,12 +298,6 @@ defmodule BitPal.InvoiceHandler do
 
     if done? do
       state = Map.put(state, :invoice, Invoices.pay!(invoice))
-
-      InvoiceEvents.broadcast(
-        {:invoice_paid,
-         %{id: invoice.id, overpaid_amount: Money.subtract(invoice.amount_paid, invoice.amount)}}
-      )
-
       {:stop, :normal, state}
     else
       {:noreply, state}

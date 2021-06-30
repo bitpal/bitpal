@@ -4,7 +4,6 @@ defmodule BitPal.Transactions do
   alias BitPal.Blocks
   alias BitPal.Repo
   alias BitPalSchemas.Address
-  alias BitPalSchemas.Currency
   alias BitPalSchemas.TxOutput
   require Logger
 
@@ -13,20 +12,23 @@ defmodule BitPal.Transactions do
   @type outputs :: [{Address.id(), Money.t()}]
 
   @spec num_confirmations!(TxOutput.t()) :: confirmations
-  def num_confirmations!(%TxOutput{confirmed_height: height, currency: currency}) do
-    num_confirmations!(height, currency.id)
+  def num_confirmations!(tx = %TxOutput{currency: currency}) do
+    num_confirmations(tx, Blocks.fetch_block_height!(currency))
   end
 
-  @spec num_confirmations!(height, Currency.id()) :: confirmations
-  def num_confirmations!(height, currency_id) when is_integer(height) and height >= 0 do
-    max(0, Blocks.fetch_block_height!(currency_id) - height + 1)
+  @spec num_confirmations(TxOutput.t(), height) :: confirmations
+  def num_confirmations(%TxOutput{confirmed_height: tx_height}, block_height) do
+    calc_confirmations(tx_height, block_height)
   end
 
-  def num_confirmations!(height, _) when is_integer(height) and height < 0 do
-    0
+  @spec calc_confirmations(height, height) :: confirmations
+  def calc_confirmations(tx_height, block_height)
+      when is_integer(tx_height) and tx_height >= 0 and is_integer(block_height) and
+             block_height >= 0 do
+    max(0, block_height - tx_height + 1)
   end
 
-  def num_confirmations!(nil, _) do
+  def calc_confirmations(_, _) do
     0
   end
 

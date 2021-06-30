@@ -5,8 +5,9 @@ defmodule BitPal.InvoiceEvents do
 
   alias BitPal.EventHelpers
   alias BitPalSchemas.Invoice
+  alias BitPalSchemas.TxOutput
 
-  @type tx :: %{}
+  @type tx :: TxOutput.t()
   @type additional_confirmations :: non_neg_integer
   @type uncollectible_reason :: :expired | :canceled | :double_spent | :timed_out
   @type processing_reason :: :verifying | {:confirming, additional_confirmations}
@@ -17,8 +18,9 @@ defmodule BitPal.InvoiceEvents do
           | {:invoice_voided, %{id: Invoice.id()}}
           | {:invoice_uncollectible, %{id: Invoice.id(), reason: uncollectible_reason}}
           | {:invoice_underpaid, %{id: Invoice.id(), amount_due: Money.t(), txs: [tx]}}
+          | {:invoice_overpaid, %{id: Invoice.id(), overpaid_amount: Money.t(), txs: [tx]}}
           | {:invoice_processing, %{id: Invoice.id(), reason: processing_reason, txs: [tx]}}
-          | {:invoice_paid, %{id: Invoice.id(), overpaid_amount: Money.t()}}
+          | {:invoice_paid, %{id: Invoice.id()}}
 
   @spec subscribe(Invoice.id() | Invoice.t()) :: :ok | {:error, term}
   def subscribe(%Invoice{id: id}), do: EventHelpers.subscribe(topic(id))

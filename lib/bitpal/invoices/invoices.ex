@@ -3,10 +3,11 @@ defmodule BitPal.Invoices do
   import Ecto.Query
   alias BitPal.Addresses
   alias BitPal.Blocks
-  alias BitPal.Currencies
   alias BitPal.ExchangeRate
   alias BitPal.FSM
   alias BitPal.Repo
+  alias BitPal.InvoiceEvents
+  alias BitPal.Transactions
   alias BitPalSchemas.Address
   alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
@@ -38,14 +39,9 @@ defmodule BitPal.Invoices do
 
   @spec fetch(Invoice.id()) :: {:ok, Invoice.t()} | :error
   def fetch(id) do
-    invoice =
-      from(i in Invoice, where: i.id == ^id)
-      |> Repo.one()
-
-    if invoice do
-      {:ok, invoice}
-    else
-      :error
+    case Repo.get(Invoice, id) do
+      nil -> :error
+      invoice -> {:ok, invoice}
     end
   rescue
     _ -> :error
@@ -53,10 +49,7 @@ defmodule BitPal.Invoices do
 
   @spec fetch!(Invoice.id()) :: Invoice.t()
   def fetch!(id) do
-    case fetch(id) do
-      {:ok, invoice} -> invoice
-      _ -> raise("invoice #{id} not found!")
-    end
+    Repo.get!(Invoice, id)
   end
 
   @spec fetch_by_address(Address.id()) :: {:ok, Invoice.t()} | :error
@@ -178,10 +171,15 @@ defmodule BitPal.Invoices do
     end
   end
 
-  @spec update_amount_paid(Invoice.t()) :: Invoice.t()
-  def update_amount_paid(invoice) do
+  @spec update_info_from_txs(Invoice.t(), non_neg_integer) :: Invoice.t()
+  def update_info_from_txs(invoice, block_height) do
     invoice = Repo.preload(invoice, :tx_outputs, force: true)
-    %{invoice | amount_paid: calculate_amount_paid(invoice)}
+
+    %{
+      invoice
+      | amount_paid: calculate_amount_paid(invoice),
+        confirmations_due: calculate_confirmations_due(invoice, block_height)
+    }
   end
 
   @spec calculate_amount_paid(Invoice.t()) :: Money.t()
@@ -192,12 +190,27 @@ defmodule BitPal.Invoices do
     end)
   end
 
+  @spec calculate_confirmations_due(Invoice.t(), non_neg_integer) :: non_neg_integer
+  def calculate_confirmations_due(%Invoice{required_confirmations: 0}, _height) do
+    0
+  end
+
+  def calculate_confirmations_due(invoice, height) do
+    invoice.tx_outputs
+    |> Enum.reduce(0, fn
+      tx, max_confs ->
+        max(
+          invoice.required_confirmations - Transactions.num_confirmations(tx, height),
+          max_confs
+        )
+    end)
+  end
+
   def processing_reason(invoice = %Invoice{status: :processing}) do
     if invoice.required_confirmations == 0 do
       :verifying
     else
-      # FIXME
-      {:confirming, 0}
+      {:confirming, invoice.confirmations_due}
     end
   end
 
@@ -207,25 +220,55 @@ defmodule BitPal.Invoices do
       change(invoice)
       |> add_error(:status, "cannot delete a finalized invoice")
     else
-      Repo.delete(invoice)
+      case Repo.delete(invoice) do
+        {:ok, invoice} ->
+          InvoiceEvents.broadcast({:invoice_deleted, %{id: invoice.id}})
+          {:ok, invoice}
+
+        err ->
+          err
+      end
     end
   end
 
   @spec finalize(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def finalize(invoice) do
-    FSM.transition_changeset(invoice, :open)
-    |> validate_required([
-      :amount,
-      :fiat_amount,
-      :currency_id,
-      :required_confirmations
-    ])
-    |> Repo.update()
+    res =
+      FSM.transition_changeset(invoice, :open)
+      |> validate_required([
+        :amount,
+        :fiat_amount,
+        :currency_id,
+        :required_confirmations
+      ])
+      |> Repo.update()
+
+    case res do
+      {:ok, invoice} ->
+        InvoiceEvents.broadcast({:invoice_finalized, invoice})
+        {:ok, invoice}
+
+      err ->
+        err
+    end
+  end
+
+  @spec finalize!(Invoice.t()) :: Invoice.t()
+  def finalize!(invoice) do
+    {:ok, invoice} = finalize(invoice)
+    invoice
   end
 
   @spec process(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def process(invoice) do
-    transition(invoice, :processing)
+    case transition(invoice, :processing) do
+      {:ok, invoice} ->
+        broadcast_processing(invoice)
+        {:ok, invoice}
+
+      err ->
+        err
+    end
   end
 
   @spec process!(Invoice.t()) :: Invoice.t()
@@ -234,21 +277,26 @@ defmodule BitPal.Invoices do
     invoice
   end
 
-  @spec double_spent(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
-  def double_spent(invoice) do
+  @spec double_spent!(Invoice.t()) :: Invoice.t()
+  def double_spent!(invoice) do
     # Double spend state can be seen from transactions
-    transition(invoice, :uncollectible)
+    mark_uncollectible!(invoice, :double_spent)
   end
 
-  @spec expire(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
-  def expire(invoice) do
+  @spec expire!(Invoice.t()) :: Invoice.t()
+  def expire!(invoice) do
     # Timeout can be calculated from transaction timestamp
-    transition(invoice, :uncollectible)
+    mark_uncollectible!(invoice, :expired)
   end
 
-  @spec invalidate(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
-  def invalidate(invoice) do
-    transition(invoice, :uncollectible)
+  @spec cancel!(Invoice.t()) :: Invoice.t()
+  def cancel!(invoice) do
+    mark_uncollectible!(invoice, :canceled)
+  end
+
+  @spec timeout!(Invoice.t()) :: Invoice.t()
+  def timeout!(invoice) do
+    mark_uncollectible!(invoice, :timed_out)
   end
 
   @spec void(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
@@ -258,14 +306,55 @@ defmodule BitPal.Invoices do
 
   @spec pay!(Invoice.t()) :: Invoice.t()
   def pay!(invoice) do
-    case target_amount_reached?(invoice) do
-      :underpaid ->
-        raise "target amount not reached"
-
-      _ ->
-        FSM.transition_changeset(invoice, :paid)
-        |> Repo.update!()
+    if target_amount_reached?(invoice) == :underpaid do
+      raise "target amount not reached"
     end
+
+    invoice =
+      FSM.transition_changeset(invoice, :paid)
+      |> Repo.update!()
+
+    InvoiceEvents.broadcast({:invoice_paid, %{id: invoice.id}})
+    invoice
+  end
+
+  @spec broadcast_processing(Invoice.t()) :: :ok | {:error, term}
+  def broadcast_processing(invoice) do
+    InvoiceEvents.broadcast(
+      {:invoice_processing,
+       %{id: invoice.id, reason: processing_reason(invoice), txs: invoice.tx_outputs}}
+    )
+  end
+
+  @spec broadcast_underpaid(Invoice.t()) :: :ok | {:error, term}
+  def broadcast_underpaid(invoice) do
+    InvoiceEvents.broadcast(
+      {:invoice_underpaid,
+       %{
+         id: invoice.id,
+         amount_due: Money.subtract(invoice.amount, invoice.amount_paid),
+         txs: invoice.tx_outputs
+       }}
+    )
+  end
+
+  @spec broadcast_overpaid(Invoice.t()) :: :ok | {:error, term}
+  def broadcast_overpaid(invoice) do
+    InvoiceEvents.broadcast(
+      {:invoice_overpaid,
+       %{
+         id: invoice.id,
+         overpaid_amount: Money.subtract(invoice.amount_paid, invoice.amount),
+         txs: invoice.tx_outputs
+       }}
+    )
+  end
+
+  @spec mark_uncollectible!(Invoice.t(), InvoiceEvents.uncollectible_reason()) :: Invoice.t()
+  defp mark_uncollectible!(invoice, reason) do
+    {:ok, invoice} = transition(invoice, :uncollectible)
+    InvoiceEvents.broadcast({:invoice_uncollectible, %{id: invoice.id, reason: reason}})
+    invoice
   end
 
   defp transition(invoice, new_state) do

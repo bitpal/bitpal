@@ -42,32 +42,32 @@ defmodule HandlerSubscriberCollector do
     |> Enum.reverse()
   end
 
-  def await_status(handler, status) do
-    Task.async(__MODULE__, :sleep_until_status, [handler, status])
+  def await_msg(handler, id) do
+    Task.async(__MODULE__, :sleep_until_msg, [handler, id])
     |> Task.await(1_000)
 
     {:ok, received(handler)}
   end
 
-  def sleep_until_status(handler, status) do
-    if contains_status?(handler, status) do
+  def sleep_until_msg(handler, id) do
+    if contains_id?(handler, id) do
       :ok
     else
       Process.sleep(10)
-      sleep_until_status(handler, status)
+      sleep_until_msg(handler, id)
     end
   end
 
-  def contains_status?(handler, status) do
+  def contains_id?(handler, id) do
     received(handler)
     |> Enum.any?(fn
-      {:invoice_status, ^status, _} -> true
+      {^id, _} -> true
       _ -> false
     end)
   end
 
   def is_paid?(handler) do
-    contains_status?(handler, :paid)
+    contains_id?(handler, :invoide_paid)
   end
 
   # Server API

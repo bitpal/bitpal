@@ -8,7 +8,7 @@ defmodule BitPal.Blocks do
 
   @spec fetch_block_height!(currency_id) :: height
   def fetch_block_height!(currency_id) do
-    Currencies.get!(currency_id).block_height
+    Currencies.fetch_height!(currency_id)
   end
 
   @spec new_block(currency_id, height) :: :ok | {:error, term}

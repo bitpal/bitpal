@@ -17,19 +17,21 @@ defmodule BackendMockTest do
         amount: Money.parse!(3.0, :BCH)
       )
 
-    HandlerSubscriberCollector.await_status(stub1, :paid)
-    HandlerSubscriberCollector.await_status(stub3, :paid)
+    HandlerSubscriberCollector.await_msg(stub1, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub3, :invoice_paid)
 
     assert [
-             {:invoice_status, :open, _},
-             {:invoice_status, :processing, _},
-             {:invoice_status, :paid, _}
+             {:invoice_finalized, _},
+             {:invoice_processing, _},
+             {:invoice_paid, _}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
-             {:invoice_status, :open, _},
-             {:invoice_status, :processing, _},
-             {:invoice_status, :paid, _}
+             {:invoice_finalized, _},
+             {:invoice_processing, _},
+             {:invoice_processing, _},
+             {:invoice_processing, _},
+             {:invoice_paid, _}
            ] = HandlerSubscriberCollector.received(stub3)
   end
 end
