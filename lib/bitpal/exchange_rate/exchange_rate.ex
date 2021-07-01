@@ -1,10 +1,6 @@
 defmodule BitPal.ExchangeRate do
   alias BitPal.ExchangeRateSupervisor
-  alias BitPal.ExchangeRateSupervisor.Result
   alias BitPalSchemas.Currency
-  alias Phoenix.PubSub
-
-  @pubsub BitPal.PubSub
 
   @type pair :: {Currency.id(), Currency.id()}
   @type t :: %__MODULE__{
@@ -122,29 +118,6 @@ defmodule BitPal.ExchangeRate do
   @spec eq?(t, t) :: boolean
   def eq?(a, b) do
     a.pair == b.pair && Decimal.eq?(a.rate, b.rate)
-  end
-
-  # Subscriptions
-
-  @spec subscribe(pair()) :: :ok
-  def subscribe(pair, opts \\ []) do
-    :ok = PubSub.subscribe(@pubsub, topic(pair))
-    ExchangeRateSupervisor.async_request(pair, opts)
-    :ok
-  end
-
-  @spec unsubscribe(pair()) :: :ok
-  def unsubscribe(pair) do
-    PubSub.unsubscribe(@pubsub, topic(pair))
-  end
-
-  @spec broadcast(pair(), Result.t()) :: :ok | {:error, term}
-  def broadcast(pair, res) do
-    PubSub.broadcast(@pubsub, topic(pair), {:exchange_rate, res.rate})
-  end
-
-  defp topic({from, to}) do
-    Atom.to_string(__MODULE__) <> Atom.to_string(from) <> Atom.to_string(to)
   end
 
   @spec normalize_currency(Currency.id()) :: {:ok, atom} | :error

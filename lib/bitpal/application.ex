@@ -10,10 +10,16 @@ defmodule BitPal.Application do
     BitPal.Currencies.configure_money()
 
     children = [
+      # Always start
       BitPal.Repo,
       {Phoenix.PubSub, name: BitPal.PubSub},
       BitPal.ProcessRegistry,
+      BitPalApi.Endpoint,
+      BitPalWeb.Telemetry,
+      BitPalWeb.Endpoint,
       {BitPal.Cache, name: BitPal.RuntimeStorage, clear_interval: :inf},
+
+      # Only start if configured to
       BitPal.ExchangeRateSupervisor,
       BitPal.InvoiceManager,
       BitPal.BackendManager
@@ -23,13 +29,10 @@ defmodule BitPal.Application do
   end
 
   @impl true
-  def config_change(changed, new, _removed) do
-    BitPal.configure(changed)
-    BitPal.configure(new)
-
-    # Where to fetch defaults for removed values?
-    # Propagate changed/new/removed instead?
-
+  def config_change(changed, new, removed) do
+    BitPalConfig.config_change(changed, new, removed)
+    BitPalApi.Endpoint.config_change(changed, removed)
+    BitPalWeb.Endpoint.config_change(changed, removed)
     :ok
   end
 end

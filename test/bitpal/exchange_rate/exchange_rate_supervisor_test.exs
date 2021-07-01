@@ -1,6 +1,7 @@
 defmodule BitPal.ExchangeRateSupervisorTest do
   use ExUnit.Case, async: false
   alias BitPal.ExchangeRate
+  alias BitPal.ExchangeRateEvents
   alias BitPal.ExchangeRateSupervisor
   alias BitPal.ExchangeRateSupervisor.Result
 
@@ -33,7 +34,7 @@ defmodule BitPal.ExchangeRateSupervisorTest do
 
     def await_msg_count(count) do
       Task.async(__MODULE__, :sleep_until_count, [count])
-      |> Task.await(50)
+      |> Task.await(1_000)
 
       {:ok, received()}
     end
@@ -54,7 +55,7 @@ defmodule BitPal.ExchangeRateSupervisorTest do
 
     @impl true
     def handle_call({:subscribe, pair, opts}, _from, state) do
-      ExchangeRate.subscribe(pair, opts)
+      ExchangeRateEvents.subscribe(pair, opts)
       {:reply, :ok, state}
     end
 

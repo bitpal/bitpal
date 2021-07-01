@@ -74,15 +74,17 @@ defmodule BitPal.InvoiceHandler do
     invoice = Invoices.update_amount_paid(state.invoice)
     state = put_tx_to_process(state, txid, nil)
 
+    # For 0-conf, clear txn after a short timeout from the processing waiting list,
+    # regardless of if we've paid enough or not as that's a separate check.
+    if invoice.required_confirmations == 0 do
+      send_double_spend_timeout(txid, state)
+    end
+
     case Invoices.target_amount_reached?(invoice) do
       :underpaid ->
         {:noreply, %{state | invoice: invoice}}
 
       _ ->
-        if invoice.required_confirmations == 0 do
-          send_double_spend_timeout(txid, state)
-        end
-
         process(invoice, state)
     end
   end
