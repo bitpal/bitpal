@@ -182,7 +182,7 @@ defmodule BitPal.InvoiceHandler do
     :ok = BlockchainEvents.subscribe(invoice.currency_id)
 
     # Should always have a block since we're trying to recover
-    height = Blocks.fetch_block_height!(invoice.currency_id)
+    height = Blocks.get_block_height(invoice.currency_id)
 
     invoice = Invoices.update_amount_paid(invoice)
 

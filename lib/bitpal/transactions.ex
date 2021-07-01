@@ -19,7 +19,7 @@ defmodule BitPal.Transactions do
 
   @spec num_confirmations!(height, Currency.id()) :: confirmations
   def num_confirmations!(height, currency_id) when is_integer(height) and height >= 0 do
-    max(0, Blocks.fetch_block_height!(currency_id) - height + 1)
+    max(0, Blocks.get_block_height(currency_id) - height + 1)
   end
 
   def num_confirmations!(height, _) when is_integer(height) and height < 0 do

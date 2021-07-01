@@ -140,7 +140,7 @@ defmodule BitPal.Invoices do
 
   @spec confirmations_until_paid(Invoice.t()) :: non_neg_integer
   def confirmations_until_paid(invoice) do
-    curr_height = Blocks.fetch_block_height!(invoice.currency_id)
+    curr_height = Blocks.get_block_height(invoice.currency_id)
 
     max_height =
       from(t in TxOutput,

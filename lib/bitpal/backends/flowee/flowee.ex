@@ -143,6 +143,7 @@ defmodule BitPal.Backend.Flowee do
   # Called when we received information from the blockchain.
   defp on_info(%{blocks: height, verification_progress: progress}) do
     Logger.info("Startup: new block height: #{inspect(height)}")
+    recover_blocks(height)
     Blocks.set_block_height(@bch, height)
 
     if progress < 0.9999 do
@@ -154,8 +155,31 @@ defmodule BitPal.Backend.Flowee do
   # Called when a new block has been mined (regardless of whether or not it contains one of our transactions)
   defp on_new_block(%{height: height}) do
     Logger.info("New block. Height is now: " <> inspect(height))
+    recover_blocks(height)
     Blocks.new_block(@bch, height)
   end
+
+  defp recover_blocks(height) do
+    case Blocks.fetch_block_height(@bch) do
+      {:ok, prev_height} ->
+        recover_blocks_between(prev_height, height)
+
+      _ ->
+        nil
+    end
+  end
+
+  defp recover_blocks_between(prev, next) when next - prev > 1 do
+    Enum.each((prev + 1)..(next - 1), fn height ->
+      # FIXME do something with height here
+      # Probably want to issue a "send_get_block", and parse results in an async manner.
+      # We should filter by addresses from `Invoices.active_addresses(@bch)`, so we only receive
+      # relevant data.
+      IO.puts("TODO recover block #{height}")
+    end)
+  end
+
+  defp recover_blocks_between(_prev, _next), do: nil
 
   # Called when we received a new transaction.
   # Note: We get the "transaction visible" immediately when we subscribe,
