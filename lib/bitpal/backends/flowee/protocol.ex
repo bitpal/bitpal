@@ -161,27 +161,37 @@ defmodule BitPal.Backend.Flowee.Protocol do
     send_msg(c, @service_blocknotification, 2, [])
   end
 
+  # Translate a single output operation.
+  defp translate_output_element(output) do
+    case output do
+      :txid -> {43, true}
+      :offset -> {44, true}
+      :inputs -> {46, true}
+      :outputs -> {49, true}
+      :outputScripts -> {48, true}
+      :outputAddrs -> {50, true}
+      :outputHash -> {51, true}
+      :amounts -> {47, true}
+    end
+  end
+
   # Get options for the get operation.
   defp get_output(output) do
-    case output do
-      [] -> []
-      [:txid | rest] -> [{43, true} | get_output(rest)]
-      [:offset | rest] -> [{44, true} | get_output(rest)]
-      [:inputs | rest] -> [{46, true} | get_output(rest)]
-      [:outputs | rest] -> [{49, true} | get_output(rest)]
-      [:outputScripts | rest] -> [{48, true} | get_output(rest)]
-      [:outputAddrs | rest] -> [{50, true} | get_output(rest)]
-      [:outputHash | rest] -> [{51, true} | get_output(rest)]
-      [:amounts | rest] -> [{47, true} | get_output(rest)]
+    Enum.map(output, &translate_output_element/1)
+  end
+
+  # Process a single filter.
+  defp translate_filter_element(element) do
+    case element do
+      {:address, hash} ->
+        {42, %Binary{data: hash}}
+        # more options here...
     end
   end
 
   # Get filters for the get operation.
   defp get_filters(filters) do
-    case filters do
-      [] -> []
-      [{:address, hash} | rest] -> [{42, %Binary{data: hash}} | get_filters(rest)]
-    end
+    Enum.map(filters, &translate_filter_element/1)
   end
 
   @doc """
