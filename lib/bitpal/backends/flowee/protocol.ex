@@ -161,28 +161,70 @@ defmodule BitPal.Backend.Flowee.Protocol do
     send_msg(c, @service_blocknotification, 2, [])
   end
 
+  # Translate a single output operation.
+  defp translate_output_element(output) do
+    case output do
+      :txid -> {43, true}
+      :offset -> {44, true}
+      :inputs -> {46, true}
+      :outputs -> {49, true}
+      :outputScripts -> {48, true}
+      :outputAddrs -> {50, true}
+      :outputHash -> {51, true}
+      :amounts -> {47, true}
+    end
+  end
+
   # Get options for the get operation.
   defp get_output(output) do
-    case output do
-      [] -> []
-      [:txid | rest] -> [{43, true} | get_output(rest)]
-      [:offset | rest] -> [{44, true} | get_output(rest)]
-      [:inputs | rest] -> [{46, true} | get_output(rest)]
-      [:outputs | rest] -> [{49, true} | get_output(rest)]
-      [:outputAddrs | rest] -> [{50, true} | get_output(rest)]
-      [:amounts | rest] -> [{47, true} | get_output(rest)]
+    Enum.map(output, &translate_output_element/1)
+  end
+
+  # Process a single filter.
+  defp translate_filter_element(element) do
+    case element do
+      {:address, hash} ->
+        {42, %Binary{data: hash}}
+        # more options here...
     end
+  end
+
+  # Get filters for the get operation.
+  defp get_filters(filters) do
+    Enum.map(filters, &translate_filter_element/1)
   end
 
   @doc """
   Get a block in the blockchain, either based on height or on its hash.
+
+  `outputs` is a list of things to include in the reply:
+  - `:txid`: include transaction id
+  - `:offset`: include the offset in the block (seems to be done by default at the moment)
+  - `:inputs`: include input addresses.
+  - `:amounts`: include output amounts.
+  - `:outputs`: include all outputs.
+  - `:outputScripts`: include output scripts.
+  - `:outputAddrs`: include output addresses (for p2pkh or p2pk).
+  - `:outputHash`: include script hashes of the outputs (all transactions).
+
+  `filters` is a list of filters to filter the transactions in the requested block.
+  - `{:address, <hash>}`: filter transactions based on the output addresses involved.
+    Use `Cashaddr.create_hashed_output_script` to generate hashes for an address (the format is
+    the same as for subscribing to an address).
   """
-  def send_get_block(c, {:height, h}, outputs) do
-    send_msg(c, @service_blockchain, 4, [{7, h} | get_output(outputs)])
+  def send_get_block(c, block, outputs, filters \\ [])
+
+  def send_get_block(c, {:height, h}, outputs, filters) do
+    send_msg(c, @service_blockchain, 4, [{7, h} | get_filters(filters)] ++ get_output(outputs))
   end
 
-  def send_get_block(c, {:hash, h}, outputs) do
-    send_msg(c, @service_blockchain, 4, [{7, %Binary{data: h}} | get_output(outputs)])
+  def send_get_block(c, {:hash, h}, outputs, filters) do
+    send_msg(
+      c,
+      @service_blockchain,
+      4,
+      [{7, %Binary{data: h}} | get_filters(filters)] ++ get_output(outputs)
+    )
   end
 
   # Convert addresses into a message. Handles either a single address or a list of them.
@@ -383,10 +425,10 @@ defmodule BitPal.Backend.Flowee.Protocol do
       [{8, offset} | rest] ->
         parse_get_transaction(rest, Map.put(data, :offset, offset))
 
-      [{4, %Binary{data: id}} | rest] ->
+      [{4, id} | rest] ->
         parse_get_transaction(rest, Map.put(data, :txid, id))
 
-      [{20, %Binary{data: txid}} | rest] ->
+      [{20, txid} | rest] ->
         {r, input} = parse_input(rest, %{txid: txid})
         inputs = [input | Map.get(data, :inputs, [])]
         parse_get_transaction(r, Map.put(data, :inputs, inputs))
@@ -447,11 +489,15 @@ defmodule BitPal.Backend.Flowee.Protocol do
         # It is a "ripe160 based P2PKH address"
         parse_output(rest, Map.put(data, :address, address))
 
+      [{9, %Binary{data: hash}} | rest] ->
+        # Note: This is not in the documentation...
+        parse_output(rest, Map.put(data, :outputHash, hash))
+
       [{6, amount} | rest] ->
         parse_output(rest, Map.put(data, :amount, amount))
 
       [{23, %Binary{data: script}} | rest] ->
-        parse_output(rest, Map.put(data, :script, script))
+        parse_output(rest, Map.put(data, :outputScript, script))
 
       [{_, _} | _] ->
         # Some other element we don't recognize. Go back to the caller.

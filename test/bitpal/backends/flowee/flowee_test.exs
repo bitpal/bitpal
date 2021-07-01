@@ -2,6 +2,7 @@ defmodule BitPal.Backend.FloweeTest do
   use BitPal.IntegrationCase
   import Mox
   import BitPal.MockTCPClient
+  alias BitPal.Backend.Flowee
   alias BitPal.Backend.FloweeFixtures
   alias BitPal.Blocks
   alias BitPal.MockTCPClient
@@ -13,7 +14,10 @@ defmodule BitPal.Backend.FloweeTest do
   setup tags do
     init_mock(@client)
 
-    MockTCPClient.response(@client, FloweeFixtures.blockchain_info())
+    # Some tests don't want to have the initialization automatically enabled.
+    if Map.get(tags, :init_message, true) do
+      MockTCPClient.response(@client, FloweeFixtures.blockchain_info())
+    end
 
     start_supervised!(
       {BitPal.BackendManager,
@@ -38,13 +42,13 @@ defmodule BitPal.Backend.FloweeTest do
   @tag backends: []
   test "new block" do
     assert eventually(fn ->
-             Blocks.fetch_block_height!(:BCH) == 690_637
+             Blocks.get_block_height(:BCH) == 690_637
            end)
 
     MockTCPClient.response(@client, FloweeFixtures.new_block())
 
     assert eventually(fn ->
-             Blocks.fetch_block_height!(:BCH) == 690_638
+             Blocks.get_block_height(:BCH) == 690_638
            end)
   end
 
@@ -259,6 +263,72 @@ defmodule BitPal.Backend.FloweeTest do
              {:invoice_status, :processing, _},
              {:invoice_status, :paid, _}
            ] = HandlerSubscriberCollector.received(stub1)
+  end
+
+  @tag backends: [], init_message: false
+  test "wait for Flowee to become ready" do
+    # Send it an incomplete startup message to get it going.
+    MockTCPClient.response(@client, FloweeFixtures.blockchain_verifying_info())
+
+    # Wait a bit to let it act.
+    :timer.sleep(10)
+
+    # It should not be ready yet, Flowee is still preparing.
+    assert Flowee.ready?(BitPal.Backend.Flowee) == false
+
+    # Give it a new message, now it should be done!
+    MockTCPClient.response(@client, FloweeFixtures.blockchain_info())
+    assert eventually(fn -> Flowee.ready?(BitPal.Backend.Flowee) end)
+  end
+
+  @tag backends: [], init_message: false
+  test "make sure recovery works" do
+    # Simulate the state stored in the DB:
+    {:ok, _invoice, stub1, _invoice_handler} =
+      HandlerSubscriberCollector.create_invoice(
+        required_confirmations: 1,
+        amount: Money.new(15_000, :BCH),
+        address: {"bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa", 0}
+      )
+
+    {:ok, _invoice, stub2, _invoice_handler} =
+      HandlerSubscriberCollector.create_invoice(
+        required_confirmations: 1,
+        amount: Money.new(20_000, :BCH),
+        address: {"bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc", 1}
+      )
+
+    # We are now at height 690933:
+    Blocks.set_block_height(:BCH, 690_932)
+
+    # Now, we tell Flowee the current block height. It will try to recover, and ask for the missing
+    # block.
+    MockTCPClient.response(@client, FloweeFixtures.blockchain_info_690933())
+
+    # Note: The addresses may be in any order, so we check for both of them.
+    assert eventually(fn ->
+             last = MockTCPClient.last_sent(@client)
+
+             last == FloweeFixtures.block_info_query_690933_a() ||
+               last == FloweeFixtures.block_info_query_690933_b()
+           end)
+
+    # At this point, Flowee should not report being ready.
+    assert Flowee.ready?(BitPal.Backend.Flowee) == false
+
+    # Tell it what happened:
+    MockTCPClient.response(@client, FloweeFixtures.block_info_690933())
+
+    # It will ask for block info again, so that it can properly capture if Flowee managed to find
+    # another block while it updated the last block. At this point, it should be happy.
+    MockTCPClient.response(@client, FloweeFixtures.blockchain_info_690933())
+
+    # Both should be paid by now.
+    HandlerSubscriberCollector.await_status(stub1, :paid)
+    HandlerSubscriberCollector.await_status(stub2, :paid)
+
+    # It should also be ready now.
+    assert Flowee.ready?(BitPal.Backend.Flowee) == true
   end
 
   # Things we need to test:
