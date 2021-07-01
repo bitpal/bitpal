@@ -224,7 +224,8 @@ defmodule BitPal.Backend.Flowee do
     # Start subscribing to new block messages
     Protocol.send_block_subscribe(c)
 
-    Enum.each(Invoices.open_addresses(@bch), fn address ->
+    # Supscribe to invoices we should be tracking
+    Enum.each(Invoices.active_addresses(@bch), fn address ->
       subscribe_addr(c, address)
     end)
 
