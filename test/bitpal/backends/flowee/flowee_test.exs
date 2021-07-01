@@ -137,14 +137,20 @@ defmodule BitPal.Backend.FloweeTest do
     # Give 10000 to the first one, and 20000 to the second one
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_seen())
 
+    # There's a race condition here where we might store the txs in the db
+    # at the same time, causing us to miss the `invoice_underpaid` event.
+    # This has no importance in the real world, but may screw up the test if
+    # we don't have this wait between.
+    HandlerSubscriberCollector.await_msg(stub2, :invoice_paid)
+
     # Give 5000 to the first one.
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_a_seen())
 
     HandlerSubscriberCollector.await_msg(stub1, :invoice_paid)
-    HandlerSubscriberCollector.await_msg(stub2, :invoice_paid)
 
     assert [
              {:invoice_finalized, _},
+             {:invoice_underpaid, _},
              {:invoice_processing, _},
              {:invoice_paid, _}
            ] = HandlerSubscriberCollector.received(stub1)

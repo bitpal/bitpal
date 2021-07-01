@@ -107,6 +107,11 @@ defmodule BitPal.InvoiceHandler do
         put_tx_to_process(state, txid, height)
       end
 
+    # There's a race condition here where we may sometimes update the confirmed_height of a tx
+    # before receiving the `new_block` message, but sometimes not. Therefore we need to broadcast
+    # a processing message from either `tx_confirmed` or `new_block`.
+    broadcast_processed_if_needed(state)
+
     case Invoices.target_amount_reached?(invoice) do
       :underpaid ->
         if new_tx?, do: Invoices.broadcast_underpaid(invoice)

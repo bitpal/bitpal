@@ -5,8 +5,8 @@ defmodule BitPal.Invoices do
   alias BitPal.Blocks
   alias BitPal.ExchangeRate
   alias BitPal.FSM
-  alias BitPal.Repo
   alias BitPal.InvoiceEvents
+  alias BitPal.Repo
   alias BitPal.Transactions
   alias BitPalSchemas.Address
   alias BitPalSchemas.Currency
