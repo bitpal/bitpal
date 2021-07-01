@@ -340,11 +340,7 @@ defmodule BitPal.Backend.Flowee.Protocol do
 
       {@service_addressmonitor, 4} ->
         # Sent when a double-spend is found.
-        make_msg_opt(
-          :on_double_spend,
-          [txid: 4, address: 9, amount: 6, transaction: 1],
-          body
-        )
+        %Message{type: :on_transaction, data: parse_on_transaction(body)}
 
       {@service_indexer, 1} ->
         # Indexer reply to what it is indexing.

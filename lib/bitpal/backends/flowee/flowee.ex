@@ -141,9 +141,14 @@ defmodule BitPal.Backend.Flowee do
   end
 
   # Called when we received information from the blockchain.
-  defp on_info(%{blocks: height}) do
+  defp on_info(%{blocks: height, verification_progress: progress}) do
     Logger.info("Startup: new block height: #{inspect(height)}")
     Blocks.set_block_height(@bch, height)
+
+    if progress < 0.9999 do
+      # Note: We have a mock "blockchain_verifying_info" that generates this error.
+      Logger.warning("Startup: Flowee has not yet verified the blockchain.")
+    end
   end
 
   # Called when a new block has been mined (regardless of whether or not it contains one of our transactions)
