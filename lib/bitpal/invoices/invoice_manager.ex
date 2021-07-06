@@ -2,8 +2,10 @@ defmodule BitPal.InvoiceManager do
   use GenServer
   import BitPal.ConfigHelpers, only: [update_state: 3]
   alias BitPal.InvoiceHandler
+  alias BitPal.Invoices
   alias BitPal.ProcessRegistry
   alias BitPalSchemas.Invoice
+  alias Ecto.Changeset
 
   @supervisor BitPal.InvoiceSupervisor
 
@@ -11,9 +13,19 @@ defmodule BitPal.InvoiceManager do
     GenServer.start(__MODULE__, opts, name: __MODULE__)
   end
 
-  @spec track(Invoice.t()) :: {:ok, Invoice.id()} | {:error, Ecto.Changeset.t()}
-  def track(invoice) do
-    GenServer.call(__MODULE__, {:track_invoice, invoice.id})
+  @spec finalize_invoice(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Changeset.t()}
+  def finalize_invoice(invoice) do
+    with {:ok, invoice_id} <- finalize_and_track(invoice),
+         {:ok, invoice} <- get_invoice(invoice_id) do
+      {:ok, invoice}
+    else
+      err -> err
+    end
+  end
+
+  @spec finalize_and_track(Invoice.t()) :: {:ok, Invoice.id()} | {:error, Changeset.t()}
+  def finalize_and_track(invoice) do
+    GenServer.call(__MODULE__, {:finalize_and_track, invoice.id})
     {:ok, invoice.id}
   end
 
@@ -30,6 +42,21 @@ defmodule BitPal.InvoiceManager do
   @spec get_handler(Invoice.id()) :: {:ok, pid} | {:error, :not_found}
   def get_handler(invoice_id) do
     ProcessRegistry.get_process(InvoiceHandler.via_tuple(invoice_id))
+  end
+
+  @spec get_invoice(Invoice.id()) :: {:ok, Invoice.t()} | {:error, :not_found}
+  def get_invoice(invoice_id) do
+    case get_handler(invoice_id) do
+      {:ok, handler} ->
+        # Block until handler has finalized the invoice, which may change invoice details.
+        invoice = InvoiceHandler.get_invoice(handler)
+        # Must be ok, otherwise there's a bug somewhere
+        if !Invoices.finalized?(invoice), do: raise("invoice not finalized yet!")
+        {:ok, invoice}
+
+      err ->
+        err
+    end
   end
 
   @spec tracked_invoices() :: [Invoice.t()]
@@ -67,7 +94,7 @@ defmodule BitPal.InvoiceManager do
   end
 
   @impl true
-  def handle_call({:track_invoice, invoice_id}, _from, state) do
+  def handle_call({:finalize_and_track, invoice_id}, _from, state) do
     child =
       DynamicSupervisor.start_child(
         @supervisor,

@@ -239,6 +239,7 @@ defmodule BitPal.Invoices do
         :amount,
         :fiat_amount,
         :currency_id,
+        :address_id,
         :required_confirmations
       ])
       |> Repo.update()

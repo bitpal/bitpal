@@ -36,11 +36,9 @@ defmodule BitPal.FSM do
   end
 
   defp create_changeset(struct, state_field) do
-    struct.__changeset__()
+    Changeset.change(struct)
   rescue
     _ -> Changeset.change({struct, %{state_field => :any}})
-  else
-    _ -> Changeset.change(struct)
   end
 
   defp valid_transition?(state, new_state, transitions) do

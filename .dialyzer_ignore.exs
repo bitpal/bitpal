@@ -42,6 +42,7 @@
   {"test/bitpal_web/support/conn_case.ex:0:unknown_function Function ExUnit.Callbacks.__merge__/3 does not exist."},
   {"test/bitpal_web/support/conn_case.ex:0:unknown_function Function ExUnit.Callbacks.start_supervised!/1 does not exist."},
   {"test/bitpal_web/support/conn_case.ex:0:unknown_function Function ExUnit.CaseTemplate.__proxy__/2 does not exist."},
+  {"test/bitpal_api/support/conn_case.ex:0:unknown_function Function ExUnit.Callbacks.start_supervised!/2 does not exist."},
   {"lib/bitpal_api/channels/invoice_channel.ex:0:guard_fail The guard clause can never succeed."},
   {"lib/bitpal_api/channels/invoice_channel.ex:9:guard_fail The guard clause can never succeed."}
 ]

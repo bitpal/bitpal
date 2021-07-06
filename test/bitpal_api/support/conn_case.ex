@@ -19,7 +19,7 @@ defmodule BitPalApi.ConnCase do
   import Plug.BasicAuth
   import Plug.Conn
   import Phoenix.ConnTest
-  alias Ecto.Adapters.SQL.Sandbox
+  alias BitPal.IntegrationCase
 
   using do
     quote do
@@ -36,15 +36,10 @@ defmodule BitPalApi.ConnCase do
   end
 
   setup tags do
-    start_supervised(BitPal.Repo)
-    :ok = Sandbox.checkout(BitPal.Repo)
+    IntegrationCase.setup_integration(tags)
 
-    unless tags[:async] do
-      Sandbox.mode(BitPal.Repo, {:shared, self()})
-    end
-
+    start_supervised!({Phoenix.PubSub, name: BitPalApi.PubSub}, id: BitPalApi.PubSub)
     start_supervised!(BitPalApi.Endpoint)
-    BitPal.Currencies.register!([:XMR, :BCH, :DGC])
 
     conn =
       build_conn()

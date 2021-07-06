@@ -83,27 +83,13 @@ defmodule HandlerSubscriberCollector do
     {:ok, invoice} = Invoices.register(Map.delete(params, :address))
     {:ok, addr} = Addresses.register(invoice.currency_id, address, id)
     Invoices.assign_address(invoice, addr)
-    :ok = InvoiceEvents.subscribe(invoice)
-    {:ok, invoice_id} = InvoiceManager.track(invoice)
-    {:ok, handler} = InvoiceManager.get_handler(invoice_id)
-    # Block until handler has finalized the invoice, which may change invoice details.
-    invoice = InvoiceHandler.get_invoice(handler)
-    if !Invoices.finalized?(invoice), do: raise("invoice not finalized yet!")
-
-    {:reply, {invoice, handler}, state}
+    track(invoice, state)
   end
 
   @impl true
   def handle_call({:create_invoice, params}, _, state) do
     {:ok, invoice} = Invoices.register(params)
-    :ok = InvoiceEvents.subscribe(invoice)
-    {:ok, invoice_id} = InvoiceManager.track(invoice)
-    {:ok, handler} = InvoiceManager.get_handler(invoice_id)
-    # Block until handler has finalized the invoice, which may change invoice details.
-    invoice = InvoiceHandler.get_invoice(handler)
-    if !Invoices.finalized?(invoice), do: raise("invoice not finalized yet!")
-
-    {:reply, {invoice, handler}, state}
+    track(invoice, state)
   end
 
   @impl true
@@ -114,5 +100,12 @@ defmodule HandlerSubscriberCollector do
   @impl true
   def handle_info(info, state = %{received: received}) do
     {:noreply, %{state | received: [info | received]}}
+  end
+
+  defp track(invoice, state) do
+    :ok = InvoiceEvents.subscribe(invoice)
+    {:ok, invoice} = InvoiceManager.finalize_invoice(invoice)
+    {:ok, handler} = InvoiceManager.get_handler(invoice.id)
+    {:reply, {invoice, handler}, state}
   end
 end
