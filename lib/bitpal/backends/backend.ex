@@ -7,6 +7,9 @@ defmodule BitPal.Backend do
   @callback supported_currencies(pid()) :: [atom()]
   @callback configure(pid(), map()) :: :ok
 
+  # Check if the backend is ready. (Note: We could make a pub/sub for this if needed)
+  @callback ready?(pid()) :: boolean()
+
   @spec register(backend_ref(), Invoice.t()) :: Invoice.t()
   def register({pid, backend}, invoice) do
     backend.register(pid, invoice)

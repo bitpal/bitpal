@@ -11,6 +11,8 @@ defmodule BitPal.Currencies do
     XMR: %{name: "Monero", exponent: 12, symbol: "XMR"}
   }
 
+  @type height :: non_neg_integer()
+
   @spec get!(Currency.id()) :: Currency.t()
   def get!(id) do
     Repo.get!(Currency, id)
@@ -25,14 +27,22 @@ defmodule BitPal.Currencies do
     Repo.insert!(%Currency{id: id}, on_conflict: :nothing)
   end
 
-  @spec set_height!(Currency.id(), non_neg_integer) :: :ok
+  @spec set_height!(Currency.id(), height) :: :ok
   def set_height!(id, height) do
     Repo.update!(Changeset.change(%Currency{id: id}, block_height: height))
   end
 
+  @spec fetch_height!(Currency.id()) :: height
   def fetch_height!(id) do
     from(c in Currency, where: c.id == ^id, select: c.block_height)
     |> Repo.one!()
+  end
+
+  @spec fetch_height(Currency.id()) :: {:ok, height} | :error
+  def fetch_height(id) do
+    {:ok, fetch_height!(id)}
+  rescue
+    _ -> :error
   end
 
   @spec cast(atom | String.t()) :: {:ok, Currency.id()} | :error

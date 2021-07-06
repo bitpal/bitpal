@@ -11,6 +11,11 @@ defmodule BitPal.Blocks do
     Currencies.fetch_height!(currency_id)
   end
 
+  @spec fetch_block_height(currency_id) :: {:ok, height} | :error
+  def fetch_block_height(currency_id) do
+    Currencies.fetch_height(currency_id)
+  end
+
   @spec new_block(currency_id, height) :: :ok | {:error, term}
   def new_block(currency_id, height) do
     Currencies.set_height!(currency_id, height)

@@ -58,9 +58,18 @@ defmodule BitPal.Invoices do
     end
   end
 
+  @spec active_addresses(Currency.id()) :: [Address.t()]
+  def active_addresses(currency_id) do
+    Invoice
+    |> with_status([:open, :processing])
+    |> with_currency(currency_id)
+    |> select([i], i.address_id)
+    |> Repo.all()
+  end
+
   @spec open_addresses(Currency.id()) :: [Address.t()]
   def open_addresses(currency_id) do
-    "invoices"
+    Invoice
     |> with_status(:open)
     |> with_currency(currency_id)
     |> select([i], i.address_id)
@@ -69,8 +78,9 @@ defmodule BitPal.Invoices do
 
   @spec all_open() :: [Invoice.t()]
   def all_open do
-    "invoices"
+    Invoice
     |> with_status(:open)
+    |> select([i], i)
     |> Repo.all()
   end
 
@@ -80,6 +90,12 @@ defmodule BitPal.Invoices do
     |> with_status(:open)
     |> with_address(address_id)
     |> Repo.exists?()
+  end
+
+  defp with_status(query, statuses) when is_list(statuses) do
+    Enum.reduce(statuses, query, fn status, query ->
+      from(i in query, or_where: i.status == ^Atom.to_string(status))
+    end)
   end
 
   defp with_status(query, status) do
