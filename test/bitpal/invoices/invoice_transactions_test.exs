@@ -6,9 +6,11 @@ defmodule BitPal.InvoiceTransactionsTest do
   setup do
     assert {:ok, invoice} =
              Invoices.register(%{
-               amount: Money.parse!(1.2, "BCH"),
-               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {"BCH", "USD"}),
-               required_confirmations: 5
+               amount: 1.2,
+               exchange_rate: 2.0,
+               required_confirmations: 5,
+               currency: "BCH",
+               fiat_currency: "USD"
              })
 
     assert {:ok, address} = Addresses.register_next_address(:BCH, "bch:0")
@@ -33,17 +35,17 @@ defmodule BitPal.InvoiceTransactionsTest do
 
   test "amount paid calculation", %{invoice: invoice, address: address} do
     assert :ok = Transactions.confirmed("tx:0", [{address.id, Money.parse!(0.4, :BCH)}], 0)
-    invoice = Invoices.update_amount_paid(invoice)
+    invoice = Invoices.update_info_from_txs(invoice, nil)
     assert invoice.amount_paid == Money.parse!(0.4, :BCH)
     assert :underpaid == Invoices.target_amount_reached?(invoice)
 
     assert :ok = Transactions.confirmed("tx:1", [{address.id, Money.parse!(0.8, :BCH)}], 1)
-    invoice = Invoices.update_amount_paid(invoice)
+    invoice = Invoices.update_info_from_txs(invoice, nil)
     assert invoice.amount_paid == Money.parse!(1.2, :BCH)
     assert :ok == Invoices.target_amount_reached?(invoice)
 
     assert :ok = Transactions.confirmed("tx:2", [{address.id, Money.parse!(0.5, :BCH)}], 2)
-    invoice = Invoices.update_amount_paid(invoice)
+    invoice = Invoices.update_info_from_txs(invoice, nil)
     assert invoice.amount_paid == Money.parse!(1.7, :BCH)
     assert :overpaid == Invoices.target_amount_reached?(invoice)
   end

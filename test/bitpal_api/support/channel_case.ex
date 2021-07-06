@@ -1,9 +1,9 @@
-defmodule BitPalApi.ConnCase do
+defmodule BitPalApi.ChannelCase do
   @moduledoc """
   This module defines the test case to be used by
-  tests that require setting up a connection.
+  channel tests.
 
-  Such tests rely on `Phoenix.ConnTest` and also
+  Such tests rely on `Phoenix.ChannelTest` and also
   import other functionality to make it easier
   to build common data structures and query the data layer.
 
@@ -11,24 +11,18 @@ defmodule BitPalApi.ConnCase do
   we enable the SQL sandbox, so changes done to the database
   are reverted at the end of every test. If you are using
   PostgreSQL, you can even run database tests asynchronously
-  by setting `use BitPalApi.ConnCase, async: true`, although
+  by setting `use BitPalWeb.ChannelCase, async: true`, although
   this option is not recommended for other databases.
   """
 
   use ExUnit.CaseTemplate
-  import Plug.BasicAuth
-  import Plug.Conn
-  import Phoenix.ConnTest
   alias BitPal.IntegrationCase
 
   using do
     quote do
-      # Import conveniences for testing with connections
-      import Plug.Conn
-      import Phoenix.ConnTest
-      import BitPalApi.ConnCase
-
-      alias BitPalApi.Router.Helpers, as: Routes
+      # Import conveniences for testing with channels
+      import Phoenix.ChannelTest
+      import BitPalApi.ChannelCase
 
       # The default endpoint for testing
       @endpoint BitPalApi.Endpoint
@@ -38,23 +32,13 @@ defmodule BitPalApi.ConnCase do
   setup tags do
     IntegrationCase.setup_integration(tags)
 
+    start_supervised!(
+      {BitPal.ExchangeRateSupervisor, clear_interval: tags[:cache_clear_interval]}
+    )
+
     start_supervised!({Phoenix.PubSub, name: BitPalApi.PubSub}, id: BitPalApi.PubSub)
     start_supervised!(BitPalApi.Endpoint)
 
-    conn =
-      build_conn()
-      |> auth(tags)
-
-    {:ok, conn: conn}
-  end
-
-  defp auth(conn, %{auth: false}), do: conn
-
-  defp auth(conn, tags) do
-    put_req_header(
-      conn,
-      "authorization",
-      encode_basic_auth(tags[:user] || "user", tags[:pass] || "")
-    )
+    :ok
   end
 end

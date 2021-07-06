@@ -11,35 +11,43 @@ defmodule BitPal.ExchangeRate.Worker do
 
   # Client API
 
+  @spec start_worker(ExchangeRate.pair(), keyword) :: {:ok, pid} | :error
   def start_worker(pair, opts \\ []) do
     case get_worker(pair) do
       {:ok, pid} ->
-        {:already_started, pid}
+        {:ok, pid}
 
       _ ->
-        Task.Supervisor.start_child(
-          @supervisor,
-          __MODULE__,
-          :compute,
-          [pair, opts],
-          shutdown: :brutal_kill
-        )
+        case Task.Supervisor.start_child(
+               @supervisor,
+               __MODULE__,
+               :compute,
+               [pair, opts],
+               shutdown: :brutal_kill
+             ) do
+          {:ok, pid} -> {:ok, pid}
+          {:ok, pid, _info} -> {:ok, pid}
+          {:error, {:already_started, pid}} -> {:ok, pid}
+          _ -> :error
+        end
     end
   end
 
-  def await_worker(pair, _opts \\ []) do
+  @spec await_worker(ExchangeRate.pair() | pid) :: :ok | {:error, :timeout}
+  def await_worker(pid) when is_pid(pid) do
+    ref = Process.monitor(pid)
+
+    receive do
+      {:DOWN, ^ref, _, _, _} -> :ok
+    after
+      5_000 -> {:error, :timeout}
+    end
+  end
+
+  def await_worker(pair) do
     case get_worker(pair) do
-      {:ok, pid} ->
-        ref = Process.monitor(pid)
-
-        receive do
-          {:DOWN, ^ref, _, _, _} -> :ok
-        after
-          5_000 -> {:error, :timeout}
-        end
-
-      _ ->
-        :ok
+      {:ok, pid} -> await_worker(pid)
+      _ -> :ok
     end
   end
 
@@ -135,7 +143,7 @@ defmodule BitPal.ExchangeRate.Worker do
   end
 
   @spec get_worker(any) :: {:ok, pid} | {:error, :not_found}
-  defp get_worker(pair) do
+  def get_worker(pair) do
     ProcessRegistry.get_process(via_tuple(pair))
   end
 

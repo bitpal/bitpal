@@ -1,28 +1,19 @@
 defmodule BitPal.Blocks do
-  import Ecto.Query
   alias BitPal.BlockchainEvents
   alias BitPal.Currencies
-  alias BitPal.Repo
   alias BitPalSchemas.Currency
 
   @type currency_id :: Currency.id()
   @type height :: non_neg_integer()
 
-  @spec get_block_height(currency_id) :: height | nil
-  def get_block_height(currency_id) do
-    from(c in Currency,
-      where: c.id == ^Currencies.normalize(currency_id),
-      select: c.block_height
-    )
-    |> Repo.one()
+  @spec fetch_block_height!(currency_id) :: height
+  def fetch_block_height!(currency_id) do
+    Currencies.fetch_height!(currency_id)
   end
 
   @spec fetch_block_height(currency_id) :: {:ok, height} | :error
   def fetch_block_height(currency_id) do
-    case get_block_height(currency_id) do
-      nil -> :error
-      height -> {:ok, height}
-    end
+    Currencies.fetch_height(currency_id)
   end
 
   @spec new_block(currency_id, height) :: :ok | {:error, term}

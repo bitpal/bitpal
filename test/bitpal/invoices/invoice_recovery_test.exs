@@ -10,7 +10,7 @@ defmodule BitPal.InvoiceRecoveryTest do
     assert inv.status == :open
 
     BackendMock.tx_seen(inv)
-    HandlerSubscriberCollector.await_status(stub, :processing)
+    HandlerSubscriberCollector.await_msg(stub, :invoice_processing)
 
     inv = Invoices.fetch!(inv.id)
     assert inv.status == :processing
@@ -25,7 +25,7 @@ defmodule BitPal.InvoiceRecoveryTest do
 
     BackendMock.confirmed_in_new_block(inv)
 
-    HandlerSubscriberCollector.await_status(stub, :paid)
+    HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
   end
 
   @tag backends: true, double_spend_timeout: 1, do: true
@@ -41,9 +41,9 @@ defmodule BitPal.InvoiceRecoveryTest do
 
     BackendMock.tx_seen(inv)
 
-    InvoiceManager.track(inv)
+    InvoiceManager.finalize_and_track(inv)
 
-    HandlerSubscriberCollector.await_status(stub, :paid)
+    HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
   end
 
   @tag backends: true
@@ -54,7 +54,7 @@ defmodule BitPal.InvoiceRecoveryTest do
     assert inv.status == :open
 
     BackendMock.tx_seen(inv)
-    HandlerSubscriberCollector.await_status(stub, :processing)
+    HandlerSubscriberCollector.await_msg(stub, :invoice_processing)
 
     inv = Invoices.fetch!(inv.id)
     assert inv.status == :processing
@@ -65,9 +65,9 @@ defmodule BitPal.InvoiceRecoveryTest do
 
     BackendMock.confirmed_in_new_block(inv)
 
-    InvoiceManager.track(inv)
+    InvoiceManager.finalize_and_track(inv)
 
-    HandlerSubscriberCollector.await_status(stub, :paid)
+    HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
   end
 
   defp wait_for_handler(invoice_id, prev_handler) do

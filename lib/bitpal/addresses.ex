@@ -1,7 +1,6 @@
 defmodule BitPal.Addresses do
   import Ecto.Changeset
   import Ecto.Query, only: [from: 2]
-  alias BitPal.Currencies
   alias BitPal.Repo
   alias BitPalSchemas.Address
   alias BitPalSchemas.Currency
@@ -57,7 +56,7 @@ defmodule BitPal.Addresses do
     change(%Address{
       id: address,
       generation_index: address_index,
-      currency_id: Currencies.normalize(currency)
+      currency_id: currency
     })
     |> assoc_constraint(:currency)
     |> unique_constraint(:id, name: :addresses_pkey)
@@ -71,7 +70,7 @@ defmodule BitPal.Addresses do
   @spec next_address_index(Currency.id()) :: address_index
   def next_address_index(currency) do
     case from(a in Address,
-           where: a.currency_id == ^Currencies.normalize(currency),
+           where: a.currency_id == ^currency,
            select: max(a.generation_index)
          )
          |> Repo.one() do
@@ -93,7 +92,7 @@ defmodule BitPal.Addresses do
     # How to select rows with no matching entry in another table:
     # https://stackoverflow.com/questions/4076098/how-to-select-rows-with-no-matching-entry-in-another-table
     from(a in Address,
-      where: a.currency_id == ^Currencies.normalize(currency),
+      where: a.currency_id == ^currency,
       left_join: i in Invoice,
       on: i.address_id == a.id,
       where: is_nil(i.address_id),

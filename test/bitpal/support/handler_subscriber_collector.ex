@@ -1,9 +1,7 @@
 defmodule HandlerSubscriberCollector do
   use GenServer
   alias BitPal.Addresses
-  alias BitPal.ExchangeRate
   alias BitPal.InvoiceEvents
-  alias BitPal.InvoiceHandler
   alias BitPal.InvoiceManager
   alias BitPal.Invoices
   alias BitPalSchemas.Invoice
@@ -21,8 +19,10 @@ defmodule HandlerSubscriberCollector do
     params =
       Map.merge(
         %{
-          amount: Money.parse!(1.3, :BCH),
-          exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {:BCH, :USD}),
+          amount: 1.3,
+          currency: :BCH,
+          exchange_rate: 2.0,
+          fiat_currency: :USD,
           required_confirmations: 0
         },
         params
@@ -42,32 +42,32 @@ defmodule HandlerSubscriberCollector do
     |> Enum.reverse()
   end
 
-  def await_status(handler, status) do
-    Task.async(__MODULE__, :sleep_until_status, [handler, status])
-    |> Task.await(1_000)
+  def await_msg(handler, id) do
+    Task.async(__MODULE__, :sleep_until_msg, [handler, id])
+    |> Task.await(100)
 
     {:ok, received(handler)}
   end
 
-  def sleep_until_status(handler, status) do
-    if contains_status?(handler, status) do
+  def sleep_until_msg(handler, id) do
+    if contains_id?(handler, id) do
       :ok
     else
       Process.sleep(10)
-      sleep_until_status(handler, status)
+      sleep_until_msg(handler, id)
     end
   end
 
-  def contains_status?(handler, status) do
+  def contains_id?(handler, id) do
     received(handler)
     |> Enum.any?(fn
-      {:invoice_status, ^status, _} -> true
+      {^id, _} -> true
       _ -> false
     end)
   end
 
   def is_paid?(handler) do
-    contains_status?(handler, :paid)
+    contains_id?(handler, :invoide_paid)
   end
 
   # Server API
@@ -83,27 +83,13 @@ defmodule HandlerSubscriberCollector do
     {:ok, invoice} = Invoices.register(Map.delete(params, :address))
     {:ok, addr} = Addresses.register(invoice.currency_id, address, id)
     Invoices.assign_address(invoice, addr)
-    :ok = InvoiceEvents.subscribe(invoice)
-    {:ok, invoice_id} = InvoiceManager.track(invoice)
-    {:ok, handler} = InvoiceManager.get_handler(invoice_id)
-    # Block until handler has finalized the invoice, which may change invoice details.
-    invoice = InvoiceHandler.get_invoice(handler)
-    if !Invoices.finalized?(invoice), do: raise("invoice not finalized yet!")
-
-    {:reply, {invoice, handler}, state}
+    track(invoice, state)
   end
 
   @impl true
   def handle_call({:create_invoice, params}, _, state) do
     {:ok, invoice} = Invoices.register(params)
-    :ok = InvoiceEvents.subscribe(invoice)
-    {:ok, invoice_id} = InvoiceManager.track(invoice)
-    {:ok, handler} = InvoiceManager.get_handler(invoice_id)
-    # Block until handler has finalized the invoice, which may change invoice details.
-    invoice = InvoiceHandler.get_invoice(handler)
-    if !Invoices.finalized?(invoice), do: raise("invoice not finalized yet!")
-
-    {:reply, {invoice, handler}, state}
+    track(invoice, state)
   end
 
   @impl true
@@ -114,5 +100,12 @@ defmodule HandlerSubscriberCollector do
   @impl true
   def handle_info(info, state = %{received: received}) do
     {:noreply, %{state | received: [info | received]}}
+  end
+
+  defp track(invoice, state) do
+    :ok = InvoiceEvents.subscribe(invoice)
+    {:ok, invoice} = InvoiceManager.finalize_invoice(invoice)
+    {:ok, handler} = InvoiceManager.get_handler(invoice.id)
+    {:reply, {invoice, handler}, state}
   end
 end

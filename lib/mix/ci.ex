@@ -16,7 +16,7 @@ defmodule Mix.Tasks.Bitpal.Ci do
       Pipeline.sequence([
         mix("compile --warnings-as-errors"),
         Pipeline.parallel([
-          mix("dialyzer"),
+          mix("dialyzer --format short"),
           mix("test"),
           mix("format --check-formatted"),
           mix("credo --all --strict")

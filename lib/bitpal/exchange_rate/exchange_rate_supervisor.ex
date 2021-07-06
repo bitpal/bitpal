@@ -50,8 +50,8 @@ defmodule BitPal.ExchangeRateSupervisor do
         {:ok, res.rate}
 
       :error ->
-        Worker.start_worker(pair, opts)
-        Worker.await_worker(pair, opts)
+        {:ok, pid} = Worker.start_worker(pair, opts)
+        Worker.await_worker(pid)
 
         case Cache.fetch(@permanent_cache, pair) do
           {:ok, res} ->

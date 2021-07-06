@@ -12,7 +12,9 @@ defmodule BitPal.Application do
     children = [
       # Always start
       BitPal.Repo,
-      {Phoenix.PubSub, name: BitPal.PubSub},
+      Supervisor.child_spec({Phoenix.PubSub, name: BitPal.PubSub}, id: BitPal.PubSub),
+      Supervisor.child_spec({Phoenix.PubSub, name: BitPalApi.PubSub}, id: BitPalApi.PubSub),
+      Supervisor.child_spec({Phoenix.PubSub, name: BitPalWeb.PubSub}, id: BitPalWeb.PubSub),
       BitPal.ProcessRegistry,
       BitPalApi.Endpoint,
       BitPalWeb.Telemetry,

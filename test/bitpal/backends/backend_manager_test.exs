@@ -36,15 +36,15 @@ defmodule BackendManagerTest do
     assert BackendManager.backend_status(XXX.Backend) == :not_found
 
     assert BackendManager.currency_status(:BCH) == :ok
-    assert BackendManager.currency_status("BCH") == :ok
+    assert BackendManager.currency_status(:BCH) == :ok
     assert BackendManager.currency_status(:bsv) == :not_found
 
     assert {:ok, bit} = BackendManager.get_backend(BCH.Backend)
     assert {:ok, ^bit} = BackendManager.get_currency_backend(:BCH)
-    assert {:ok, ^bit} = BackendManager.get_currency_backend("BCH")
+    assert {:ok, ^bit} = BackendManager.get_currency_backend(:BCH)
     assert {:error, :not_found} = BackendManager.get_currency_backend(:BSV)
 
-    assert BackendManager.currency_list() === ["BCH", "BTC", "XMR"]
+    assert BackendManager.currency_list() === [:BCH, :BTC, :XMR]
   end
 
   test "change config" do

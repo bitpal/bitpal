@@ -125,7 +125,6 @@ defmodule BitPal.BackendMock do
   @impl true
   def handle_call({:tx_seen, invoice}, _from, state) do
     :ok = Transactions.seen(generate_txid(), [{invoice.address_id, invoice.amount}])
-
     {:reply, :ok, state}
   end
 

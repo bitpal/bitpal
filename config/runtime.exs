@@ -7,9 +7,9 @@ config :bitpal,
 
 case Config.config_env() do
   :dev ->
-    config :bitpal, backends: [{BitPal.BackendMock, auto: true}]
+    config :bitpal, backends: [{BitPal.BackendMock, auto: true, time_between_blocks: 60_000}]
 
-    config :bitpal, BitPal.ExchangeRate, backends: [BitPal.ExchangeRate.Mock]
+    config :bitpal, BitPal.ExchangeRate, backends: [BitPal.ExchangeRateMock]
 
   :test ->
     config :bitpal,

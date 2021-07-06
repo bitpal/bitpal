@@ -10,6 +10,11 @@ defmodule BitPalApi.Endpoint do
     signing_salt: "Naw2rZvg"
   ]
 
+  socket("/socket", BitPalApi.StoreSocket,
+    websocket: true,
+    longpoll: false
+  )
+
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.
   if code_reloading? do
