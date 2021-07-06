@@ -5,7 +5,7 @@ defmodule BitPal.Currencies do
   alias Ecto.Changeset
 
   @currencies %{
-    BCH: %{name: "Bitcoin Cash", exponent: 8, symbol: :BCH},
+    BCH: %{name: "Bitcoin Cash", exponent: 8, symbol: "BCH"},
     BTC: %{name: "Bitcoin", exponent: 8, symbol: "BTC"},
     DGC: %{name: "Dogecoin", exponent: 8, symbol: "DGC"},
     XMR: %{name: "Monero", exponent: 12, symbol: "XMR"}

@@ -32,7 +32,6 @@ defmodule BitPalApi.Router do
     post("/invoices/:id/pay", InvoiceController, :pay)
     post("/invoices/:id/send", InvoiceController, :send)
     post("/invoices/:id/void", InvoiceController, :void)
-    post("/invoices/:id/mark_uncollectible", InvoiceController, :mark_uncollectible)
     get("/invoices", InvoiceController, :index)
 
     get("/transactions/:id", TransactionController, :show)
