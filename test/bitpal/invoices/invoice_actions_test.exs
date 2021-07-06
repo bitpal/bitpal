@@ -4,8 +4,10 @@ defmodule BitPal.InvoiceActionsTest do
   setup do
     assert {:ok, invoice} =
              Invoices.register(%{
-               amount: Money.parse!(1.2, :BCH),
-               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {:BCH, :USD})
+               amount: 1.2,
+               exchange_rate: 2.0,
+               currency: "BCH",
+               fiat_currency: "USD"
              })
 
     %{invoice: invoice}
@@ -14,7 +16,9 @@ defmodule BitPal.InvoiceActionsTest do
   test "transitions", %{invoice: invoice} do
     assert invoice.status == :draft
 
-    assert {:ok, invoice} = Invoices.finalize(invoice)
+    # Must have an address when finalizing
+    assert {:error, _} = Invoices.finalize(invoice)
+    assert {:ok, invoice} = Invoices.finalize(%{invoice | address_id: "some-address"})
     assert invoice.status == :open
   end
 end

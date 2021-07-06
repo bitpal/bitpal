@@ -8,13 +8,13 @@ defmodule BackendMockTest do
     {:ok, _inv1, stub1, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 1,
-        amount: Money.parse!(1.0, :BCH)
+        amount: 1.0
       )
 
     {:ok, _inv3, stub3, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 3,
-        amount: Money.parse!(3.0, :BCH)
+        amount: 3.0
       )
 
     HandlerSubscriberCollector.await_msg(stub1, :invoice_paid)

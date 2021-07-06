@@ -13,14 +13,18 @@ defmodule BitPal.InvoiceEvents do
   @type processing_reason :: :verifying | {:confirming, additional_confirmations}
 
   @type msg ::
-          {:invoice_deleted, %{id: Invoice.id()}}
+          {:invoice_deleted, %{id: Invoice.id(), status: Invoice.status()}}
           | {:invoice_finalized, Invoice.t()}
-          | {:invoice_voided, %{id: Invoice.id()}}
-          | {:invoice_uncollectible, %{id: Invoice.id(), reason: uncollectible_reason}}
-          | {:invoice_underpaid, %{id: Invoice.id(), amount_due: Money.t(), txs: [tx]}}
-          | {:invoice_overpaid, %{id: Invoice.id(), overpaid_amount: Money.t(), txs: [tx]}}
-          | {:invoice_processing, %{id: Invoice.id(), reason: processing_reason, txs: [tx]}}
-          | {:invoice_paid, %{id: Invoice.id()}}
+          | {:invoice_voided, %{id: Invoice.id(), status: Invoice.status()}}
+          | {:invoice_uncollectible,
+             %{id: Invoice.id(), status: Invoice.status(), reason: uncollectible_reason}}
+          | {:invoice_underpaid,
+             %{id: Invoice.id(), status: Invoice.status(), amount_due: Money.t(), txs: [tx]}}
+          | {:invoice_overpaid,
+             %{id: Invoice.id(), status: Invoice.status(), overpaid_amount: Money.t(), txs: [tx]}}
+          | {:invoice_processing,
+             %{id: Invoice.id(), status: Invoice.status(), reason: processing_reason, txs: [tx]}}
+          | {:invoice_paid, %{id: Invoice.id(), status: Invoice.status()}}
 
   @spec subscribe(Invoice.id() | Invoice.t()) :: :ok | {:error, term}
   def subscribe(%Invoice{id: id}), do: EventHelpers.subscribe(topic(id))

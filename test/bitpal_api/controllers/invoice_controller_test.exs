@@ -1,13 +1,14 @@
 defmodule BitPalApi.InvoiceControllerTest do
   use BitPalApi.ConnCase
-  alias BitPal.ExchangeRate
   alias BitPal.Invoices
 
   test "create invoice", %{conn: conn} do
     conn =
       post(conn, "/v1/invoices", %{
-        amount: Money.parse!(1.2, :BCH),
-        exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {:BCH, :USD})
+        amount: "1.2",
+        exchange_rate: "2.0",
+        currency: "BCH",
+        fiat_currency: "USD"
       })
 
     assert %{
@@ -113,9 +114,15 @@ defmodule BitPalApi.InvoiceControllerTest do
 
   defp invoice(params \\ %{}) do
     {:ok, invoice} =
-      params
-      |> Map.put_new(:amount, Money.parse!(1.2, :BCH))
-      |> Map.put_new(:exchange_rate, ExchangeRate.new!(Decimal.from_float(2.0), {:BCH, :USD}))
+      Map.merge(
+        %{
+          amount: 1.2,
+          exchange_rate: 2.0,
+          currency: "BCH",
+          fiat_currency: "USD"
+        },
+        params
+      )
       |> Invoices.register()
 
     invoice

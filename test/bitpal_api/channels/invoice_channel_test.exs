@@ -1,11 +1,10 @@
 defmodule BitPalApi.InvoiceChannelTest do
   use BitPalApi.ChannelCase
   alias BitPal.BackendMock
-  # use BitPal.IntegrationCase
 
   setup tags do
     required_confirmations = tags[:required_confirmations] || 0
-    amount = Money.parse!(tags[:amount] || 1.3, :BCH)
+    amount = tags[:amount] || 0.3
 
     {:ok, invoice, _stub, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(

@@ -21,8 +21,10 @@ defmodule HandlerSubscriberCollector do
     params =
       Map.merge(
         %{
-          amount: Money.parse!(1.3, :BCH),
-          exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {:BCH, :USD}),
+          amount: 1.3,
+          currency: :BCH,
+          exchange_rate: 2.0,
+          fiat_currency: :USD,
           required_confirmations: 0
         },
         params
@@ -44,7 +46,7 @@ defmodule HandlerSubscriberCollector do
 
   def await_msg(handler, id) do
     Task.async(__MODULE__, :sleep_until_msg, [handler, id])
-    |> Task.await(1_000)
+    |> Task.await(100)
 
     {:ok, received(handler)}
   end

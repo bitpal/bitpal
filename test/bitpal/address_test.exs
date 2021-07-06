@@ -1,7 +1,6 @@
 defmodule AddressTest do
   use BitPal.IntegrationCase
   alias BitPal.Addresses
-  alias BitPal.ExchangeRate
   alias BitPal.Invoices
 
   test "address registration" do
@@ -51,8 +50,10 @@ defmodule AddressTest do
   defp assign_address(address) do
     assert {:ok, invoice} =
              Invoices.register(%{
-               amount: Money.parse!(1.2, :BCH),
-               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {:BCH, :USD})
+               amount: 1.2,
+               exchange_rate: 2.0,
+               currency: "BCH",
+               fiat_currency: "USD"
              })
 
     assert {:ok, _} = Invoices.assign_address(invoice, address)

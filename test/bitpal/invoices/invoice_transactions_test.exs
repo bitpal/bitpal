@@ -6,9 +6,11 @@ defmodule BitPal.InvoiceTransactionsTest do
   setup do
     assert {:ok, invoice} =
              Invoices.register(%{
-               amount: Money.parse!(1.2, :BCH),
-               exchange_rate: ExchangeRate.new!(Decimal.from_float(2.0), {:BCH, :USD}),
-               required_confirmations: 5
+               amount: 1.2,
+               exchange_rate: 2.0,
+               required_confirmations: 5,
+               currency: "BCH",
+               fiat_currency: "USD"
              })
 
     assert {:ok, address} = Addresses.register_next_address(:BCH, "bch:0")

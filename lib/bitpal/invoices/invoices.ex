@@ -14,26 +14,19 @@ defmodule BitPal.Invoices do
   alias BitPalSchemas.TxOutput
   require Decimal
 
-  @type register_params :: %{
-          amount: Money.t(),
-          fiat_amount: Money.t(),
-          exchange_rate: ExchangeRate.t(),
-          required_confirmations: non_neg_integer,
-          description: String.t()
-        }
-
-  @spec register(register_params) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
+  @spec register(map) :: {:ok, Invoice.t()} | {:error, Ecto.Changeset.t()}
   def register(params) do
     %Invoice{}
-    |> cast(params, [:amount, :fiat_amount, :exchange_rate, :required_confirmations, :description])
-    |> validate_amount(:amount)
-    |> validate_amount(:fiat_amount)
-    |> validate_exchange_rate(:exchange_rate)
+    |> cast(params, [:required_confirmations, :description])
+    |> assoc_currency(params)
+    |> validate_currency(params, :fiat_currency)
+    |> cast_money(params, :amount, :currency)
+    |> cast_money(params, :fiat_amount, :fiat_currency)
+    |> cast_exchange_rate(params)
     |> validate_into_matching_pairs()
     |> with_default_lazy(:required_confirmations, fn ->
       Application.fetch_env!(:bitpal, :required_confirmations)
     end)
-    |> assoc_currency()
     |> Repo.insert()
   end
 
@@ -222,7 +215,7 @@ defmodule BitPal.Invoices do
     else
       case Repo.delete(invoice) do
         {:ok, invoice} ->
-          InvoiceEvents.broadcast({:invoice_deleted, %{id: invoice.id}})
+          InvoiceEvents.broadcast({:invoice_deleted, %{id: invoice.id, status: invoice.status}})
           {:ok, invoice}
 
         err ->
@@ -315,7 +308,7 @@ defmodule BitPal.Invoices do
       FSM.transition_changeset(invoice, :paid)
       |> Repo.update!()
 
-    InvoiceEvents.broadcast({:invoice_paid, %{id: invoice.id}})
+    InvoiceEvents.broadcast({:invoice_paid, %{id: invoice.id, status: invoice.status}})
     invoice
   end
 
@@ -323,7 +316,12 @@ defmodule BitPal.Invoices do
   def broadcast_processing(invoice) do
     InvoiceEvents.broadcast(
       {:invoice_processing,
-       %{id: invoice.id, reason: processing_reason(invoice), txs: invoice.tx_outputs}}
+       %{
+         id: invoice.id,
+         status: invoice.status,
+         reason: processing_reason(invoice),
+         txs: invoice.tx_outputs
+       }}
     )
   end
 
@@ -333,6 +331,7 @@ defmodule BitPal.Invoices do
       {:invoice_underpaid,
        %{
          id: invoice.id,
+         status: invoice.status,
          amount_due: Money.subtract(invoice.amount, invoice.amount_paid),
          txs: invoice.tx_outputs
        }}
@@ -345,6 +344,7 @@ defmodule BitPal.Invoices do
       {:invoice_overpaid,
        %{
          id: invoice.id,
+         status: invoice.status,
          overpaid_amount: Money.subtract(invoice.amount_paid, invoice.amount),
          txs: invoice.tx_outputs
        }}
@@ -354,7 +354,11 @@ defmodule BitPal.Invoices do
   @spec mark_uncollectible!(Invoice.t(), InvoiceEvents.uncollectible_reason()) :: Invoice.t()
   defp mark_uncollectible!(invoice, reason) do
     {:ok, invoice} = transition(invoice, :uncollectible)
-    InvoiceEvents.broadcast({:invoice_uncollectible, %{id: invoice.id, reason: reason}})
+
+    InvoiceEvents.broadcast(
+      {:invoice_uncollectible, %{id: invoice.id, status: invoice.status, reason: reason}}
+    )
+
     invoice
   end
 
@@ -373,39 +377,77 @@ defmodule BitPal.Invoices do
     end
   end
 
-  defp validate_exchange_rate(changeset, key) do
-    currency_exists? = fn cur ->
-      if Money.Currency.exists?(cur) do
-        []
-      else
-        [{key, "money #{cur} doesn't exish"}]
-      end
+  defp validate_currency(changeset, params, key) do
+    case get_param(params, key) do
+      nil ->
+        changeset
+
+      currency ->
+        if Money.Currency.exists?(currency) do
+          changeset
+        else
+          add_error(changeset, key, "is invalid")
+        end
     end
-
-    changeset
-    |> validate_change(key, fn ^key, %ExchangeRate{rate: rate, pair: {a, b}} ->
-      List.flatten([
-        currency_exists?.(a),
-        currency_exists?.(b),
-        non_neg_dec(key, rate)
-      ])
-    end)
   end
 
-  defp validate_amount(changeset, key) do
-    changeset
-    |> validate_change(key, fn
-      ^key, val ->
-        non_neg_dec(key, val.amount)
-    end)
-  end
+  defp assoc_currency(changeset, params) do
+    currency = get_param(params, :currency)
 
-  defp non_neg_dec(key, val) do
-    if Decimal.lt?(val, Decimal.new(0)) do
-      [{key, "cannot be negative"}]
+    if currency do
+      changeset
+      |> change(%{currency_id: Money.Currency.to_atom(currency)})
+      |> assoc_constraint(:currency)
     else
-      []
+      add_error(changeset, :currency, "cannot be empty")
     end
+  rescue
+    _ -> add_error(changeset, :currency, "is invalid")
+  end
+
+  defp cast_money(changeset, params, key, currency_key) do
+    val = get_param(params, key)
+    currency = get_param(params, currency_key)
+
+    if val && currency do
+      with {:ok, dec} <- Decimal.cast(val),
+           {:ok, money} <- Money.parse(dec, currency) do
+        if money.amount <= 0 do
+          add_error(changeset, key, "must be greater than 0")
+        else
+          force_change(changeset, key, money)
+        end
+      else
+        _ ->
+          add_error(changeset, key, "is invalid")
+      end
+    else
+      changeset
+    end
+  rescue
+    # Might happen if we have an invalid currency, error is handled elsewhere
+    _ -> changeset
+  end
+
+  defp cast_exchange_rate(changeset, params) do
+    currency = get_param(params, :currency)
+    fiat_currency = get_param(params, :fiat_currency)
+    exchange_rate = get_param(params, :exchange_rate)
+
+    if currency && fiat_currency && exchange_rate do
+      with {:ok, dec} <- Decimal.cast(exchange_rate),
+           {:ok, rate} <- ExchangeRate.new(dec, {currency, fiat_currency}) do
+        force_change(changeset, :exchange_rate, rate)
+      else
+        _ -> add_error(changeset, :exchange_rate, "is invalid")
+      end
+    else
+      changeset
+    end
+  end
+
+  defp get_param(params, key) when is_atom(key) do
+    params[key] || params[Atom.to_string(key)]
   end
 
   defp validate_into_matching_pairs(changeset) do
@@ -454,18 +496,6 @@ defmodule BitPal.Invoices do
 
       true ->
         changeset
-    end
-  end
-
-  defp assoc_currency(changeset) do
-    amount = get_field(changeset, :amount)
-
-    if amount && amount.currency do
-      changeset
-      |> change(%{currency_id: amount.currency})
-      |> assoc_constraint(:currency)
-    else
-      changeset
     end
   end
 

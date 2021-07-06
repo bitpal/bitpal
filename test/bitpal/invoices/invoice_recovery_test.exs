@@ -41,7 +41,7 @@ defmodule BitPal.InvoiceRecoveryTest do
 
     BackendMock.tx_seen(inv)
 
-    InvoiceManager.track(inv)
+    InvoiceManager.finalize_and_track(inv)
 
     HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
   end
@@ -65,7 +65,7 @@ defmodule BitPal.InvoiceRecoveryTest do
 
     BackendMock.confirmed_in_new_block(inv)
 
-    InvoiceManager.track(inv)
+    InvoiceManager.finalize_and_track(inv)
 
     HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
   end

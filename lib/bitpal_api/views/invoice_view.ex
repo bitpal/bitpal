@@ -16,9 +16,10 @@ defmodule BitPalApi.InvoiceView do
     }
   end
 
-  def render("processing.json", %{id: id, reason: reason, txs: txs}) do
+  def render("processing.json", %{id: id, status: status, reason: reason, txs: txs}) do
     %{
       id: id,
+      status: status,
       txs: render_txs(txs)
     }
     |> then(fn res ->
@@ -34,20 +35,30 @@ defmodule BitPalApi.InvoiceView do
     end)
   end
 
-  def render("uncollectible.json", %{id: id, reason: reason}) do
-    %{id: id, reason: Atom.to_string(reason)}
+  def render("uncollectible.json", %{id: id, status: status, reason: reason}) do
+    %{id: id, status: status, reason: Atom.to_string(reason)}
   end
 
-  def render("underpaid.json", %{id: id, amount_due: amount_due, txs: txs}) do
-    %{id: id, amount_due: Money.to_decimal(amount_due), txs: render_txs(txs)}
+  def render("underpaid.json", %{id: id, status: status, amount_due: amount_due, txs: txs}) do
+    %{id: id, status: status, amount_due: Money.to_decimal(amount_due), txs: render_txs(txs)}
   end
 
-  def render("overpaid.json", %{id: id, overpaid_amount: overpaid_amount, txs: txs}) do
-    %{id: id, overpaid_amount: Money.to_decimal(overpaid_amount), txs: render_txs(txs)}
+  def render("overpaid.json", %{
+        id: id,
+        status: status,
+        overpaid_amount: overpaid_amount,
+        txs: txs
+      }) do
+    %{
+      id: id,
+      status: status,
+      overpaid_amount: Money.to_decimal(overpaid_amount),
+      txs: render_txs(txs)
+    }
   end
 
-  def render("paid.json", %{id: id}) do
-    %{id: id}
+  def render("paid.json", %{id: id, status: status}) do
+    %{id: id, status: status}
   end
 
   defp render_txs(txs) do

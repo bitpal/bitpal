@@ -94,19 +94,19 @@ defmodule BitPal.InvoiceAcceptanceTest do
   test "multiple invoices" do
     {:ok, inv0, stub0, _} =
       HandlerSubscriberCollector.create_invoice(
-        amount: Money.parse!(0.1, :BCH),
+        amount: 0.1,
         required_confirmations: 0
       )
 
     {:ok, inv1, stub1, _} =
       HandlerSubscriberCollector.create_invoice(
-        amount: Money.parse!(1.0, :BCH),
+        amount: 1.0,
         required_confirmations: 1
       )
 
     {:ok, inv2, stub2, _} =
       HandlerSubscriberCollector.create_invoice(
-        amount: Money.parse!(2.0, :BCH),
+        amount: 2.0,
         required_confirmations: 2
       )
 
@@ -164,7 +164,7 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
   @tag backends: true
   test "Invoices of the same amount" do
-    inv = [amount: Money.parse!(1.0, :BCH), required_confirmations: 1]
+    inv = [amount: 1.0, required_confirmations: 1]
 
     {:ok, inv0, _, handler0} = HandlerSubscriberCollector.create_invoice(inv)
     {:ok, inv1, _, handler1} = HandlerSubscriberCollector.create_invoice(inv)
@@ -192,9 +192,8 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
   @tag backends: true, double_spend_timeout: 1
   test "Underpaid invoice" do
-    inv = [amount: Money.parse!(1.0, :BCH), required_confirmations: 0]
-
-    {:ok, inv, stub, _handler} = HandlerSubscriberCollector.create_invoice(inv)
+    {:ok, inv, stub, _handler} =
+      HandlerSubscriberCollector.create_invoice(amount: 1.0, required_confirmations: 0)
 
     BackendMock.tx_seen(%{inv | amount: Money.parse!(0.3, :BCH)})
 
@@ -217,11 +216,10 @@ defmodule BitPal.InvoiceAcceptanceTest do
            ] = HandlerSubscriberCollector.received(stub)
   end
 
-  @tag backends: true, double_spend_timeout: 1
+  @tag backends: true, double_spend_timeout: 1, do: true
   test "Overpaid invoice" do
-    inv = [amount: Money.parse!(1.0, :BCH), required_confirmations: 0]
-
-    {:ok, inv, stub, _handler} = HandlerSubscriberCollector.create_invoice(inv)
+    {:ok, inv, stub, _handler} =
+      HandlerSubscriberCollector.create_invoice(amount: 1.0, required_confirmations: 0)
 
     BackendMock.tx_seen(%{inv | amount: Money.parse!(0.3, :BCH)})
     HandlerSubscriberCollector.await_msg(stub, :invoice_underpaid)

@@ -53,7 +53,7 @@ defmodule BitPal.Backend.FloweeTest do
     {:ok, _inv, stub, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 0,
-        amount: Money.new(1000, :BCH)
+        amount: 0.000_01
       )
 
     MockTCPClient.response(@client, FloweeFixtures.tx_seen())
@@ -71,7 +71,7 @@ defmodule BitPal.Backend.FloweeTest do
     {:ok, _inv, stub, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 1,
-        amount: Money.new(1000, :BCH)
+        amount: 0.000_01
       )
 
     MockTCPClient.response(@client, FloweeFixtures.tx_1_conf())
@@ -90,14 +90,14 @@ defmodule BitPal.Backend.FloweeTest do
     {:ok, _invoice, stub1, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 0,
-        amount: Money.new(10_000, :BCH),
+        amount: 0.000_1,
         address: {"bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa", -1}
       )
 
     {:ok, _invoice, stub2, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 0,
-        amount: Money.new(20_000, :BCH),
+        amount: 0.000_2,
         address: {"bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc", -2}
       )
 
@@ -123,14 +123,14 @@ defmodule BitPal.Backend.FloweeTest do
     {:ok, _invoice, stub1, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 0,
-        amount: Money.new(15_000, :BCH),
+        amount: 0.000_15,
         address: {"bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa", -1}
       )
 
     {:ok, _invoice, stub2, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 0,
-        amount: Money.new(20_000, :BCH),
+        amount: 0.000_2,
         address: {"bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc", -2}
       )
 
@@ -167,14 +167,14 @@ defmodule BitPal.Backend.FloweeTest do
     {:ok, _invoice, stub1, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 1,
-        amount: Money.new(10_000, :BCH),
+        amount: 0.000_1,
         address: {"bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa", -1}
       )
 
     {:ok, _invoice, stub2, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 1,
-        amount: Money.new(20_000, :BCH),
+        amount: 0.000_2,
         address: {"bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc", -2}
       )
 
@@ -218,14 +218,14 @@ defmodule BitPal.Backend.FloweeTest do
     {:ok, _invoice, stub1, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 1,
-        amount: Money.new(15_000, :BCH),
+        amount: 0.000_15,
         address: {"bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa", 0}
       )
 
     {:ok, _invoice, stub2, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 1,
-        amount: Money.new(20_000, :BCH),
+        amount: 0.000_2,
         address: {"bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc", 1}
       )
 
