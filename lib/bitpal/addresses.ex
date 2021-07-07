@@ -1,13 +1,16 @@
 defmodule BitPal.Addresses do
   import Ecto.Changeset
-  import Ecto.Query, only: [from: 2]
+  import Ecto.Query
   alias BitPal.Repo
+  alias BitPal.Invoices
   alias BitPalSchemas.Address
   alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
   alias Ecto.Multi
 
   @type address_index :: non_neg_integer
+
+  # Retrieve
 
   @spec get(String.t()) :: Address.t() | nil
   def get(address_id) do
@@ -20,6 +23,34 @@ defmodule BitPal.Addresses do
     from(a in Address, where: a.id == ^address_id)
     |> Repo.exists?()
   end
+
+  @spec all_active(Currency.id()) :: [Address.t()]
+  def all_active(currency_id) do
+    Invoice
+    |> Invoices.with_status([:open, :processing])
+    |> Invoices.with_currency(currency_id)
+    |> select([i], i.address_id)
+    |> Repo.all()
+  end
+
+  @spec all_open(Currency.id()) :: [Address.t()]
+  def all_open(currency_id) do
+    Invoice
+    |> Invoices.with_status(:open)
+    |> Invoices.with_currency(currency_id)
+    |> select([i], i.address_id)
+    |> Repo.all()
+  end
+
+  @spec open?(Address.t()) :: boolean
+  def open?(address_id) do
+    Invoice
+    |> Invoices.with_status(:open)
+    |> Invoices.with_address(address_id)
+    |> Repo.exists?()
+  end
+
+  # Update
 
   @spec register(Currency.id(), [{Address.id(), address_index}]) ::
           {:ok, %{String.t() => Address.t()}} | {:error, Ecto.Changeset.t()}
