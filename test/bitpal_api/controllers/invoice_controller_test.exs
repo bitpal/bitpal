@@ -281,7 +281,7 @@ defmodule BitPalApi.InvoiceControllerTest do
       assert %{
                "type" => "invalid_request_error",
                "code" => "resource_missing",
-               "param" => ^id,
+               "param" => "id",
                "message" => _
              } = Jason.decode!(response)
     end

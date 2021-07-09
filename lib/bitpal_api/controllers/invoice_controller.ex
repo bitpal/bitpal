@@ -28,7 +28,7 @@ defmodule BitPalApi.InvoiceController do
         render(conn, "show.json", invoice: invoice)
 
       :error ->
-        raise NotFoundError, param: id
+        raise NotFoundError, param: "id"
     end
   end
 
@@ -38,7 +38,7 @@ defmodule BitPalApi.InvoiceController do
         render(conn, "show.json", invoice: invoice)
 
       {:error, :not_found} ->
-        raise NotFoundError, param: id
+        raise NotFoundError, param: "id"
 
       {:error, :finalized} ->
         raise RequestFailedError,
@@ -56,7 +56,7 @@ defmodule BitPalApi.InvoiceController do
         render(conn, "deleted.json", id: id, deleted: true)
 
       {:error, :not_found} ->
-        raise NotFoundError, param: id
+        raise NotFoundError, param: "id"
 
       {:error, :finalized} ->
         raise RequestFailedError,
@@ -74,7 +74,7 @@ defmodule BitPalApi.InvoiceController do
       render(conn, "show.json", invoice: invoice)
     else
       :error ->
-        raise NotFoundError, param: id
+        raise NotFoundError, param: "id"
 
       {:error, changeset = %Changeset{}} ->
         raise RequestFailedError, changeset: changeset
@@ -87,7 +87,7 @@ defmodule BitPalApi.InvoiceController do
         render(conn, "show.json", invoice: invoice)
 
       {:error, :not_found} ->
-        raise NotFoundError, param: id
+        raise NotFoundError, param: "id"
 
       {:error, :no_block_height} ->
         raise InternalServerError
@@ -103,7 +103,7 @@ defmodule BitPalApi.InvoiceController do
         render(conn, "show.json", invoice: invoice)
 
       {:error, :not_found} ->
-        raise NotFoundError, param: id
+        raise NotFoundError, param: "id"
 
       {:error, changeset = %Changeset{}} ->
         transition_error(changeset)
