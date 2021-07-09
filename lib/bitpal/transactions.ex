@@ -11,6 +11,25 @@ defmodule BitPal.Transactions do
   @type confirmations :: non_neg_integer
   @type outputs :: [{Address.id(), Money.t()}]
 
+  # External
+
+  @spec fetch(TxOutput.txid()) :: {:ok, TxOutput.t()} | :error
+  def fetch(txid) do
+    case Repo.get_by(TxOutput, txid: txid) do
+      nil -> :error
+      tx -> {:ok, tx}
+    end
+  rescue
+    _ -> :error
+  end
+
+  @spec all :: [TxOutput.t()]
+  def all do
+    Repo.all(TxOutput)
+  end
+
+  # Data
+
   @spec num_confirmations!(TxOutput.t()) :: confirmations
   def num_confirmations!(tx = %TxOutput{currency: currency}) do
     num_confirmations(tx, Blocks.fetch_block_height!(currency))
@@ -31,6 +50,8 @@ defmodule BitPal.Transactions do
   def calc_confirmations(_, _) do
     0
   end
+
+  # Internal updates
 
   @spec seen(TxOutput.txid(), outputs) :: :ok | :error
   def seen(txid, outputs) do
@@ -88,6 +109,8 @@ defmodule BitPal.Transactions do
         :error
     end
   end
+
+  # Broadcasting
 
   @spec broadcast(outputs, AddressEvents.msg()) :: :ok
   defp broadcast(outputs, msg) do
