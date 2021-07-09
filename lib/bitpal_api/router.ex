@@ -33,51 +33,17 @@ defmodule BitPalApi.Router do
     post("/invoices/:id/void", InvoiceController, :void)
     get("/invoices", InvoiceController, :index)
 
-    get("/transactions/:id", TransactionController, :show)
+    get("/transactions/:txid", TransactionController, :show)
     get("/transactions", TransactionController, :index)
 
-    # Also need to list available rates
-    # get "/rates/:pair", ExchangeRateController, :show
-    #
-    # get "/events", EventsController, :index
-    # get "/events/:id", EventsController, :show
+    # get("/rates/available", ExchangeRateController, :available)
+    # BitPay endpoint
+    # cade:
+    # name:
+    # rate:
+    # get("/rates/:basecurrency/:currency", ExchangeRateController, :show)
 
-    # post "/webhook_endpoints", WebhookController, :create
-
-    # Stripe
-    # POST /v1/invoices
-    # GET /v1/invoices/:id
-    # POST /v1/invoices/:id
-    # DELETE /v1/invoices/:id
-    # POST /v1/invoices/:id/finalize
-    # POST /v1/invoices/:id/pay
-    # POST /v1/invoices/:id/send
-    # POST /v1/invoices/:id/void
-    # POST /v1/invoices/:id/mark_uncollectible
-    # GET /v1/invoices/:id/lines
-    # GET /v1/invoices/upcoming
-    # GET /v1/invoices/upcoming/lines
-    # GET /v1/invoices
-
-    # GET /v1/issuing/transactions/:id
-    # POST /v1/issuing/transactions/:id
-    # GET /v1/issuing/transactions
-
-    # POST /v1/webhook_endpoints
-    # GET /v1/webhook_endpoints/:id
-    # POST /v1/webhook_endpoints/:id
-    # GET /v1/webhook_endpoints
-    # DELETE /v1/webhook_endpoints/:id
-    #
-    #
-    # When interesting stuff happens
-    # GET /v1/events/:id
-    # GET /v1/events
+    # get("/currencies/:id", CurrencyController, :show)
+    # get("/currencies", CurrencyController, :index)
   end
-
-  # Server based payment UI
-
-  # Admin portal
-
-  # REST API
 end

@@ -1,5 +1,5 @@
 defmodule BitPalApi.TransactionControllerTest do
-  use BitPalApi.ConnCase, async: true
+  use BitPalApi.ConnCase
   alias BitPal.Addresses
   alias BitPal.Transactions
 
