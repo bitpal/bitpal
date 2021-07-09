@@ -1,8 +1,8 @@
 defmodule BitPal.Addresses do
   import Ecto.Changeset
   import Ecto.Query
-  alias BitPal.Repo
   alias BitPal.Invoices
+  alias BitPal.Repo
   alias BitPalSchemas.Address
   alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice

@@ -24,6 +24,10 @@ defmodule BitPalApi.ExchangeRateChannelTest do
 
   test "invalid currency", %{socket: socket} do
     ref = push(socket, "request", %{"from" => "XXX", "to" => "USD"})
-    assert_reply(ref, :error, %{reason: "Bad Request"})
+
+    assert_reply(ref, :error, %{
+      message: "Invalid exchange rate 'XXX-USD'",
+      type: "invalid_request_error"
+    })
   end
 end

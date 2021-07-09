@@ -7,13 +7,19 @@ defmodule BitPalApi.ExchangeRateChannel do
 
   @impl true
   def join("exchange_rate:" <> pair, payload, socket) do
-    with :ok <- authorized?(payload),
+    with :authorized <- authorized?(payload),
          {:ok, pair} <- parse_pair(pair),
          :ok <- ExchangeRateEvents.subscribe(pair) do
       {:ok, socket}
     else
+      :unauthorized ->
+        render_error(%UnauthorizedError{})
+
+      {:error, :bad_pair} ->
+        invalid_exchange_rate_error(pair)
+
       _ ->
-        render_error(:bad_request)
+        render_error(%InternalServerError{})
     end
   end
 
@@ -24,8 +30,8 @@ defmodule BitPalApi.ExchangeRateChannel do
         ExchangeRateSupervisor.async_request(pair)
         {:reply, :ok, socket}
 
-      {:error, :invalid_currency} ->
-        {:reply, render_error(:bad_request), socket}
+      {:error, :bad_pair} ->
+        {:reply, invalid_exchange_rate_error(from, to), socket}
     end
   end
 
@@ -35,8 +41,11 @@ defmodule BitPalApi.ExchangeRateChannel do
          {:ok, rate} <- ExchangeRateSupervisor.request(pair) do
       {:reply, {:ok, %{rate: rate.rate}}, socket}
     else
-      {:error, _} ->
-        {:reply, render_error(:bad_request), socket}
+      {:error, :bad_pair} ->
+        {:reply, invalid_exchange_rate_error(from, to), socket}
+
+      _ ->
+        render_error(%InternalServerError{})
     end
   end
 
@@ -46,8 +55,19 @@ defmodule BitPalApi.ExchangeRateChannel do
     {:noreply, socket}
   end
 
+  defp invalid_exchange_rate_error(from, to) do
+    invalid_exchange_rate_error("#{from}-#{to}")
+  end
+
+  defp invalid_exchange_rate_error(pair) do
+    render_error(%BadRequestError{
+      code: "invalid_exchange_rate",
+      message: "Invalid exchange rate '#{pair}'"
+    })
+  end
+
   defp authorized?(_payload) do
-    :ok
+    :authorized
   end
 
   defp parse_pair(pair) when is_binary(pair) do
@@ -56,7 +76,7 @@ defmodule BitPalApi.ExchangeRateChannel do
         parse_pair({from, to})
 
       _ ->
-        {:error, :malformed_pair}
+        {:error, :bad_pair}
     end
   end
 
@@ -66,6 +86,6 @@ defmodule BitPalApi.ExchangeRateChannel do
     {:ok, {from, to}}
   rescue
     _ ->
-      {:error, :invalid_currency}
+      {:error, :bad_pair}
   end
 end

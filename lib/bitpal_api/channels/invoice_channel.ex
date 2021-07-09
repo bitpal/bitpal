@@ -6,11 +6,15 @@ defmodule BitPalApi.InvoiceChannel do
 
   @impl true
   def join("invoice:" <> invoice_id, payload, socket) do
-    if authorized?(payload) do
-      :ok = InvoiceEvents.subscribe(invoice_id)
+    with :authorized <- authorized?(payload),
+         :ok <- InvoiceEvents.subscribe(invoice_id) do
       {:ok, socket}
     else
-      render_error(:unauthorized)
+      :unauthorized ->
+        render_error(%UnauthorizedError{})
+
+      _ ->
+        render_error(%InternalServerError{})
     end
   end
 
@@ -21,7 +25,7 @@ defmodule BitPalApi.InvoiceChannel do
   end
 
   defp authorized?(_payload) do
-    true
+    :authorized
   end
 
   defp broadcast_event("invoice_" <> event, data, socket) do
