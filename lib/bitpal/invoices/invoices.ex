@@ -26,9 +26,7 @@ defmodule BitPal.Invoices do
     |> cast_money(params, :fiat_amount, :fiat_currency)
     |> cast_exchange_rate(params)
     |> validate_into_matching_pairs()
-    |> with_default_lazy(:required_confirmations, fn ->
-      Application.fetch_env!(:bitpal, :required_confirmations)
-    end)
+    |> with_default_lazy(:required_confirmations, &BitPalConfig.required_confirmations/0)
     |> Repo.insert()
   end
 
@@ -65,9 +63,7 @@ defmodule BitPal.Invoices do
       |> cast_exchange_rate(params)
       |> clear_pairs_for_update()
       |> validate_into_matching_pairs(nil_bad_params: true)
-      |> with_default_lazy(:required_confirmations, fn ->
-        Application.fetch_env!(:bitpal, :required_confirmations)
-      end)
+      |> with_default_lazy(:required_confirmations, &BitPalConfig.required_confirmations/0)
       |> Repo.update()
     else
       :error ->

@@ -81,7 +81,7 @@ defmodule BitPal.BackendMock do
             if Map.has_key?(map, :address) do
               map
             else
-              Map.put_new(map, :xpub, Application.fetch_env!(:bitpal, :xpub))
+              Map.put_new(map, :xpub, BitPalConfig.xpub())
             end
           end).()
 
