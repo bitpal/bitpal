@@ -6,14 +6,20 @@ defmodule BitPalApi.InvoiceView do
   def render("show.json", %{invoice: invoice = %Invoice{}}) do
     %{
       id: invoice.id,
-      amount: Money.to_decimal(invoice.amount),
       currency: invoice.currency_id,
-      fiat_amount: Money.to_decimal(invoice.fiat_amount),
-      fiat_currency: invoice.fiat_amount.currency,
       address: invoice.address_id,
       status: invoice.status,
       required_confirmations: invoice.required_confirmations
     }
+    |> put_unless_nil(:amount, invoice.amount, &Money.to_decimal/1)
+    |> put_unless_nil(:fiat_amount, invoice.fiat_amount, &Money.to_decimal/1)
+    |> put_unless_nil(:fiat_currency, invoice.fiat_amount, & &1.currency)
+  end
+
+  def render("index.json", %{invoices: invoices}) do
+    Enum.map(invoices, fn invoice ->
+      render("show.json", invoice: invoice)
+    end)
   end
 
   def render("processing.json", %{id: id, status: status, reason: reason, txs: txs}) do
@@ -59,6 +65,10 @@ defmodule BitPalApi.InvoiceView do
 
   def render("paid.json", %{id: id, status: status}) do
     %{id: id, status: status}
+  end
+
+  def render("deleted.json", %{id: id, deleted: deleted}) do
+    %{id: id, deleted: deleted}
   end
 
   defp render_txs(txs) do

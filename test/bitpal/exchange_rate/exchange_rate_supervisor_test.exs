@@ -79,7 +79,37 @@ defmodule BitPal.ExchangeRateSupervisorTest do
     def name, do: "test"
 
     @impl true
-    def supported_pairs, do: [{:BCH, :USD}, {:BCH, :EUR}]
+    def supported, do: %{BCH: [:USD, :EUR]}
+
+    @impl true
+    def compute(pair, opts) do
+      if timeout = opts[:test_timeout] do
+        Process.sleep(timeout)
+      end
+
+      if opts[:test_crash] do
+        raise "boom"
+      else
+        score = Keyword.get(opts, :test_score, 2.0)
+
+        {:ok,
+         %Result{
+           score: score,
+           backend: __MODULE__,
+           rate: ExchangeRate.new!(Decimal.from_float(score), pair)
+         }}
+      end
+    end
+  end
+
+  defmodule TestBackendCurrencies do
+    @behaviour BitPal.ExchangeRate.Backend
+
+    @impl true
+    def name, do: "test"
+
+    @impl true
+    def supported, do: %{BCH: [:USD, :YEN], XMR: [:USD, :EUR]}
 
     @impl true
     def compute(pair, opts) do
@@ -189,5 +219,18 @@ defmodule BitPal.ExchangeRateSupervisorTest do
              {:exchange_rate, rate},
              {:exchange_rate, rate}
            ]
+  end
+
+  test "supported" do
+    backends = [TestBackend, TestBackendCurrencies]
+
+    assert %{BCH: [:USD, :EUR, :YEN], XMR: [:USD, :EUR]} ==
+             ExchangeRateSupervisor.all_supported(backends: backends)
+
+    assert {:ok, [:USD, :EUR, :YEN]} ==
+             ExchangeRateSupervisor.supported(:BCH, backends: backends)
+
+    assert {:error, :not_found} ==
+             ExchangeRateSupervisor.supported(:XXX, backends: backends)
   end
 end

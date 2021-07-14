@@ -25,11 +25,7 @@ defmodule BitPalApi do
       alias BitPalApi.ErrorView
       alias BitPalApi.Router.Helpers, as: Routes
 
-      alias BitPalApi.BadRequestError
-      alias BitPalApi.ForbiddenError
-      alias BitPalApi.NotFoundError
-      alias BitPalApi.RequestFailedError
-      alias BitPalApi.UnauthorizedError
+      unquote(errors())
     end
   end
 
@@ -39,12 +35,8 @@ defmodule BitPalApi do
         root: "lib/bitpal_api/templates",
         namespace: BitPalApi
 
-      # Import convenience functions from controllers
-      import Phoenix.Controller,
-        only: [get_flash: 1, get_flash: 2, view_module: 1, view_template: 1]
-
-      # Include shared imports and aliases for views
       unquote(view_helpers())
+      unquote(errors())
     end
   end
 
@@ -62,8 +54,9 @@ defmodule BitPalApi do
       use Phoenix.Channel
       import Phoenix.View
       import BitPalApi.ChannelHelpers
-
       alias BitPalApi.InvoiceView
+
+      unquote(errors())
     end
   end
 
@@ -75,7 +68,20 @@ defmodule BitPalApi do
       # Import basic rendering functionality (render, render_layout, etc)
       import Phoenix.View
 
+      import BitPal.ViewHelpers
+
       alias BitPalApi.Router.Helpers, as: Routes
+    end
+  end
+
+  defp errors do
+    quote do
+      alias BitPalApi.BadRequestError
+      alias BitPalApi.ForbiddenError
+      alias BitPalApi.InternalServerError
+      alias BitPalApi.NotFoundError
+      alias BitPalApi.RequestFailedError
+      alias BitPalApi.UnauthorizedError
     end
   end
 

@@ -23,7 +23,7 @@ defmodule BitPalApi.BadRequestError do
   @moduledoc """
   400 - Bad Request, The request was unacceptable, often due to missing a required parameter.
   """
-  defexception message: "Bad Request", plug_status: 400
+  defexception message: "Bad Request", plug_status: 400, changeset: nil, code: nil
 end
 
 defmodule BitPalApi.UnauthorizedError do
@@ -37,7 +37,7 @@ defmodule BitPalApi.RequestFailedError do
   @moduledoc """
   402 - Request Failed, The parameters were valid but the request failed.
   """
-  defexception message: "Request Failed", plug_status: 402
+  defexception message: "Request Failed", plug_status: 402, changeset: nil, code: nil
 end
 
 defmodule BitPalApi.ForbiddenError do
@@ -51,5 +51,12 @@ defmodule BitPalApi.NotFoundError do
   @moduledoc """
   404 - Not Found, The requested resource doesn't exist.
   """
-  defexception message: "Not Found", plug_status: 404
+  defexception message: "Not Found", plug_status: 404, param: nil
+end
+
+defmodule BitPalApi.InternalServerError do
+  @moduledoc """
+  500 - Internal Server Error.
+  """
+  defexception message: "Internal Server Error", plug_status: 500
 end

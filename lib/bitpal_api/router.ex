@@ -30,55 +30,16 @@ defmodule BitPalApi.Router do
     delete("/invoices/:id", InvoiceController, :delete)
     post("/invoices/:id/finalize", InvoiceController, :finalize)
     post("/invoices/:id/pay", InvoiceController, :pay)
-    post("/invoices/:id/send", InvoiceController, :send)
     post("/invoices/:id/void", InvoiceController, :void)
     get("/invoices", InvoiceController, :index)
 
-    get("/transactions/:id", TransactionController, :show)
+    get("/transactions/:txid", TransactionController, :show)
     get("/transactions", TransactionController, :index)
 
-    # Also need to list available rates
-    # get "/rates/:pair", ExchangeRateController, :show
-    #
-    # get "/events", EventsController, :index
-    # get "/events/:id", EventsController, :show
+    get("/rates/:basecurrency", ExchangeRateController, :index)
+    get("/rates/:basecurrency/:currency", ExchangeRateController, :show)
 
-    # post "/webhook_endpoints", WebhookController, :create
-
-    # Stripe
-    # POST /v1/invoices
-    # GET /v1/invoices/:id
-    # POST /v1/invoices/:id
-    # DELETE /v1/invoices/:id
-    # POST /v1/invoices/:id/finalize
-    # POST /v1/invoices/:id/pay
-    # POST /v1/invoices/:id/send
-    # POST /v1/invoices/:id/void
-    # POST /v1/invoices/:id/mark_uncollectible
-    # GET /v1/invoices/:id/lines
-    # GET /v1/invoices/upcoming
-    # GET /v1/invoices/upcoming/lines
-    # GET /v1/invoices
-
-    # GET /v1/issuing/transactions/:id
-    # POST /v1/issuing/transactions/:id
-    # GET /v1/issuing/transactions
-
-    # POST /v1/webhook_endpoints
-    # GET /v1/webhook_endpoints/:id
-    # POST /v1/webhook_endpoints/:id
-    # GET /v1/webhook_endpoints
-    # DELETE /v1/webhook_endpoints/:id
-    #
-    #
-    # When interesting stuff happens
-    # GET /v1/events/:id
-    # GET /v1/events
+    get("/currencies", CurrencyController, :index)
+    get("/currencies/:id", CurrencyController, :show)
   end
-
-  # Server based payment UI
-
-  # Admin portal
-
-  # REST API
 end

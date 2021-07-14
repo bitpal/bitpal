@@ -1,5 +1,6 @@
 defmodule BitPal.TestHelpers do
   import ExUnit.Assertions
+  alias Ecto.UUID
 
   def eventually(func) do
     if func.() do
@@ -32,5 +33,13 @@ defmodule BitPal.TestHelpers do
         opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
       end)
     end)
+  end
+
+  def generate_txid do
+    "txid:#{UUID.generate()}"
+  end
+
+  def generate_address_id do
+    "address:#{UUID.generate()}"
   end
 end

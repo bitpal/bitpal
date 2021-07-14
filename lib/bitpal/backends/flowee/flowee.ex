@@ -250,7 +250,7 @@ defmodule BitPal.Backend.Flowee do
     enqueue_ping(state)
 
     # Supscribe to invoices we should be tracking
-    Enum.each(Invoices.active_addresses(@bch), fn address ->
+    Enum.each(Addresses.all_active(@bch), fn address ->
       subscribe_addr(c, address)
     end)
 
@@ -310,7 +310,7 @@ defmodule BitPal.Backend.Flowee do
   defp recover_blocks_between(connection, checked, current) do
     if checked < current do
       # Check block "checked + 1" and see if we have something to do there.
-      active = Invoices.active_addresses(@bch)
+      active = Addresses.all_active(@bch)
 
       if Enum.empty?(active) do
         # No addresses. Nothing to do, even if we are behind.

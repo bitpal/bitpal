@@ -13,6 +13,14 @@ defmodule BitPal.Currencies do
 
   @type height :: non_neg_integer()
 
+  @spec fetch(Currency.id()) :: {:ok, Currency.t()} | :error
+  def fetch(id) do
+    case Repo.get(Currency, id) do
+      nil -> :error
+      currency -> {:ok, currency}
+    end
+  end
+
   @spec get!(Currency.id()) :: Currency.t()
   def get!(id) do
     Repo.get!(Currency, id)

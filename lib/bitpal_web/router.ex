@@ -20,6 +20,10 @@ defmodule BitPalWeb.Router do
     live("/", PageLive, :index)
   end
 
+  # Server hosted payment UI
+
+  # Admin portal
+
   # Other scopes may use custom stacks.
   # scope "/api", BitPalWeb do
   #   pipe_through :api

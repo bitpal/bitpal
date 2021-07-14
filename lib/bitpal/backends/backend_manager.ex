@@ -65,7 +65,7 @@ defmodule BitPal.BackendManager do
     end)
   end
 
-  @spec currencies() :: [{String.t(), :ok, Backend.backend_ref()}]
+  @spec currencies() :: [{Currency.id(), :ok, Backend.backend_ref()}]
   def currencies do
     backends()
     |> Enum.map(fn {_name, ref, status} ->
