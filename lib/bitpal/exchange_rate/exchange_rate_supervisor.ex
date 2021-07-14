@@ -3,6 +3,7 @@ defmodule BitPal.ExchangeRateSupervisor do
   alias BitPal.Cache
   alias BitPal.ExchangeRate
   alias BitPal.ExchangeRate.Worker
+  alias BitPalSchemas.Currency
   require Logger
 
   @backend_cache BitPal.ExchangeRate.BackendCache
@@ -38,7 +39,7 @@ defmodule BitPal.ExchangeRateSupervisor do
 
   # Client interface
 
-  @spec all_supported(keyword) :: %{Currrency.id() => [Currency.id()]}
+  @spec all_supported(keyword) :: %{atom => [Currency.id()]}
   def all_supported(opts \\ []) do
     backends =
       opts[:backends] ||
@@ -64,7 +65,7 @@ defmodule BitPal.ExchangeRateSupervisor do
     Worker.start_worker(pair, opts)
   end
 
-  @spec request(ExchangeRate.pair(), keyword) :: {:ok, ExchangeRate.t()} | {:error, term}
+  @spec request(ExchangeRate.pair(), keyword) :: {:ok, ExchangeRate.t()} | {:error, :not_found}
   def request(pair, opts \\ []) do
     case Cache.fetch(@permanent_cache, pair) do
       {:ok, res} ->

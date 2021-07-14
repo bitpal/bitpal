@@ -34,13 +34,8 @@ defmodule BitPalApi.ExchangeRateController do
          {:ok, rate} <- ExchangeRateSupervisor.request(pair) do
       render(conn, "show.json", rate: rate)
     else
-      {:error, :bad_pair} ->
-        raise RequestFailedError,
-          code: "invalid_exchange_rate",
-          message: "Invalid Exchange Rate"
-
       _ ->
-        raise InternalServerError
+        raise NotFoundError, param: "basecurrency"
     end
   end
 end

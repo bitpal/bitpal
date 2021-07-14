@@ -4,7 +4,7 @@ defmodule BitPal.ExchangeRate.Backend do
   alias BitPalSchemas.Currency
 
   @callback name() :: String.t()
-  @callback supported() :: %{Currrency.id() => [Currency.id()]}
+  @callback supported() :: %{atom => [Currency.id()]}
   @callback compute(ExchangeRate.pair(), keyword()) :: {:ok, Result.t()}
 
   @spec compute(atom | pid, ExchangeRate.pair(), keyword) ::
