@@ -107,4 +107,37 @@ defmodule BitPal.ExchangeRate do
   def eq?(a, b) do
     a.pair == b.pair && Decimal.eq?(a.rate, b.rate)
   end
+
+  @spec basecurrency(t) :: Currency.id()
+  def basecurrency(rate) do
+    elem(rate.pair, 0)
+  end
+
+  @spec currency(t) :: Currency.id()
+  def currency(rate) do
+    elem(rate.pair, 1)
+  end
+
+  # Parsing
+
+  @spec parse_pair(binary | {atom | String.t(), atom | String.t()}) ::
+          {:ok, pair} | {:error, :bad_pair}
+  def parse_pair(pair) when is_binary(pair) do
+    case String.split(pair, "-") do
+      [from, to] ->
+        parse_pair({from, to})
+
+      _ ->
+        {:error, :bad_pair}
+    end
+  end
+
+  def parse_pair({from, to}) do
+    {:ok, from} = Currencies.cast(from)
+    {:ok, to} = Currencies.cast(to)
+    {:ok, {from, to}}
+  rescue
+    _ ->
+      {:error, :bad_pair}
+  end
 end

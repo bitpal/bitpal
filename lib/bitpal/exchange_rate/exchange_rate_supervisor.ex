@@ -38,6 +38,27 @@ defmodule BitPal.ExchangeRateSupervisor do
 
   # Client interface
 
+  @spec all_supported(keyword) :: %{Currrency.id() => [Currency.id()]}
+  def all_supported(opts \\ []) do
+    backends =
+      opts[:backends] ||
+        Application.fetch_env!(:bitpal, BitPal.ExchangeRate)[:backends]
+
+    Enum.reduce(backends, %{}, fn backend, acc ->
+      Map.merge(acc, backend.supported(), fn _key, a, b ->
+        Enum.uniq(a ++ b)
+      end)
+    end)
+  end
+
+  @spec supported(Currency.id(), keyword) :: {:ok, list} | {:error, :not_found}
+  def supported(id, opts \\ []) do
+    case all_supported(opts)[id] do
+      nil -> {:error, :not_found}
+      x -> {:ok, x}
+    end
+  end
+
   @spec async_request(ExchangeRate.pair(), keyword) :: DynamicSupervisor.on_start_child()
   def async_request(pair, opts \\ []) do
     Worker.start_worker(pair, opts)
@@ -68,4 +89,6 @@ defmodule BitPal.ExchangeRateSupervisor do
     {:ok, rate} = request(pair, opts)
     rate
   end
+
+  # def request_many(
 end

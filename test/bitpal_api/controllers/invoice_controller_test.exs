@@ -358,7 +358,7 @@ defmodule BitPalApi.InvoiceControllerTest do
   end
 
   defp open_invoice(params \\ %{}) do
-    Invoices.finalize!(%{draft(params) | address_id: "som_address"})
+    Invoices.finalize!(%{draft(params) | address_id: generate_address_id()})
   end
 
   defp canceled_invoice(params \\ %{}) do

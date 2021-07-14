@@ -11,7 +11,7 @@ defmodule BitPal.ExchangeRate.Kraken do
   def name, do: "kraken"
 
   @impl true
-  def supported_pairs, do: [{:BCH, :USD}, {:BCH, :EUR}]
+  def supported, do: %{BCH: [:USD, :EUR]}
 
   @spec compute(ExchangeRate.pair(), keyword) :: {:ok, Result.t()}
   @impl true

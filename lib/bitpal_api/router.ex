@@ -36,14 +36,10 @@ defmodule BitPalApi.Router do
     get("/transactions/:txid", TransactionController, :show)
     get("/transactions", TransactionController, :index)
 
-    # get("/rates/available", ExchangeRateController, :available)
-    # BitPay endpoint
-    # cade:
-    # name:
-    # rate:
-    # get("/rates/:basecurrency/:currency", ExchangeRateController, :show)
+    get("/rates/:basecurrency", ExchangeRateController, :index)
+    get("/rates/:basecurrency/:currency", ExchangeRateController, :show)
 
-    # get("/currencies/:id", CurrencyController, :show)
-    # get("/currencies", CurrencyController, :index)
+    get("/currencies", CurrencyController, :index)
+    get("/currencies/:id", CurrencyController, :show)
   end
 end

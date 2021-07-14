@@ -1,6 +1,5 @@
 defmodule BitPalApi.ExchangeRateChannel do
   use BitPalApi, :channel
-  alias BitPal.Currencies
   alias BitPal.ExchangeRate
   alias BitPal.ExchangeRateEvents
   alias BitPal.ExchangeRateSupervisor
@@ -8,7 +7,7 @@ defmodule BitPalApi.ExchangeRateChannel do
   @impl true
   def join("exchange_rate:" <> pair, payload, socket) do
     with :authorized <- authorized?(payload),
-         {:ok, pair} <- parse_pair(pair),
+         {:ok, pair} <- ExchangeRate.parse_pair(pair),
          :ok <- ExchangeRateEvents.subscribe(pair) do
       {:ok, socket}
     else
@@ -25,7 +24,7 @@ defmodule BitPalApi.ExchangeRateChannel do
 
   @impl true
   def handle_in("async_request", %{"from" => from, "to" => to}, socket) do
-    case parse_pair({from, to}) do
+    case ExchangeRate.parse_pair({from, to}) do
       {:ok, pair} ->
         ExchangeRateSupervisor.async_request(pair)
         {:reply, :ok, socket}
@@ -37,7 +36,7 @@ defmodule BitPalApi.ExchangeRateChannel do
 
   @impl true
   def handle_in("request", %{"from" => from, "to" => to}, socket) do
-    with {:ok, pair} <- parse_pair({from, to}),
+    with {:ok, pair} <- ExchangeRate.parse_pair({from, to}),
          {:ok, rate} <- ExchangeRateSupervisor.request(pair) do
       {:reply, {:ok, %{rate: rate.rate}}, socket}
     else
@@ -68,24 +67,5 @@ defmodule BitPalApi.ExchangeRateChannel do
 
   defp authorized?(_payload) do
     :authorized
-  end
-
-  defp parse_pair(pair) when is_binary(pair) do
-    case String.split(pair, "-") do
-      [from, to] ->
-        parse_pair({from, to})
-
-      _ ->
-        {:error, :bad_pair}
-    end
-  end
-
-  defp parse_pair({from, to}) do
-    {:ok, from} = Currencies.cast(from)
-    {:ok, to} = Currencies.cast(to)
-    {:ok, {from, to}}
-  rescue
-    _ ->
-      {:error, :bad_pair}
   end
 end
