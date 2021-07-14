@@ -146,7 +146,7 @@ defmodule BitPal.BackendManager do
 
   @impl true
   def init(opts) do
-    children = opts[:backends] || Application.fetch_env!(:bitpal, :backends)
+    children = opts[:backends] || BitPalConfig.currency_backends()
 
     Supervisor.init(children, strategy: :one_for_one)
   end

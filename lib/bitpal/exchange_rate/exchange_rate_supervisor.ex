@@ -41,9 +41,7 @@ defmodule BitPal.ExchangeRateSupervisor do
 
   @spec all_supported(keyword) :: %{atom => [Currency.id()]}
   def all_supported(opts \\ []) do
-    backends =
-      opts[:backends] ||
-        Application.fetch_env!(:bitpal, BitPal.ExchangeRate)[:backends]
+    backends = opts[:backends] || BitPalConfig.exchange_rate_backends()
 
     Enum.reduce(backends, %{}, fn backend, acc ->
       Map.merge(acc, backend.supported(), fn _key, a, b ->

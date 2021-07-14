@@ -81,14 +81,10 @@ defmodule BitPal.InvoiceManager do
     # Internal supervisor to reduce the number of modules and it's not doing much
     DynamicSupervisor.start_link(strategy: :one_for_one, name: @supervisor)
 
-    put_new_env = fn map, key, default ->
-      Map.put_new_lazy(map, key, fn -> Application.get_env(:bitpal, key, default) end)
-    end
-
     settings =
       opts
       |> Enum.into(%{})
-      |> put_new_env.(:double_spend_timeout, 2_000)
+      |> Map.put_new_lazy(:double_spend_timeout, &BitPalConfig.double_spend_timeout/0)
 
     {:ok, settings}
   end

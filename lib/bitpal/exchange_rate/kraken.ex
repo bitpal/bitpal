@@ -29,8 +29,7 @@ defmodule BitPal.ExchangeRate.Kraken do
   defp get_rate(pair) do
     pair = pair2str(pair)
 
-    http = Application.get_env(:bitpal, :http_client, BitPal.HTTPClient)
-
+    http = BitPalConfig.http_client()
     {:ok, body} = http.request_body(url(pair))
 
     body
