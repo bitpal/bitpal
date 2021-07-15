@@ -8,6 +8,11 @@ defmodule HandlerSubscriberCollector do
 
   # Client API
 
+  @spec create_invoice() :: {:ok, Invoice.t(), pid, pid}
+  def create_invoice do
+    create_invoice(%{})
+  end
+
   @spec create_invoice(keyword | map) :: {:ok, Invoice.t(), pid, pid}
   def create_invoice(params) when is_list(params) do
     create_invoice(Enum.into(params, %{}))

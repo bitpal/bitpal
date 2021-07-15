@@ -13,9 +13,9 @@ defmodule BitPalApi.Router do
   end
 
   defp basic_auth(conn, _opts) do
-    with {user, pass} <- Plug.BasicAuth.parse_basic_auth(conn),
-         true <- Authentication.authenticate(user, pass) do
-      assign(conn, :current_user, user)
+    with {token, _} <- Plug.BasicAuth.parse_basic_auth(conn),
+         {:ok, store_id} <- Authentication.authenticate_token(token) do
+      assign(conn, :current_store, store_id)
     else
       _ -> raise UnauthorizedError
     end

@@ -32,9 +32,10 @@ defmodule BitPal.Invoices do
 
   @spec fetch(Invoice.id()) :: {:ok, Invoice.t()} | :error
   def fetch(id) do
-    case Repo.get(Invoice, id) do
-      nil -> :error
-      invoice -> {:ok, invoice}
+    if invoice = Repo.get(Invoice, id) do
+      {:ok, invoice}
+    else
+      :error
     end
   rescue
     _ -> :error

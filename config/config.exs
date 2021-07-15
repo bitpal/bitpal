@@ -17,16 +17,19 @@ config :master_proxy,
 
 config :bitpal, :ecto_repos, [BitPal.Repo]
 
+secret_key_base = "3SPm+WOt8dvvlUgvtOh1cEFvlvuXunBvV0BN7vM30B0UQRedLXOmTLljlErX63Ba"
+config :bitpal, secret_key_base: secret_key_base
+
 config :bitpal, BitPalApi.Endpoint,
   url: [host: "localhost"],
-  secret_key_base: "3SPm+WOt8dvvlUgvtOh1cEFvlvuXunBvV0BN7vM30B0UQRedLXOmTLljlErX63Ba",
+  secret_key_base: secret_key_base,
   render_errors: [view: BitPalApi.ErrorView, accepts: ~w(json), layout: false],
   pubsub_server: BitPalApi.PubSub,
   live_view: [signing_salt: "L/r2fqOc"]
 
 config :bitpal, BitPalWeb.Endpoint,
   url: [host: "localhost"],
-  secret_key_base: "wOrH6P+rQGmb6GIxT2CV2xKv29OOUOv8YS7iLlyL7eLXoCkVWJu+CN+I7UvH1lt/",
+  secret_key_base: secret_key_base,
   render_errors: [view: BitPalWeb.ErrorView, accepts: ~w(html json), layout: false],
   pubsub_server: BitPalWeb.PubSub,
   live_view: [signing_salt: "SIw7qWuU"]
