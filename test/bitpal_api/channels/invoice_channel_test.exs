@@ -12,6 +12,7 @@ defmodule BitPalApi.InvoiceChannelTest do
         amount: amount
       )
 
+    # Bypasses socket `connect`, which is fine for these tests
     {:ok, _, socket} =
       BitPalApi.StoreSocket
       |> socket()
