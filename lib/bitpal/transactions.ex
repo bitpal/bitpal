@@ -4,6 +4,8 @@ defmodule BitPal.Transactions do
   alias BitPal.Blocks
   alias BitPal.Repo
   alias BitPalSchemas.Address
+  alias BitPalSchemas.Invoice
+  alias BitPalSchemas.Store
   alias BitPalSchemas.TxOutput
   require Logger
 
@@ -13,14 +15,37 @@ defmodule BitPal.Transactions do
 
   # External
 
-  @spec fetch(TxOutput.txid()) :: {:ok, TxOutput.t()} | :error
+  @spec fetch(TxOutput.txid()) :: {:ok, TxOutput.t()} | {:error, :not_found}
   def fetch(txid) do
-    case Repo.get_by(TxOutput, txid: txid) do
-      nil -> :error
-      tx -> {:ok, tx}
+    if tx = Repo.get_by(TxOutput, txid: txid) do
+      {:ok, tx}
+    else
+      {:error, :not_found}
     end
   rescue
-    _ -> :error
+    _ -> {:error, :not_found}
+  end
+
+  @spec fetch(TxOutput.txid(), Store.id()) :: {:ok, TxOutput.t()} | {:error, :not_found}
+  def fetch(txid, store_id) do
+    tx =
+      from(t in TxOutput,
+        where: t.txid == ^txid,
+        left_join: i in Invoice,
+        on: t.address_id == i.address_id,
+        where: i.store_id == ^store_id,
+        limit: 1
+      )
+      |> Repo.one()
+
+    if tx do
+      {:ok, tx}
+    else
+      {:error, :not_found}
+    end
+  rescue
+    _ ->
+      {:error, :not_found}
   end
 
   @spec all :: [TxOutput.t()]
