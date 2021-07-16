@@ -1,23 +1,25 @@
-defmodule BitPal.AccessTokensTest do
+defmodule TokensTest do
   # NOTE would love to have this async, but the db interferes with the other tests...
   use ExUnit.Case, async: false
   import BitPal.TestHelpers
   alias BitPal.Authentication.Tokens
   alias BitPal.Repo
+  alias BitPal.Stores
   alias Ecto.Adapters.SQL.Sandbox
 
   setup do
     start_supervised(BitPal.Repo)
     :ok = Sandbox.checkout(BitPal.Repo)
 
-    %{store: create_store()}
+    store = create_store()
+    %{store: store}
   end
 
   test "create and associate", %{store: store} do
     a = Tokens.create_token!(store)
     b = Tokens.create_token!(store)
 
-    store = store |> Repo.preload([:access_tokens], force: true)
+    store = Stores.fetch!(store.id) |> Repo.preload([:access_tokens])
     assert length(store.access_tokens)
     assert a in store.access_tokens
     assert b in store.access_tokens
@@ -25,7 +27,8 @@ defmodule BitPal.AccessTokensTest do
 
   test "validate token", %{store: store} do
     a = Tokens.create_token!(store)
-    assert {:ok, store.id} == Tokens.authenticate_token(a.data)
+    store_id = store.id
+    assert {:ok, ^store_id} = Tokens.authenticate_token(a.data)
   end
 
   test "invalid token", %{store: store} do

@@ -1,7 +1,6 @@
 defmodule BitPalApi.Router do
   use BitPalApi, :router
-  alias BitPal.Authentication
-  alias BitPalApi.UnauthorizedError
+  alias BitPalApi.Authentication.BasicAuth
 
   pipeline :api do
     plug(:accepts, ["json"])
@@ -9,16 +8,7 @@ defmodule BitPalApi.Router do
 
   pipeline :secure_api do
     plug(:api)
-    plug(:basic_auth)
-  end
-
-  defp basic_auth(conn, _opts) do
-    with {token, _} <- Plug.BasicAuth.parse_basic_auth(conn),
-         {:ok, store_id} <- Authentication.authenticate_token(token) do
-      assign(conn, :current_store, store_id)
-    else
-      _ -> raise UnauthorizedError
-    end
+    plug(BasicAuth)
   end
 
   scope "/v1", BitPalApi do

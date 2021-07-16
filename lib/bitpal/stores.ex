@@ -17,7 +17,13 @@ defmodule BitPal.Stores do
     store
   end
 
+  @spec create! :: Store.t()
   def create! do
     Repo.insert!(%Store{})
+  end
+
+  @spec all :: [Store.t()]
+  def all do
+    Repo.all(Store)
   end
 end

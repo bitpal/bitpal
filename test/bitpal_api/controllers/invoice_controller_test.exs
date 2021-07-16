@@ -1,6 +1,7 @@
 defmodule BitPalApi.InvoiceControllerTest do
   use BitPalApi.ConnCase
   alias BitPal.Invoices
+  alias BitPalApi.Authentication.BasicAuth
 
   describe "create" do
     test "basic", %{conn: conn} do
@@ -185,7 +186,6 @@ defmodule BitPalApi.InvoiceControllerTest do
              } = json_response(conn, 200)
     end
 
-    @tag do: true
     test "change currency", %{conn: conn, id: id} do
       conn =
         post(conn, "/v1/invoices/#{id}", %{
@@ -199,7 +199,6 @@ defmodule BitPalApi.InvoiceControllerTest do
              } = json_response(conn, 200)
     end
 
-    @tag do: true
     test "cannot change just fiat currency", %{conn: conn, id: id} do
       {_, _, response} =
         assert_error_sent(402, fn ->
@@ -270,7 +269,30 @@ defmodule BitPalApi.InvoiceControllerTest do
 
     for f <- [
           fn -> get(conn, "/v1/invoices/#{id}") end,
-          # fn -> post(conn, "/v1/invoices/not-found") end,
+          fn -> post(conn, "/v1/invoices/#{id}", %{"amount" => "2.0"}) end,
+          fn -> delete(conn, "/v1/invoices/#{id}") end,
+          fn -> post(conn, "/v1/invoices/#{id}/finalize") end,
+          fn -> post(conn, "/v1/invoices/#{id}/pay") end,
+          fn -> post(conn, "/v1/invoices/#{id}/void") end
+        ] do
+      {_, _, response} = assert_error_sent(404, f)
+
+      assert %{
+               "type" => "invalid_request_error",
+               "code" => "resource_missing",
+               "param" => "id",
+               "message" => _
+             } = Jason.decode!(response)
+    end
+  end
+
+  test "other invoices not found", %{conn: conn} do
+    store = create_store()
+    id = draft(store.id).id
+
+    for f <- [
+          fn -> get(conn, "/v1/invoices/#{id}") end,
+          fn -> post(conn, "/v1/invoices/#{id}", %{"amount" => "2.0"}) end,
           fn -> delete(conn, "/v1/invoices/#{id}") end,
           fn -> post(conn, "/v1/invoices/#{id}/finalize") end,
           fn -> post(conn, "/v1/invoices/#{id}/pay") end,
@@ -289,7 +311,8 @@ defmodule BitPalApi.InvoiceControllerTest do
 
   @tag auth: false
   test "unauthorized", %{conn: conn} do
-    id = draft().id
+    store = create_store()
+    id = draft(store.id).id
 
     for f <- [
           fn -> post(conn, "/v1/invoices/", %{"amount" => "1.0", "currency" => "BCH"}) end,
@@ -311,9 +334,15 @@ defmodule BitPalApi.InvoiceControllerTest do
   end
 
   test "show all invoices", %{conn: conn} do
-    id0 = draft(%{amount: 1}).id
-    id1 = draft(%{amount: 2}).id
-    id2 = open_invoice(%{amount: 3}).id
+    {:ok, store_id} = BasicAuth.parse(conn)
+
+    id0 = draft(store_id, %{amount: 1}).id
+    id1 = draft(store_id, %{amount: 2}).id
+    id2 = open_invoice(store_id, %{amount: 3}).id
+
+    # Invoices from other store should not show up
+    other_store = create_store()
+    _other_id = draft(other_store.id, %{amount: 4}).id
 
     conn = get(conn, "/v1/invoices")
     # Can sometimes be in another order, so sorting is necessary
@@ -326,23 +355,36 @@ defmodule BitPalApi.InvoiceControllerTest do
   # TODO
   # update
 
+  # FIXME move to test helpers
   defp setup_draft(context) do
-    invoice = draft()
-    Map.put(context, :id, invoice.id)
+    {:ok, store_id} = BasicAuth.parse(context.conn)
+    invoice = draft(store_id)
+
+    context
+    |> Map.put(:id, invoice.id)
+    |> Map.put(:store_id, store_id)
   end
 
   defp setup_open(context) do
-    invoice = open_invoice()
-    Map.put(context, :id, invoice.id)
+    {:ok, store_id} = BasicAuth.parse(context.conn)
+    invoice = open_invoice(store_id)
+
+    context
+    |> Map.put(:id, invoice.id)
+    |> Map.put(:store_id, store_id)
   end
 
   defp setup_uncollectable(context) do
-    invoice = canceled_invoice()
-    Map.put(context, :id, invoice.id)
+    {:ok, store_id} = BasicAuth.parse(context.conn)
+    invoice = canceled_invoice(store_id)
+
+    context
+    |> Map.put(:id, invoice.id)
+    |> Map.put(:store_id, store_id)
   end
 
-  defp draft(params \\ %{}) do
-    {:ok, invoice} =
+  defp draft(store_id, params \\ %{}) do
+    params =
       Map.merge(
         %{
           amount: 1.2,
@@ -352,18 +394,18 @@ defmodule BitPalApi.InvoiceControllerTest do
         },
         params
       )
-      |> Invoices.register()
+
+    {:ok, invoice} = Invoices.register(store_id, params)
 
     invoice
   end
 
-  defp open_invoice(params \\ %{}) do
-    Invoices.finalize!(%{draft(params) | address_id: generate_address_id()})
+  defp open_invoice(store_id, params \\ %{}) do
+    Invoices.finalize!(%{draft(store_id, params) | address_id: generate_address_id()})
   end
 
-  defp canceled_invoice(params \\ %{}) do
-    params
-    |> open_invoice()
+  defp canceled_invoice(store_id, params \\ %{}) do
+    open_invoice(store_id, params)
     |> Invoices.cancel!()
   end
 end

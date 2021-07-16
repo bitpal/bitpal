@@ -1,6 +1,6 @@
 defmodule BitPalApi.StoreSocket do
   use Phoenix.Socket
-  alias BitPal.Authentication
+  alias BitPal.Authentication.Tokens
 
   ## Channels
   channel("invoice:*", BitPalApi.InvoiceChannel)
@@ -19,7 +19,7 @@ defmodule BitPalApi.StoreSocket do
   # performing token verification on connect.
   @impl true
   def connect(%{"token" => token}, socket, _connect_info) do
-    case Authentication.authenticate_token(token) do
+    case Tokens.authenticate_token(token) do
       {:ok, store_id} ->
         {:ok, assign(socket, :store_id, store_id)}
 

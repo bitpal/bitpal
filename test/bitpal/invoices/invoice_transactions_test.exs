@@ -4,8 +4,10 @@ defmodule BitPal.InvoiceTransactionsTest do
   alias BitPalSchemas.TxOutput
 
   setup do
+    store = Stores.create!()
+
     assert {:ok, invoice} =
-             Invoices.register(%{
+             Invoices.register(store.id, %{
                amount: 1.2,
                exchange_rate: 2.0,
                required_confirmations: 5,

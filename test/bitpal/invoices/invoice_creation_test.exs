@@ -3,13 +3,18 @@ defmodule InvoiceCreationTest do
   alias BitPal.Addresses
   alias BitPal.ExchangeRate
   alias BitPal.Invoices
+  alias BitPal.Stores
   alias BitPalSchemas.Address
 
-  @tag do: true
-  test "invoice registration" do
+  setup do
+    store = Stores.create!()
+    %{store_id: store.id}
+  end
+
+  test "invoice registration", %{store_id: store_id} do
     # we don't have to provide fiat_amount
     assert {:ok, invoice} =
-             Invoices.register(%{
+             Invoices.register(store_id, %{
                amount: "1.2",
                currency: "BCH",
                exchange_rate: "2.0",
@@ -35,29 +40,34 @@ defmodule InvoiceCreationTest do
     assert in_db.id == invoice.id
 
     # it's fine to skip fiat_amount + exchange_rate
-    assert {:ok, invoice} = Invoices.register(%{amount: 1.2, currency: :BCH})
+    assert {:ok, invoice} = Invoices.register(store_id, %{amount: 1.2, currency: :BCH})
 
     assert Money.to_decimal(invoice.amount) == Decimal.from_float(1.2)
     assert invoice.fiat_amount == nil
     assert invoice.exchange_rate == nil
 
     # We must supply currency
-    assert {:error, changeset} = Invoices.register(%{amount: 1.2})
+    assert {:error, changeset} = Invoices.register(store_id, %{amount: 1.2})
     assert "cannot be empty" in errors_on(changeset).currency
 
     # Currency must be valid
-    assert {:error, changeset} = Invoices.register(%{amount: 1.2, currency: "crap"})
+    assert {:error, changeset} = Invoices.register(store_id, %{amount: 1.2, currency: "crap"})
     assert "is invalid" in errors_on(changeset).currency
-    assert {:error, changeset} = Invoices.register(%{amount: 1.2, fiat_currency: "crap"})
+
+    assert {:error, changeset} =
+             Invoices.register(store_id, %{amount: 1.2, fiat_currency: "crap"})
+
     assert "is invalid" in errors_on(changeset).fiat_currency
 
     # But fiat alone isn't enough
-    assert {:error, changeset} = Invoices.register(%{fiat_amount: 1.2, fiat_currency: "USD"})
+    assert {:error, changeset} =
+             Invoices.register(store_id, %{fiat_amount: 1.2, fiat_currency: "USD"})
+
     assert "must provide either amount or exchange rate" in errors_on(changeset).amount
 
     # Only exchange rate isn't enough either
     assert {:error, changeset} =
-             Invoices.register(%{
+             Invoices.register(store_id, %{
                currency: "BCH",
                fiat_currency: "USD",
                exchange_rate: 2.0
@@ -67,7 +77,7 @@ defmodule InvoiceCreationTest do
 
     # Other invalid inputs
     assert {:error, changeset} =
-             Invoices.register(%{
+             Invoices.register(store_id, %{
                currency: "BCH",
                fiat_currency: "USD",
                amount: -2.5,
@@ -78,7 +88,7 @@ defmodule InvoiceCreationTest do
     assert "is invalid" in errors_on(changeset).exchange_rate
 
     assert {:error, changeset} =
-             Invoices.register(%{
+             Invoices.register(store_id, %{
                currency: "BCH",
                fiat_currency: "USD",
                amount: "13bad",
@@ -89,9 +99,9 @@ defmodule InvoiceCreationTest do
     assert "is invalid" in errors_on(changeset).exchange_rate
   end
 
-  test "address assigning" do
+  test "address assigning", %{store_id: store_id} do
     assert {:ok, invoice} =
-             Invoices.register(%{
+             Invoices.register(store_id, %{
                amount: 1.2,
                exchange_rate: 2.0,
                currency: :BCH,
@@ -111,9 +121,9 @@ defmodule InvoiceCreationTest do
              })
   end
 
-  test "ensuring addresses" do
+  test "ensuring addresses", %{store_id: store_id} do
     assert {:ok, inv} =
-             Invoices.register(%{
+             Invoices.register(store_id, %{
                amount: 1.2,
                exchange_rate: 2.0,
                currency: :BCH,
@@ -143,7 +153,7 @@ defmodule InvoiceCreationTest do
     ind = Addresses.next_address_index(:BCH)
 
     assert {:ok, _} =
-             Invoices.register(%{
+             Invoices.register(store_id, %{
                amount: 1.2,
                currency: :BCH,
                exchange_rate: 2.0,
@@ -158,10 +168,10 @@ defmodule InvoiceCreationTest do
     assert Addresses.next_address_index(:BCH) != ind
   end
 
-  test "amount calculations" do
+  test "amount calculations", %{store_id: store_id} do
     # fiat amount will be calculated from amount * exchange_rate
     assert {:ok, invoice} =
-             Invoices.register(%{
+             Invoices.register(store_id, %{
                amount: "1.2",
                currency: "BCH",
                exchange_rate: "2.0",
@@ -172,7 +182,7 @@ defmodule InvoiceCreationTest do
 
     # amount will be calculated from fiat_amount / exchange_rate
     assert {:ok, invoice} =
-             Invoices.register(%{
+             Invoices.register(store_id, %{
                fiat_amount: 2.4,
                exchange_rate: 2.0,
                currency: "BCH",
@@ -183,7 +193,7 @@ defmodule InvoiceCreationTest do
 
     # exchange_rate will be calculated from fiat amount / amount
     assert {:ok, invoice} =
-             Invoices.register(%{
+             Invoices.register(store_id, %{
                amount: 1.2,
                fiat_amount: 2.4,
                currency: "BCH",
@@ -197,7 +207,7 @@ defmodule InvoiceCreationTest do
 
     # if we provide them all, they must match
     assert {:ok, _} =
-             Invoices.register(%{
+             Invoices.register(store_id, %{
                amount: 1.2,
                fiat_amount: 2.4,
                exchange_rate: 2.0,
@@ -206,7 +216,7 @@ defmodule InvoiceCreationTest do
              })
 
     assert {:error, _} =
-             Invoices.register(%{
+             Invoices.register(store_id, %{
                amount: 3000,
                fiat_amount: 2.4,
                exchange_rate: 2.0,
@@ -215,9 +225,9 @@ defmodule InvoiceCreationTest do
              })
   end
 
-  test "large amounts" do
+  test "large amounts", %{store_id: store_id} do
     assert {:ok, invoice} =
-             Invoices.register(%{
+             Invoices.register(store_id, %{
                amount: "127000000000.00000001",
                exchange_rate: "2000000",
                currency: :DGC,

@@ -13,5 +13,9 @@ defmodule BitPal.Repo.Migrations.StoresAccessTokens do
     end
 
     create unique_index(:access_tokens, :data)
+
+    alter table(:invoices) do
+      add :store_id, references(:stores), null: false
+    end
   end
 end

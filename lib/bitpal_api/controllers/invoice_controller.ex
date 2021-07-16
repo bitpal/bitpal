@@ -2,14 +2,25 @@ defmodule BitPalApi.InvoiceController do
   use BitPalApi, :controller
   alias BitPal.InvoiceManager
   alias BitPal.Invoices
+  alias BitPal.Repo
+  alias BitPal.Stores
   alias Ecto.Changeset
 
-  def create(conn, params) do
-    with {:ok, invoice} <- Invoices.register(params),
+  # Dialyzer complains about "The pattern can never match the type" for Invoice fetching and updating,
+  # even though the specs looks correct to me...
+  @dialyzer :no_match
+
+  def action(conn, _) do
+    args = [conn, conn.params, conn.assigns.current_store]
+    apply(__MODULE__, action_name(conn), args)
+  end
+
+  def create(conn, params, current_store) do
+    with {:ok, invoice} <- Invoices.register(current_store, params),
          {:ok, invoice} <- finalize_if(invoice, params) do
       render(conn, "show.json", invoice: invoice)
     else
-      {:error, changeset} ->
+      {:error, changeset = %Changeset{}} ->
         raise RequestFailedError, changeset: changeset
     end
   end
@@ -22,21 +33,21 @@ defmodule BitPalApi.InvoiceController do
     end
   end
 
-  def show(conn, %{"id" => id}) do
-    case Invoices.fetch(id) do
+  def show(conn, %{"id" => id}, current_store) do
+    case Invoices.fetch(id, current_store) do
       {:ok, invoice} ->
         render(conn, "show.json", invoice: invoice)
 
-      :error ->
+      {:error, _} ->
         raise NotFoundError, param: "id"
     end
   end
 
-  def update(conn, params = %{"id" => id}) do
-    case Invoices.update(id, params) do
-      {:ok, invoice} ->
-        render(conn, "show.json", invoice: invoice)
-
+  def update(conn, params = %{"id" => id}, current_store) do
+    with {:ok, invoice} <- Invoices.fetch(id, current_store),
+         {:ok, invoice} <- Invoices.update(invoice, params) do
+      render(conn, "show.json", invoice: invoice)
+    else
       {:error, :not_found} ->
         raise NotFoundError, param: "id"
 
@@ -50,11 +61,11 @@ defmodule BitPalApi.InvoiceController do
     end
   end
 
-  def delete(conn, %{"id" => id}) do
-    case Invoices.delete(id) do
-      {:ok, _} ->
-        render(conn, "deleted.json", id: id, deleted: true)
-
+  def delete(conn, %{"id" => id}, current_store) do
+    with {:ok, invoice} <- Invoices.fetch(id, current_store),
+         {:ok, invoice} <- Invoices.delete(invoice) do
+      render(conn, "deleted.json", id: invoice.id, deleted: true)
+    else
       {:error, :not_found} ->
         raise NotFoundError, param: "id"
 
@@ -68,12 +79,12 @@ defmodule BitPalApi.InvoiceController do
     end
   end
 
-  def finalize(conn, %{"id" => id}) do
-    with {:ok, invoice} <- Invoices.fetch(id),
+  def finalize(conn, %{"id" => id}, current_store) do
+    with {:ok, invoice} <- Invoices.fetch(id, current_store),
          {:ok, invoice} <- InvoiceManager.finalize_invoice(invoice) do
       render(conn, "show.json", invoice: invoice)
     else
-      :error ->
+      {:error, :not_found} ->
         raise NotFoundError, param: "id"
 
       {:error, changeset = %Changeset{}} ->
@@ -81,11 +92,11 @@ defmodule BitPalApi.InvoiceController do
     end
   end
 
-  def pay(conn, %{"id" => id}) do
-    case Invoices.pay_from_void(id) do
-      {:ok, invoice} ->
-        render(conn, "show.json", invoice: invoice)
-
+  def pay(conn, %{"id" => id}, current_store) do
+    with {:ok, invoice} <- Invoices.fetch(id, current_store),
+         {:ok, invoice} <- Invoices.pay_unchecked(invoice) do
+      render(conn, "show.json", invoice: invoice)
+    else
       {:error, :not_found} ->
         raise NotFoundError, param: "id"
 
@@ -97,11 +108,11 @@ defmodule BitPalApi.InvoiceController do
     end
   end
 
-  def void(conn, %{"id" => id}) do
-    case Invoices.void(id) do
-      {:ok, invoice} ->
-        render(conn, "show.json", invoice: invoice)
-
+  def void(conn, %{"id" => id}, current_store) do
+    with {:ok, invoice} <- Invoices.fetch(id, current_store),
+         {:ok, invoice} <- Invoices.void(invoice) do
+      render(conn, "show.json", invoice: invoice)
+    else
       {:error, :not_found} ->
         raise NotFoundError, param: "id"
 
@@ -110,8 +121,10 @@ defmodule BitPalApi.InvoiceController do
     end
   end
 
-  def index(conn, _params) do
-    render(conn, "index.json", invoices: Invoices.all())
+  def index(conn, _params, current_store) do
+    store = Stores.fetch!(current_store) |> Repo.preload([:invoices])
+
+    render(conn, "index.json", invoices: store.invoices)
   end
 
   defp transition_error(changeset) do

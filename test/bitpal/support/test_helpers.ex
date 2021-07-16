@@ -1,6 +1,6 @@
 defmodule BitPal.TestHelpers do
   import ExUnit.Assertions
-  alias BitPal.Authentication
+  alias BitPal.Authentication.Tokens
   alias BitPal.Stores
   alias BitPalSchemas.Store
   alias Ecto.UUID
@@ -22,7 +22,7 @@ defmodule BitPal.TestHelpers do
 
   def create_auth do
     store = create_store()
-    token = Authentication.create_token!(store).data
+    token = Tokens.create_token!(store).data
 
     %{
       store_id: store.id,

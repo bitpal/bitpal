@@ -1,4 +1,4 @@
-defmodule BitPal.Authentication do
+defmodule BitPal.Authentication.Tokens do
   import Ecto.Query
   alias BitPal.Repo
   alias BitPalSchemas.AccessToken

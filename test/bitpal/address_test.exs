@@ -48,8 +48,10 @@ defmodule AddressTest do
   end
 
   defp assign_address(address) do
+    store = Stores.create!()
+
     assert {:ok, invoice} =
-             Invoices.register(%{
+             Invoices.register(store.id, %{
                amount: 1.2,
                exchange_rate: 2.0,
                currency: "BCH",
