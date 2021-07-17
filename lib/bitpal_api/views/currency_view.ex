@@ -5,17 +5,22 @@ defmodule BitPalApi.CurrencyView do
     Enum.map(currencies, &Atom.to_string/1)
   end
 
-  def render("show.json", %{currency: currency, status: status}) do
+  def render("show.json", %{
+        currency_id: currency_id,
+        status: status,
+        addresses: addresses,
+        invoices: invoices
+      }) do
     %{
-      code: Atom.to_string(currency.id),
-      name: Money.Currency.name!(currency.id),
+      code: Atom.to_string(currency_id),
+      name: Money.Currency.name!(currency_id),
       addresses:
-        Enum.map(currency.addresses, fn address ->
+        Enum.map(addresses, fn address ->
           address.id
         end),
       status: Atom.to_string(status),
       invoices:
-        Enum.map(currency.invoices, fn invoice ->
+        Enum.map(invoices, fn invoice ->
           invoice.id
         end)
     }

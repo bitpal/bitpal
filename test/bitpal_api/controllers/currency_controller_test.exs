@@ -2,6 +2,7 @@ defmodule BitPalApi.CurrencyControllerTest do
   use BitPalApi.ConnCase
   alias BitPal.Addresses
   alias BitPal.Invoices
+  alias BitPal.Stores
   alias BitPalApi.Authentication.BasicAuth
 
   @backends [
@@ -22,6 +23,9 @@ defmodule BitPalApi.CurrencyControllerTest do
     a = invoice(store_id, :BCH)
     b = invoice(store_id, :BCH)
 
+    other_store = Stores.create!()
+    _ = invoice(other_store.id, :BCH)
+
     conn = get(conn, "/v1/currencies/BCH")
 
     assert %{
@@ -40,6 +44,8 @@ defmodule BitPalApi.CurrencyControllerTest do
     assert a.address_id in addresses
     assert b.address_id in addresses
   end
+
+  # FIXME move to test helpers
 
   defp invoice(store_id, currency) do
     {:ok, invoice} =

@@ -1,7 +1,9 @@
 defmodule BitPal.Currencies do
   import Ecto.Query
   alias BitPal.Repo
+  alias BitPalSchemas.Address
   alias BitPalSchemas.Currency
+  alias BitPalSchemas.Invoice
   alias Ecto.Changeset
 
   @currencies %{
@@ -24,6 +26,20 @@ defmodule BitPal.Currencies do
   @spec get!(Currency.id()) :: Currency.t()
   def get!(id) do
     Repo.get!(Currency, id)
+  end
+
+  def addresses(id, store_id) do
+    from(a in Address,
+      where: a.currency_id == ^id,
+      left_join: i in Invoice,
+      on: a.id == i.address_id,
+      where: i.store_id == ^store_id
+    )
+    |> Repo.all()
+  end
+
+  def invoices(id, store_id) do
+    from(i in Invoice, where: i.currency_id == ^id and i.store_id == ^store_id) |> Repo.all()
   end
 
   @spec register!([Currency.id()] | Currency.id()) :: :ok
