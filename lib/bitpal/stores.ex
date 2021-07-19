@@ -20,9 +20,9 @@ defmodule BitPal.Stores do
     store
   end
 
-  @spec create! :: Store.t()
-  def create! do
-    Repo.insert!(%Store{})
+  @spec create!(keyword) :: Store.t()
+  def create!(params \\ []) do
+    Repo.insert!(%Store{label: params[:label]})
   end
 
   @spec all :: [Store.t()]

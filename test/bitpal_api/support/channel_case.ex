@@ -23,7 +23,9 @@ defmodule BitPalApi.ChannelCase do
       # Import conveniences for testing with channels
       import Phoenix.ChannelTest
       import BitPalApi.ChannelCase
+      import BitPal.CreationHelpers
       import BitPal.TestHelpers
+      import BitPal.CreationHelpers
 
       # The default endpoint for testing
       @endpoint BitPalApi.Endpoint

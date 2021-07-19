@@ -1,7 +1,7 @@
 defmodule BitPal.AccessTokensTest do
   # NOTE would love to have this async, but the db interferes with the other tests...
   use ExUnit.Case, async: false
-  import BitPal.TestHelpers
+  import BitPal.CreationHelpers
   alias BitPal.Authentication.Tokens
   alias BitPal.Repo
   alias Ecto.Adapters.SQL.Sandbox
