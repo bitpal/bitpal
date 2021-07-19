@@ -1,9 +1,5 @@
 defmodule BitPalApi.CurrencyControllerTest do
   use BitPalApi.ConnCase
-  alias BitPal.Addresses
-  alias BitPal.Invoices
-  alias BitPal.Stores
-  alias BitPalApi.Authentication.BasicAuth
 
   @backends [
     {BitPal.BackendMock, name: Bitcoin.Backend, currency: :BCH},
@@ -19,12 +15,12 @@ defmodule BitPalApi.CurrencyControllerTest do
 
   @tag backends: @backends
   test "show", %{conn: conn} do
-    {:ok, store_id} = BasicAuth.parse(conn)
-    a = invoice(store_id, :BCH)
-    b = invoice(store_id, :BCH)
+    a = create_invoice(conn, address: :auto)
+    b = create_invoice(conn, address: :auto)
 
-    other_store = Stores.create!()
-    _ = invoice(other_store.id, :BCH)
+    # Should not show up
+    _ = create_invoice(address: :auto)
+    _ = create_invoice(currency: :LTC, address: :auto)
 
     conn = get(conn, "/v1/currencies/BCH")
 
@@ -43,24 +39,5 @@ defmodule BitPalApi.CurrencyControllerTest do
     assert length(addresses) == 2
     assert a.address_id in addresses
     assert b.address_id in addresses
-  end
-
-  # FIXME move to test helpers
-
-  defp invoice(store_id, currency) do
-    {:ok, invoice} =
-      Invoices.register(
-        store_id,
-        %{
-          amount: 1.2,
-          exchange_rate: 2.0,
-          currency: currency,
-          fiat_currency: "USD"
-        }
-      )
-
-    {:ok, address} = Addresses.register_next_address(currency, generate_address_id())
-    {:ok, invoice} = Invoices.assign_address(invoice, address)
-    Invoices.finalize!(invoice)
   end
 end

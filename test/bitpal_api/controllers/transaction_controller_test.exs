@@ -1,9 +1,6 @@
 defmodule BitPalApi.TransactionControllerTest do
   use BitPalApi.ConnCase
-  alias BitPal.Addresses
-  alias BitPal.Invoices
   alias BitPal.Stores
-  alias BitPal.Transactions
   alias BitPalApi.Authentication.BasicAuth
 
   test "index", %{conn: conn} do
@@ -60,24 +57,7 @@ defmodule BitPalApi.TransactionControllerTest do
 
   defp txs(store_id, count) do
     Enum.map(1..count, fn amount ->
-      txid = generate_txid()
-      address_id = generate_address_id()
-
-      {:ok, invoice} =
-        Invoices.register(
-          store_id,
-          %{
-            amount: 1.2,
-            exchange_rate: 2.0,
-            currency: "BCH",
-            fiat_currency: "USD"
-          }
-        )
-
-      {:ok, address} = Addresses.register_next_address(:BCH, address_id)
-      {:ok, _invoice} = Invoices.assign_address(invoice, address)
-      :ok = Transactions.seen(txid, [{address_id, Money.parse!(amount, :BCH)}])
-      txid
+      create_transaction(store_id: store_id, amount: amount)
     end)
   end
 end

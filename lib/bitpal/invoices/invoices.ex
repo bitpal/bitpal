@@ -151,8 +151,8 @@ defmodule BitPal.Invoices do
     end
   end
 
-  @spec ensure_status(Invoice.t(), Invoice.status()) :: :ok | {:error, :invalid_status}
-  def ensure_status(invoice, status) do
+  @spec has_status?(Invoice.t(), Invoice.status()) :: :ok | {:error, :invalid_status}
+  def has_status?(invoice, status) do
     if invoice.status == status do
       :ok
     else
@@ -280,6 +280,12 @@ defmodule BitPal.Invoices do
   defp transition(invoice, new_state) do
     FSM.transition_changeset(invoice, new_state)
     |> Repo.update()
+  end
+
+  @spec set_status!(Invoice.t(), Invoice.status()) :: Invoice.t()
+  def set_status!(invoice, status) do
+    change(invoice, status: status)
+    |> Repo.update!()
   end
 
   # Updates

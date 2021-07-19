@@ -29,6 +29,7 @@ defmodule BitPalApi.ConnCase do
       import Phoenix.ConnTest
       import BitPalApi.ConnCase
       import BitPal.TestHelpers
+      import BitPalApi.TestHelpers
 
       alias BitPalApi.Router.Helpers, as: Routes
 

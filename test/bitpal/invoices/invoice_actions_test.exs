@@ -2,17 +2,7 @@ defmodule BitPal.InvoiceActionsTest do
   use BitPal.IntegrationCase
 
   setup do
-    store = Stores.create!()
-
-    assert {:ok, invoice} =
-             Invoices.register(store.id, %{
-               amount: 1.2,
-               exchange_rate: 2.0,
-               currency: "BCH",
-               fiat_currency: "USD"
-             })
-
-    %{invoice: invoice}
+    %{invoice: create_invoice()}
   end
 
   test "transitions", %{invoice: invoice} do
