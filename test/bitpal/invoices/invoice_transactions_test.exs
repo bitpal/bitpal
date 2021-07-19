@@ -4,19 +4,8 @@ defmodule BitPal.InvoiceTransactionsTest do
   alias BitPalSchemas.TxOutput
 
   setup do
-    assert {:ok, invoice} =
-             Invoices.register(%{
-               amount: 1.2,
-               exchange_rate: 2.0,
-               required_confirmations: 5,
-               currency: "BCH",
-               fiat_currency: "USD"
-             })
-
-    assert {:ok, address} = Addresses.register_next_address(:BCH, "bch:0")
-    assert {:ok, invoice} = Invoices.assign_address(invoice, address)
-
-    %{invoice: invoice, address: address}
+    invoice = create_invoice(amount: 1.2, required_confirmations: 5, address: :auto)
+    %{invoice: invoice, address: invoice.address}
   end
 
   test "invoice assoc", %{invoice: invoice, address: address} do

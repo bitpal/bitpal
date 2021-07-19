@@ -39,6 +39,7 @@ case Config.config_env() do
         You can generate one by calling: mix phx.gen.secret
         """
 
+    config :bitpal, secret_key_base: secret_key_base
     config :bitpal, BitPalApi.Endpoint, secret_key_base: secret_key_base
     config :bitpal, BitPalWeb.Endpoint, secret_key_base: secret_key_base
 

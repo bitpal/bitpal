@@ -1,6 +1,5 @@
 defmodule BitPalApi.InvoiceControllerTest do
   use BitPalApi.ConnCase
-  alias BitPal.Invoices
 
   describe "create" do
     test "basic", %{conn: conn} do
@@ -76,7 +75,7 @@ defmodule BitPalApi.InvoiceControllerTest do
     setup [:setup_draft]
 
     @tag backends: true
-    test "finalize", %{conn: conn, id: id} do
+    test "finalize", %{conn: conn, invoice_id: id} do
       conn = post(conn, "/v1/invoices/#{id}/finalize")
 
       assert %{
@@ -92,17 +91,17 @@ defmodule BitPalApi.InvoiceControllerTest do
       assert address != nil
     end
 
-    test "get invoice", %{conn: conn, id: id} do
+    test "get invoice", %{conn: conn, invoice_id: id} do
       conn = get(conn, "/v1/invoices/#{id}")
       assert %{"id" => ^id, "currency" => "BCH"} = json_response(conn, 200)
     end
 
-    test "delete", %{conn: conn, id: id} do
+    test "delete", %{conn: conn, invoice_id: id} do
       conn = delete(conn, "/v1/invoices/#{id}")
       assert %{"id" => ^id, "deleted" => true} = json_response(conn, 200)
     end
 
-    test "cannot mark a draft as paid", %{conn: conn, id: id} do
+    test "cannot mark a draft as paid", %{conn: conn, invoice_id: id} do
       {_, _, response} =
         assert_error_sent(402, fn ->
           post(conn, "/v1/invoices/#{id}/pay")
@@ -115,7 +114,7 @@ defmodule BitPalApi.InvoiceControllerTest do
              } = Jason.decode!(response)
     end
 
-    test "cannot void a draft", %{conn: conn, id: id} do
+    test "cannot void a draft", %{conn: conn, invoice_id: id} do
       {_, _, response} =
         assert_error_sent(402, fn ->
           post(conn, "/v1/invoices/#{id}/void")
@@ -128,7 +127,7 @@ defmodule BitPalApi.InvoiceControllerTest do
              } = Jason.decode!(response)
     end
 
-    test "update amount", %{conn: conn, id: id} do
+    test "update amount", %{conn: conn, invoice_id: id} do
       conn =
         post(conn, "/v1/invoices/#{id}", %{
           amount: "7.0"
@@ -142,7 +141,7 @@ defmodule BitPalApi.InvoiceControllerTest do
              } = json_response(conn, 200)
     end
 
-    test "update fiat amount", %{conn: conn, id: id} do
+    test "update fiat amount", %{conn: conn, invoice_id: id} do
       conn =
         post(conn, "/v1/invoices/#{id}", %{
           fiat_amount: "8"
@@ -156,7 +155,7 @@ defmodule BitPalApi.InvoiceControllerTest do
              } = json_response(conn, 200)
     end
 
-    test "update exchange rate", %{conn: conn, id: id} do
+    test "update exchange rate", %{conn: conn, invoice_id: id} do
       conn =
         post(conn, "/v1/invoices/#{id}", %{
           exchange_rate: "3.0"
@@ -170,7 +169,7 @@ defmodule BitPalApi.InvoiceControllerTest do
              } = json_response(conn, 200)
     end
 
-    test "update amount and exchange rate", %{conn: conn, id: id} do
+    test "update amount and exchange rate", %{conn: conn, invoice_id: id} do
       conn =
         post(conn, "/v1/invoices/#{id}", %{
           amount: "7.0",
@@ -185,8 +184,7 @@ defmodule BitPalApi.InvoiceControllerTest do
              } = json_response(conn, 200)
     end
 
-    @tag do: true
-    test "change currency", %{conn: conn, id: id} do
+    test "change currency", %{conn: conn, invoice_id: id} do
       conn =
         post(conn, "/v1/invoices/#{id}", %{
           amount: "7.0",
@@ -199,8 +197,7 @@ defmodule BitPalApi.InvoiceControllerTest do
              } = json_response(conn, 200)
     end
 
-    @tag do: true
-    test "cannot change just fiat currency", %{conn: conn, id: id} do
+    test "cannot change just fiat currency", %{conn: conn, invoice_id: id} do
       {_, _, response} =
         assert_error_sent(402, fn ->
           post(conn, "/v1/invoices/#{id}", %{
@@ -217,7 +214,7 @@ defmodule BitPalApi.InvoiceControllerTest do
              } = Jason.decode!(response)
     end
 
-    test "update many", %{conn: conn, id: id} do
+    test "update many", %{conn: conn, invoice_id: id} do
       conn =
         post(conn, "/v1/invoices/#{id}", %{
           amount: "7.0",
@@ -238,7 +235,7 @@ defmodule BitPalApi.InvoiceControllerTest do
   describe "open invoice" do
     setup [:setup_open]
 
-    test "cannot delete a finalized invoice", %{conn: conn, id: id} do
+    test "cannot delete a finalized invoice", %{conn: conn, invoice_id: id} do
       {_, _, response} =
         assert_error_sent(402, fn ->
           delete(conn, "/v1/invoices/#{id}")
@@ -254,12 +251,12 @@ defmodule BitPalApi.InvoiceControllerTest do
   describe "uncollectable" do
     setup [:setup_uncollectable]
 
-    test "pay an uncollectable invoice", %{conn: conn, id: id} do
+    test "pay an uncollectable invoice", %{conn: conn, invoice_id: id} do
       conn = post(conn, "/v1/invoices/#{id}/pay")
       assert %{"id" => ^id, "status" => "paid"} = json_response(conn, 200)
     end
 
-    test "void an uncollectable invoice", %{conn: conn, id: id} do
+    test "void an uncollectable invoice", %{conn: conn, invoice_id: id} do
       conn = post(conn, "/v1/invoices/#{id}/void")
       assert %{"id" => ^id, "status" => "void"} = json_response(conn, 200)
     end
@@ -270,7 +267,29 @@ defmodule BitPalApi.InvoiceControllerTest do
 
     for f <- [
           fn -> get(conn, "/v1/invoices/#{id}") end,
-          # fn -> post(conn, "/v1/invoices/not-found") end,
+          fn -> post(conn, "/v1/invoices/#{id}", %{"amount" => "2.0"}) end,
+          fn -> delete(conn, "/v1/invoices/#{id}") end,
+          fn -> post(conn, "/v1/invoices/#{id}/finalize") end,
+          fn -> post(conn, "/v1/invoices/#{id}/pay") end,
+          fn -> post(conn, "/v1/invoices/#{id}/void") end
+        ] do
+      {_, _, response} = assert_error_sent(404, f)
+
+      assert %{
+               "type" => "invalid_request_error",
+               "code" => "resource_missing",
+               "param" => "id",
+               "message" => _
+             } = Jason.decode!(response)
+    end
+  end
+
+  test "other invoices not found", %{conn: conn} do
+    id = create_invoice().id
+
+    for f <- [
+          fn -> get(conn, "/v1/invoices/#{id}") end,
+          fn -> post(conn, "/v1/invoices/#{id}", %{"amount" => "2.0"}) end,
           fn -> delete(conn, "/v1/invoices/#{id}") end,
           fn -> post(conn, "/v1/invoices/#{id}/finalize") end,
           fn -> post(conn, "/v1/invoices/#{id}/pay") end,
@@ -289,7 +308,7 @@ defmodule BitPalApi.InvoiceControllerTest do
 
   @tag auth: false
   test "unauthorized", %{conn: conn} do
-    id = draft().id
+    id = create_invoice().id
 
     for f <- [
           fn -> post(conn, "/v1/invoices/", %{"amount" => "1.0", "currency" => "BCH"}) end,
@@ -311,9 +330,12 @@ defmodule BitPalApi.InvoiceControllerTest do
   end
 
   test "show all invoices", %{conn: conn} do
-    id0 = draft(%{amount: 1}).id
-    id1 = draft(%{amount: 2}).id
-    id2 = open_invoice(%{amount: 3}).id
+    id0 = create_invoice(conn, amount: 1).id
+    id1 = create_invoice(conn, amount: 2).id
+    id2 = create_invoice(conn, amount: 3, status: :open).id
+
+    # Invoices from other store should not show up
+    _ = create_invoice(amount: 4)
 
     conn = get(conn, "/v1/invoices")
     # Can sometimes be in another order, so sorting is necessary
@@ -323,47 +345,15 @@ defmodule BitPalApi.InvoiceControllerTest do
              Enum.sort_by(json_response(conn, 200), fn %{"id" => id} -> id end, &</2)
   end
 
-  # TODO
-  # update
-
   defp setup_draft(context) do
-    invoice = draft()
-    Map.put(context, :id, invoice.id)
+    create_invoice(context, [])
   end
 
   defp setup_open(context) do
-    invoice = open_invoice()
-    Map.put(context, :id, invoice.id)
+    create_invoice(context, address: :auto, status: :open)
   end
 
   defp setup_uncollectable(context) do
-    invoice = canceled_invoice()
-    Map.put(context, :id, invoice.id)
-  end
-
-  defp draft(params \\ %{}) do
-    {:ok, invoice} =
-      Map.merge(
-        %{
-          amount: 1.2,
-          exchange_rate: 2.0,
-          currency: "BCH",
-          fiat_currency: "USD"
-        },
-        params
-      )
-      |> Invoices.register()
-
-    invoice
-  end
-
-  defp open_invoice(params \\ %{}) do
-    Invoices.finalize!(%{draft(params) | address_id: generate_address_id()})
-  end
-
-  defp canceled_invoice(params \\ %{}) do
-    params
-    |> open_invoice()
-    |> Invoices.cancel!()
+    create_invoice(context, address: :auto, status: :uncollectible)
   end
 end

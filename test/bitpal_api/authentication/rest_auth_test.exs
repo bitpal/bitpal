@@ -4,7 +4,19 @@ defmodule BitPalApi.AuthTest do
   defp protected_requests do
     [
       {:post, "/v1/invoices"},
-      {:get, "/v1/invoices/0"}
+      {:get, "/v1/invoices/0"},
+      {:post, "/v1/invoices/0"},
+      {:delete, "/v1/invoices/0"},
+      {:post, "/v1/invoices/0/finalize"},
+      {:post, "/v1/invoices/0/pay"},
+      {:post, "/v1/invoices/0/void"},
+      {:get, "/v1/invoices"},
+      {:get, "/v1/transactions/0"},
+      {:get, "/v1/transactions"},
+      {:get, "/v1/rates/BCH"},
+      {:get, "/v1/rates/BCH/USD"},
+      {:get, "/v1/currencies"},
+      {:get, "/v1/currencies/BCH"}
     ]
   end
 
@@ -25,13 +37,8 @@ defmodule BitPalApi.AuthTest do
     assert_protected_requests(conn)
   end
 
-  @tag user: "bad_user"
-  test "bad user auth", %{conn: conn} do
-    assert_protected_requests(conn)
-  end
-
-  @tag pass: "bad_pass"
-  test "bad pass auth", %{conn: conn} do
+  @tag token: "bad token"
+  test "bad token auth", %{conn: conn} do
     assert_protected_requests(conn)
   end
 end

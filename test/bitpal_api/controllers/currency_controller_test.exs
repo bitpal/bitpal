@@ -1,7 +1,5 @@
 defmodule BitPalApi.CurrencyControllerTest do
   use BitPalApi.ConnCase
-  alias BitPal.Addresses
-  alias BitPal.Invoices
 
   @backends [
     {BitPal.BackendMock, name: Bitcoin.Backend, currency: :BCH},
@@ -17,8 +15,12 @@ defmodule BitPalApi.CurrencyControllerTest do
 
   @tag backends: @backends
   test "show", %{conn: conn} do
-    a = invoice(:BCH)
-    b = invoice(:BCH)
+    a = create_invoice(conn, address: :auto)
+    b = create_invoice(conn, address: :auto)
+
+    # Should not show up
+    _ = create_invoice(address: :auto)
+    _ = create_invoice(currency: :LTC, address: :auto)
 
     conn = get(conn, "/v1/currencies/BCH")
 
@@ -37,20 +39,5 @@ defmodule BitPalApi.CurrencyControllerTest do
     assert length(addresses) == 2
     assert a.address_id in addresses
     assert b.address_id in addresses
-  end
-
-  defp invoice(currency) do
-    {:ok, invoice} =
-      %{
-        amount: 1.2,
-        exchange_rate: 2.0,
-        currency: currency,
-        fiat_currency: "USD"
-      }
-      |> Invoices.register()
-
-    {:ok, address} = Addresses.register_next_address(currency, generate_address_id())
-    {:ok, invoice} = Invoices.assign_address(invoice, address)
-    Invoices.finalize!(invoice)
   end
 end

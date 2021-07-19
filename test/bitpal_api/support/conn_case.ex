@@ -20,6 +20,7 @@ defmodule BitPalApi.ConnCase do
   import Plug.Conn
   import Phoenix.ConnTest
   alias BitPal.IntegrationCase
+  alias BitPal.TestHelpers
 
   using do
     quote do
@@ -28,6 +29,7 @@ defmodule BitPalApi.ConnCase do
       import Phoenix.ConnTest
       import BitPalApi.ConnCase
       import BitPal.TestHelpers
+      import BitPalApi.TestHelpers
 
       alias BitPalApi.Router.Helpers, as: Routes
 
@@ -51,11 +53,16 @@ defmodule BitPalApi.ConnCase do
 
   defp auth(conn, %{auth: false}), do: conn
 
-  defp auth(conn, tags) do
-    put_req_header(
-      conn,
-      "authorization",
-      encode_basic_auth(tags[:user] || "user", tags[:pass] || "")
-    )
+  defp auth(conn, %{token: token}) do
+    put_auth(conn, token)
+  end
+
+  defp auth(conn, _tags) do
+    %{store_id: _store_id, token: token} = TestHelpers.create_auth()
+    put_auth(conn, token)
+  end
+
+  defp put_auth(conn, token) do
+    put_req_header(conn, "authorization", encode_basic_auth(token, ""))
   end
 end

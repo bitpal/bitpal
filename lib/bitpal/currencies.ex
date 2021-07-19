@@ -1,13 +1,16 @@
 defmodule BitPal.Currencies do
   import Ecto.Query
   alias BitPal.Repo
+  alias BitPalSchemas.Address
   alias BitPalSchemas.Currency
+  alias BitPalSchemas.Invoice
   alias Ecto.Changeset
 
   @currencies %{
     BCH: %{name: "Bitcoin Cash", exponent: 8, symbol: "BCH"},
     BTC: %{name: "Bitcoin", exponent: 8, symbol: "BTC"},
     DGC: %{name: "Dogecoin", exponent: 8, symbol: "DGC"},
+    LTC: %{name: "Litecoin", exponent: 8, symbol: "LTC"},
     XMR: %{name: "Monero", exponent: 12, symbol: "XMR"}
   }
 
@@ -24,6 +27,20 @@ defmodule BitPal.Currencies do
   @spec get!(Currency.id()) :: Currency.t()
   def get!(id) do
     Repo.get!(Currency, id)
+  end
+
+  def addresses(id, store_id) do
+    from(a in Address,
+      where: a.currency_id == ^id,
+      left_join: i in Invoice,
+      on: a.id == i.address_id,
+      where: i.store_id == ^store_id
+    )
+    |> Repo.all()
+  end
+
+  def invoices(id, store_id) do
+    from(i in Invoice, where: i.currency_id == ^id and i.store_id == ^store_id) |> Repo.all()
   end
 
   @spec register!([Currency.id()] | Currency.id()) :: :ok

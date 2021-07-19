@@ -6,9 +6,10 @@ defmodule InvoiceManagerTest do
   @tag backends: true
   test "initialize" do
     Currencies.register!(:BCH)
+    store = Stores.create!()
 
     assert {:ok, inv1} =
-             Invoices.register(%{
+             Invoices.register(store.id, %{
                amount: 2.5,
                exchange_rate: 1.1,
                currency: "BCH",
@@ -18,7 +19,7 @@ defmodule InvoiceManagerTest do
     assert {:ok, inv1_id} = InvoiceManager.finalize_and_track(inv1)
 
     assert {:ok, inv2} =
-             Invoices.register(%{
+             Invoices.register(store.id, %{
                amount: 5.2,
                exchange_rate: 1.1,
                currency: "BCH",

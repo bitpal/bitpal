@@ -4,9 +4,15 @@ defmodule HandlerSubscriberCollector do
   alias BitPal.InvoiceEvents
   alias BitPal.InvoiceManager
   alias BitPal.Invoices
+  alias BitPal.Stores
   alias BitPalSchemas.Invoice
 
   # Client API
+
+  @spec create_invoice() :: {:ok, Invoice.t(), pid, pid}
+  def create_invoice do
+    create_invoice(%{})
+  end
 
   @spec create_invoice(keyword | map) :: {:ok, Invoice.t(), pid, pid}
   def create_invoice(params) when is_list(params) do
@@ -79,8 +85,9 @@ defmodule HandlerSubscriberCollector do
 
   @impl true
   def handle_call({:create_invoice, params = %{address: {address, id}}}, _, state) do
+    {store_id, state} = get_store_id(params, state)
     # Address specified, force the address.
-    {:ok, invoice} = Invoices.register(Map.delete(params, :address))
+    {:ok, invoice} = Invoices.register(store_id, Map.delete(params, :address))
     {:ok, addr} = Addresses.register(invoice.currency_id, address, id)
     Invoices.assign_address(invoice, addr)
     track(invoice, state)
@@ -88,7 +95,8 @@ defmodule HandlerSubscriberCollector do
 
   @impl true
   def handle_call({:create_invoice, params}, _, state) do
-    {:ok, invoice} = Invoices.register(params)
+    {store_id, state} = get_store_id(params, state)
+    {:ok, invoice} = Invoices.register(store_id, params)
     track(invoice, state)
   end
 
@@ -107,5 +115,18 @@ defmodule HandlerSubscriberCollector do
     {:ok, invoice} = InvoiceManager.finalize_invoice(invoice)
     {:ok, handler} = InvoiceManager.get_handler(invoice.id)
     {:reply, {invoice, handler}, state}
+  end
+
+  defp get_store_id(%{store_id: store_id}, state) do
+    {store_id, state}
+  end
+
+  defp get_store_id(_params, state = %{store_id: store_id}) do
+    {store_id, state}
+  end
+
+  defp get_store_id(_params, state) do
+    store = Stores.create!()
+    {store.id, Map.put(state, :store_id, store.id)}
   end
 end
