@@ -20,7 +20,7 @@ defmodule BitPal.Invoices do
   @spec register(Store.id(), map) :: {:ok, Invoice.t()} | {:error, Changeset.t()}
   def register(store_id, params) do
     %Invoice{store_id: store_id}
-    |> cast(params, [:required_confirmations, :description])
+    |> cast(params, [:required_confirmations, :description, :email, :pos_data])
     |> assoc_currency(params)
     |> validate_currency(params, :fiat_currency)
     |> cast_money(params, :amount, :currency)
@@ -28,6 +28,7 @@ defmodule BitPal.Invoices do
     |> cast_exchange_rate(params)
     |> validate_into_matching_pairs()
     |> with_default_lazy(:required_confirmations, &BitPalConfig.required_confirmations/0)
+    |> validate_format(:email, ~r/^.+@.+$/, message: "Must be a valid email")
     |> Repo.insert()
   end
 
@@ -68,7 +69,7 @@ defmodule BitPal.Invoices do
     else
       invoice
       |> calculate_exchange_rate!()
-      |> cast(params, [:required_confirmations, :description])
+      |> cast(params, [:required_confirmations, :description, :email, :pos_data])
       |> assoc_currency(params)
       |> validate_currency(params, :fiat_currency)
       |> cast_money(params, :amount, :currency)
@@ -77,6 +78,7 @@ defmodule BitPal.Invoices do
       |> clear_pairs_for_update()
       |> validate_into_matching_pairs(nil_bad_params: true)
       |> with_default_lazy(:required_confirmations, &BitPalConfig.required_confirmations/0)
+      |> validate_format(:email, ~r/^.+@.+$/, message: "Must be a valid email")
       |> Repo.update()
     end
   end

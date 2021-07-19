@@ -9,7 +9,10 @@ defmodule BitPalApi.InvoiceView do
       currency: invoice.currency_id,
       address: invoice.address_id,
       status: invoice.status,
-      required_confirmations: invoice.required_confirmations
+      required_confirmations: invoice.required_confirmations,
+      email: invoice.email,
+      description: invoice.description,
+      pos_data: invoice.pos_data
     }
     |> put_unless_nil(:amount, invoice.amount, &Money.to_decimal/1)
     |> put_unless_nil(:fiat_amount, invoice.fiat_amount, &Money.to_decimal/1)

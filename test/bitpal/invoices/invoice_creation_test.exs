@@ -18,7 +18,13 @@ defmodule InvoiceCreationTest do
                amount: "1.2",
                currency: "BCH",
                exchange_rate: "2.0",
-               fiat_currency: "USD"
+               fiat_currency: "USD",
+               email: "test@bitpal.dev",
+               description: "My awesome invoice",
+               pos_data: %{
+                 "some" => "data",
+                 "other" => %{"even_more" => 0}
+               }
              })
 
     invoice = Repo.preload(invoice, :currency)
@@ -30,6 +36,13 @@ defmodule InvoiceCreationTest do
     assert invoice.currency_id == :BCH
     assert invoice.currency.id == :BCH
     assert invoice.address_id == nil
+    assert invoice.email == "test@bitpal.dev"
+    assert invoice.description == "My awesome invoice"
+
+    assert invoice.pos_data == %{
+             "some" => "data",
+             "other" => %{"even_more" => 0}
+           }
 
     assert invoice.exchange_rate == %ExchangeRate{
              rate: Decimal.from_float(2.0),
@@ -97,6 +110,15 @@ defmodule InvoiceCreationTest do
 
     assert "is invalid" in errors_on(changeset).amount
     assert "is invalid" in errors_on(changeset).exchange_rate
+
+    assert {:error, _changeset} =
+             Invoices.register(store_id, %{
+               amount: "1.2",
+               currency: "BCH",
+               exchange_rate: "2.0",
+               fiat_currency: "USD",
+               email: "bad email"
+             })
   end
 
   test "address assigning", %{store_id: store_id} do
