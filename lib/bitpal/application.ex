@@ -4,6 +4,7 @@ defmodule BitPal.Application do
   @moduledoc false
 
   use Application
+  alias BitPal.Currencies
 
   @impl true
   def start(_type, _args) do
@@ -36,5 +37,16 @@ defmodule BitPal.Application do
     BitPalApi.Endpoint.config_change(changed, removed)
     BitPalWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  def start_lean do
+    Currencies.configure_money()
+
+    # Avoid starting the application because it's really heavy. This is the lean way.
+    for app <- Application.spec(:bitpal, :applications) do
+      Application.ensure_all_started(app)
+    end
+
+    Supervisor.start_link([BitPal.Repo], strategy: :one_for_one, name: BitPal.Supervisor)
   end
 end

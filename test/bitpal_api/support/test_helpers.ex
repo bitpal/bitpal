@@ -1,5 +1,5 @@
 defmodule BitPalApi.TestHelpers do
-  import BitPal.TestHelpers
+  import BitPal.CreationHelpers
   alias BitPalApi.Authentication.BasicAuth
 
   def create_invoice(context = %{conn: conn}, params) do

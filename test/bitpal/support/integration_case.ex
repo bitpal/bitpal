@@ -13,6 +13,7 @@ defmodule BitPal.IntegrationCase do
       import Ecto
       import Ecto.Changeset
       import Ecto.Query
+      import BitPal.CreationHelpers
       import BitPal.IntegrationCase
       import BitPal.TestHelpers
       import BitPal.IntegrationCase, only: [setup_integration: 0, setup_integration: 1]

@@ -55,6 +55,7 @@ defmodule BitPal.MixProject do
       {:poison, "~> 4.0"},
       {:postgrex, ">= 0.0.0"},
       {:typed_ecto_schema, "~> 0.2"},
+      {:scribe, "~> 0.10"},
 
       # Phoenix and web
       {:gettext, "~> 0.11"},
