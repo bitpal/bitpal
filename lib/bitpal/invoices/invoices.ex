@@ -216,7 +216,14 @@ defmodule BitPal.Invoices do
 
   @spec process(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Changeset.t()}
   def process(invoice) do
-    case transition(invoice, :processing) do
+    reason =
+      if invoice.required_confirmations == 0 do
+        :verifying
+      else
+        :confirming
+      end
+
+    case transition(invoice, :processing, reason) do
       {:ok, invoice} ->
         broadcast_processing(invoice)
         {:ok, invoice}
@@ -270,7 +277,7 @@ defmodule BitPal.Invoices do
 
   @spec mark_uncollectible!(Invoice.t(), InvoiceEvents.uncollectible_reason()) :: Invoice.t()
   defp mark_uncollectible!(invoice, reason) do
-    {:ok, invoice} = transition(invoice, :uncollectible)
+    {:ok, invoice} = transition(invoice, :uncollectible, reason)
 
     InvoiceEvents.broadcast(
       {:invoice_uncollectible, %{id: invoice.id, status: invoice.status, reason: reason}}
@@ -279,8 +286,9 @@ defmodule BitPal.Invoices do
     invoice
   end
 
-  defp transition(invoice, new_state) do
+  defp transition(invoice, new_state, status_reason \\ nil) do
     FSM.transition_changeset(invoice, new_state)
+    |> change(status_reason: status_reason)
     |> Repo.update()
   end
 
@@ -396,24 +404,25 @@ defmodule BitPal.Invoices do
     end)
   end
 
-  def processing_reason(invoice = %Invoice{status: :processing}) do
-    if invoice.required_confirmations == 0 do
-      :verifying
-    else
-      {:confirming, invoice.confirmations_due}
-    end
-  end
-
   # Broadcasting
 
   @spec broadcast_processing(Invoice.t()) :: :ok | {:error, term}
   def broadcast_processing(invoice) do
+    reason =
+      case invoice.status_reason do
+        :confirming ->
+          {:confirming, invoice.confirmations_due}
+
+        :verifying ->
+          :verifying
+      end
+
     InvoiceEvents.broadcast(
       {:invoice_processing,
        %{
          id: invoice.id,
          status: invoice.status,
-         reason: processing_reason(invoice),
+         reason: reason,
          txs: invoice.tx_outputs
        }}
     )
