@@ -18,6 +18,8 @@ defmodule BitPalSchemas.Invoice do
 
   @type id :: Ecto.UUID.t()
   @type status :: :draft | :open | :processing | :uncollectible | :void | :paid
+  @type status_reason ::
+          :expired | :canceled | :double_spent | :timed_out | :verifying | :confirming | nil
 
   @primary_key false
   typed_schema "invoices" do
@@ -33,7 +35,12 @@ defmodule BitPalSchemas.Invoice do
     field(:required_confirmations, :integer, default: 0) :: non_neg_integer
 
     # Extra information
+    # Description of the payment, displayed in payment uri and the customer's wallet
     field(:description, :string)
+    field(:email, :string)
+    # Passthru variable provided by the merchant, allows for arbitrary data storage.
+    field(:pos_data, :map)
+
     # field(:payment_uri, :string, virtual: true)
 
     # Calculated from transactions
@@ -46,6 +53,11 @@ defmodule BitPalSchemas.Invoice do
       values: [:draft, :open, :processing, :uncollectible, :void, :paid],
       default: :draft
     ) :: status
+
+    # Why did we enter the current status?
+    field(:status_reason, Ecto.Enum,
+      values: [:expired, :canceled, :double_spent, :timed_out, :verifying, :confirming]
+    ) :: status_reason
 
     timestamps()
 

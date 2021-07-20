@@ -17,6 +17,8 @@ defmodule TokensTest do
 
   test "create and associate", %{store: store} do
     a = Tokens.create_token!(store)
+    # Cannot create a token the exact same system time with the same data
+    Process.sleep(1)
     b = Tokens.create_token!(store)
 
     store = Stores.fetch!(store.id) |> Repo.preload([:access_tokens])

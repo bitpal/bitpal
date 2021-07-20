@@ -8,7 +8,13 @@ defmodule BitPalApi.InvoiceControllerTest do
           amount: "1.2",
           exchange_rate: "2.0",
           currency: "BCH",
-          fiat_currency: "USD"
+          fiat_currency: "USD",
+          email: "test@bitpal.dev",
+          description: "My awesome invoice",
+          pos_data: %{
+            "some" => "data",
+            "other" => %{"even_more" => 0}
+          }
         })
 
       assert %{
@@ -19,7 +25,13 @@ defmodule BitPalApi.InvoiceControllerTest do
                "fiat_amount" => "2.4",
                "fiat_currency" => "USD",
                "required_confirmations" => 0,
-               "status" => "draft"
+               "status" => "draft",
+               "email" => "test@bitpal.dev",
+               "description" => "My awesome invoice",
+               "pos_data" => %{
+                 "some" => "data",
+                 "other" => %{"even_more" => 0}
+               }
              } = json_response(conn, 200)
 
       assert id != nil
@@ -220,14 +232,26 @@ defmodule BitPalApi.InvoiceControllerTest do
           amount: "7.0",
           currency: "XMR",
           exchange_rate: "3.0",
-          fiat_currency: "USD"
+          fiat_currency: "USD",
+          email: "test@bitpal.dev",
+          description: "My awesome invoice",
+          pos_data: %{
+            "some" => "data",
+            "other" => %{"even_more" => 0}
+          }
         })
 
       assert %{
                "amount" => "7.0",
                "currency" => "XMR",
                "fiat_amount" => "21.0",
-               "fiat_currency" => "USD"
+               "fiat_currency" => "USD",
+               "email" => "test@bitpal.dev",
+               "description" => "My awesome invoice",
+               "pos_data" => %{
+                 "some" => "data",
+                 "other" => %{"even_more" => 0}
+               }
              } = json_response(conn, 200)
     end
   end
