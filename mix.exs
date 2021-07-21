@@ -56,6 +56,7 @@ defmodule BitPal.MixProject do
       {:postgrex, ">= 0.0.0"},
       {:typed_ecto_schema, "~> 0.2"},
       {:scribe, "~> 0.10"},
+      {:con_cache, "~> 1.0"},
 
       # Phoenix and web
       {:gettext, "~> 0.11"},

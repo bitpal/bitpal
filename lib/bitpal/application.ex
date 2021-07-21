@@ -20,7 +20,7 @@ defmodule BitPal.Application do
       BitPalApi.Endpoint,
       BitPalWeb.Telemetry,
       BitPalWeb.Endpoint,
-      {BitPal.Cache, name: BitPal.RuntimeStorage, clear_interval: :inf},
+      {BitPal.Cache, name: BitPal.RuntimeStorage, ttl_check_interval: false},
 
       # Only start if configured to
       BitPal.ExchangeRateSupervisor,

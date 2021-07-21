@@ -35,9 +35,7 @@ defmodule BitPalApi.ChannelCase do
   setup tags do
     IntegrationCase.setup_integration(tags)
 
-    start_supervised!(
-      {BitPal.ExchangeRateSupervisor, clear_interval: tags[:cache_clear_interval]}
-    )
+    start_supervised!({BitPal.ExchangeRateSupervisor, ttl: tags[:cache_clear_interval]})
 
     start_supervised!({Phoenix.PubSub, name: BitPalApi.PubSub}, id: BitPalApi.PubSub)
     start_supervised!(BitPalApi.Endpoint)

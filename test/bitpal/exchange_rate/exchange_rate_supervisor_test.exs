@@ -135,7 +135,7 @@ defmodule BitPal.ExchangeRateSupervisorTest do
   setup tags do
     start_supervised!({Phoenix.PubSub, name: BitPal.PubSub})
     start_supervised!(BitPal.ProcessRegistry)
-    start_supervised!({ExchangeRateSupervisor, clear_interval: tags[:cache_clear_interval]})
+    start_supervised!({ExchangeRateSupervisor, ttl: tags[:ttl]})
     start_supervised!(TestSubscriber)
     :ok
   end
@@ -196,7 +196,7 @@ defmodule BitPal.ExchangeRateSupervisorTest do
     TestSubscriber.subscribe(@bchusd,
       backends: [TestBackend],
       test_timeout: :infinity,
-      timeout: 10
+      request_timeout: 10
     )
 
     Process.sleep(20)
@@ -204,7 +204,7 @@ defmodule BitPal.ExchangeRateSupervisorTest do
     assert Enum.empty?(Task.Supervisor.children(@supervisor))
   end
 
-  @tag cache_clear_interval: 1
+  @tag ttl: 1
   test "permanent cache failsafe" do
     TestSubscriber.subscribe(@bchusd, backends: [TestBackend])
     TestSubscriber.await_msg_count(1)

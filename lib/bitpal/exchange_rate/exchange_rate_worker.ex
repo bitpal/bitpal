@@ -58,7 +58,7 @@ defmodule BitPal.ExchangeRate.Worker do
     Registry.register(ProcessRegistry, via_tuple(pair), pair)
 
     backends = opts[:backends] || BitPalConfig.exchange_rate_backends()
-    timeout = opts[:timeout] || BitPalConfig.exchange_rate_timeout()
+    timeout = opts[:request_timeout] || BitPalConfig.exchange_rate_timeout()
 
     {uncached_backends, cached_results} = fetch_cached_results(backends, pair, opts)
 

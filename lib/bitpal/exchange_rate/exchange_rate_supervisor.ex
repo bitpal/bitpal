@@ -29,8 +29,12 @@ defmodule BitPal.ExchangeRateSupervisor do
   @impl true
   def init(opts) do
     children = [
-      {Cache, name: @backend_cache, clear_interval: opts[:clear_interval]},
-      {Cache, name: @permanent_cache, clear_interval: :inf},
+      {Cache,
+       name: @backend_cache,
+       ttl_check_interval:
+         opts[:ttl_check_interval] || BitPalConfig.exchange_rate_ttl_check_interval(),
+       ttl: opts[:ttl] || BitPalConfig.exchange_rate_ttl()},
+      {Cache, name: @permanent_cache, ttl_check_interval: false},
       {Task.Supervisor, name: @supervisor}
     ]
 

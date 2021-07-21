@@ -37,7 +37,11 @@ defmodule BitPal.Authentication.Tokens do
   @spec create_token!(Store.t()) :: AccessToken.t()
   def create_token!(store) do
     token_data = Phoenix.Token.sign(@secret_key_base, @salt, store.id)
+    insert_token!(store, token_data)
+  end
 
+  @spec insert_token!(Store.t(), String.t()) :: AccessToken.t()
+  def insert_token!(store, token_data) do
     store
     |> Ecto.build_assoc(:access_tokens, data: token_data)
     |> Repo.insert!()

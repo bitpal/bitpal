@@ -1,36 +1,45 @@
 import Config
 
+# Timeouts are in ms
+
 config :bitpal,
   xpub:
     "xpub6C23JpFE6ABbBudoQfwMU239R5Bm6QGoigtLq1BD3cz3cC6DUTg89H3A7kf95GDzfcTis1K1m7ypGuUPmXCaCvoxDKbeNv6wRBEGEnt1NV7",
   required_confirmations: 0,
   double_spend_timeout: 2_000
 
+config :bitpal, BitPal.ExchangeRate,
+  # How long should we wait for external services to respond?
+  # 5s
+  request_timeout: 5_000,
+  # Set to :infinity to turn off auto refresh
+  # 10 minutes = 1_000 * 60 * 10
+  refresh_rate: 1_000 * 60 * 10,
+  # How long should exchange rates be valid? 
+  # 15 minutes = 1_000 * 60 * 15
+  cache_ttl: 1_000 * 60 * 15,
+  # Check for expiry every 1 min
+  cache_ttl_check_interval: 1_000 * 60
+
 case Config.config_env() do
   :dev ->
     config :bitpal, backends: [{BitPal.BackendMock, auto: true, time_between_blocks: 60_000}]
 
-    config :bitpal, BitPal.ExchangeRate,
-      backends: [BitPal.ExchangeRateMock],
-      timeout: 2_000
+    config :bitpal, BitPal.ExchangeRate, backends: [BitPal.ExchangeRateMock]
 
   :test ->
     config :bitpal,
       backends: [],
       http_client: BitPal.TestHTTPClient
 
-    config :bitpal, BitPal.ExchangeRate,
-      backends: [BitPal.ExchangeRate.Kraken],
-      timeout: 2_000
+    config :bitpal, BitPal.ExchangeRate, backends: [BitPal.ExchangeRate.Kraken]
 
   :prod ->
     config :bitpal,
       backends: [BitPal.Backend.Flowee],
       http_client: BitPal.TestHTTPClient
 
-    config :bitpal, BitPal.ExchangeRate,
-      backends: [BitPal.ExchangeRate.Kraken],
-      timeout: 2_000
+    config :bitpal, BitPal.ExchangeRate, backends: [BitPal.ExchangeRate.Kraken]
 
     secret_key_base =
       System.get_env("SECRET_KEY_BASE") ||

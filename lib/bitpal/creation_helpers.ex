@@ -22,8 +22,8 @@ defmodule BitPal.CreationHelpers do
   end
 
   @spec create_store :: Store.t()
-  def create_store do
-    Stores.create!()
+  def create_store(params \\ []) do
+    Stores.create!(params)
   end
 
   @spec create_auth :: %{store_id: Store.id(), token: String.t()}
