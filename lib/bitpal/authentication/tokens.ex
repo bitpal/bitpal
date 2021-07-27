@@ -10,7 +10,8 @@ defmodule BitPal.Authentication.Tokens do
   @spec authenticate_token(String.t()) ::
           {:ok, Store.id()} | {:error, :not_found} | {:error, :invalid} | {:error, :expired}
   def authenticate_token(token_data) do
-    with {:ok, store_id} <- Phoenix.Token.verify(@secret_key_base, @salt, token_data),
+    with {:ok, store_id} <-
+           Phoenix.Token.verify(@secret_key_base, @salt, token_data, max_age: :infinity),
          :ok <- valid_token?(store_id, token_data) do
       {:ok, store_id}
     else
