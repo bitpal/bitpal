@@ -13,17 +13,17 @@ defmodule BitPalApi.ExchangeRateChannelTest do
   end
 
   test "async request", %{socket: socket} do
-    push(socket, "async_request", %{"from" => "BCH", "to" => "USD"})
-    assert_broadcast("rate", %{rate: @rate})
+    ref = push(socket, "rate", %{"from" => "BCH", "to" => "USD"})
+    assert_reply(ref, :ok, %{rate: @rate})
   end
 
   test "sync request", %{socket: socket} do
-    ref = push(socket, "request", %{"from" => "BCH", "to" => "USD"})
+    ref = push(socket, "rate", %{"from" => "BCH", "to" => "USD"})
     assert_reply(ref, :ok, %{rate: @rate})
   end
 
   test "invalid currency", %{socket: socket} do
-    ref = push(socket, "request", %{"from" => "XXX", "to" => "USD"})
+    ref = push(socket, "rate", %{"from" => "XXX", "to" => "USD"})
 
     assert_reply(ref, :error, %{
       message: "Invalid exchange rate 'XXX-USD'",

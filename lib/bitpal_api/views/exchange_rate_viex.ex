@@ -15,4 +15,11 @@ defmodule BitPalApi.ExchangeRateView do
       rate: rate.rate
     }
   end
+
+  def render("rate_response.json", %{rate: rate = %ExchangeRate{pair: {from, to}}}) do
+    %{
+      pair: "#{from}-#{to}",
+      rate: rate.rate
+    }
+  end
 end

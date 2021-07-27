@@ -3,6 +3,8 @@ defmodule BitPalApi.ExchangeRateChannel do
   alias BitPal.ExchangeRate
   alias BitPal.ExchangeRateEvents
   alias BitPal.ExchangeRateSupervisor
+  alias BitPalApi.ExchangeRateView
+  require Logger
 
   @impl true
   def join("exchange_rate:" <> pair, payload, socket) do
@@ -23,11 +25,10 @@ defmodule BitPalApi.ExchangeRateChannel do
   end
 
   @impl true
-  def handle_in("async_request", %{"from" => from, "to" => to}, socket) do
+  def handle_in("rate", %{"from" => from, "to" => to}, socket) do
     case ExchangeRate.parse_pair({from, to}) do
       {:ok, pair} ->
-        ExchangeRateSupervisor.async_request(pair)
-        {:reply, :ok, socket}
+        handle_rate_request(pair, socket)
 
       {:error, :bad_pair} ->
         {:reply, invalid_exchange_rate_error(from, to), socket}
@@ -35,23 +36,37 @@ defmodule BitPalApi.ExchangeRateChannel do
   end
 
   @impl true
-  def handle_in("request", %{"from" => from, "to" => to}, socket) do
-    with {:ok, pair} <- ExchangeRate.parse_pair({from, to}),
-         {:ok, rate} <- ExchangeRateSupervisor.request(pair) do
-      {:reply, {:ok, %{rate: rate.rate}}, socket}
-    else
-      {:error, :bad_pair} ->
-        {:reply, invalid_exchange_rate_error(from, to), socket}
-
-      _ ->
-        render_error(%InternalServerError{})
-    end
-  end
-
-  @impl true
-  def handle_info({:exchange_rate, %ExchangeRate{rate: rate, pair: {from, to}}}, socket) do
-    broadcast!(socket, "rate", %{rate: rate, pair: "#{from}-#{to}"})
+  def handle_in(event, _params, socket) do
+    Logger.error("unhandled event #{event}")
     {:noreply, socket}
+  end
+
+  defp handle_rate_request(pair, socket) do
+    case ExchangeRateSupervisor.request(pair) do
+      # We have a cached rate, we can reply directly
+      {:cached, rate} ->
+        {:reply, response(rate)}
+
+      # We need to update the exchange rate, reply in an async manner
+      :updating ->
+        Task.Supervisor.start_child(
+          BitPal.TaskSupervisor,
+          __MODULE__,
+          :reply_request,
+          [pair, socket_ref(socket)]
+        )
+
+        {:noreply, socket}
+    end
+  end
+
+  def reply_request(pair, ref) do
+    rate = ExchangeRateSupervisor.await_request!(pair)
+    reply(ref, response(rate))
+  end
+
+  defp response(rate) do
+    {:ok, ExchangeRateView.render("rate_response.json", %{rate: rate})}
   end
 
   defp invalid_exchange_rate_error(from, to) do
