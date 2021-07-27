@@ -1,7 +1,6 @@
 defmodule BitPalApi.ExchangeRateChannel do
   use BitPalApi, :channel
   alias BitPal.ExchangeRate
-  alias BitPal.ExchangeRateEvents
   alias BitPal.ExchangeRateSupervisor
   alias BitPalApi.ExchangeRateView
   require Logger
@@ -9,8 +8,7 @@ defmodule BitPalApi.ExchangeRateChannel do
   @impl true
   def join("exchange_rate:" <> pair, payload, socket) do
     with :authorized <- authorized?(payload),
-         {:ok, pair} <- ExchangeRate.parse_pair(pair),
-         :ok <- ExchangeRateEvents.subscribe(pair) do
+         {:ok, _pair} <- ExchangeRate.parse_pair(pair) do
       {:ok, socket}
     else
       :unauthorized ->
