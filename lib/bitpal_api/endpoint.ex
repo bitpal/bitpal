@@ -11,7 +11,7 @@ defmodule BitPalApi.Endpoint do
   ]
 
   socket("/socket", BitPalApi.StoreSocket,
-    websocket: true,
+    websocket: [connect_info: [:x_headers]],
     longpoll: false
   )
 
