@@ -43,7 +43,7 @@ defmodule BitPalApi.ExchangeRateChannel do
     case ExchangeRateSupervisor.request(pair) do
       # We have a cached rate, we can reply directly
       {:cached, rate} ->
-        {:reply, response(rate)}
+        {:reply, response(rate), socket}
 
       # We need to update the exchange rate, reply in an async manner
       :updating ->
