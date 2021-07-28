@@ -33,7 +33,22 @@ defmodule BitPalConfig do
 
   @spec exchange_rate_timeout :: non_neg_integer
   def exchange_rate_timeout do
-    fetch_env!(:bitpal, BitPal.ExchangeRate, :timeout)
+    fetch_env!(:bitpal, BitPal.ExchangeRate, :request_timeout)
+  end
+
+  @spec exchange_rate_refresh_rate :: non_neg_integer
+  def exchange_rate_refresh_rate do
+    fetch_env!(:bitpal, BitPal.ExchangeRate, :refresh_rate)
+  end
+
+  @spec exchange_rate_ttl :: non_neg_integer
+  def exchange_rate_ttl do
+    fetch_env!(:bitpal, BitPal.ExchangeRate, :cache_ttl)
+  end
+
+  @spec exchange_rate_ttl_check_interval :: non_neg_integer
+  def exchange_rate_ttl_check_interval do
+    fetch_env!(:bitpal, BitPal.ExchangeRate, :cache_ttl_check_interval)
   end
 
   # Tests

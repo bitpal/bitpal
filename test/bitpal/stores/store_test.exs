@@ -4,7 +4,8 @@ defmodule BitPal.StoreTest do
   alias BitPal.Stores
 
   test "store invoice association" do
-    store = Stores.create!()
+    store = Stores.create!(label: "My Store")
+    assert store.label == "My Store"
 
     assert {:ok, invoice} =
              Invoices.register(

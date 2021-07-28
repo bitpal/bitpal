@@ -1,8 +1,7 @@
 defmodule BitPal.ExchangeRateSupervisorTest do
   use ExUnit.Case, async: false
+  import BitPal.TestHelpers
   alias BitPal.ExchangeRate
-  alias BitPal.ExchangeRate.Worker
-  alias BitPal.ExchangeRateEvents
   alias BitPal.ExchangeRateSupervisor
   alias BitPal.ExchangeRateSupervisor.Result
 
@@ -14,62 +13,6 @@ defmodule BitPal.ExchangeRateSupervisorTest do
   @bcheur {:BCH, :EUR}
   def bcheur_rate do
     ExchangeRate.new!(Decimal.from_float(741.62), @bcheur)
-  end
-
-  @supervisor BitPal.ExhangeRate.TaskSupervisor
-
-  defmodule TestSubscriber do
-    use GenServer
-
-    def start_link(opts) do
-      GenServer.start_link(__MODULE__, opts, name: __MODULE__)
-    end
-
-    def subscribe(pair, opts \\ []) do
-      GenServer.call(__MODULE__, {:subscribe, pair, opts})
-    end
-
-    def received do
-      GenServer.call(__MODULE__, :received)
-    end
-
-    def await_msg_count(count) do
-      Task.async(__MODULE__, :sleep_until_count, [count])
-      |> Task.await(1_000)
-
-      {:ok, received()}
-    end
-
-    def sleep_until_count(count) do
-      if Enum.count(received()) >= count do
-        :ok
-      else
-        Process.sleep(5)
-        sleep_until_count(count)
-      end
-    end
-
-    @impl true
-    def init(_opts) do
-      {:ok, %{received: []}}
-    end
-
-    @impl true
-    def handle_call({:subscribe, pair, opts}, _from, state) do
-      ExchangeRateEvents.subscribe(pair)
-      ExchangeRateSupervisor.async_request(pair, opts)
-      {:reply, :ok, state}
-    end
-
-    @impl true
-    def handle_call(:received, _from, state) do
-      {:reply, state.received, state}
-    end
-
-    @impl true
-    def handle_info(msg, state) do
-      {:noreply, Map.update!(state, :received, &[msg | &1])}
-    end
   end
 
   defmodule TestBackend do
@@ -134,91 +77,66 @@ defmodule BitPal.ExchangeRateSupervisorTest do
 
   setup tags do
     start_supervised!({Phoenix.PubSub, name: BitPal.PubSub})
+    start_supervised!({Task.Supervisor, name: BitPal.TaskSupervisor})
     start_supervised!(BitPal.ProcessRegistry)
-    start_supervised!({ExchangeRateSupervisor, clear_interval: tags[:cache_clear_interval]})
-    start_supervised!(TestSubscriber)
+
+    start_supervised!(
+      {ExchangeRateSupervisor, ttl: tags[:ttl], ttl_check_interval: tags[:ttl_check_interval]}
+    )
+
     :ok
   end
 
-  test "direct request" do
-    assert ExchangeRateSupervisor.request(@bchusd) == {:ok, bchusd_rate()}
-    assert ExchangeRateSupervisor.request!(@bchusd) == bchusd_rate()
+  test "request await" do
+    assert :updating = ExchangeRateSupervisor.request(@bchusd)
+    assert bchusd_rate() == ExchangeRateSupervisor.await_request!(@bchusd)
   end
 
-  test "receive after subscribe" do
-    TestSubscriber.subscribe(@bchusd)
-    TestSubscriber.await_msg_count(1)
-    assert TestSubscriber.received() == [{:exchange_rate, bchusd_rate()}]
-    assert Enum.empty?(Task.Supervisor.children(@supervisor))
+  test "cached request" do
+    assert :updating = ExchangeRateSupervisor.request(@bchusd)
+    assert bchusd_rate() == ExchangeRateSupervisor.await_request!(@bchusd)
+    assert {:cached, bchusd_rate()} == ExchangeRateSupervisor.request(@bchusd)
   end
 
-  test "multiple rates" do
-    TestSubscriber.subscribe(@bchusd)
-    TestSubscriber.subscribe(@bcheur)
-    TestSubscriber.await_msg_count(2)
-
-    assert Enum.sort(TestSubscriber.received()) == [
-             {:exchange_rate, bcheur_rate()},
-             {:exchange_rate, bchusd_rate()}
-           ]
+  @tag ttl: 10, ttl_check_interval: 1
+  test "cache cleared" do
+    assert :updating = ExchangeRateSupervisor.request(@bchusd)
+    assert bchusd_rate() == ExchangeRateSupervisor.await_request!(@bchusd)
+    assert eventually(fn -> :updating == ExchangeRateSupervisor.request(@bchusd) end)
   end
 
   test "multiple backends" do
-    TestSubscriber.subscribe(@bchusd, backends: [BitPal.ExchangeRate.Kraken, TestBackend])
-    TestSubscriber.await_msg_count(1)
+    assert :updating =
+             ExchangeRateSupervisor.request(@bchusd,
+               backends: [BitPal.ExchangeRate.Kraken, TestBackend]
+             )
 
-    assert Enum.sort(TestSubscriber.received()) == [
-             {:exchange_rate, bchusd_rate()}
-           ]
+    assert bchusd_rate() == ExchangeRateSupervisor.await_request!(@bchusd)
   end
 
-  test "multiple requests but only one response until done" do
-    TestSubscriber.subscribe(@bchusd,
-      backends: [TestBackend],
-      test_timeout: :infinity,
-      timeout: :infinity
-    )
-
-    Process.sleep(10)
-
-    {:ok, pid} = Worker.get_worker(@bchusd)
-    {:ok, ^pid} = ExchangeRateSupervisor.async_request(@bchusd)
+  test "multiple rates" do
+    assert :updating = ExchangeRateSupervisor.request(@bchusd)
+    assert :updating = ExchangeRateSupervisor.request(@bcheur)
+    assert bchusd_rate() == ExchangeRateSupervisor.await_request!(@bchusd)
+    assert bcheur_rate() == ExchangeRateSupervisor.await_request!(@bcheur)
   end
 
   test "crashing" do
-    TestSubscriber.subscribe(@bchusd, backends: [TestBackend], test_crash: true)
-    Process.sleep(20)
-    assert TestSubscriber.received() == []
-    assert Enum.empty?(Task.Supervisor.children(@supervisor))
+    assert :updating =
+             ExchangeRateSupervisor.request(@bchusd, backends: [TestBackend], test_crash: true)
+
+    assert nil == ExchangeRateSupervisor.await_request!(@bchusd)
   end
 
   test "timeout" do
-    TestSubscriber.subscribe(@bchusd,
-      backends: [TestBackend],
-      test_timeout: :infinity,
-      timeout: 10
-    )
+    assert :updating =
+             ExchangeRateSupervisor.request(@bchusd,
+               backends: [TestBackend],
+               test_timeout: :infinity,
+               request_timeout: 10
+             )
 
-    Process.sleep(20)
-    assert TestSubscriber.received() == []
-    assert Enum.empty?(Task.Supervisor.children(@supervisor))
-  end
-
-  @tag cache_clear_interval: 1
-  test "permanent cache failsafe" do
-    TestSubscriber.subscribe(@bchusd, backends: [TestBackend])
-    TestSubscriber.await_msg_count(1)
-    rate = ExchangeRate.new!(Decimal.from_float(2.0), @bchusd)
-    assert TestSubscriber.received() == [{:exchange_rate, rate}]
-    assert Enum.empty?(Task.Supervisor.children(@supervisor))
-
-    ExchangeRateSupervisor.async_request(@bchusd, backends: [TestBackend], test_crash: true)
-    TestSubscriber.await_msg_count(2)
-
-    assert TestSubscriber.received() == [
-             {:exchange_rate, rate},
-             {:exchange_rate, rate}
-           ]
+    assert nil == ExchangeRateSupervisor.await_request!(@bchusd)
   end
 
   test "supported" do

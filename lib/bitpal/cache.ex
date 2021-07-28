@@ -1,21 +1,49 @@
 defmodule BitPal.Cache do
   @moduledoc """
-  A simple cache as seen in Programming Phoenix >= 1.4
   """
 
-  use GenServer
+  @spec start_link(ConCache.options()) :: Supervisor.on_start()
+  def start_link(opts) do
+    Process.flag(:trap_exit, true)
 
-  @clear_interval :timer.seconds(60)
-
-  def put(name \\ __MODULE__, key, value) do
-    true = :ets.insert(name, {key, value})
-    :ok
+    ConCache.start_link(
+      name: Keyword.get(opts, :name, __MODULE__),
+      ttl_check_interval: Keyword.fetch!(opts, :ttl_check_interval),
+      global_ttl: Keyword.get(opts, :ttl)
+    )
   end
 
+  @spec child_spec(keyword) :: Supervisor.child_spec()
+  def child_spec(opts) do
+    %{
+      id: Keyword.get(opts, :name, __MODULE__),
+      start: {__MODULE__, :start_link, [opts]}
+    }
+  end
+
+  @spec put(atom, term, term) :: :ok
+  def put(name \\ __MODULE__, key, val) do
+    ConCache.put(name, key, val)
+  end
+
+  @spec get(atom, term) :: term | nil
+  def get(name \\ __MODULE__, key) do
+    ConCache.get(name, key)
+  end
+
+  @spec fetch(atom, term) :: {:ok, term} | :error
   def fetch(name \\ __MODULE__, key) do
-    {:ok, :ets.lookup_element(name, key, 2)}
-  rescue
-    ArgumentError -> :error
+    if val = ConCache.get(name, key) do
+      {:ok, val}
+    else
+      :error
+    end
+  end
+
+  @spec fetch!(atom, term) :: term
+  def fetch!(name \\ __MODULE__, key) do
+    {:ok, val} = fetch(name, key)
+    val
   end
 
   @spec get_or_put_lazy(atom, term, (() -> term)) :: term
@@ -29,53 +57,5 @@ defmodule BitPal.Cache do
         :ok = put(name, key, value)
         value
     end
-  end
-
-  def start_link(opts) do
-    opts = Keyword.put_new(opts, :name, __MODULE__)
-    GenServer.start_link(__MODULE__, opts, name: opts[:name])
-  end
-
-  def init(opts) do
-    state = %{
-      interval: opts[:clear_interval] || @clear_interval,
-      timer: nil,
-      table: new_table(opts[:name])
-    }
-
-    {:ok, schedule_clear(state)}
-  end
-
-  def child_spec(arg) do
-    id = Keyword.get(arg, :name) || __MODULE__
-
-    %{
-      id: id,
-      start: {__MODULE__, :start_link, [arg]}
-    }
-  end
-
-  def handle_info(:clear, state) do
-    :ets.delete_all_objects(state.table)
-    {:noreply, schedule_clear(state)}
-  end
-
-  defp schedule_clear(state) do
-    if state.interval == :inf do
-      state
-    else
-      %{state | timer: Process.send_after(self(), :clear, state.interval)}
-    end
-  end
-
-  defp new_table(name) do
-    name
-    |> :ets.new([
-      :set,
-      :named_table,
-      :public,
-      read_concurrency: true,
-      write_concurrency: true
-    ])
   end
 end

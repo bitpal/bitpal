@@ -17,10 +17,11 @@ defmodule BitPal.Application do
       Supervisor.child_spec({Phoenix.PubSub, name: BitPalApi.PubSub}, id: BitPalApi.PubSub),
       Supervisor.child_spec({Phoenix.PubSub, name: BitPalWeb.PubSub}, id: BitPalWeb.PubSub),
       BitPal.ProcessRegistry,
+      {Task.Supervisor, name: BitPal.TaskSupervisor},
       BitPalApi.Endpoint,
       BitPalWeb.Telemetry,
       BitPalWeb.Endpoint,
-      {BitPal.Cache, name: BitPal.RuntimeStorage, clear_interval: :inf},
+      {BitPal.Cache, name: BitPal.RuntimeStorage, ttl_check_interval: false},
 
       # Only start if configured to
       BitPal.ExchangeRateSupervisor,

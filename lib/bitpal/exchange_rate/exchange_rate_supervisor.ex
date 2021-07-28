@@ -6,9 +6,7 @@ defmodule BitPal.ExchangeRateSupervisor do
   alias BitPalSchemas.Currency
   require Logger
 
-  @backend_cache BitPal.ExchangeRate.BackendCache
-  @permanent_cache BitPal.ExchangeRate.PermanentCache
-  @supervisor BitPal.ExhangeRate.TaskSupervisor
+  @cache BitPal.ExchangeRate.Cache
 
   defmodule Result do
     @type t :: %__MODULE__{
@@ -29,9 +27,11 @@ defmodule BitPal.ExchangeRateSupervisor do
   @impl true
   def init(opts) do
     children = [
-      {Cache, name: @backend_cache, clear_interval: opts[:clear_interval]},
-      {Cache, name: @permanent_cache, clear_interval: :inf},
-      {Task.Supervisor, name: @supervisor}
+      {Cache,
+       name: @cache,
+       ttl_check_interval:
+         opts[:ttl_check_interval] || BitPalConfig.exchange_rate_ttl_check_interval(),
+       ttl: opts[:ttl] || BitPalConfig.exchange_rate_ttl()}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
@@ -58,36 +58,27 @@ defmodule BitPal.ExchangeRateSupervisor do
     end
   end
 
-  @spec async_request(ExchangeRate.pair(), keyword) :: DynamicSupervisor.on_start_child()
-  def async_request(pair, opts \\ []) do
-    Worker.start_worker(pair, opts)
+  @spec fetch!(ExchangeRate.pair(), keyword) :: ExchangeRate.t() | nil
+  def fetch!(pair, opts \\ []) do
+    request(pair, opts)
+    await_request!(pair)
   end
 
-  @spec request(ExchangeRate.pair(), keyword) :: {:ok, ExchangeRate.t()} | {:error, :not_found}
+  @spec request(ExchangeRate.pair(), keyword) :: {:cached, ExchangeRate.t()} | :updating
   def request(pair, opts \\ []) do
-    case Cache.fetch(@permanent_cache, pair) do
-      {:ok, res} ->
-        {:ok, res.rate}
+    case Cache.fetch(@cache, pair) do
+      {:ok, rate} ->
+        {:cached, rate}
 
       :error ->
-        {:ok, pid} = Worker.start_worker(pair, opts)
-        Worker.await_worker(pid)
-
-        case Cache.fetch(@permanent_cache, pair) do
-          {:ok, res} ->
-            {:ok, res.rate}
-
-          :error ->
-            {:error, :not_found}
-        end
+        {:ok, _pid} = Worker.start_worker(pair, opts)
+        :updating
     end
   end
 
-  @spec request!(ExchangeRate.pair(), keyword) :: ExchangeRate.t()
-  def request!(pair, opts \\ []) do
-    {:ok, rate} = request(pair, opts)
-    rate
+  @spec await_request!(ExchangeRate.pair()) :: ExchangeRate.t() | nil
+  def await_request!(pair) do
+    :ok = Worker.await_worker(pair)
+    Cache.get(@cache, pair)
   end
-
-  # def request_many(
 end

@@ -10,7 +10,12 @@ Currencies.register!(:XMR)
 
 # Create a store with an access token
 store = create_store(label: "Seed store")
-token = Tokens.create_token!(store)
+
+token =
+  Tokens.insert_token!(
+    store,
+    "SFMyNTY.g2gDYQFuBgDWhevRegFiAAFRgA.fuiV-GbJoBUmKaSS5PW776HyeFh30-L9pgvn7wuQWKk"
+  )
 
 # Add some invoices just for testing and introspection purposes
 create_invoice(

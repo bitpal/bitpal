@@ -10,7 +10,8 @@ defmodule BitPal.Authentication.Tokens do
   @spec authenticate_token(String.t()) ::
           {:ok, Store.id()} | {:error, :not_found} | {:error, :invalid} | {:error, :expired}
   def authenticate_token(token_data) do
-    with {:ok, store_id} <- Phoenix.Token.verify(@secret_key_base, @salt, token_data),
+    with {:ok, store_id} <-
+           Phoenix.Token.verify(@secret_key_base, @salt, token_data, max_age: :infinity),
          :ok <- valid_token?(store_id, token_data) do
       {:ok, store_id}
     else
@@ -37,7 +38,11 @@ defmodule BitPal.Authentication.Tokens do
   @spec create_token!(Store.t()) :: AccessToken.t()
   def create_token!(store) do
     token_data = Phoenix.Token.sign(@secret_key_base, @salt, store.id)
+    insert_token!(store, token_data)
+  end
 
+  @spec insert_token!(Store.t(), String.t()) :: AccessToken.t()
+  def insert_token!(store, token_data) do
     store
     |> Ecto.build_assoc(:access_tokens, data: token_data)
     |> Repo.insert!()
