@@ -36,5 +36,12 @@ npm-debug.log
 # this depending on your deployment strategy.
 /priv/static/
 
+# Ignore dialyzer files
 /priv/plts/*.plt
 /priv/plts/*.plt.hash
+
+# Elixir language server files
+.elixir_ls
+
+# Ignore dev secrets file
+secrets.fish
