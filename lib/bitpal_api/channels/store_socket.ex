@@ -7,6 +7,17 @@ defmodule BitPalApi.StoreSocket do
   channel("exchange_rate:*", BitPalApi.ExchangeRateChannel)
 
   @impl true
+  def connect(%{"token" => token}, socket, _connect_info) do
+    case Tokens.authenticate_token(token) do
+      {:ok, store_id} ->
+        {:ok, assign(socket, :store_id, store_id)}
+
+      _ ->
+        :error
+    end
+  end
+
+  @impl true
   def connect(_params, socket, %{x_headers: x_headers}) do
     with {:ok, token} <- find_token(x_headers),
          {:ok, store_id} <- Tokens.authenticate_token(token) do
