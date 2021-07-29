@@ -2,6 +2,7 @@ import Config
 
 # Timeouts are in ms
 
+# These should be overridable via BitPalConfig later
 config :bitpal,
   xpub:
     "xpub6C23JpFE6ABbBudoQfwMU239R5Bm6QGoigtLq1BD3cz3cC6DUTg89H3A7kf95GDzfcTis1K1m7ypGuUPmXCaCvoxDKbeNv6wRBEGEnt1NV7",
@@ -23,7 +24,8 @@ config :bitpal, BitPal.ExchangeRate,
 
 case Config.config_env() do
   :dev ->
-    config :bitpal, backends: [{BitPal.BackendMock, auto: true, time_between_blocks: 60_000}]
+    config :bitpal,
+      backends: [{BitPal.BackendMock, auto: true, time_between_blocks: 60_000}]
 
     config :bitpal, BitPal.ExchangeRate, backends: [BitPal.ExchangeRateMock]
 
@@ -35,9 +37,18 @@ case Config.config_env() do
     config :bitpal, BitPal.ExchangeRate, backends: [BitPal.ExchangeRate.Kraken]
 
   :prod ->
+    xpub =
+      System.get_env("XPUB") ||
+        raise """
+        environment variable XPUB is missing.
+        You need to generate one from a wallet.
+        """
+
     config :bitpal,
       backends: [BitPal.Backend.Flowee],
-      http_client: BitPal.TestHTTPClient
+      xpub: xpub,
+      required_confirmations: System.get_env("REQUIRED_CONFIRMATIONS") || 0,
+      double_spend_timeout: System.get_env("DOUBLE_SPEND_TIMEOUT") || 2_000
 
     config :bitpal, BitPal.ExchangeRate, backends: [BitPal.ExchangeRate.Kraken]
 

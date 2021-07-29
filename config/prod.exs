@@ -2,7 +2,7 @@ use Mix.Config
 
 config :bitpal, BitPalApi.Endpoint,
   http: [
-    port: 4002,
+    port: 4001,
     transport_options: [socket_opts: [:inet6]]
   ],
   server: true
