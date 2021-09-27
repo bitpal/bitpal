@@ -60,7 +60,7 @@ defmodule BitPal.MixProject do
 
       # Phoenix and web
       {:gettext, "~> 0.11"},
-      {:master_proxy, git: "git@github.com:bitpal/master_proxy.git"},
+      {:master_proxy, "~> 0.1"},
       {:phoenix, "~> 1.6.0"},
       {:phoenix_ecto, "~> 4.4.0"},
       {:phoenix_html, "~> 3.0"},
@@ -70,6 +70,8 @@ defmodule BitPal.MixProject do
       {:phoenix_live_view, "~> 0.16.4"},
       {:phoenix_pubsub, "~> 2.0"},
       {:plug_cowboy, "~> 2.5"},
+      {:dart_sass, "~> 0.2", runtime: Mix.env() == :dev},
+      {:esbuild, "~> 0.2", runtime: Mix.env() == :dev},
       # Still some unresolved conflict
       {:telemetry, "~> 1.0", override: true},
       {:telemetry_metrics, "~> 0.6.1"},
@@ -77,7 +79,7 @@ defmodule BitPal.MixProject do
 
       # CI and tests
       {:ci,
-       git: "git@github.com:sasa1977/ci.git", ref: "bc67646b67255a0df7dff761b1105f8b822e9b5d"},
+       git: "https://github.com/sasa1977/ci.git", ref: "bc67646b67255a0df7dff761b1105f8b822e9b5d"},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.8", only: [:dev, :test], runtime: false},
@@ -96,7 +98,12 @@ defmodule BitPal.MixProject do
       setup: ["deps.get", "ecto.setup", "cmd npm install --prefix assets"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test --no-start"]
+      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test --no-start"],
+      "assets.deploy": [
+        "sass default --no-source-map --style=compressed",
+        "esbuild default --minify",
+        "phx.digest"
+      ]
     ]
   end
 end
