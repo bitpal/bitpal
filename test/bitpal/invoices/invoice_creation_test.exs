@@ -55,7 +55,7 @@ defmodule InvoiceCreationTest do
     # it's fine to skip fiat_amount + exchange_rate
     assert {:ok, invoice} = Invoices.register(store_id, %{amount: 1.2, currency: :BCH})
 
-    assert Money.to_decimal(invoice.amount) == Decimal.from_float(1.2)
+    assert Money.to_decimal(invoice.amount) == Decimal.new("1.20000000")
     assert invoice.fiat_amount == nil
     assert invoice.exchange_rate == nil
 
@@ -200,7 +200,7 @@ defmodule InvoiceCreationTest do
                fiat_currency: "USD"
              })
 
-    assert Money.to_decimal(invoice.fiat_amount) == Decimal.from_float(2.4)
+    assert Money.to_decimal(invoice.fiat_amount) == Decimal.new("2.40")
 
     # amount will be calculated from fiat_amount / exchange_rate
     assert {:ok, invoice} =
@@ -211,7 +211,7 @@ defmodule InvoiceCreationTest do
                fiat_currency: "USD"
              })
 
-    assert Money.to_decimal(invoice.amount) == Decimal.from_float(1.2)
+    assert Money.to_decimal(invoice.amount) == Decimal.new("1.20000000")
 
     # exchange_rate will be calculated from fiat amount / amount
     assert {:ok, invoice} =
@@ -257,9 +257,9 @@ defmodule InvoiceCreationTest do
              })
 
     assert invoice = Invoices.fetch!(invoice.id)
-    assert Money.to_decimal(invoice.amount) == Decimal.from_float(127_000_000_000.000_000_01)
+    assert Money.to_decimal(invoice.amount) == Decimal.new("127000000000.00000001")
 
     assert Money.to_decimal(invoice.fiat_amount) ==
-             Decimal.from_float(254_000_000_000_000_000.000_000_02)
+             Decimal.new("254000000000000000.02")
   end
 end

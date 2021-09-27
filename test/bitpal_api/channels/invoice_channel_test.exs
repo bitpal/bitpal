@@ -86,7 +86,7 @@ defmodule BitPalApi.InvoiceChannelTest do
     id = invoice.id
     BackendMock.tx_seen(%{invoice | amount: Money.parse!(0.3, :BCH)})
 
-    due = Decimal.from_float(0.7)
+    due = Decimal.new("0.70000000")
 
     assert_broadcast("underpaid", %{
       id: ^id,
@@ -95,7 +95,7 @@ defmodule BitPalApi.InvoiceChannelTest do
     })
 
     BackendMock.tx_seen(%{invoice | amount: Money.parse!(1.3, :BCH)})
-    overpaid = Decimal.from_float(0.6)
+    overpaid = Decimal.new("0.60000000")
 
     assert_broadcast("overpaid", %{
       id: ^id,

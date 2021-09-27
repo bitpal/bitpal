@@ -20,9 +20,9 @@ defmodule BitPalApi.InvoiceControllerTest do
       assert %{
                "id" => id,
                "address" => nil,
-               "amount" => "1.2",
+               "amount" => "1.20000000",
                "currency" => "BCH",
-               "fiat_amount" => "2.4",
+               "fiat_amount" => "2.40",
                "fiat_currency" => "USD",
                "required_confirmations" => 0,
                "status" => "draft",
@@ -51,9 +51,9 @@ defmodule BitPalApi.InvoiceControllerTest do
       assert %{
                "id" => id,
                "address" => address,
-               "amount" => "1.2",
+               "amount" => "1.20000000",
                "currency" => "BCH",
-               "fiat_amount" => "2.4",
+               "fiat_amount" => "2.40",
                "fiat_currency" => "USD",
                "required_confirmations" => 0,
                "status" => "open"
@@ -93,9 +93,9 @@ defmodule BitPalApi.InvoiceControllerTest do
       assert %{
                "id" => ^id,
                "address" => address,
-               "amount" => "1.2",
+               "amount" => "1.20000000",
                "currency" => "BCH",
-               "fiat_amount" => "2.4",
+               "fiat_amount" => "2.40",
                "fiat_currency" => "USD",
                "status" => "open"
              } = json_response(conn, 200)
@@ -146,9 +146,9 @@ defmodule BitPalApi.InvoiceControllerTest do
         })
 
       assert %{
-               "amount" => "7.0",
+               "amount" => "7.00000000",
                "currency" => "BCH",
-               "fiat_amount" => "14.0",
+               "fiat_amount" => "14.00",
                "fiat_currency" => "USD"
              } = json_response(conn, 200)
     end
@@ -160,9 +160,9 @@ defmodule BitPalApi.InvoiceControllerTest do
         })
 
       assert %{
-               "amount" => "4.0",
+               "amount" => "4.00000000",
                "currency" => "BCH",
-               "fiat_amount" => "8.0",
+               "fiat_amount" => "8.00",
                "fiat_currency" => "USD"
              } = json_response(conn, 200)
     end
@@ -174,9 +174,9 @@ defmodule BitPalApi.InvoiceControllerTest do
         })
 
       assert %{
-               "amount" => "1.2",
+               "amount" => "1.20000000",
                "currency" => "BCH",
-               "fiat_amount" => "3.6",
+               "fiat_amount" => "3.60",
                "fiat_currency" => "USD"
              } = json_response(conn, 200)
     end
@@ -189,9 +189,9 @@ defmodule BitPalApi.InvoiceControllerTest do
         })
 
       assert %{
-               "amount" => "7.0",
+               "amount" => "7.00000000",
                "currency" => "BCH",
-               "fiat_amount" => "21.0",
+               "fiat_amount" => "21.00",
                "fiat_currency" => "USD"
              } = json_response(conn, 200)
     end
@@ -204,7 +204,7 @@ defmodule BitPalApi.InvoiceControllerTest do
         })
 
       assert %{
-               "amount" => "7.0",
+               "amount" => "7.000000000000",
                "currency" => "XMR"
              } = json_response(conn, 200)
     end
@@ -242,9 +242,9 @@ defmodule BitPalApi.InvoiceControllerTest do
         })
 
       assert %{
-               "amount" => "7.0",
+               "amount" => "7.000000000000",
                "currency" => "XMR",
-               "fiat_amount" => "21.0",
+               "fiat_amount" => "21.00",
                "fiat_currency" => "USD",
                "email" => "test@bitpal.dev",
                "description" => "My awesome invoice",

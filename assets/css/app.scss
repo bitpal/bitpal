@@ -1,6 +1,14 @@
 /* This file is for your main application css. */
 @import "./phoenix.css";
-@import "../node_modules/nprogress/nprogress.css";
+
+// our new sassy style
+$phoenix-orange: #f05423;
+.phx-hero {
+  h1 {
+    color: $phoenix-orange;
+  }
+}
+
 
 /* LiveView specific classes for your customizations */
 .invalid-feedback {
