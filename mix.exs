@@ -34,7 +34,7 @@ defmodule BitPal.MixProject do
       "test/bitpal/support",
       "test/bitpal_api/support",
       "test/bitpal_web/support",
-      "test/bitpal_web/support"
+      "test/bitpal_doc/support"
     ]
   end
 
@@ -58,6 +58,11 @@ defmodule BitPal.MixProject do
       {:scribe, "~> 0.10"},
       {:con_cache, "~> 1.0"},
 
+      # Server docs
+      {:nimble_publisher, git: "https://github.com/treeman/nimble_publisher.git"},
+      {:makeup_elixir, ">= 0.0.0"},
+      {:floki, "~> 0.31.0"},
+
       # Phoenix and web
       {:gettext, "~> 0.11"},
       {:master_proxy, "~> 0.1"},
@@ -72,7 +77,7 @@ defmodule BitPal.MixProject do
       {:plug_cowboy, "~> 2.5"},
       {:dart_sass, "~> 0.2", runtime: Mix.env() == :dev},
       {:esbuild, "~> 0.2", runtime: Mix.env() == :dev},
-      # Still some unresolved conflict
+      # Still some unresolved conflict with some libs requiring 0.4, but it's really fine...
       {:telemetry, "~> 1.0", override: true},
       {:telemetry_metrics, "~> 0.6.1"},
       {:telemetry_poller, "~> 1.0.0"},
@@ -84,7 +89,7 @@ defmodule BitPal.MixProject do
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.8", only: [:dev, :test], runtime: false},
 
-      # Docs
+      # Elixir docsdefstruct 
       {:ex_doc, "~> 0.24", only: :dev, runtime: false}
     ]
   end
@@ -102,7 +107,7 @@ defmodule BitPal.MixProject do
       "assets.deploy": [
         "sass default --no-source-map --style=compressed",
         "esbuild default --minify",
-        "phx.digest"
+        "copy-static-assets.sh"
       ]
     ]
   end

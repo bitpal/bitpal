@@ -30,7 +30,7 @@ config :bitpal, BitPalApi.Endpoint,
 config :bitpal, BitPalWeb.Endpoint,
   url: [host: "localhost"],
   secret_key_base: secret_key_base,
-  render_errors: [view: BitPalWeb.ErrorView, accepts: ~w(html json), layout: false],
+  render_errors: [view: BitPalWeb.ErrorView, accepts: ~w(html), layout: false],
   pubsub_server: BitPalWeb.PubSub,
   live_view: [signing_salt: "SIw7qWuU"]
 
@@ -49,7 +49,7 @@ config :scribe, style: Scribe.Style.Psql
 config :esbuild,
   version: "0.12.18",
   default: [
-    args: ~w(js/app.js --bundle --target=es2016 --outdir=../priv/static/assets),
+    args: ~w(js/app.js --bundle --target=es2016 --outdir=../priv/static/js),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
   ]
@@ -58,7 +58,7 @@ config :esbuild,
 config :dart_sass,
   version: "1.36.0",
   default: [
-    args: ~w(css:../priv/static/assets),
+    args: ~w(css:../priv/static/css),
     cd: Path.expand("../assets", __DIR__)
   ]
 

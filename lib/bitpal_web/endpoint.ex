@@ -20,7 +20,7 @@ defmodule BitPalWeb.Endpoint do
     at: "/",
     from: :bitpal,
     gzip: false,
-    only: ~w(assets fonts images favicon.ico robots.txt)
+    only: ~w(css js fonts images favicon.ico robots.txt)
   )
 
   # Code reloading can be explicitly enabled under the

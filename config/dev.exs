@@ -26,15 +26,13 @@ config :bitpal, BitPalWeb.Endpoint,
       :install_and_run,
       [:default, ~w(--embed-source-map --source-map-urls=absolute --watch)]
     }
-  ]
-
-# Watch static and templates for browser reloading.
-config :bitpal, BitPalWeb.Endpoint,
+  ],
   live_reload: [
     patterns: [
       ~r"priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$",
       ~r"lib/bitpal_web/(live|views)/.*(ex)$",
-      ~r"lib/bitpal_web/templates/.*(eex)$"
+      ~r"lib/bitpal_web/templates/.*(eex)$",
+      ~r"priv/server_docs/*.*(md)$"
     ]
   ]
 
@@ -49,3 +47,5 @@ config :phoenix, :stacktrace_depth, 20
 
 # Initialize plugs at runtime for faster development compilation
 config :phoenix, :plug_init_mode, :runtime
+
+config :logger, level: :info
