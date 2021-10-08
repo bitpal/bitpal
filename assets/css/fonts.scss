@@ -1,0 +1,61 @@
+$source-code-pro: 'SourceCodePro';
+@font-face {
+    font-family: $source-code-pro;
+    src: url('/fonts/SourceCodePro-Regular.otf.woff2') format('woff2');
+    font-style: normal;
+    font-weight: normal;
+}
+@font-face {
+    font-family: $source-code-pro;
+    src: url('/fonts/SourceCodePro-Bold.otf.woff2') format('woff2');
+    font-style: normal;
+    font-weight: bold;
+}
+@font-face {
+    font-family: $source-code-pro;
+    src: url('/fonts/SourceCodePro-It.otf.woff2') format('woff2');
+    font-style: italic;
+    font-weight: normal;
+}
+$source-sans: 'SourceSans';
+@font-face {
+    font-family: $source-sans;
+    src: url('/fonts/SourceSans3-Regular.otf.woff2') format('woff2');
+    font-style: normal;
+    font-weight: normal;
+}
+@font-face {
+    font-family: $source-sans;
+    src: url('/fonts/SourceSans3-Bold.otf.woff2') format('woff2');
+    font-style: normal;
+    font-weight: bold;
+}
+@font-face {
+    font-family: $source-sans;
+    src: url('/fonts/SourceSans3-It.otf.woff2') format('woff2');
+    font-style: italic;
+    font-weight: normal;
+}
+$source-serif-pro: 'SourceSerifPro';
+@font-face {
+    font-family: $source-serif-pro;
+    src: url('/fonts/SourceSerifPro-Regular.otf.woff2') format('woff2');
+    font-style: normal;
+    font-weight: normal;
+}
+@font-face {
+    font-family: $source-serif-pro;
+    src: url('/fonts/SourceSerifPro-Bold.otf.woff2') format('woff2');
+    font-style: normal;
+    font-weight: bold;
+}
+@font-face {
+    font-family: $source-serif-pro;
+    src: url('/fonts/SourceSerifPro-It.otf.woff2') format('woff2');
+    font-style: italic;
+    font-weight: normal;
+}
+
+$sans-font-family: $source-sans, "Frutiger Linotype", Univers, Calibri, "Gill Sans", "Gill Sans MT", "Myriad Pro", Myriad, "DejaVu Sans Condensed", "Liberation Sans", "Nimbus Sans L", Tahoma, Geneva, "Helvetica Neue", Helvetica, Arial, sans-serif;
+$code-font-family: $source-code-pro, Consolas, "Andale Mono WT", "Andale Mono", "Lucida Console", "Lucida Sans Typewriter", "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "Liberation Mono", "Nimbus Mono L", Monaco, "Courier New", Courier, monospace;
+

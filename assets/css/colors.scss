@@ -1,0 +1,135 @@
+// Color ideas
+// https://www.awwwards.com/sites/panera-land-of-clean
+// https://visme.co/blog/website-color-schemes/
+// https://www.shutterstock.com/blog/wp-content/uploads/sites/5/2020/04/Color-Palettes-for-Websites-Images-Health-Beauty4.jpg
+
+// Colors we need
+
+// Accents
+//      Red: warnings/errors
+//      Green: ok/
+//      Yellow: notices
+
+
+// Tailwind color refs:
+// https://tailwindcolor.com/
+// https://tailwindcss-v0.netlify.app/docs/colors/
+// https://tailwindcss.com/docs/customizing-colors
+
+// Primary
+$brown-50:  #fbfaf6;
+$brown-100: #f8efd2; // A bit too much yellow
+$brown-100: #f9ecdc;
+$brown-200: #f1d9a5;
+$brown-300: #ddb371;
+$brown-400: #c68845;
+$brown-500: #aa6828;
+$brown-600: #8d4e1a;
+$brown-700: #6c3a16;
+$brown-800: #4b2812;
+$brown-900: #31190c;
+
+// Neutral
+
+// Accents
+$green-50:  #f5f7f5;
+$green-100: #e8efeb; // Too light?
+$green-200: #cce0d4;
+$green-300: #9cc1ab;
+$green-400: #609e7e;
+$green-500: #478058;
+$green-600: #3a6641;
+$green-700: #304e33;
+$green-800: #223527;
+$green-900: #16211b;
+//
+$aqua-50:  #f3f7f6;
+$aqua-100: #dfeff3;
+$aqua-200: #b9e1e5;
+$aqua-300: #85c3c7;
+$aqua-400: #49a1a3;
+$aqua-500: #358380;
+$aqua-600: #2d6a66;
+$aqua-700: #26504f;
+$aqua-800: #1c373a;
+$aqua-900: #122328;
+// This is fine
+$blue-50:  #f5f8f8;
+$blue-100: #e2eff6;
+$blue-200: #c1deed;
+$blue-300: #92bfd6;
+$blue-400: #5c9aba;
+$blue-500: #467a9e;
+$blue-600: #3a6083;
+$blue-700: #2f4866;
+$blue-800: #223248;
+$blue-900: #151f30;
+// Very nice
+$purple-50:  #f8f9fa;
+$purple-100: #eceff9;
+$purple-200: #d7d8f2;
+$purple-300: #b3b4e1;
+$purple-400: #918ccc;
+$purple-500: #7769b8;
+$purple-600: #614e9e;
+$purple-700: #4a3a7c;
+$purple-800: #332856;
+$purple-900: #1e1a35;
+// Also very nice
+$dark-purple-50:  #f9fafa;
+$dark-purple-100: #f0eff7;
+$dark-purple-200: #e0d7ef;
+$dark-purple-300: #c1b2da;
+$dark-purple-400: #a588c1;
+$dark-purple-500: #8b65a9;
+$dark-purple-600: #724a8d;
+$dark-purple-700: #56376c;
+$dark-purple-800: #3b264a;
+$dark-purple-900: #23182c;
+// Very nice
+$pink-50:  #fbfaf9;
+$pink-100: #f6efef;
+$pink-200: #edd5df;
+$pink-300: #d8aebd;
+$pink-400: #c68297;
+$pink-500: #ad6076;
+$pink-600: #914558;
+$pink-700: #6f3442;
+$pink-800: #4d242d;
+$pink-900: #2f171b;
+// Nice
+$red-50:  #fbfaf8;
+$red-100: #f8efe3;
+$red-200: #f1d6c6;
+$red-300: #dfae98;
+$red-400: #ce826b;
+$red-500: #b66048;
+$red-600: #9a4632;
+$red-700: #763427;
+$red-800: #52241c;
+$red-900: #341712;
+
+
+// grey
+$grey-050: #F7F7F7;
+$grey-100: #E1E1E1;
+$grey-200: #CFCFCF;
+$grey-300: #B1B1B1;
+$grey-400: #9E9E9E;
+$grey-500: #7E7E7E;
+$grey-600: #626262;
+$grey-700: #515151;
+$grey-800: #3B3B3B;
+$grey-900: #222222;
+
+// warm grey
+$warm-grey-050: #FAF9F7;
+$warm-grey-100: #E8E6E1;
+$warm-grey-200: #D3CEC4;
+$warm-grey-300: #B8B2A7;
+$warm-grey-400: #A39E93;
+$warm-grey-500: #857F72;
+$warm-grey-600: #625D52;
+$warm-grey-700: #504A40;
+$warm-grey-800: #423D33;
+$warm-grey-900: #27241D;

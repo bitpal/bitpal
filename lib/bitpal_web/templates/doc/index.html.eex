@@ -1,0 +1,5 @@
+<%= for entry <- @entries do %>
+  <h1><%= entry.title %></h1>
+
+  <%= raw entry.body %>
+<% end %>

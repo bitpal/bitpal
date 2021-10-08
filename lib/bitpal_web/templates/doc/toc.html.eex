@@ -1,0 +1,7 @@
+<ul>
+  <%= for entry <- @entries do %>
+    <li>
+      <%= link(entry.title, to: Routes.doc_path(@conn, :show, entry.id)) %>
+    </li>
+  <% end %>
+</ul>

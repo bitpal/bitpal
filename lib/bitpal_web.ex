@@ -86,6 +86,7 @@ defmodule BitPalWeb do
       import Phoenix.View
 
       import BitPalWeb.ErrorHelpers
+      import BitPalWeb.ViewHelpers
       alias BitPalWeb.Router.Helpers, as: Routes
     end
   end

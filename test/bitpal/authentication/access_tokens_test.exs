@@ -15,6 +15,8 @@ defmodule BitPal.AccessTokensTest do
 
   test "create and associate", %{store: store} do
     a = Tokens.create_token!(store)
+    # In a very odd case, they might be generated at the same time causing a collision
+    :timer.sleep(1)
     b = Tokens.create_token!(store)
 
     store = store |> Repo.preload([:access_tokens], force: true)

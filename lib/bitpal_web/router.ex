@@ -10,24 +10,28 @@ defmodule BitPalWeb.Router do
     plug(:put_secure_browser_headers)
   end
 
-  pipeline :api do
-    plug(:accepts, ["json"])
+  pipeline :doc do
+    plug(:browser)
+    plug(:put_root_layout, {BitPalWeb.LayoutView, :doc})
   end
 
   scope "/", BitPalWeb do
     pipe_through(:browser)
 
-    live("/", PageLive, :index)
+    get("/", HomeController, :index)
+  end
+
+  scope "/doc", BitPalWeb do
+    pipe_through(:doc)
+
+    get("/", DocController, :index)
+    get("/toc", DocController, :toc)
+    get("/:id", DocController, :show)
   end
 
   # Server hosted payment UI
 
   # Admin portal
-
-  # Other scopes may use custom stacks.
-  # scope "/api", BitPalWeb do
-  #   pipe_through :api
-  # end
 
   # Enables LiveDashboard only for development
   #
