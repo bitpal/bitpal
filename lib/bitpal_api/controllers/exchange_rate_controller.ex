@@ -17,11 +17,7 @@ defmodule BitPalApi.ExchangeRateController do
           currency
         end)
         |> Enum.flat_map(fn currency ->
-          if rate = ExchangeRateSupervisor.await_request!({basecurrency, currency}) do
-            [rate]
-          else
-            []
-          end
+          [ExchangeRateSupervisor.await_request!({basecurrency, currency})]
         end)
 
       render(conn, "index.json", rates: rates)
@@ -32,13 +28,11 @@ defmodule BitPalApi.ExchangeRateController do
   end
 
   def show(conn, %{"basecurrency" => from, "currency" => to}) do
-    case ExchangeRate.parse_pair({from, to}) do
-      {:ok, pair} ->
-        rate = ExchangeRateSupervisor.fetch!(pair)
-        render(conn, "show.json", rate: rate)
-
-      _ ->
-        raise NotFoundError, param: "basecurrency"
+    with {:ok, pair} <- ExchangeRate.parse_pair({from, to}),
+         rate <- ExchangeRateSupervisor.fetch!(pair) do
+      render(conn, "show.json", rate: rate)
+    else
+      _ -> raise NotFoundError, param: "basecurrency"
     end
   end
 end

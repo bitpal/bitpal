@@ -72,7 +72,13 @@ defmodule BitPal.Currencies do
 
   @spec cast(atom | String.t()) :: {:ok, Currency.id()} | :error
   def cast(id) do
-    {:ok, Money.Currency.to_atom(id)}
+    currency = Money.Currency.to_atom(id)
+
+    if currency do
+      {:ok, currency}
+    else
+      :error
+    end
   catch
     _ -> :error
   end

@@ -58,10 +58,15 @@ defmodule BitPal.ExchangeRateSupervisor do
     end
   end
 
-  @spec fetch!(ExchangeRate.pair(), keyword) :: ExchangeRate.t() | nil
+  @spec fetch!(ExchangeRate.pair(), keyword) :: ExchangeRate.t()
   def fetch!(pair, opts \\ []) do
-    request(pair, opts)
-    await_request!(pair)
+    case request(pair, opts) do
+      {:cached, rate} ->
+        rate
+
+      :updating ->
+        await_request!(pair)
+    end
   end
 
   @spec request(ExchangeRate.pair(), keyword) :: {:cached, ExchangeRate.t()} | :updating
@@ -76,9 +81,9 @@ defmodule BitPal.ExchangeRateSupervisor do
     end
   end
 
-  @spec await_request!(ExchangeRate.pair()) :: ExchangeRate.t() | nil
+  @spec await_request!(ExchangeRate.pair()) :: ExchangeRate.t()
   def await_request!(pair) do
     :ok = Worker.await_worker(pair)
-    Cache.get(@cache, pair)
+    Cache.fetch!(@cache, pair)
   end
 end

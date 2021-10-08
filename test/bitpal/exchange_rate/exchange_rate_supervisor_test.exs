@@ -125,7 +125,12 @@ defmodule BitPal.ExchangeRateSupervisorTest do
     assert :updating =
              ExchangeRateSupervisor.request(@bchusd, backends: [TestBackend], test_crash: true)
 
-    assert nil == ExchangeRateSupervisor.await_request!(@bchusd)
+    try do
+      ExchangeRateSupervisor.await_request!(@bchusd)
+      assert false
+    rescue
+      _ -> assert true
+    end
   end
 
   test "timeout" do
@@ -136,7 +141,12 @@ defmodule BitPal.ExchangeRateSupervisorTest do
                request_timeout: 10
              )
 
-    assert nil == ExchangeRateSupervisor.await_request!(@bchusd)
+    try do
+      ExchangeRateSupervisor.await_request!(@bchusd)
+      assert false
+    rescue
+      _ -> assert true
+    end
   end
 
   test "supported" do
