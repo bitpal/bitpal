@@ -1,0 +1,468 @@
+@import "./fonts.scss";
+@import "./colors.scss";
+@import "./monokai.scss";
+
+// Spacing scale
+// 4px
+// 8px
+// 12px
+// 16px
+// 24px
+// 32px
+// 48px
+// 64px
+// 96px
+// 128px
+// 192px
+// 256px
+// 384px
+// 512px
+// 640px
+// 768px
+
+// Font sizes
+// 12px
+// 14px
+// 16px
+// 18px
+// 20px
+// 24px
+// 30px
+// 36px
+// 48px
+// 60px
+// 72px
+
+* {
+    // Predictable styling.
+    margin: 0;
+    padding: 0;
+    // Better box model, includes border in width calculations.
+    box-sizing: border-box;
+    // Flexbox overrides min-width which makes <pre> not overflow properly
+    // https://weblog.west-wind.com/posts/2016/Feb/15/Flexbox-Containers-PRE-tags-and-managing-Overflow
+    min-width: 0;
+}
+
+// Make footer extend to the very bottom of the page if there's space to do so
+// https://stackoverflow.com/questions/147528/how-do-i-force-a-div-block-to-extend-to-the-bottom-of-a-page-even-if-it-has-no-c
+html, body {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+body > * {
+  flex-shrink: 0;
+}
+footer {
+    flex-grow: 1;
+}
+.main-wrapper {
+    // Remove this if we want a footer
+    flex-grow: 1;
+}
+
+body {
+    font-size: 16px;
+    line-height: 1.45;
+    font-family: $sans-font-family;
+    text-rendering: optimizeLegibility;
+    background-color: $brown-50;
+    color: $brown-900;
+}
+
+// Site layout
+
+a, a:link {
+    color: $brown-600;
+}
+a:hover {
+    color: $brown-800;
+}
+
+.invalid-link {
+    color: $red-400;
+    text-decoration: underline dotted $red-400;
+}
+
+.main-content {
+    ul {
+        list-style: none;
+    }
+    ul li::before {
+        content: "•";
+        content: "⇝";
+
+        margin-left: -24px;
+        padding-right: 8px;
+        color: $brown-600;
+    }
+    ul li {
+        margin-left: 8px;
+    }
+}
+
+.main-wrapper {
+    display: flex;
+    justify-content: center;
+}
+
+.main-wrapper > .left-sidebar {
+    max-width: 240px;
+    flex: 1;
+}
+
+.main-wrapper > .main-content {
+    flex: 1;
+    max-width: 800px;
+}
+
+.main-wrapper > .right-sidebar {
+    width: 540px;
+}
+
+footer {
+    display: flex;
+    justify-content: center;
+}
+
+p ~ aside, aside ~ aside, p ~ pre {
+    margin-top: 16px;
+}
+
+aside.notice, aside.success, aside.warning, aside.security {
+    padding: 16px;
+    border: 1px solid #272822;
+}
+aside svg {
+    height: 1.1em;
+    position: relative;
+    top: 4px;
+    display: inline-block;
+}
+aside.notice {
+  background-color: $brown-200;
+  border-color: $brown-300;
+
+  .header {
+      color: $brown-800;
+      font-weight: bold;
+  }
+}
+aside.success {
+    background-color: $green-200;
+    border-color: $green-300;
+
+    .header {
+        color: $green-800;
+        font-weight: bold;
+    }
+}
+aside.warning {
+    background-color: $red-200;
+    border-color: $red-300;
+
+    .header {
+        color: $red-800;
+        font-weight: bold;
+    }
+}
+aside.security {
+    background-color: $dark-purple-200;
+    border-color: $dark-purple-300;
+
+    .header {
+        color: $dark-purple-800;
+        font-weight: bold;
+    }
+}
+
+.icon-important {
+    .primary {
+        fill: $red-500;
+    }
+    .secondary {
+        fill: $red-200;
+    }
+}
+
+// .mybutton {
+//     width: 100px;
+//     height: 30px;
+//     margin: 20px;
+//     padding: 5px;
+//     text-align: center;
+//     border-radius: 5px;
+//     display: inline-block;
+//
+//     background-color: $brown-400;
+//     border-color: #ddd8c0;
+// }
+
+
+.left-sidebar {
+    padding: 18px 18px 18px 28px;
+    background-color: $brown-100;
+
+    p {
+        margin-top: 16px;
+    }
+
+    ul, ol {
+        margin-top: 12px;
+        padding-left: 16px;
+    }
+
+    h1 {
+        font-size: 18px;
+    }
+    h2 {
+        font-size: 16px;
+    }
+}
+
+.left-sidebar .header {
+    .title {
+        font-size: 30px;
+        font-weight: bold;
+    }
+    .title a {
+        color: $brown-900;
+        text-decoration: none;
+    }
+    .title a:hover {
+        text-decoration: underline;
+    }
+
+    .version {
+        margin-top: -8px;
+        padding-left: 4px;
+        font-size: 14px;
+    }
+    .version > .semver {
+        color: $brown-700;
+        margin-right: 8px;
+    }
+    .version > .commit {
+        // margin-left: 4px;
+    }
+    a.commit {
+        font-size: 10px;
+        color: $brown-500;
+        text-decoration: none;
+    }
+    a.commit:hover {
+        text-decoration: underline;
+    }
+}
+
+.left-sidebar .wrapper {
+    margin-top: 32px;
+}
+
+.left-sidebar .wrapper .help-entry {
+    margin-top: 16px;
+
+    h2 {
+        font-size: 16px;
+        font-weight: bold;
+    }
+
+    p {
+        margin-top: 0;
+    }
+}
+
+// Main
+
+.main-content {
+    margin: 32px 64px 64px 64px;
+    // padding-left: 64px;
+    // padding-right: 64px;
+    // padding-bottom: 64px;
+    // border-bottom: 4px solid $brown-400;
+
+    h1 {
+        font-size: 48px;
+        // border-bottom: 4px solid $brown-400;
+        // margin-bottom: 32px;
+    }
+    h2 {
+        font-size: 32px;
+        margin-top: 48px;
+        padding-top: 32px;
+        // margin-top: 32px;
+        padding-top: 48px;
+        border-top: 1px solid $brown-300;
+    }
+    h3 {
+        font-size: 24px;
+        margin-top: 24px;
+    }
+    h4 {
+        font-size: 18px;
+    }
+
+    p {
+        margin-top: 16px;
+    }
+
+    ul, ol {
+        margin-top: 16px;
+        padding-left: 16px;
+    }
+}
+
+
+p.alert {
+    display: none;
+    margin: 0;
+    padding: 0;
+}
+
+// Things on right sidebar
+
+.right-sidebar {
+    // background-color: $brown-100;
+}
+.right-sidebar > nav {
+    display: flex;
+    justify-content: flex-end;
+    padding: 18px;
+}
+
+blockquote, aside {
+    float: right;
+    clear: right;
+    margin-right: -590px;
+    width: 510px;
+    position: relative;
+    display: inline-block;
+}
+
+blockquote > p {
+    padding: 12px;
+    background-color: $brown-200;
+    font-family: $code-font-family;
+    font-size: 14px;
+}
+
+aside > .header {
+    padding: 12px;
+    background-color: $brown-200;
+    font-family: $code-font-family;
+    font-size: 14px;
+}
+
+.endpoints {
+    // color: #f8f8f2;
+    background-color: $warm-grey-100;
+    font-family: $code-font-family;
+    font-size: 14px;
+
+    a {
+        // color: #f8f8f2;
+        // text-decoration: none;
+    }
+
+    ul {
+        list-style: none;
+    }
+    ul li::before {
+        content: "";
+    }
+}
+
+.http-status-code {
+    background-color: $warm-grey-100;
+    font-family: $code-font-family;
+    font-size: 14px;
+
+    .row {
+        // display: flex;
+        .code {
+            font-weight: bold;
+            // width: 15em;
+            // background-color: $warm-grey-500;
+        }
+    }
+}
+
+// Code
+
+pre {
+    color: #f8f8f2; 
+    background-color: #272822;
+    // background-color: #f6f0e4;
+
+    padding: 12px 16px 16px 16px;
+
+    overflow-wrap: normal;
+    overflow: auto;
+
+    // margin-top: 8px;
+    margin-bottom: 16px;
+}
+
+code {
+    font-family: $code-font-family;
+    font-size: 14px;
+    // max-width: 380px;
+}
+
+// Footer
+
+footer {
+    // margin-top: 64px;
+    // border-top: 64px solid $brown-100;
+    background-color: $brown-200;
+    // border-top: 4px solid $brown-400;
+}
+footer > .footer-wrapper {
+    display: flex;
+    justify-content: space-around;
+    flex: 1;
+    max-width: 800px;
+}
+
+footer > .footer-wrapper > .column {
+    margin-top: 24px;
+    margin-bottom: 24px;
+    padding: 12px;
+
+    h1 {
+        font-size: 18px;
+    }
+
+    ul, ol {
+        margin-top: 16px;
+        padding-left: 2px;
+        list-style: none;
+    }
+    li {
+        margin-top: 6px;
+    }
+
+    a {
+        color: $brown-700;
+        text-decoration: none;
+    }
+    a:hover {
+        text-decoration: underline;
+    }
+}
+
+
+// Colorize is fun!
+// .left-sidebar {
+//     background-color: salmon;
+// }
+// .main-content {
+//     // background-color: aqua;
+// }
+// .right-sidebar {
+//     background-color: yellow;
+// }
+// footer {
+//     background-color: green;
+// }
