@@ -36,8 +36,6 @@ config :bitpal, BitPalWeb.Endpoint,
     ]
   ]
 
-config :bitpal, :enable_live_dashboard, true
-
 # Do not include metadata nor timestamps in development logs
 config :logger, :console, format: "[$level] $message\n"
 
@@ -47,5 +45,9 @@ config :phoenix, :stacktrace_depth, 20
 
 # Initialize plugs at runtime for faster development compilation
 config :phoenix, :plug_init_mode, :runtime
+
+# Run a preview email server during dev
+config :bitpal, BitPal.Mailer, adapter: Swoosh.Adapters.Local
+config :swoosh, serve_mailbox: true, preview_port: 4011
 
 config :logger, level: :info

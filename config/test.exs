@@ -18,7 +18,11 @@ config :bitpal, BitPalWeb.Endpoint,
   http: [port: 4002],
   server: false
 
-config :bitpal, :enable_live_dashboard, true
+# Only in tests, remove the complexity from the password hashing algorithm
+config :argon2_elixir, t_cost: 1, m_cost: 8
+
+# In test we don't send emails.
+config :bitpal, BitPal.Mailer, adapter: Swoosh.Adapters.Test
 
 # Print only warnings and errors during test
 config :logger, level: :warn

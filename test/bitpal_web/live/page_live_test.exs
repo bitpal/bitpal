@@ -3,7 +3,7 @@ defmodule BitPalWeb.PageLiveTest do
 
   import Phoenix.LiveViewTest
 
-  test "redirect home", %{conn: conn} do
-    {:error, {:redirect, %{to: "/doc"}}} = live(conn, "/")
+  test "home redirection", %{conn: conn} do
+    {:error, {:redirect, %{to: "/users/log_in"}}} = live(conn, "/")
   end
 end

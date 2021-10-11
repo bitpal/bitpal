@@ -48,6 +48,12 @@ defmodule BitPal.Application do
       Application.ensure_all_started(app)
     end
 
-    Supervisor.start_link([BitPal.Repo], strategy: :one_for_one, name: BitPal.Supervisor)
+    children = [
+      BitPal.Repo,
+      BitPalWeb.Endpoint,
+      Supervisor.child_spec({Phoenix.PubSub, name: BitPalWeb.PubSub}, id: BitPalWeb.PubSub)
+    ]
+
+    Supervisor.start_link(children, strategy: :one_for_one, name: BitPal.Supervisor)
   end
 end

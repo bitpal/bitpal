@@ -31,8 +31,40 @@ defmodule BitPalWeb.ConnCase do
     end
   end
 
-  setup _tags do
-    start_supervised!(BitPalWeb.Endpoint)
+  setup tags do
+    # start_supervised!(BitPalWeb.Endpoint)
+    # start_supervised!(BitPal.Repo)
+
+    # This is how it was generated
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(BitPal.Repo, shared: not tags[:async])
+    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+
     {:ok, conn: Phoenix.ConnTest.build_conn()}
+  end
+
+  @doc """
+  Setup helper that registers and logs in users.
+
+      setup :register_and_log_in_user
+
+  It stores an updated connection and a registered user in the
+  test context.
+  """
+  def register_and_log_in_user(%{conn: conn}) do
+    user = BitPal.AccountsFixtures.user_fixture()
+    %{conn: log_in_user(conn, user), user: user}
+  end
+
+  @doc """
+  Logs the given `user` into the `conn`.
+
+  It returns an updated `conn`.
+  """
+  def log_in_user(conn, user) do
+    token = BitPal.Accounts.generate_user_session_token(user)
+
+    conn
+    |> Phoenix.ConnTest.init_test_session(%{})
+    |> Plug.Conn.put_session(:user_token, token)
   end
 end

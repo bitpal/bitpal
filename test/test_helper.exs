@@ -1,12 +1,14 @@
 # Ensure that all extra applications that our app depends on are started.
 # During testing we manually setup the individual parts instead.
-Application.load(:bitpal)
+# Application.load(:bitpal)
+#
+# for app <- Application.spec(:bitpal, :applications) do
+#   Application.ensure_all_started(app)
+# end
+#
+# BitPal.Currencies.configure_money()
 
-for app <- Application.spec(:bitpal, :applications) do
-  Application.ensure_all_started(app)
-end
-
-BitPal.Currencies.configure_money()
+BitPal.Application.start_lean()
 
 Mox.defmock(FloweeMock, for: BitPal.TCPClientAPI)
 
@@ -14,3 +16,4 @@ Mox.defmock(FloweeMock, for: BitPal.TCPClientAPI)
 Logger.configure(level: :warn)
 
 ExUnit.start()
+Ecto.Adapters.SQL.Sandbox.mode(BitPal.Repo, :manual)

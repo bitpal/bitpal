@@ -75,6 +75,8 @@ defmodule BitPal.MixProject do
       {:phoenix_live_view, "~> 0.16.4"},
       {:phoenix_pubsub, "~> 2.0"},
       {:plug_cowboy, "~> 2.5"},
+      {:argon2_elixir, "~> 2.0"},
+      {:swoosh, "~> 1.0"},
       {:dart_sass, "~> 0.2", runtime: Mix.env() == :dev},
       {:esbuild, "~> 0.2", runtime: Mix.env() == :dev},
       # Still some unresolved conflict with some libs requiring 0.4, but it's really fine...
@@ -100,7 +102,7 @@ defmodule BitPal.MixProject do
   defp aliases do
     [
       ci: ["bitpal.ci"],
-      setup: ["deps.get", "ecto.setup", "cmd npm install --prefix assets"],
+      setup: ["deps.get", "ecto.setup"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test --no-start"],

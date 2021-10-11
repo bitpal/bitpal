@@ -1,9 +1,7 @@
-# 1. Create a store
-# 2. Add access token
-
 import BitPal.CreationHelpers
 alias BitPal.Authentication.Tokens
 alias BitPal.Currencies
+alias BitPal.Accounts
 
 Currencies.register!(:BCH)
 Currencies.register!(:XMR)
@@ -16,6 +14,10 @@ token =
     store,
     "SFMyNTY.g2gDYQFuBgDWhevRegFiAAFRgA.fuiV-GbJoBUmKaSS5PW776HyeFh30-L9pgvn7wuQWKk"
   )
+
+# Create some users
+{:ok, _user} =
+  Accounts.register_user(%{email: "user_test@bitpal.dev", password: "test_test_test_test"})
 
 # Add some invoices just for testing and introspection purposes
 create_invoice(
