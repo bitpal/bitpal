@@ -1,4 +1,5 @@
 defmodule BitPal.Stores do
+  import Ecto.Changeset
   import Ecto.Query, only: [from: 2]
   alias BitPal.Repo
   alias BitPalSchemas.Invoice
@@ -23,6 +24,14 @@ defmodule BitPal.Stores do
   @spec create!(keyword) :: Store.t()
   def create!(params \\ []) do
     Repo.insert!(%Store{label: params[:label]})
+  end
+
+  @spec create(User.t(), map) :: {:ok, Store.t()} | {:error, Changeset.t()}
+  def create(user, params) do
+    %Store{users: [user]}
+    |> cast(params, [:label])
+    |> validate_required([:label])
+    |> Repo.insert()
   end
 
   @spec all :: [Store.t()]

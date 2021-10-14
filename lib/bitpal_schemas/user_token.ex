@@ -1,6 +1,8 @@
 defmodule BitPalSchemas.UserToken do
-  use Ecto.Schema
+  use TypedEctoSchema
   alias BitPalSchemas.User
+
+  @type id :: integer
 
   schema "users_tokens" do
     field(:token, :binary)

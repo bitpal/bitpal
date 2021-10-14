@@ -27,7 +27,19 @@ defmodule BitPalWeb.Router do
   scope "/", BitPalWeb do
     pipe_through([:browser, :store_layout, :require_authenticated_user])
 
-    get("/", StoreController, :index)
+    # Redirects to /stores for now
+    get("/", HomeController, :index)
+
+    get("/stores", StoreController, :index)
+    get("/stores/:store", StoreController, :show)
+    get("/stores/:store/invoices", InvoiceController, :index)
+    get("/stores/:store/invoices/:invoice", InvoiceController, :show)
+  end
+
+  scope "/", BitPalWeb do
+    pipe_through([:browser, :store_layout, :require_authenticated_user])
+
+    get("/stores/:store/settings", StoreSettingsController, :show)
   end
 
   # Admin and server management

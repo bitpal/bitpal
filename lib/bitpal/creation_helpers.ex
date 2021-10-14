@@ -1,10 +1,12 @@
 defmodule BitPal.CreationHelpers do
+  alias BitPal.Accounts
   alias BitPal.Addresses
   alias BitPal.Authentication.Tokens
   alias BitPal.Invoices
   alias BitPal.Stores
   alias BitPal.Transactions
   alias BitPalSchemas.Invoice
+  alias BitPalSchemas.AccessToken
   alias BitPalSchemas.Store
   alias BitPalSchemas.TxOutput
   alias Ecto.UUID
@@ -21,15 +23,61 @@ defmodule BitPal.CreationHelpers do
     "address:#{UUID.generate()}"
   end
 
-  @spec create_store :: Store.t()
-  def create_store(params \\ []) do
-    Stores.create!(params)
+  @spec generate_email :: String.t()
+  def generate_email do
+    "test#{UUID.generate()}@bitpal.dev"
   end
 
-  @spec create_auth :: %{store_id: Store.id(), token: String.t()}
-  def create_auth do
-    store = create_store()
-    token = Tokens.create_token!(store).data
+  @spec generate_store_label :: String.t()
+  def generate_store_label do
+    "Store #{UUID.generate()}"
+  end
+
+  @spec create_user! :: User.t()
+  def create_user!(params \\ []) do
+    {:ok, user} =
+      params
+      |> Enum.into(%{})
+      |> Map.put_new(:password, "test_test_test_test")
+      |> Map.put_new_lazy(:email, fn -> generate_email() end)
+      |> Accounts.register_user()
+
+    user
+  end
+
+  @spec create_store! :: Store.t()
+  def create_store!(params \\ []) do
+    user = user(params)
+
+    params =
+      params
+      |> Enum.into(%{})
+      |> Map.put_new_lazy(:label, fn -> generate_store_label() end)
+      |> Map.drop([:user_id, :user])
+
+    {:ok, store} = Stores.create(user, params)
+
+    if token = params[:token] do
+      create_token!(store, token)
+    end
+
+    store
+  end
+
+  @spec create_token!(Store.t()) :: AccessToken.t()
+  def create_token!(store) do
+    Tokens.create_token!(store).data
+  end
+
+  @spec create_token!(Store.t(), String.t()) :: AccessToken.t()
+  def create_token!(store, token_data) do
+    Tokens.insert_token!(store, token_data)
+  end
+
+  @spec create_auth! :: %{store_id: Store.id(), token: String.t()}
+  def create_auth! do
+    store = create_store!()
+    token = create_token!(store)
 
     %{
       store_id: store.id,
@@ -37,8 +85,8 @@ defmodule BitPal.CreationHelpers do
     }
   end
 
-  @spec create_invoice(keyword) :: Invoice.t()
-  def create_invoice(params \\ []) do
+  @spec create_invoice!(keyword) :: Invoice.t()
+  def create_invoice!(params \\ []) do
     store_id = store_id(params)
 
     params =
@@ -59,11 +107,24 @@ defmodule BitPal.CreationHelpers do
     |> change_status(params)
   end
 
+  defp user(params) do
+    cond do
+      user = params[:user] ->
+        user
+
+      user_id = params[:user_id] ->
+        Accounts.get_user!(user_id)
+
+      true ->
+        create_user!()
+    end
+  end
+
   defp store_id(params) do
     if store_id = params[:store_id] do
       store_id
     else
-      create_store().id
+      create_store!().id
     end
   end
 
@@ -86,16 +147,16 @@ defmodule BitPal.CreationHelpers do
 
   defp change_status(invoice, _), do: invoice
 
-  @spec create_transaction(keyword) :: TxOutput.txid()
-  def create_transaction(params \\ []) do
-    invoice = create_invoice(Keyword.put_new(params, :address, :auto))
+  @spec create_transaction!(keyword) :: TxOutput.txid()
+  def create_transaction!(params \\ []) do
+    invoice = create_invoice!(Keyword.put_new(params, :address, :auto))
     txid = generate_txid()
     :ok = Transactions.seen(txid, [{invoice.address_id, invoice.amount}])
     txid
   end
 
-  @spec create_invoice_transaction(Invoice.t(), keyword) :: Invoice.t()
-  def create_invoice_transaction(invoice, params \\ []) do
+  @spec create_invoice_transaction!(Invoice.t(), keyword) :: Invoice.t()
+  def create_invoice_transaction!(invoice, params \\ []) do
     txid = generate_txid()
 
     amount =

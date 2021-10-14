@@ -3,10 +3,11 @@ defmodule BitPal.StoreTest do
   alias BitPal.Repo
   alias BitPal.Stores
 
-  test "store invoice association" do
-    store = Stores.create!(label: "My Store")
-    assert store.label == "My Store"
+  setup tags do
+    %{store: create_store(tags) |> Repo.preload([:users])}
+  end
 
+  test "store invoice association", %{store: store} do
     assert {:ok, invoice} =
              Invoices.register(
                store.id,
