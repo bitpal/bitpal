@@ -101,7 +101,8 @@ defmodule BitPal.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      ci: ["bitpal.ci"],
+      ci: "bitpal.ci",
+      "phx.routes": "phx.routes BitPalWeb.Router",
       setup: ["deps.get", "ecto.setup"],
       "ecto.dev_reset": ["ecto.reset", "run priv/repo/dev_seeds.exs"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],

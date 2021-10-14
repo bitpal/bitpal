@@ -10,6 +10,7 @@ defmodule Seeder do
   def user1 do
     user = create_user!(email: "test@bitpal.dev", password: "test_test_test_test")
     store1(user)
+    store2(user)
   end
 
   def store1(user) do
@@ -21,6 +22,10 @@ defmodule Seeder do
     )
 
     generate_invoices1(store)
+  end
+
+  def store2(user) do
+    store = create_store!(user: user, label: "Other store")
   end
 
   def generate_invoices1(store) do

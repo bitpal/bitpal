@@ -4,7 +4,7 @@ defmodule BitPalSchemas.UserToken do
 
   @type id :: integer
 
-  schema "users_tokens" do
+  typed_schema "users_tokens" do
     field(:token, :binary)
     field(:context, :string)
     field(:sent_to, :string)

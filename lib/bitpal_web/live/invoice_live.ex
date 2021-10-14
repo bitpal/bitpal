@@ -1,0 +1,59 @@
+defmodule BitPalWeb.InvoiceLive do
+  use BitPalWeb, :live_view
+  alias BitPal.Repo
+  alias BitPal.InvoiceEvents
+  alias BitPal.InvoiceManager
+
+  on_mount(BitPalWeb.UserLiveAuth)
+
+  @impl true
+  def mount(%{"id" => invoice_id}, _session, socket) do
+    # FIXME need to ensure that user has access to invoice
+    {:ok, assign(socket, invoice_id: invoice_id)}
+  end
+
+  @impl true
+  def render(assigns) do
+    render(BitPalWeb.InvoiceView, "show.html", assigns)
+  end
+
+  @impl true
+  def handle_params(%{"id" => invoice_id}, _uri, socket) do
+    InvoiceEvents.subscribe(invoice_id)
+    update_invoice(invoice_id, socket)
+  end
+
+  @impl true
+  def handle_info({event, _data}, socket) do
+    # A better solution is a CRDT, where we rebuild the invoice status
+    # depending on the messages we receive. It's a bit more cumbersome,
+    # but it would us allow to combine distributed data easily.
+    # For now we'll just reload from the database for simplicity.
+    case Atom.to_string(event) do
+      "invoice_" <> _ ->
+        update_invoice(socket)
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  defp update_invoice(socket = %{assigns: %{invoice: invoice}}) do
+    update_invoice(invoice.id, socket)
+  end
+
+  defp update_invoice(invoice_id, socket) do
+    case InvoiceManager.fetch_or_load_invoice(invoice_id) do
+      {:ok, invoice} ->
+        invoice =
+          invoice
+          |> Repo.preload([:tx_outputs])
+
+        {:noreply, assign(socket, invoice: invoice)}
+
+      _ ->
+        # FIXME how to handle this error?
+        {:noreply, socket}
+    end
+  end
+end

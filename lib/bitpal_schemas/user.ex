@@ -4,7 +4,7 @@ defmodule BitPalSchemas.User do
 
   @type id :: integer
 
-  schema "users" do
+  typed_schema "users" do
     field(:email, :string)
     field(:password, :string, virtual: true, redact: true)
     field(:hashed_password, :string, redact: true)

@@ -4,6 +4,7 @@ defmodule BitPal.Stores do
   alias BitPal.Repo
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.Store
+  alias BitPalSchemas.User
   alias BitPalSchemas.TxOutput
 
   @spec fetch(non_neg_integer) :: {:ok, Store.t()} | :error
@@ -37,6 +38,12 @@ defmodule BitPal.Stores do
   @spec all :: [Store.t()]
   def all do
     Repo.all(Store)
+  end
+
+  @spec user_stores(User.t()) :: [Store.t()]
+  def user_stores(user) do
+    user = user |> Repo.preload(:stores)
+    user.stores
   end
 
   @spec tx_outputs(Store.id()) :: [TxOutput.t()]

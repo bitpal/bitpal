@@ -1,0 +1,11 @@
+Stores:
+
+<ul>
+  <%= for store <- @stores do %>
+    <li><%= link(store.label, to: Routes.store_path(@socket, :show, store)) %></li>
+  <% end %>
+</ul>
+
+<%= link("Store settings", to: Routes.server_settings_path(@socket, :show)) %>
+
+TODO Server status

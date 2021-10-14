@@ -22,27 +22,32 @@ defmodule BitPalWeb.Router do
     plug(:put_root_layout, {BitPalWeb.LayoutView, :doc})
   end
 
+  # Dashboard
+
+  scope "/", BitPalWeb do
+    pipe_through([:browser, :store_layout, :require_authenticated_user])
+
+    live("/", HomeLive, :dashboard)
+  end
+
   # Store management
 
   scope "/", BitPalWeb do
     pipe_through([:browser, :store_layout, :require_authenticated_user])
 
-    # Redirects to /stores for now
-    get("/", HomeController, :index)
+    live("/stores/:id", StoreLive, :show)
+    live("/invoices/:id", InvoiceLive, :show)
 
-    get("/stores", StoreController, :index)
-    get("/stores/:store", StoreController, :show)
-    get("/stores/:store/invoices", InvoiceController, :index)
-    get("/stores/:store/invoices/:invoice", InvoiceController, :show)
+    live("/stores/:id/settings", StoreSettingsLive, :show)
   end
+
+  # Admin and server management
 
   scope "/", BitPalWeb do
     pipe_through([:browser, :store_layout, :require_authenticated_user])
 
-    get("/stores/:store/settings", StoreSettingsController, :show)
+    live("/server/settings", ServerSettingsLive, :show)
   end
-
-  # Admin and server management
 
   scope "/", BitPalWeb do
     pipe_through([:browser, :require_authenticated_user])
