@@ -16,6 +16,7 @@ defmodule BitPalWeb.ConnCase do
   """
 
   use ExUnit.CaseTemplate
+  alias BitPal.DataCase
 
   using do
     quote do
@@ -32,12 +33,7 @@ defmodule BitPalWeb.ConnCase do
   end
 
   setup tags do
-    # start_supervised!(BitPalWeb.Endpoint)
-    # start_supervised!(BitPal.Repo)
-
-    # This is how it was generated
-    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(BitPal.Repo, shared: not tags[:async])
-    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+    DataCase.setup_db(tags)
 
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end

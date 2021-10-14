@@ -6,7 +6,7 @@ defmodule BitPal.IntegrationCase do
   """
 
   use ExUnit.CaseTemplate
-  alias Ecto.Adapters.SQL.Sandbox
+  alias BitPal.DataCase
 
   using do
     quote do
@@ -42,7 +42,7 @@ defmodule BitPal.IntegrationCase do
     start_supervised!({Task.Supervisor, name: BitPal.TaskSupervisor})
     start_supervised!({BitPal.Cache, name: BitPal.RuntimeStorage, ttl_check_interval: false})
 
-    setup_db(tags)
+    DataCase.setup_db(tags)
 
     BitPal.Currencies.register!([:XMR, :BCH, :DGC])
 
@@ -51,15 +51,6 @@ defmodule BitPal.IntegrationCase do
     end
 
     :ok
-  end
-
-  defp setup_db(tags) do
-    start_supervised(BitPal.Repo)
-    :ok = Sandbox.checkout(BitPal.Repo)
-
-    unless tags[:async] do
-      Sandbox.mode(BitPal.Repo, {:shared, self()})
-    end
   end
 
   defp setup_backends(tags) do

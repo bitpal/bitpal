@@ -29,10 +29,16 @@ defmodule BitPal.DataCase do
   end
 
   setup tags do
-    start_supervised(BitPal.Repo)
-    pid = Sandbox.start_owner!(BitPal.Repo, shared: not tags[:async])
-    on_exit(fn -> Sandbox.stop_owner(pid) end)
+    setup_db(tags)
     :ok
+  end
+
+  def setup_db(tags) do
+    pid = Sandbox.start_owner!(BitPal.Repo, shared: not tags[:async])
+
+    on_exit(fn ->
+      Sandbox.stop_owner(pid)
+    end)
   end
 
   @doc """

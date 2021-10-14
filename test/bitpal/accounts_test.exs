@@ -1,5 +1,5 @@
 defmodule BitPal.AccountsTest do
-  use BitPal.DataCase
+  use BitPal.DataCase, async: true
 
   alias BitPal.Accounts
 
