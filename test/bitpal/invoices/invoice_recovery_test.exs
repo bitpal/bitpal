@@ -20,7 +20,7 @@ defmodule BitPal.InvoiceRecoveryTest do
     # Then wait for it to be restarted
     handler = wait_for_handler(inv.id, handler)
 
-    inv = InvoiceHandler.get_invoice(handler)
+    inv = InvoiceHandler.fetch_invoice!(handler)
     assert inv.status == :processing
 
     BackendMock.confirmed_in_new_block(inv)
@@ -71,7 +71,7 @@ defmodule BitPal.InvoiceRecoveryTest do
   end
 
   defp wait_for_handler(invoice_id, prev_handler) do
-    case InvoiceManager.get_handler(invoice_id) do
+    case InvoiceManager.fetch_handler(invoice_id) do
       {:ok, ^prev_handler} ->
         Process.sleep(10)
         wait_for_handler(invoice_id, prev_handler)

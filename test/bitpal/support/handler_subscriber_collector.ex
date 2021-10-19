@@ -113,7 +113,7 @@ defmodule BitPal.HandlerSubscriberCollector do
   defp track(invoice, state) do
     :ok = InvoiceEvents.subscribe(invoice)
     {:ok, invoice} = InvoiceManager.finalize_invoice(invoice)
-    {:ok, handler} = InvoiceManager.get_handler(invoice.id)
+    {:ok, handler} = InvoiceManager.fetch_handler(invoice.id)
     {:reply, {invoice, handler}, state}
   end
 

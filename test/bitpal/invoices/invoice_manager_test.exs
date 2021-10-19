@@ -29,8 +29,8 @@ defmodule InvoiceManagerTest do
     assert {:ok, inv2_id} = InvoiceManager.finalize_and_track(inv2)
 
     assert inv1_id != inv2_id
-    assert {:ok, inv1_pid} = InvoiceManager.get_handler(inv1_id)
-    assert {:ok, inv2_pid} = InvoiceManager.get_handler(inv2_id)
+    assert {:ok, inv1_pid} = InvoiceManager.fetch_handler(inv1_id)
+    assert {:ok, inv2_pid} = InvoiceManager.fetch_handler(inv2_id)
     assert inv1_pid != inv2_pid
     assert InvoiceManager.count_children() == 2
 

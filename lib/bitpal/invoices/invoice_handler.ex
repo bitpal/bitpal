@@ -29,11 +29,22 @@ defmodule BitPal.InvoiceHandler do
     }
   end
 
-  @spec get_invoice(handler) :: Invoice.t()
-  def get_invoice(handler) do
+  @spec fetch_invoice!(handler) :: Invoice.t()
+  def fetch_invoice!(handler) do
     GenServer.call(handler, :get_invoice)
   end
 
+  @spec fetch_invoice(handler) :: {:ok, Invoice.t()} | {:error, :not_started}
+  def fetch_invoice(handler) do
+    try do
+      {:ok, GenServer.call(handler, :get_invoice)}
+    catch
+      # The GenServer shuts down when an invoice has been paid, which causes
+      # the caller to exit.
+      :exit, _reason ->
+        {:error, :not_started}
+    end
+  end
   # Server API
 
   @impl true

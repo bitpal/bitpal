@@ -16,7 +16,7 @@ defmodule BitPal.InvoiceManager do
   @spec finalize_invoice(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Changeset.t()}
   def finalize_invoice(invoice) do
     with {:ok, invoice_id} <- finalize_and_track(invoice),
-         {:ok, invoice} <- get_invoice(invoice_id) do
+         {:ok, invoice} <- fetch_invoice(invoice_id) do
       {:ok, invoice}
     else
       err -> err
@@ -39,23 +39,30 @@ defmodule BitPal.InvoiceManager do
     GenServer.call(__MODULE__, {:configure, opts})
   end
 
-  @spec get_handler(Invoice.id()) :: {:ok, pid} | {:error, :not_found}
-  def get_handler(invoice_id) do
+  @spec fetch_handler(Invoice.id()) :: {:ok, pid} | {:error, :not_found}
+  def fetch_handler(invoice_id) do
     ProcessRegistry.get_process(InvoiceHandler.via_tuple(invoice_id))
   end
 
-  @spec get_invoice(Invoice.id()) :: {:ok, Invoice.t()} | {:error, :not_found}
-  def get_invoice(invoice_id) do
-    case get_handler(invoice_id) do
-      {:ok, handler} ->
-        # Block until handler has finalized the invoice, which may change invoice details.
-        invoice = InvoiceHandler.get_invoice(handler)
-        # Must be ok, otherwise there's a bug somewhere
-        if !Invoices.finalized?(invoice), do: raise("invoice not finalized yet!")
-        {:ok, invoice}
+  @spec fetch_invoice(Invoice.id()) :: {:ok, Invoice.t()} | {:error, :not_found}
+  def fetch_invoice(invoice_id) do
+    with {:ok, handler} <- fetch_handler(invoice_id),
+         # Blocks until handler has finalized the invoice, which may change invoice details.
+         {:ok, invoice} <- InvoiceHandler.fetch_invoice(handler) do
+      # Must be finalized, otherwise there's a logic bug somewhere when initializing handler.
+      if !Invoices.finalized?(invoice), do: raise("invoice not finalized yet!")
+      {:ok, invoice}
+    else
+      _ ->
+        {:error, :not_found}
+    end
+  end
 
-      err ->
-        err
+  @spec fetch_or_load_invoice(Invoice.id()) :: {:ok, Invoice.t()} | {:error, :not_found}
+  def fetch_or_load_invoice(invoice_id) do
+    case fetch_invoice(invoice_id) do
+      {:ok, invoice} -> {:ok, invoice}
+      _ -> Invoices.fetch(invoice_id)
     end
   end
 
@@ -64,7 +71,7 @@ defmodule BitPal.InvoiceManager do
     DynamicSupervisor.which_children(@supervisor)
     |> Enum.map(fn {_, pid, _, _} ->
       pid
-      |> InvoiceHandler.get_invoice()
+      |> InvoiceHandler.fetch_invoice!()
     end)
   end
 
