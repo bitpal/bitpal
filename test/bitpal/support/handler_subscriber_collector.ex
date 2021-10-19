@@ -1,4 +1,4 @@
-defmodule HandlerSubscriberCollector do
+defmodule BitPal.HandlerSubscriberCollector do
   use GenServer
   alias BitPal.Addresses
   alias BitPal.InvoiceEvents

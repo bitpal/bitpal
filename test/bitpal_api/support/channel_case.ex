@@ -29,6 +29,8 @@ defmodule BitPalApi.ChannelCase do
 
       # The default endpoint for testing
       @endpoint BitPalApi.Endpoint
+
+      alias BitPal.HandlerSubscriberCollector
     end
   end
 

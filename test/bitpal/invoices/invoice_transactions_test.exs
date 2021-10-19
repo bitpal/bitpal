@@ -4,7 +4,7 @@ defmodule BitPal.InvoiceTransactionsTest do
   alias BitPalSchemas.TxOutput
 
   setup do
-    invoice = create_invoice(amount: 1.2, required_confirmations: 5, address: :auto)
+    invoice = create_invoice!(amount: 1.2, required_confirmations: 5, address: :auto)
     %{invoice: invoice, address: invoice.address}
   end
 

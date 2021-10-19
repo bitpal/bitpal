@@ -2,7 +2,7 @@ defmodule BitPal.InvoiceActionsTest do
   use BitPal.IntegrationCase
 
   setup tags do
-    %{invoice: create_invoice(tags)}
+    %{invoice: create_invoice!(tags)}
   end
 
   test "transitions", %{invoice: invoice} do

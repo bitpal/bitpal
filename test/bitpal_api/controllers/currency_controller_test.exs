@@ -15,12 +15,12 @@ defmodule BitPalApi.CurrencyControllerTest do
 
   @tag backends: @backends
   test "show", %{conn: conn} do
-    a = create_invoice(conn, address: :auto)
-    b = create_invoice(conn, address: :auto)
+    a = create_invoice!(conn, address: :auto)
+    b = create_invoice!(conn, address: :auto)
 
     # Should not show up
-    _ = create_invoice(address: :auto)
-    _ = create_invoice(currency: :LTC, address: :auto)
+    _ = create_invoice!(address: :auto)
+    _ = create_invoice!(currency: :LTC, address: :auto)
 
     conn = get(conn, "/v1/currencies/BCH")
 

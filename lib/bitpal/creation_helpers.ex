@@ -5,6 +5,8 @@ defmodule BitPal.CreationHelpers do
   alias BitPal.Invoices
   alias BitPal.Stores
   alias BitPal.Transactions
+  alias BitPal.AccountsFixtures
+  alias BitPal.StoresFixtures
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.AccessToken
   alias BitPalSchemas.Store
@@ -14,36 +16,16 @@ defmodule BitPal.CreationHelpers do
   # Creation helpers
 
   @spec generate_txid :: String.t()
-  def generate_txid do
-    "txid:#{UUID.generate()}"
-  end
+  def generate_txid, do: "txid:#{UUID.generate()}"
 
   @spec generate_address_id :: String.t()
-  def generate_address_id do
-    "address:#{UUID.generate()}"
-  end
+  def generate_address_id, do: "address:#{UUID.generate()}"
 
   @spec generate_email :: String.t()
-  def generate_email do
-    "test#{UUID.generate()}@bitpal.dev"
-  end
+  def generate_email, do: AccountsFixtures.unique_user_email()
 
-  @spec generate_store_label :: String.t()
-  def generate_store_label do
-    "Store #{UUID.generate()}"
-  end
-
-  @spec create_user! :: User.t()
-  def create_user!(params \\ []) do
-    {:ok, user} =
-      params
-      |> Enum.into(%{})
-      |> Map.put_new(:password, "test_test_test_test")
-      |> Map.put_new_lazy(:email, fn -> generate_email() end)
-      |> Accounts.register_user()
-
-    user
-  end
+  @spec create_user!(keyword | map) :: User.t()
+  def create_user!(params \\ %{}), do: AccountsFixtures.user_fixture(params)
 
   @spec create_store! :: Store.t()
   def create_store!(params \\ []) do
@@ -52,7 +34,7 @@ defmodule BitPal.CreationHelpers do
     params =
       params
       |> Enum.into(%{})
-      |> Map.put_new_lazy(:label, fn -> generate_store_label() end)
+      |> Map.put_new_lazy(:label, fn -> StoresFixtures.unique_store_label() end)
       |> Map.drop([:user_id, :user])
 
     {:ok, store} = Stores.create(user, params)

@@ -309,7 +309,7 @@ defmodule BitPalApi.InvoiceControllerTest do
   end
 
   test "other invoices not found", %{conn: conn} do
-    id = create_invoice().id
+    id = create_invoice!().id
 
     for f <- [
           fn -> get(conn, "/v1/invoices/#{id}") end,
@@ -332,7 +332,7 @@ defmodule BitPalApi.InvoiceControllerTest do
 
   @tag auth: false
   test "unauthorized", %{conn: conn} do
-    id = create_invoice().id
+    id = create_invoice!().id
 
     for f <- [
           fn -> post(conn, "/v1/invoices/", %{"amount" => "1.0", "currency" => "BCH"}) end,
@@ -354,12 +354,12 @@ defmodule BitPalApi.InvoiceControllerTest do
   end
 
   test "show all invoices", %{conn: conn} do
-    id0 = create_invoice(conn, amount: 1).id
-    id1 = create_invoice(conn, amount: 2).id
-    id2 = create_invoice(conn, amount: 3, status: :open).id
+    id0 = create_invoice!(conn, amount: 1).id
+    id1 = create_invoice!(conn, amount: 2).id
+    id2 = create_invoice!(conn, amount: 3, status: :open).id
 
     # Invoices from other store should not show up
-    _ = create_invoice(amount: 4)
+    _ = create_invoice!(amount: 4)
 
     conn = get(conn, "/v1/invoices")
     # Can sometimes be in another order, so sorting is necessary
@@ -370,14 +370,14 @@ defmodule BitPalApi.InvoiceControllerTest do
   end
 
   defp setup_draft(context) do
-    create_invoice(context, [])
+    create_invoice!(context, [])
   end
 
   defp setup_open(context) do
-    create_invoice(context, address: :auto, status: :open)
+    create_invoice!(context, address: :auto, status: :open)
   end
 
   defp setup_uncollectable(context) do
-    create_invoice(context, address: :auto, status: :uncollectible)
+    create_invoice!(context, address: :auto, status: :uncollectible)
   end
 end

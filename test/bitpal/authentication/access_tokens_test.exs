@@ -5,7 +5,7 @@ defmodule BitPal.AccessTokensTest do
   alias BitPal.Repo
 
   setup do
-    %{store: create_store()}
+    %{store: create_store!()}
   end
 
   test "create and associate", %{store: store} do
@@ -33,7 +33,7 @@ defmodule BitPal.AccessTokensTest do
 
   test "correctly associated token", %{store: store} do
     a = Tokens.create_token!(store)
-    other_store = create_store()
+    other_store = create_store!()
     assert {:error, :not_found} = Tokens.valid_token?(other_store.id, a.data)
   end
 

@@ -25,6 +25,7 @@ defmodule BitPal.IntegrationCase do
       alias BitPal.ExchangeRate
       alias BitPal.InvoiceManager
       alias BitPal.Invoices
+      alias BitPal.HandlerSubscriberCollector
       alias BitPal.Repo
       alias BitPal.Stores
       alias BitPal.Transactions

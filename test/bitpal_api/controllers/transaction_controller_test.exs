@@ -57,7 +57,7 @@ defmodule BitPalApi.TransactionControllerTest do
 
   defp txs(store_id, count) do
     Enum.map(1..count, fn amount ->
-      create_transaction(store_id: store_id, amount: amount)
+      create_transaction!(store_id: store_id, amount: amount)
     end)
   end
 end

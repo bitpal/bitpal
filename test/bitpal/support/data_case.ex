@@ -25,6 +25,7 @@ defmodule BitPal.DataCase do
       import Ecto.Changeset
       import Ecto.Query
       import BitPal.DataCase
+      import BitPal.CreationHelpers
     end
   end
 

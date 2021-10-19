@@ -58,7 +58,7 @@ defmodule BitPalApi.ConnCase do
   end
 
   defp auth(conn, _tags) do
-    %{store_id: _store_id, token: token} = CreationHelpers.create_auth()
+    %{store_id: _store_id, token: token} = CreationHelpers.create_auth!()
     put_auth(conn, token)
   end
 

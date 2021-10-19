@@ -216,7 +216,7 @@ defmodule BitPal.InvoiceAcceptanceTest do
            ] = HandlerSubscriberCollector.received(stub)
   end
 
-  @tag backends: true, double_spend_timeout: 1, do: true
+  @tag backends: true, double_spend_timeout: 1
   test "Overpaid invoice" do
     {:ok, inv, stub, _handler} =
       HandlerSubscriberCollector.create_invoice(amount: 1.0, required_confirmations: 0)

@@ -1,10 +1,9 @@
 defmodule BitPal.StoreTest do
   use BitPal.IntegrationCase, db: true, async: false
   alias BitPal.Repo
-  alias BitPal.Stores
 
   setup tags do
-    %{store: create_store(tags) |> Repo.preload([:users])}
+    %{store: create_store!(tags) |> Repo.preload([:users])}
   end
 
   test "store invoice association", %{store: store} do
