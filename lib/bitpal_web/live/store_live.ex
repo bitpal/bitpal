@@ -1,16 +1,16 @@
 defmodule BitPalWeb.StoreLive do
   use BitPalWeb, :live_view
-  alias BitPal.Stores
   alias BitPal.Repo
   alias BitPal.InvoiceEvents
   alias BitPal.InvoiceManager
   alias BitPal.StoreEvents
+  alias BitPal.Accounts.Users
+  require Logger
 
   on_mount(BitPalWeb.UserLiveAuth)
 
   @impl true
   def mount(%{"id" => store_id}, _session, socket) do
-    # FIXME need to ensure that user has access to store
     {:ok, assign(socket, store_id: store_id)}
   end
 
@@ -21,7 +21,7 @@ defmodule BitPalWeb.StoreLive do
 
   @impl true
   def handle_params(%{"id" => store_id}, _uri, socket) do
-    case Stores.fetch(store_id) do
+    case Users.fetch_store(socket.assigns.current_user, store_id) do
       {:ok, store} ->
         store =
           store
@@ -36,8 +36,7 @@ defmodule BitPalWeb.StoreLive do
         {:noreply, assign(socket, store: store)}
 
       _ ->
-        # FIXME how to handle this error?
-        {:noreply, socket}
+        {:noreply, redirect(socket, to: "/")}
     end
   end
 
@@ -76,7 +75,7 @@ defmodule BitPalWeb.StoreLive do
         {:noreply, assign(socket, store: %{store | invoices: updated_invoices})}
 
       _ ->
-        # FIXME how to handle this error?
+        Logger.error("Failed to update invoice: #{invoice_id}")
         {:noreply, socket}
     end
   end

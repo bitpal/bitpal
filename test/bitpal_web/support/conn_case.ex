@@ -34,6 +34,9 @@ defmodule BitPalWeb.ConnCase do
 
       alias BitPalWeb.Router.Helpers, as: Routes
       alias BitPal.HandlerSubscriberCollector
+      alias BitPal.InvoicesFixtures
+      alias BitPal.AccountsFixtures
+      alias BitPal.StoresFixtures
 
       # The default endpoint for testing
       @endpoint BitPalWeb.Endpoint

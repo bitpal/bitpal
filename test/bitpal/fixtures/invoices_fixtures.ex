@@ -6,6 +6,7 @@ defmodule BitPal.InvoicesFixtures do
 
   alias BitPal.Addresses
   alias BitPal.Invoices
+  alias BitPalSchemas.Store
   alias Ecto.UUID
 
   def unique_store_label, do: "Store#{System.unique_integer()}"
@@ -22,7 +23,13 @@ defmodule BitPal.InvoicesFixtures do
     })
   end
 
-  def invoice_fixture(store_id, attrs \\ %{}) do
+  def invoice_fixture(store_ref, attrs \\ %{})
+
+  def invoice_fixture(store = %Store{}, attrs) do
+    invoice_fixture(store.id, attrs)
+  end
+
+  def invoice_fixture(store_id, attrs) do
     attrs = valid_invoice_attributes(attrs)
 
     {:ok, invoice} = Invoices.register(store_id, Map.drop(attrs, [:address, :status]))

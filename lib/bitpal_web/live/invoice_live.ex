@@ -3,13 +3,18 @@ defmodule BitPalWeb.InvoiceLive do
   alias BitPal.Repo
   alias BitPal.InvoiceEvents
   alias BitPal.InvoiceManager
+  alias BitPal.Accounts.Users
+  require Logger
 
   on_mount(BitPalWeb.UserLiveAuth)
 
   @impl true
   def mount(%{"id" => invoice_id}, _session, socket) do
-    # FIXME need to ensure that user has access to invoice
-    {:ok, assign(socket, invoice_id: invoice_id)}
+    if Users.invoice_access?(socket.assigns.current_user, invoice_id) do
+      {:ok, assign(socket, invoice_id: invoice_id)}
+    else
+      {:ok, redirect(socket, to: "/")}
+    end
   end
 
   @impl true
@@ -52,7 +57,7 @@ defmodule BitPalWeb.InvoiceLive do
         {:noreply, assign(socket, invoice: invoice)}
 
       _ ->
-        # FIXME how to handle this error?
+        Logger.error("Failed to update invoice: #{invoice_id}")
         {:noreply, socket}
     end
   end

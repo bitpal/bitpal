@@ -1,6 +1,10 @@
 defmodule BitPal.Accounts.Users do
   import Ecto.Changeset
+  import Ecto.Query
   alias BitPalSchemas.User
+  alias BitPalSchemas.Store
+  alias BitPalSchemas.Invoice
+  alias BitPal.Repo
 
   @doc """
   A user changeset for registration.
@@ -125,5 +129,32 @@ defmodule BitPal.Accounts.Users do
     else
       add_error(changeset, :current_password, "is not valid")
     end
+  end
+
+  def fetch_store(user, store_id) do
+    store =
+      from(s in Store,
+        join: u in assoc(s, :users),
+        on: u.id == ^user.id,
+        where: s.id == ^store_id
+      )
+      |> Repo.one()
+
+    if store do
+      {:ok, store}
+    else
+      {:error, :not_found}
+    end
+  end
+
+  def invoice_access?(user, invoice_id) do
+    from(i in Invoice,
+      join: s in assoc(i, :store),
+      join: u in assoc(s, :users),
+      on: u.id == ^user.id,
+      on: i.store_id == s.id,
+      where: i.id == ^invoice_id
+    )
+    |> Repo.exists?()
   end
 end
