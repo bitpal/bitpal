@@ -34,7 +34,7 @@ defmodule BitPal.Application do
 
   @impl true
   def config_change(changed, new, removed) do
-    BitPalConfig.config_change(changed, new, removed)
+    BitPalSettings.config_change(changed, new, removed)
     BitPalApi.Endpoint.config_change(changed, removed)
     BitPalWeb.Endpoint.config_change(changed, removed)
     :ok

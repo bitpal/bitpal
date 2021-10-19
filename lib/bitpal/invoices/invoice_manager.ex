@@ -1,6 +1,5 @@
 defmodule BitPal.InvoiceManager do
   use GenServer
-  import BitPal.ConfigHelpers, only: [update_state: 3]
   alias BitPal.InvoiceHandler
   alias BitPal.Invoices
   alias BitPal.ProcessRegistry
@@ -88,12 +87,7 @@ defmodule BitPal.InvoiceManager do
     # Internal supervisor to reduce the number of modules and it's not doing much
     DynamicSupervisor.start_link(strategy: :one_for_one, name: @supervisor)
 
-    settings =
-      opts
-      |> Enum.into(%{})
-      |> Map.put_new_lazy(:double_spend_timeout, &BitPalConfig.double_spend_timeout/0)
-
-    {:ok, settings}
+    {:ok, opts}
   end
 
   @impl true
@@ -101,16 +95,10 @@ defmodule BitPal.InvoiceManager do
     child =
       DynamicSupervisor.start_child(
         @supervisor,
-        {InvoiceHandler, invoice_id: invoice_id, double_spend_timeout: state.double_spend_timeout}
+        {InvoiceHandler,
+         invoice_id: invoice_id, double_spend_timeout: Keyword.get(state, :double_spend_timeout)}
       )
 
     {:reply, child, state}
-  end
-
-  @impl true
-  def handle_call({:configure, opts}, _, state) do
-    # We could change configs of handlers as well, but the only thing we can change
-    # is `double_spend_timeout` which will be very fast, so it doesn't matter much in practice.
-    {:reply, :ok, update_state(state, opts, :double_spend_timeout)}
   end
 end

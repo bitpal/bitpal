@@ -1,4 +1,4 @@
-defmodule BitPal.ConfigHelpers do
+defmodule BitPalSettings.ConfigHelpers do
   def update_state(state, opts, keys) when is_list(keys) do
     Enum.reduce(keys, state, fn key, state ->
       update_state(state, opts, key)

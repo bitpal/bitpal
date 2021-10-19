@@ -48,6 +48,13 @@ config :phoenix, :plug_init_mode, :runtime
 
 # Run a preview email server during dev
 config :bitpal, BitPal.Mailer, adapter: Swoosh.Adapters.Local
+
+# So we have something to work with.
+# Should consider removing this!
+config :bitpal,
+  xpub:
+    "xpub6C23JpFE6ABbBudoQfwMU239R5Bm6QGoigtLq1BD3cz3cC6DUTg89H3A7kf95GDzfcTis1K1m7ypGuUPmXCaCvoxDKbeNv6wRBEGEnt1NV7"
+
 config :swoosh, serve_mailbox: true, preview_port: 4011
 
 config :logger, level: :info

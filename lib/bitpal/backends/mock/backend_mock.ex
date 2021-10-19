@@ -2,7 +2,7 @@ defmodule BitPal.BackendMock do
   @behaviour BitPal.Backend
 
   use GenServer
-  import BitPal.ConfigHelpers
+  import BitPalSettings.ConfigHelpers
   alias BitPal.Addresses
   alias BitPal.Backend
   alias BitPal.BCH.Cashaddress
@@ -72,16 +72,17 @@ defmodule BitPal.BackendMock do
   def init(opts) do
     opts =
       opts
-      |> Enum.into(%{})
-      |> Map.put_new(:currency, :BCH)
-      |> Map.put_new(:height, 0)
-      |> Map.put_new(:auto, false)
-      |> Map.put_new(:tx_index, 0)
+      |> Enum.into(%{
+        currency: :BCH,
+        height: 0,
+        auto: false,
+        tx_index: 0
+      })
       |> (fn map ->
             if Map.has_key?(map, :address) do
               map
             else
-              Map.put_new(map, :xpub, BitPalConfig.xpub())
+              Map.put_new(map, :xpub, Application.get_env(:bitpal, :xpub))
             end
           end).()
 

@@ -4,40 +4,29 @@ defmodule BitPalWeb.StoreLive do
   alias BitPal.InvoiceEvents
   alias BitPal.InvoiceManager
   alias BitPal.StoreEvents
-  alias BitPal.Accounts.Users
   require Logger
 
   on_mount(BitPalWeb.UserLiveAuth)
+  on_mount(BitPalWeb.StoreLiveAuth)
 
   @impl true
-  def mount(%{"id" => store_id}, _session, socket) do
-    {:ok, assign(socket, store_id: store_id)}
+  def mount(%{"id" => _id}, _session, socket) do
+    store = socket.assigns.store |> Repo.preload(:invoices)
+
+    if connected?(socket) do
+      for invoice <- store.invoices do
+        InvoiceEvents.subscribe(invoice)
+      end
+
+      StoreEvents.subscribe(store.id)
+    end
+
+    {:ok, assign(socket, store: store)}
   end
 
   @impl true
   def render(assigns) do
     render(BitPalWeb.StoreView, "show.html", assigns)
-  end
-
-  @impl true
-  def handle_params(%{"id" => store_id}, _uri, socket) do
-    case Users.fetch_store(socket.assigns.current_user, store_id) do
-      {:ok, store} ->
-        store =
-          store
-          |> Repo.preload([:invoices])
-
-        for invoice <- store.invoices do
-          InvoiceEvents.subscribe(invoice)
-        end
-
-        StoreEvents.subscribe(store.id)
-
-        {:noreply, assign(socket, store: store)}
-
-      _ ->
-        {:noreply, redirect(socket, to: "/")}
-    end
   end
 
   @impl true

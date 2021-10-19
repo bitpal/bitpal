@@ -62,7 +62,7 @@ defmodule BackendManagerTest do
     assert {:ok, ltc} = BackendManager.get_backend(Litecoin.Backend)
     assert {:ok, ^ltc} = BackendManager.get_currency_backend(:LTC)
 
-    BackendManager.configure(
+    BackendManager.config_change(
       backends: [
         {BitPal.BackendMock, name: Bitcoin.Backend, currency: :BCH},
         {BitPal.BackendMock, name: Monero.Backend, currency: :XMR}

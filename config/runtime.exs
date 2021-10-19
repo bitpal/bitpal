@@ -2,10 +2,9 @@ import Config
 
 # Timeouts are in ms
 
-# These should be overridable via BitPalConfig later
+# These are default values that can be overridden by settings.
+# These should be overridable via BitPalSettings later
 config :bitpal,
-  xpub:
-    "xpub6C23JpFE6ABbBudoQfwMU239R5Bm6QGoigtLq1BD3cz3cC6DUTg89H3A7kf95GDzfcTis1K1m7ypGuUPmXCaCvoxDKbeNv6wRBEGEnt1NV7",
   required_confirmations: 0,
   double_spend_timeout: 2_000
 

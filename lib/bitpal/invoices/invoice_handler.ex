@@ -45,19 +45,26 @@ defmodule BitPal.InvoiceHandler do
         {:error, :not_started}
     end
   end
+
   # Server API
 
   @impl true
   def init(opts) do
     invoice_id = Keyword.fetch!(opts, :invoice_id)
-    double_spend_timeout = Keyword.fetch!(opts, :double_spend_timeout)
 
     Registry.register(ProcessRegistry, via_tuple(invoice_id), invoice_id)
 
     # Callback to initializer routine to not block start_link
     send(self(), :init)
 
-    {:ok, %{double_spend_timeout: double_spend_timeout, invoice_id: invoice_id, block_height: 0}}
+    state =
+      case Keyword.get(opts, :double_spend_timeout) do
+        nil -> %{}
+        timeout -> %{double_spend_timeout: timeout}
+      end
+      |> Map.merge(%{invoice_id: invoice_id, block_height: 0})
+
+    {:ok, state}
   end
 
   @impl true
@@ -69,6 +76,10 @@ defmodule BitPal.InvoiceHandler do
     # After finalization invoice details must not change, and invoice states etc
     # should only be updated from this handler, so we can keep holding it.
     invoice = Invoices.fetch!(invoice_id)
+
+    state =
+      state
+      |> Map.put_new_lazy(:double_spend_timeout, fn -> Invoices.double_spend_timeout(invoice) end)
 
     case invoice.status do
       :draft ->
@@ -331,6 +342,7 @@ defmodule BitPal.InvoiceHandler do
 
     if done? do
       state = Map.put(state, :invoice, Invoices.pay!(invoice))
+
       {:stop, :normal, state}
     else
       {:noreply, state}

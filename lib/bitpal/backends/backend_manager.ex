@@ -107,24 +107,32 @@ defmodule BitPal.BackendManager do
     end)
   end
 
-  @spec configure(backends: backend_spec()) :: :ok
-  def configure(opts) do
-    if backends = opts[:backends] do
-      to_keep =
-        backends
-        |> Enum.map(&start_or_update_backend/1)
-        |> Enum.reduce(%{}, fn pid, acc -> Map.put(acc, pid, true) end)
+  @spec config_change(keyword, keyword, keyword) :: :ok
+  def config_change(changed, _new, _removed) do
+    config_change(changed)
+  end
 
-      Supervisor.which_children(__MODULE__)
-      |> Enum.each(fn {child_id, pid, _, _} ->
-        if !Map.has_key?(to_keep, pid) do
-          :ok = Supervisor.terminate_child(__MODULE__, child_id)
-          # Also removes the child specification, makes it all cleaner and
-          # easier to reason about.
-          :ok = Supervisor.delete_child(__MODULE__, child_id)
-        end
-      end)
-    end
+  @spec config_change(keyword) :: :ok
+  def config_change(changed) do
+    if backends = Keyword.get(changed, :backends), do: update_backends(backends)
+  end
+
+  @spec update_backends(backend_spec()) :: :ok
+  defp update_backends(backends) do
+    to_keep =
+      backends
+      |> Enum.map(&start_or_update_backend/1)
+      |> Enum.reduce(%{}, fn pid, acc -> Map.put(acc, pid, true) end)
+
+    Supervisor.which_children(__MODULE__)
+    |> Enum.each(fn {child_id, pid, _, _} ->
+      if !Map.has_key?(to_keep, pid) do
+        :ok = Supervisor.terminate_child(__MODULE__, child_id)
+        # Also removes the child specification, makes it all cleaner and
+        # easier to reason about.
+        :ok = Supervisor.delete_child(__MODULE__, child_id)
+      end
+    end)
   end
 
   defp start_or_update_backend(spec = {backend, opts}) do
@@ -146,7 +154,7 @@ defmodule BitPal.BackendManager do
 
   @impl true
   def init(opts) do
-    children = opts[:backends] || BitPalConfig.currency_backends()
+    children = opts[:backends] || BitPalSettings.currency_backends()
 
     Supervisor.init(children, strategy: :one_for_one)
   end

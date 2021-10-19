@@ -1,23 +1,7 @@
-defmodule BitPalConfig do
+defmodule BitPalSettings do
   alias BitPal.BackendManager
-  alias BitPal.InvoiceManager
 
   # Transaction processing
-
-  @spec xpub :: String.t()
-  def xpub do
-    Application.fetch_env!(:bitpal, :xpub)
-  end
-
-  @spec required_confirmations :: non_neg_integer
-  def required_confirmations do
-    Application.fetch_env!(:bitpal, :required_confirmations)
-  end
-
-  @spec double_spend_timeout :: non_neg_integer
-  def double_spend_timeout do
-    Application.fetch_env!(:bitpal, :double_spend_timeout)
-  end
 
   @spec currency_backends :: [Supervisor.child_spec() | {module, term} | module]
   def currency_backends do
@@ -61,27 +45,11 @@ defmodule BitPalConfig do
   # Config updates
 
   @spec config_change(keyword, keyword, keyword) :: :ok
-  def config_change(changed, new, _removed) do
-    update_config(changed)
-    update_config(new)
+  def config_change(changed, new, removed) do
+    BackendManager.config_change(changed, new, removed)
   end
 
-  defp update_config(opts) do
-    if double_spend_timeout = Keyword.get(opts, :double_spend_timeout) do
-      InvoiceManager.configure(double_spend_timeout: double_spend_timeout)
-    end
-
-    if backends = Keyword.get(opts, :backends) do
-      BackendManager.configure(backends: backends)
-    end
-
-    # NOTE we want to handle this in a more general way later
-    if conf = Keyword.get(opts, :required_confirmations) do
-      Application.put_env(:bitpal, :required_confirmations, conf)
-    end
-  end
-
-  defp fetch_env!(app, key, subkey) do
+  def fetch_env!(app, key, subkey) do
     Keyword.fetch!(Application.fetch_env!(app, key), subkey)
   end
 end

@@ -6,9 +6,13 @@ defmodule BitPalWeb.HomeLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    stores = Stores.user_stores(socket.assigns.current_user)
+    if socket.assigns[:stores] do
+      {:ok, socket}
+    else
+      stores = Stores.user_stores(socket.assigns.current_user)
 
-    {:ok, assign(socket, stores: stores)}
+      {:ok, assign(socket, stores: stores)}
+    end
   end
 
   @impl true

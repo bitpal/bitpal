@@ -1,0 +1,22 @@
+<% alias BitPalSettings.CurrencySettings %>
+<h1><%= @store.label%> settings</h1>
+
+<h2>Access tokens</h2>
+
+Token Name    Created     Expires
+<%= for token <- @store.access_tokens do %>
+  <span><%= token.label %></span>
+  <span><%= token.data %></span>
+  Revoke
+<% end %>
+
+<h2>Currency settings</h2>
+
+<%= for {currency, settings} <- @currency_settings do %>
+  <div>
+    <h3><%= currency %></h3>
+    <div><%= settings.required_confirmations %></div>
+    <div><%= settings.double_spend_timeout %></div>
+    <div><%= settings.xpub %></div>
+  </div>
+<% end %>

@@ -72,7 +72,7 @@ defmodule BitPal.Backend.Flowee do
   def handle_call({:register, invoice}, _from, state) do
     {:ok, invoice} =
       Invoices.ensure_address(invoice, fn address_index ->
-        Cashaddress.derive_address(BitPalConfig.xpub(), address_index)
+        Cashaddress.derive_address(Invoices.xpub(invoice), address_index)
       end)
 
     {:reply, invoice, watch_address(invoice.address_id, state)}

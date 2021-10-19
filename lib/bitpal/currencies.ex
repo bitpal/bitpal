@@ -25,10 +25,12 @@ defmodule BitPal.Currencies do
   end
 
   @spec get!(Currency.id()) :: Currency.t()
-  def get!(id) do
-    Repo.get!(Currency, id)
-  end
+  def get!(id), do: Repo.get!(Currency, id)
 
+  @spec all() :: [Currency.t()]
+  def all(), do: Repo.all(Currency)
+
+  @spec addresses(CurrenCy.id(), Store.id()) :: [Address.t()]
   def addresses(id, store_id) do
     from(a in Address,
       where: a.currency_id == ^id,
@@ -39,6 +41,7 @@ defmodule BitPal.Currencies do
     |> Repo.all()
   end
 
+  @spec invoices(CurrenCy.id(), Store.id()) :: [Invoice.t()]
   def invoices(id, store_id) do
     from(i in Invoice, where: i.currency_id == ^id and i.store_id == ^store_id) |> Repo.all()
   end

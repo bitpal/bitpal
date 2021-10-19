@@ -1,6 +1,6 @@
-defmodule BitPal.ConfigHelpersTest do
+defmodule BitPalSettings.ConfigHelpersTest do
   use ExUnit.Case, async: true
-  import BitPal.ConfigHelpers
+  import BitPalSettings.ConfigHelpers
 
   test "update state" do
     assert update_state(%{a: 1}, [a: 2, b: 3], :a) == %{a: 2}

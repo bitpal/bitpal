@@ -38,6 +38,14 @@ defmodule BitPal.MixProject do
     ]
   end
 
+  defp elixirc_paths(:dev) do
+    [
+      "lib",
+      # We should probably move this out of test...?
+      "test/bitpal/fixtures"
+    ]
+  end
+
   defp elixirc_paths(_), do: ["lib"]
 
   # Specifies your project dependencies.
