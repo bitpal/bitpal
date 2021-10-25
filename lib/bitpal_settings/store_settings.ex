@@ -25,7 +25,7 @@ defmodule BitPalSettings.StoreSettings do
   end
 
   @spec set_required_confirmations(Store.id(), Currency.id(), non_neg_integer) ::
-          {:ok, CurrencySettings.t()} | {:error, :not_found}
+          {:ok, CurrencySettings.t()} | {:error, Changeset.t()}
   def set_required_confirmations(store_id, currency_id, confs) do
     set(store_id, currency_id, :required_confirmations, confs)
   end
@@ -36,7 +36,7 @@ defmodule BitPalSettings.StoreSettings do
   end
 
   @spec set_double_spend_timeout(Store.id(), Currency.id(), non_neg_integer) ::
-          {:ok, CurrencySettings.t()} | {:error, :not_found}
+          {:ok, CurrencySettings.t()} | {:error, Changeset.t()}
   def set_double_spend_timeout(store_id, currency_id, timeout) do
     set(store_id, currency_id, :double_spend_timeout, timeout)
   end
@@ -45,8 +45,6 @@ defmodule BitPalSettings.StoreSettings do
   def get_currency_settings(store_id, currency_id) do
     currency_settings_query(store_id, currency_id)
     |> Repo.one()
-
-    # FIXME fallback to default?
   end
 
   defp currency_settings_query(store_id, currency_id) do
@@ -68,23 +66,17 @@ defmodule BitPalSettings.StoreSettings do
     from(x in currency_settings_query(store_id, currency_id),
       select: field(x, ^key)
     )
-    |> Repo.one()
-    |> get_with_fallback(key)
-  end
-
-  @spec get_with_fallback(CurrencySettings.t() | nil, atom) :: any()
-  defp get_with_fallback(settings, key) do
-    settings[key] || Application.get_env(:bitpal, key)
+    |> Repo.one() || Application.get_env(:bitpal, key)
   end
 
   defp set(store_id, currency_id, key, value) do
-    settings = currency_settings_query(store_id, currency_id) |> Repo.one()
-
-    case settings do
-      nil -> %CurrencySettings{id: currency_id, store_id: store_id}
+    case get_currency_settings(store_id, currency_id) do
+      nil -> %CurrencySettings{currency_id: currency_id, store_id: store_id}
       settings -> settings
     end
     |> change(%{key => value})
+    |> foreign_key_constraint(:currency_id)
+    |> foreign_key_constraint(:store_id)
     |> Repo.insert_or_update()
   end
 end

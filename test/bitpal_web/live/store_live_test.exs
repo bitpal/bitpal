@@ -51,7 +51,7 @@ defmodule BitPalWeb.StoreLiveTest do
   end
 
   describe "security" do
-    test "redirect from other store", %{conn: conn, store: store} do
+    test "redirect from other store", %{conn: conn, store: _store} do
       other_store =
         AccountsFixtures.user_fixture()
         |> StoresFixtures.store_fixture()
