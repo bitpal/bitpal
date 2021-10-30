@@ -7,8 +7,11 @@ defmodule BitPalSchemas.Store do
 
   @type id :: integer
 
+  @derive {Phoenix.Param, key: :slug}
+
   typed_schema "stores" do
     field(:label, :string)
+    field(:slug, :string)
 
     many_to_many(:users, User, join_through: "users_stores")
     has_many(:invoices, Invoice, references: :id)

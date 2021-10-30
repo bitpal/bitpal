@@ -32,6 +32,8 @@ defmodule BitPalApi.ConnCase do
       import BitPal.CreationHelpers
       import BitPalApi.TestHelpers
       alias BitPalApi.Router.Helpers, as: Routes
+      alias BitPal.StoresFixtures
+      alias BitPal.InvoiceFixtures
 
       # The default endpoint for testing
       @endpoint BitPalApi.Endpoint

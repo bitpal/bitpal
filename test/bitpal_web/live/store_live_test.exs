@@ -11,7 +11,7 @@ defmodule BitPalWeb.StoreLiveTest do
   describe "invoice updates" do
     @tag backends: true
     test "show new invoice", %{conn: conn, store: store} do
-      {:ok, view, html} = live(conn, "/stores/#{store.id}")
+      {:ok, view, html} = live(conn, Routes.store_path(conn, :show, store.slug))
       assert html =~ store.label
       assert html =~ "There are no invoices here yet"
 
@@ -25,7 +25,7 @@ defmodule BitPalWeb.StoreLiveTest do
 
     @tag backends: true
     test "invoice is updated and finally marked as paid", %{conn: conn, store: store} do
-      {:ok, view, _html} = live(conn, "/stores/#{store.id}")
+      {:ok, view, _html} = live(conn, Routes.store_path(conn, :show, store))
 
       {:ok, invoice, _, _} =
         HandlerSubscriberCollector.create_invoice(
@@ -56,7 +56,7 @@ defmodule BitPalWeb.StoreLiveTest do
         AccountsFixtures.user_fixture()
         |> StoresFixtures.store_fixture()
 
-      {:error, {:redirect, %{to: "/"}}} = live(conn, "/stores/#{other_store.id}")
+      {:error, {:redirect, %{to: "/"}}} = live(conn, Routes.store_path(conn, :show, other_store))
     end
   end
 end

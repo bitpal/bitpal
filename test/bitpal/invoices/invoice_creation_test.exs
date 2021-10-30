@@ -7,7 +7,7 @@ defmodule InvoiceCreationTest do
   alias BitPalSchemas.Address
 
   setup do
-    store = Stores.create!()
+    store = StoresFixtures.store_fixture()
     %{store_id: store.id}
   end
 

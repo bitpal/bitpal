@@ -5,6 +5,7 @@ defmodule BitPal.StoresFixtures do
   """
 
   alias BitPal.Stores
+  alias BitPalSchemas.User
 
   def unique_store_label, do: "Store#{System.unique_integer()}"
 
@@ -14,7 +15,12 @@ defmodule BitPal.StoresFixtures do
     })
   end
 
-  def store_fixture(user, attrs \\ %{}) do
+  def store_fixture() do
+    {:ok, store} = Stores.create(valid_store_attributes(%{}))
+    store
+  end
+
+  def store_fixture(user = %User{}, attrs \\ %{}) do
     {:ok, store} =
       user
       |> Stores.create(valid_store_attributes(attrs))

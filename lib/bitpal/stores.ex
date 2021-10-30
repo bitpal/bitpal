@@ -22,16 +22,24 @@ defmodule BitPal.Stores do
     store
   end
 
-  @spec create!(keyword) :: Store.t()
-  def create!(params \\ []) do
-    Repo.insert!(%Store{label: params[:label]})
+  @spec create(map) :: {:ok, Store.t()} | {:error, Changeset.t()}
+  def create(params) do
+    %Store{}
+    |> create(params)
   end
 
   @spec create(User.t(), map) :: {:ok, Store.t()} | {:error, Changeset.t()}
-  def create(user, params) do
+  def create(user = %User{}, params) do
     %Store{users: [user]}
+    |> create(params)
+  end
+
+  @spec create(Store.t(), map) :: {:ok, Store.t()} | {:error, Changeset.t()}
+  def create(store = %Store{}, params) do
+    store
     |> cast(params, [:label])
     |> validate_required([:label])
+    |> create_slug()
     |> Repo.insert()
   end
 
@@ -54,5 +62,23 @@ defmodule BitPal.Stores do
       where: i.store_id == ^store_id
     )
     |> Repo.all()
+  end
+
+  defp create_slug(changeset) do
+    case get_field(changeset, :label) do
+      nil ->
+        changeset
+
+      label ->
+        changeset
+        |> change(slug: slugified_label(label))
+    end
+  end
+
+  defp slugified_label(label) do
+    label
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9\s-]/, "")
+    |> String.replace(~r/(\s|-)+/, "-")
   end
 end

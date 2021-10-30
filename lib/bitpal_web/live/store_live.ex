@@ -10,7 +10,7 @@ defmodule BitPalWeb.StoreLive do
   on_mount(BitPalWeb.StoreLiveAuth)
 
   @impl true
-  def mount(%{"id" => _id}, _session, socket) do
+  def mount(%{"slug" => _slug}, _session, socket) do
     store = socket.assigns.store |> Repo.preload(:invoices)
 
     if connected?(socket) do

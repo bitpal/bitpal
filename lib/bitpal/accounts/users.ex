@@ -131,12 +131,12 @@ defmodule BitPal.Accounts.Users do
     end
   end
 
-  def fetch_store(user, store_id) do
+  def fetch_store(user, store_slug) do
     store =
       from(s in Store,
         join: u in assoc(s, :users),
         on: u.id == ^user.id,
-        where: s.id == ^store_id
+        where: s.slug == ^store_slug
       )
       |> Repo.one()
 

@@ -48,7 +48,7 @@ defmodule AddressTest do
   end
 
   defp assign_address(address) do
-    store = Stores.create!()
+    store = StoresFixtures.store_fixture()
 
     assert {:ok, invoice} =
              Invoices.register(store.id, %{

@@ -35,7 +35,7 @@ defmodule BitPalWeb.Router do
   scope "/", BitPalWeb do
     pipe_through([:browser, :store_layout, :require_authenticated_user])
 
-    live("/stores/:id", StoreLive, :show)
+    live("/stores/:slug", StoreLive, :show)
     live("/invoices/:id", InvoiceLive, :show)
 
     live("/stores/:id/settings", StoreSettingsLive, :show)
