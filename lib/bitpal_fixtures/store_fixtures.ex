@@ -7,7 +7,7 @@ defmodule BitPalFixtures.StoreFixtures do
   alias BitPal.Stores
   alias BitPalSchemas.User
 
-  def unique_store_label, do: "Store#{System.unique_integer()}"
+  def unique_store_label, do: Faker.Company.name()
 
   def valid_store_attributes(attrs \\ %{}) do
     Enum.into(attrs, %{

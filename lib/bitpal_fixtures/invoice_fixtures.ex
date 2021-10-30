@@ -9,19 +9,33 @@ defmodule BitPalFixtures.InvoiceFixtures do
   alias BitPalSchemas.Store
   alias Ecto.UUID
 
-  @spec unique_store_label :: String.t()
-  def unique_store_label, do: "Store#{System.unique_integer()}"
-
   @spec unique_address_id :: String.t()
   def unique_address_id, do: "address:#{UUID.generate()}"
 
+  def rand_pos_float(max \\ 1.0), do: :rand.uniform() * max
+
+  def valid_pos_data do
+    %{"ref" => Faker.Random.Elixir.random_between(0, 1_000_000)}
+  end
+
+  defp add_pos_data(attrs) do
+    if rand_pos_float() < 0.75 do
+      Map.merge(%{pos_data: valid_pos_data()}, attrs)
+    else
+      attrs
+    end
+  end
+
   def valid_invoice_attributes(attrs \\ %{}) do
     Enum.into(attrs, %{
-      amount: 1.2,
-      exchange_rate: 2.0,
+      amount: rand_pos_float(),
+      exchange_rate: rand_pos_float(),
       currency: "BCH",
-      fiat_currency: "USD"
+      fiat_currency: "USD",
+      description: Faker.Commerce.product_name(),
+      email: Faker.Internet.email()
     })
+    |> add_pos_data()
   end
 
   def invoice_fixture(store_ref, attrs \\ %{})
