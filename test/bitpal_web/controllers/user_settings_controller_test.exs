@@ -21,11 +21,15 @@ defmodule BitPalWeb.UserSettingsControllerTest do
   end
 
   describe "PUT /users/settings (change password form)" do
-    test "updates the user password and resets tokens", %{conn: conn, user: user} do
+    test "updates the user password and resets tokens", %{
+      conn: conn,
+      user: user,
+      password: password
+    } do
       new_password_conn =
         put(conn, Routes.user_settings_path(conn, :update), %{
           "action" => "update_password",
-          "current_password" => valid_user_password(),
+          "current_password" => password,
           "user" => %{
             "password" => "new valid password",
             "password_confirmation" => "new valid password"
@@ -61,11 +65,11 @@ defmodule BitPalWeb.UserSettingsControllerTest do
 
   describe "PUT /users/settings (change email form)" do
     @tag :capture_log
-    test "updates the user email", %{conn: conn, user: user} do
+    test "updates the user email", %{conn: conn, user: user, password: password} do
       conn =
         put(conn, Routes.user_settings_path(conn, :update), %{
           "action" => "update_email",
-          "current_password" => valid_user_password(),
+          "current_password" => password,
           "user" => %{"email" => unique_user_email()}
         })
 

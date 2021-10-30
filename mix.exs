@@ -57,6 +57,7 @@ defmodule BitPal.MixProject do
       {:typed_ecto_schema, "~> 0.2"},
       {:scribe, "~> 0.10"},
       {:con_cache, "~> 1.0"},
+      {:faker, "~> 0.16"},
 
       # Server docs
       {:nimble_publisher, git: "https://github.com/treeman/nimble_publisher.git"},

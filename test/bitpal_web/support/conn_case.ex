@@ -61,8 +61,9 @@ defmodule BitPalWeb.ConnCase do
   test context.
   """
   def register_and_log_in_user(%{conn: conn}) do
-    user = AccountFixtures.user_fixture()
-    %{conn: log_in_user(conn, user), user: user}
+    password = AccountFixtures.valid_user_password()
+    user = AccountFixtures.user_fixture(password: password)
+    %{conn: log_in_user(conn, user), user: user, password: password}
   end
 
   @doc """

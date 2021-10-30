@@ -4,7 +4,8 @@ defmodule BitPalWeb.UserSessionControllerTest do
   import AccountFixtures
 
   setup do
-    %{user: user_fixture()}
+    password = valid_user_password()
+    %{user: user_fixture(password: password), password: password}
   end
 
   describe "GET /users/log_in" do
@@ -23,10 +24,10 @@ defmodule BitPalWeb.UserSessionControllerTest do
   end
 
   describe "POST /users/log_in" do
-    test "logs the user in", %{conn: conn, user: user} do
+    test "logs the user in", %{conn: conn, user: user, password: password} do
       conn =
         post(conn, Routes.user_session_path(conn, :create), %{
-          "user" => %{"email" => user.email, "password" => valid_user_password()}
+          "user" => %{"email" => user.email, "password" => password}
         })
 
       assert get_session(conn, :user_token)
@@ -40,12 +41,12 @@ defmodule BitPalWeb.UserSessionControllerTest do
       assert response =~ "Log out</a>"
     end
 
-    test "logs the user in with remember me", %{conn: conn, user: user} do
+    test "logs the user in with remember me", %{conn: conn, user: user, password: password} do
       conn =
         post(conn, Routes.user_session_path(conn, :create), %{
           "user" => %{
             "email" => user.email,
-            "password" => valid_user_password(),
+            "password" => password,
             "remember_me" => "true"
           }
         })
@@ -54,14 +55,14 @@ defmodule BitPalWeb.UserSessionControllerTest do
       assert redirected_to(conn) == "/"
     end
 
-    test "logs the user in with return to", %{conn: conn, user: user} do
+    test "logs the user in with return to", %{conn: conn, user: user, password: password} do
       conn =
         conn
         |> init_test_session(user_return_to: "/foo/bar")
         |> post(Routes.user_session_path(conn, :create), %{
           "user" => %{
             "email" => user.email,
-            "password" => valid_user_password()
+            "password" => password
           }
         })
 

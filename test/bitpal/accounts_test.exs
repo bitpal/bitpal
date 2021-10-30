@@ -27,10 +27,10 @@ defmodule BitPal.AccountsTest do
     end
 
     test "returns the user if the email and password are valid" do
-      %{id: id} = user = user_fixture()
+      password = valid_user_password()
+      %{id: id} = user = user_fixture(password: password)
 
-      assert %User{id: ^id} =
-               Accounts.get_user_by_email_and_password(user.email, valid_user_password())
+      assert %User{id: ^id} = Accounts.get_user_by_email_and_password(user.email, password)
     end
   end
 
@@ -125,35 +125,33 @@ defmodule BitPal.AccountsTest do
 
   describe "apply_user_email/3" do
     setup do
-      %{user: user_fixture()}
+      password = valid_user_password()
+      %{user: user_fixture(password: password), password: password}
     end
 
-    test "requires email to change", %{user: user} do
-      {:error, changeset} = Accounts.apply_user_email(user, valid_user_password(), %{})
+    test "requires email to change", %{user: user, password: password} do
+      {:error, changeset} = Accounts.apply_user_email(user, password, %{})
       assert %{email: ["did not change"]} = errors_on(changeset)
     end
 
-    test "validates email", %{user: user} do
-      {:error, changeset} =
-        Accounts.apply_user_email(user, valid_user_password(), %{email: "not valid"})
+    test "validates email", %{user: user, password: password} do
+      {:error, changeset} = Accounts.apply_user_email(user, password, %{email: "not valid"})
 
       assert %{email: ["must have the @ sign and no spaces"]} = errors_on(changeset)
     end
 
-    test "validates maximum value for email for security", %{user: user} do
+    test "validates maximum value for email for security", %{user: user, password: password} do
       too_long = String.duplicate("db", 100)
 
-      {:error, changeset} =
-        Accounts.apply_user_email(user, valid_user_password(), %{email: too_long})
+      {:error, changeset} = Accounts.apply_user_email(user, password, %{email: too_long})
 
       assert "should be at most 160 character(s)" in errors_on(changeset).email
     end
 
-    test "validates email uniqueness", %{user: user} do
+    test "validates email uniqueness", %{user: user, password: password} do
       %{email: email} = user_fixture()
 
-      {:error, changeset} =
-        Accounts.apply_user_email(user, valid_user_password(), %{email: email})
+      {:error, changeset} = Accounts.apply_user_email(user, password, %{email: email})
 
       assert "has already been taken" in errors_on(changeset).email
     end
@@ -165,9 +163,9 @@ defmodule BitPal.AccountsTest do
       assert %{current_password: ["is not valid"]} = errors_on(changeset)
     end
 
-    test "applies the email without persisting it", %{user: user} do
+    test "applies the email without persisting it", %{user: user, password: password} do
       email = unique_user_email()
-      {:ok, user} = Accounts.apply_user_email(user, valid_user_password(), %{email: email})
+      {:ok, user} = Accounts.apply_user_email(user, password, %{email: email})
       assert user.email == email
       assert Accounts.get_user!(user.id).email != email
     end
@@ -255,12 +253,13 @@ defmodule BitPal.AccountsTest do
 
   describe "update_user_password/3" do
     setup do
-      %{user: user_fixture()}
+      password = valid_user_password()
+      %{user: user_fixture(password: password), password: password}
     end
 
-    test "validates password", %{user: user} do
+    test "validates password", %{user: user, password: password} do
       {:error, changeset} =
-        Accounts.update_user_password(user, valid_user_password(), %{
+        Accounts.update_user_password(user, password, %{
           password: "not valid",
           password_confirmation: "another"
         })
@@ -271,25 +270,23 @@ defmodule BitPal.AccountsTest do
              } = errors_on(changeset)
     end
 
-    test "validates maximum values for password for security", %{user: user} do
+    test "validates maximum values for password for security", %{user: user, password: password} do
       too_long = String.duplicate("db", 100)
 
-      {:error, changeset} =
-        Accounts.update_user_password(user, valid_user_password(), %{password: too_long})
+      {:error, changeset} = Accounts.update_user_password(user, password, %{password: too_long})
 
       assert "should be at most 72 character(s)" in errors_on(changeset).password
     end
 
-    test "validates current password", %{user: user} do
-      {:error, changeset} =
-        Accounts.update_user_password(user, "invalid", %{password: valid_user_password()})
+    test "validates current password", %{user: user, password: password} do
+      {:error, changeset} = Accounts.update_user_password(user, "invalid", %{password: password})
 
       assert %{current_password: ["is not valid"]} = errors_on(changeset)
     end
 
-    test "updates the password", %{user: user} do
+    test "updates the password", %{user: user, password: password} do
       {:ok, user} =
-        Accounts.update_user_password(user, valid_user_password(), %{
+        Accounts.update_user_password(user, password, %{
           password: "new valid password"
         })
 
@@ -297,11 +294,11 @@ defmodule BitPal.AccountsTest do
       assert Accounts.get_user_by_email_and_password(user.email, "new valid password")
     end
 
-    test "deletes all tokens for the given user", %{user: user} do
+    test "deletes all tokens for the given user", %{user: user, password: password} do
       _ = Accounts.generate_user_session_token(user)
 
       {:ok, _} =
-        Accounts.update_user_password(user, valid_user_password(), %{
+        Accounts.update_user_password(user, password, %{
           password: "new valid password"
         })
 

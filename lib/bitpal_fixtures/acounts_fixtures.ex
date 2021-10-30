@@ -4,8 +4,8 @@ defmodule BitPalFixtures.AccountFixtures do
   entities via the `BitPal.Accounts` context.
   """
 
-  def unique_user_email, do: "user#{System.unique_integer()}@example.com"
-  def valid_user_password, do: "hello world!"
+  def unique_user_email, do: Faker.Internet.email()
+  def valid_user_password, do: Faker.String.base64(Faker.random_between(12, 20))
 
   def valid_user_attributes(attrs \\ %{}) do
     Enum.into(attrs, %{
