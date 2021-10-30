@@ -10,6 +10,7 @@ defmodule BitPal.IntegrationCase do
 
   using do
     quote do
+      use BitPalFixtures
       import Ecto
       import Ecto.Changeset
       import Ecto.Query
@@ -30,8 +31,6 @@ defmodule BitPal.IntegrationCase do
       alias BitPal.Stores
       alias BitPal.Transactions
       alias BitPalSchemas.Invoice
-      alias BitPal.StoresFixtures
-      alias BitPal.InvoiceFixtures
     end
   end
 

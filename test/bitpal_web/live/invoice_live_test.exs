@@ -42,9 +42,9 @@ defmodule BitPalWeb.InvoiceLiveTest do
     @tag backends: true
     test "redirect from other invoice", %{conn: conn} do
       other_invoice =
-        AccountsFixtures.user_fixture()
-        |> StoresFixtures.store_fixture()
-        |> InvoicesFixtures.invoice_fixture()
+        AccountFixtures.user_fixture()
+        |> StoreFixtures.store_fixture()
+        |> InvoiceFixtures.invoice_fixture()
 
       {:error, {:redirect, %{to: "/"}}} = live(conn, "/invoices/#{other_invoice.id}")
     end

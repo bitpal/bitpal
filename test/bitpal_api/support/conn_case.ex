@@ -16,6 +16,7 @@ defmodule BitPalApi.ConnCase do
   """
 
   use ExUnit.CaseTemplate
+  use BitPalFixtures
   import Plug.BasicAuth
   import Plug.Conn
   import Phoenix.ConnTest
@@ -24,7 +25,7 @@ defmodule BitPalApi.ConnCase do
 
   using do
     quote do
-      # Import conveniences for testing with connections
+      use BitPalFixtures
       import Plug.Conn
       import Phoenix.ConnTest
       import BitPalApi.ConnCase
@@ -32,8 +33,6 @@ defmodule BitPalApi.ConnCase do
       import BitPal.CreationHelpers
       import BitPalApi.TestHelpers
       alias BitPalApi.Router.Helpers, as: Routes
-      alias BitPal.StoresFixtures
-      alias BitPal.InvoiceFixtures
 
       # The default endpoint for testing
       @endpoint BitPalApi.Endpoint

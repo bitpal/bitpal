@@ -1,4 +1,4 @@
-defmodule BitPal.AccountsFixtures do
+defmodule BitPalFixtures.AccountFixtures do
   @moduledoc """
   This module defines test helpers for creating
   entities via the `BitPal.Accounts` context.

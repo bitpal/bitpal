@@ -1,13 +1,12 @@
 defmodule BitPalApi.TransactionControllerTest do
   use BitPalApi.ConnCase
-  alias BitPal.Stores
   alias BitPalApi.Authentication.BasicAuth
 
   test "index", %{conn: conn} do
     {:ok, store_id} = BasicAuth.parse(conn)
     _ = txs(store_id, 3)
 
-    other_store = StoresFixtures.store_fixture()
+    other_store = StoreFixtures.store_fixture()
     _ = txs(other_store.id, 1)
 
     conn = get(conn, "/v1/transactions/")
@@ -39,7 +38,7 @@ defmodule BitPalApi.TransactionControllerTest do
   end
 
   test "tx to other store not found", %{conn: conn} do
-    other_store = StoresFixtures.store_fixture()
+    other_store = StoreFixtures.store_fixture()
     [txid] = txs(other_store.id, 1)
 
     {_, _, response} =

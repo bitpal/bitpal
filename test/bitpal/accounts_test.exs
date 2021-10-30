@@ -1,9 +1,8 @@
 defmodule BitPal.AccountsTest do
   use BitPal.DataCase, async: true
 
+  import AccountFixtures
   alias BitPal.Accounts
-
-  import BitPal.AccountsFixtures
   alias BitPalSchemas.{User, UserToken}
 
   describe "get_user_by_email/1" do

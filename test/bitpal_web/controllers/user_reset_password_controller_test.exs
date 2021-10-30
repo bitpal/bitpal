@@ -4,7 +4,7 @@ defmodule BitPalWeb.UserResetPasswordControllerTest do
   alias BitPal.Accounts
   alias BitPal.Repo
   alias BitPalSchemas.UserToken
-  import BitPal.AccountsFixtures
+  import AccountFixtures
 
   setup do
     %{user: user_fixture()}

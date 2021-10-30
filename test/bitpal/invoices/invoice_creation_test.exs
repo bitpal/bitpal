@@ -3,11 +3,10 @@ defmodule InvoiceCreationTest do
   alias BitPal.Addresses
   alias BitPal.ExchangeRate
   alias BitPal.Invoices
-  alias BitPal.Stores
   alias BitPalSchemas.Address
 
   setup do
-    store = StoresFixtures.store_fixture()
+    store = StoreFixtures.store_fixture()
     %{store_id: store.id}
   end
 

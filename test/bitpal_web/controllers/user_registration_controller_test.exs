@@ -1,7 +1,7 @@
 defmodule BitPalWeb.UserRegistrationControllerTest do
   use BitPalWeb.ConnCase, async: true
 
-  import BitPal.AccountsFixtures
+  import AccountFixtures
 
   describe "GET /users/register" do
     test "renders registration page", %{conn: conn} do

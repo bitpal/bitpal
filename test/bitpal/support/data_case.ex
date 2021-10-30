@@ -19,6 +19,7 @@ defmodule BitPal.DataCase do
 
   using do
     quote do
+      use BitPalFixtures
       alias BitPal.Repo
 
       import Ecto

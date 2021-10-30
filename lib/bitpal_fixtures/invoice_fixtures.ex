@@ -1,4 +1,4 @@
-defmodule BitPal.InvoicesFixtures do
+defmodule BitPalFixtures.InvoiceFixtures do
   @moduledoc """
   This module defines test helpers for creating
   entities via the `BitPal.Invoices` context.
@@ -9,6 +9,7 @@ defmodule BitPal.InvoicesFixtures do
   alias BitPalSchemas.Store
   alias Ecto.UUID
 
+  @spec unique_store_label :: String.t()
   def unique_store_label, do: "Store#{System.unique_integer()}"
 
   @spec unique_address_id :: String.t()

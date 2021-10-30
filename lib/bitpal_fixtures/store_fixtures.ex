@@ -1,4 +1,4 @@
-defmodule BitPal.StoresFixtures do
+defmodule BitPalFixtures.StoreFixtures do
   @moduledoc """
   This module defines test helpers for creating
   entities via the `BitPal.Stores` context.

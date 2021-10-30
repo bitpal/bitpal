@@ -15,17 +15,17 @@ defmodule BitPalWeb.ConnCase do
   this option is not recommended for other databases.
   """
 
+  use BitPalFixtures
   import Phoenix.LiveViewTest
   alias BitPal.Accounts
-  alias BitPal.AccountsFixtures
   alias BitPal.DataCase
   alias BitPal.IntegrationCase
-  alias BitPal.StoresFixtures
   alias BitPal.HandlerSubscriberCollector
 
   defmacro __using__(params) do
     quote do
       use ExUnit.Case, unquote(params)
+      use BitPalFixtures
 
       import BitPalWeb.ConnCase
       import Phoenix.ConnTest
@@ -34,9 +34,6 @@ defmodule BitPalWeb.ConnCase do
 
       alias BitPalWeb.Router.Helpers, as: Routes
       alias BitPal.HandlerSubscriberCollector
-      alias BitPal.InvoicesFixtures
-      alias BitPal.AccountsFixtures
-      alias BitPal.StoresFixtures
 
       # The default endpoint for testing
       @endpoint BitPalWeb.Endpoint
@@ -64,7 +61,7 @@ defmodule BitPalWeb.ConnCase do
   test context.
   """
   def register_and_log_in_user(%{conn: conn}) do
-    user = AccountsFixtures.user_fixture()
+    user = AccountFixtures.user_fixture()
     %{conn: log_in_user(conn, user), user: user}
   end
 
@@ -83,7 +80,7 @@ defmodule BitPalWeb.ConnCase do
 
   def create_store(tags = %{user: user}, attrs \\ %{}) do
     Enum.into(tags, %{
-      store: StoresFixtures.store_fixture(user, attrs)
+      store: StoreFixtures.store_fixture(user, attrs)
     })
   end
 

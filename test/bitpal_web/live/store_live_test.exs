@@ -16,7 +16,7 @@ defmodule BitPalWeb.StoreLiveTest do
       assert html =~ "There are no invoices here yet"
 
       _invoice =
-        InvoicesFixtures.invoice_fixture(store.id,
+        InvoiceFixtures.invoice_fixture(store.id,
           description: "A draft invoice"
         )
 
@@ -53,8 +53,8 @@ defmodule BitPalWeb.StoreLiveTest do
   describe "security" do
     test "redirect from other store", %{conn: conn, store: _store} do
       other_store =
-        AccountsFixtures.user_fixture()
-        |> StoresFixtures.store_fixture()
+        AccountFixtures.user_fixture()
+        |> StoreFixtures.store_fixture()
 
       {:error, {:redirect, %{to: "/"}}} = live(conn, Routes.store_path(conn, :show, other_store))
     end

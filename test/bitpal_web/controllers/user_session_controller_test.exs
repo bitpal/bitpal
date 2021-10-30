@@ -1,7 +1,7 @@
 defmodule BitPalWeb.UserSessionControllerTest do
   use BitPalWeb.ConnCase, async: true
 
-  import BitPal.AccountsFixtures
+  import AccountFixtures
 
   setup do
     %{user: user_fixture()}

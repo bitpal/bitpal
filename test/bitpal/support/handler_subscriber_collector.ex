@@ -4,7 +4,7 @@ defmodule BitPal.HandlerSubscriberCollector do
   alias BitPal.InvoiceEvents
   alias BitPal.InvoiceManager
   alias BitPal.Invoices
-  alias BitPal.StoresFixtures
+  alias BitPalFixtures.StoreFixtures
   alias BitPalSchemas.Invoice
 
   # Client API
@@ -126,7 +126,7 @@ defmodule BitPal.HandlerSubscriberCollector do
   end
 
   defp get_store_id(_params, state) do
-    store = StoresFixtures.store_fixture()
+    store = StoreFixtures.store_fixture()
     {store.id, Map.put(state, :store_id, store.id)}
   end
 end
