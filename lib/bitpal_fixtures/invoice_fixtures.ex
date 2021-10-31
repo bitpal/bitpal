@@ -4,16 +4,23 @@ defmodule BitPalFixtures.InvoiceFixtures do
   entities via the `BitPal.Invoices` context.
   """
 
+  import BitPalFixtures.FixtureHelpers
   alias BitPal.Addresses
   alias BitPal.Invoices
   alias BitPalSchemas.Store
   alias BitPalFixtures.AddressFixtures
   alias BitPalFixtures.CurrencyFixtures
+  alias BitPalFixtures.SettingsFixtures
+  alias BitPalApi.Authentication.BasicAuth
 
   def rand_pos_float(max \\ 1.0), do: :rand.uniform() * max
 
   def valid_pos_data do
     %{"ref" => Faker.Random.Elixir.random_between(0, 1_000_000)}
+  end
+
+  defp add_pos_data(attrs = %{pos_data: _}) do
+    attrs
   end
 
   defp add_pos_data(attrs) do
@@ -28,7 +35,7 @@ defmodule BitPalFixtures.InvoiceFixtures do
     Enum.into(attrs, %{
       amount: rand_pos_float(),
       exchange_rate: rand_pos_float(),
-      currency: CurrencyFixtures.currency_id_s(:BCH),
+      currency_id: CurrencyFixtures.unique_currency_id() |> Atom.to_string(),
       fiat_currency: CurrencyFixtures.fiat_currency(),
       description: Faker.Commerce.product_name(),
       email: Faker.Internet.email()
@@ -36,30 +43,78 @@ defmodule BitPalFixtures.InvoiceFixtures do
     |> add_pos_data()
   end
 
+  @spec invoice_fixture :: Invoice.t()
+  def invoice_fixture do
+    invoice_fixture(%{})
+  end
+
+  @spec invoice_fixture(map | keyword) :: Invoice.t()
+  def invoice_fixture(attrs) when (is_map(attrs) and not is_struct(attrs)) or is_list(attrs) do
+    attrs = valid_invoice_attributes(attrs)
+
+    get_or_create_store_id(attrs)
+    |> invoice_fixture(Map.drop(attrs, [:store, :store_id]))
+  end
+
+  @spec invoice_fixture(Store.t() | Store.id() | Plug.Conn.t(), map | keyword) :: Invoice.t()
   def invoice_fixture(store_ref, attrs \\ %{})
 
   def invoice_fixture(store = %Store{}, attrs) do
     invoice_fixture(store.id, attrs)
   end
 
-  def invoice_fixture(store_id, attrs) do
+  def invoice_fixture(store_id, attrs) when is_integer(store_id) do
     attrs = valid_invoice_attributes(attrs)
 
     {:ok, invoice} = Invoices.register(store_id, Map.drop(attrs, [:address, :status]))
+
+    if address_key = attrs[:address_key] do
+      SettingsFixtures.ensure_address_key!(
+        store_id: store_id,
+        currency_id: invoice.currency_id,
+        data: address_key
+      )
+    end
 
     invoice
     |> assign_address(attrs)
     |> change_status(attrs)
   end
 
-  defp assign_address(invoice, %{address: :auto}) do
-    assign_address(invoice, %{
-      address: AddressFixtures.unique_address_id(invoice.store_id, invoice.currency_id)
-    })
+  def invoice_fixture(conn = %Plug.Conn{}, attrs) do
+    {:ok, store_id} = BasicAuth.parse(conn)
+    invoice_fixture(store_id, attrs)
   end
 
+  @spec ensure_address(Invoice.t(), map | keyword) :: Invoice.t()
+  def ensure_address(invoice, params \\ %{})
+
+  def ensure_address(invoice = %{address_id: address_id}, _) when not is_nil(address_id) do
+    invoice
+  end
+
+  def ensure_address(invoice, params) do
+    assign_address(invoice, %{address: params[:address] || :auto})
+  end
+
+  defp assign_address(invoice, %{address: :auto}) do
+    address = AddressFixtures.address_fixture(invoice)
+    {:ok, invoice} = Invoices.assign_address(invoice, address)
+    invoice
+  end
+
+  # FIXME address_id here
   defp assign_address(invoice, %{address: address_id}) when is_binary(address_id) do
-    {:ok, address} = Addresses.register_next_address(invoice.currency_id, address_id)
+    address_key = get_or_create_address_key(invoice)
+
+    address =
+      if address = Addresses.get(address_id) do
+        address
+      else
+        {:ok, address} = Addresses.register_next_address(address_key, address_id)
+        address
+      end
+
     {:ok, invoice} = Invoices.assign_address(invoice, address)
     invoice
   end

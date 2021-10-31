@@ -23,9 +23,7 @@ defmodule BitPalApi.ChannelCase do
       use BitPalFixtures
       import Phoenix.ChannelTest
       import BitPalApi.ChannelCase
-      import BitPal.CreationHelpers
       import BitPal.TestHelpers
-      import BitPal.CreationHelpers
 
       # The default endpoint for testing
       @endpoint BitPalApi.Endpoint
@@ -36,12 +34,5 @@ defmodule BitPalApi.ChannelCase do
 
   setup tags do
     IntegrationCase.setup_integration(tags)
-
-    start_supervised!({BitPal.ExchangeRateSupervisor, ttl: tags[:cache_clear_interval]})
-
-    start_supervised!({Phoenix.PubSub, name: BitPalApi.PubSub}, id: BitPalApi.PubSub)
-    start_supervised!(BitPalApi.Endpoint)
-
-    :ok
   end
 end

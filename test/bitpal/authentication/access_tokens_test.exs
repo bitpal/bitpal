@@ -1,11 +1,10 @@
 defmodule BitPal.AccessTokensTest do
   use BitPal.DataCase, async: true
-  import BitPal.CreationHelpers
   alias BitPal.Authentication.Tokens
   alias BitPal.Repo
 
   setup do
-    %{store: create_store!()}
+    %{store: StoreFixtures.store_fixture()}
   end
 
   test "create and associate", %{store: store} do
@@ -33,7 +32,7 @@ defmodule BitPal.AccessTokensTest do
 
   test "correctly associated token", %{store: store} do
     a = Tokens.create_token!(store)
-    other_store = create_store!()
+    other_store = StoreFixtures.store_fixture()
     assert {:error, :not_found} = Tokens.valid_token?(other_store.id, a.data)
   end
 

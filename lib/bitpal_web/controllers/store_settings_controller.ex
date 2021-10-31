@@ -6,8 +6,7 @@ defmodule BitPalWeb.StoreSettingsController do
 
   # plug(:assign_email_and_password_changesets)
 
-  def edit(conn, %{"id" => store_id}) do
-    IO.inspect(store_id)
+  def edit(conn, %{"id" => _store_id}) do
     render(conn, "edit.html")
   end
 

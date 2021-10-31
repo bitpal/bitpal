@@ -1,12 +1,17 @@
 defmodule BitPal.TestHelpers do
   import ExUnit.Assertions
 
-  def eventually(func) do
+  def eventually(func, timeout \\ 1_000) do
+    task = Task.async(fn -> _eventually(func) end)
+    Task.await(task, timeout)
+  end
+
+  defp _eventually(func) do
     if func.() do
       true
     else
       Process.sleep(10)
-      eventually(func)
+      _eventually(func)
     end
   end
 

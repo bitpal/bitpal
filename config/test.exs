@@ -24,8 +24,7 @@ config :argon2_elixir, t_cost: 1, m_cost: 8
 # In test we don't send emails.
 config :bitpal, BitPal.Mailer, adapter: Swoosh.Adapters.Test
 
-# Fallback for testing
-config :bitpal,
+config :bitpal, :BCH,
   xpub:
     "xpub6C23JpFE6ABbBudoQfwMU239R5Bm6QGoigtLq1BD3cz3cC6DUTg89H3A7kf95GDzfcTis1K1m7ypGuUPmXCaCvoxDKbeNv6wRBEGEnt1NV7"
 

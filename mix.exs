@@ -108,7 +108,8 @@ defmodule BitPal.MixProject do
       "ecto.dev_reset": ["ecto.reset", "run priv/repo/dev_seeds.exs"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test --no-start"],
+      # test: ["ecto.create --quiet", "ecto.migrate --quiet", "test --no-start"],
+      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.deploy": [
         "sass default --no-source-map --style=compressed",
         "esbuild default --minify",

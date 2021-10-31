@@ -1,40 +1,28 @@
 defmodule InvoiceManagerTest do
-  use BitPal.IntegrationCase
-  alias BitPal.Currencies
+  use BitPal.IntegrationCase, async: true
   alias BitPal.InvoiceManager
 
-  @tag backends: true
-  test "initialize" do
-    store = StoreFixtures.store_fixture()
+  test "initialize", %{currency_id: currency_id} do
+    name = unique_server_name()
 
-    assert {:ok, inv1} =
-             Invoices.register(store.id, %{
-               amount: 2.5,
-               exchange_rate: 1.1,
-               currency: "BCH",
-               fiat_currency: "USD"
-             })
+    start_supervised!({InvoiceManager, name: name})
 
-    assert {:ok, inv1_id} = InvoiceManager.finalize_and_track(inv1)
+    inv1 = InvoiceFixtures.invoice_fixture(currency_id: currency_id)
+    assert {:ok, got_inv1} = InvoiceManager.finalize_invoice(inv1, parent: self(), name: name)
+    assert inv1.id == got_inv1.id
 
-    assert {:ok, inv2} =
-             Invoices.register(store.id, %{
-               amount: 5.2,
-               exchange_rate: 1.1,
-               currency: "BCH",
-               fiat_currency: "USD"
-             })
+    inv2 = InvoiceFixtures.invoice_fixture(currency_id: currency_id)
+    assert {:ok, got_inv2} = InvoiceManager.finalize_invoice(inv2, parent: self(), name: name)
+    assert inv2.id == got_inv2.id
 
-    assert {:ok, inv2_id} = InvoiceManager.finalize_and_track(inv2)
-
-    assert inv1_id != inv2_id
-    assert {:ok, inv1_pid} = InvoiceManager.fetch_handler(inv1_id)
-    assert {:ok, inv2_pid} = InvoiceManager.fetch_handler(inv2_id)
+    assert inv1.id != inv2.id
+    assert {:ok, inv1_pid} = InvoiceManager.fetch_handler(inv1.id)
+    assert {:ok, inv2_pid} = InvoiceManager.fetch_handler(inv2.id)
     assert inv1_pid != inv2_pid
-    assert InvoiceManager.count_children() == 2
+
+    assert InvoiceManager.count_children(name) == 2
 
     assert_shutdown(inv2_pid)
-
-    assert InvoiceManager.count_children() == 2
+    assert InvoiceManager.count_children(name) == 2
   end
 end

@@ -1,11 +1,7 @@
 defmodule BitPalApi.ExchangeRateControllerTest do
-  use BitPalApi.ConnCase
+  use BitPalApi.ConnCase, async: true
 
-  setup do
-    start_supervised!(BitPal.ExchangeRateSupervisor)
-    :ok
-  end
-
+  # NOTE that this sometimes fails with errors
   test "show a rate", %{conn: conn} do
     conn = get(conn, "/v1/rates/BCH/USD")
 

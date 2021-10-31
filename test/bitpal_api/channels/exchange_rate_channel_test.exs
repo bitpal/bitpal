@@ -1,5 +1,7 @@
 defmodule BitPalApi.ExchangeRateChannelTest do
-  use BitPalApi.ChannelCase
+  # This must be async: false, otherwise mailbox might be cleared by other tests.
+  # Maybe we could solve this somehow...
+  use BitPalApi.ChannelCase, async: false
 
   @rate Decimal.from_float(815.27)
 

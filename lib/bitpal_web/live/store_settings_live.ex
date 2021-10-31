@@ -23,7 +23,6 @@ defmodule BitPalWeb.StoreSettingsLive do
         {c.id, settings}
       end)
       |> Enum.into(%{})
-      |> IO.inspect()
 
     {:ok, assign(socket, store: store, currency_settings: currency_settings)}
   end

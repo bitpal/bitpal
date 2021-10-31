@@ -8,7 +8,7 @@
   <span><%= @invoice.address_id %></span>
   <span><%= @invoice.currency_id %></span>
   <span><%= @invoice.email %></span>
-  <span><%= @invoice.pos_data %></span>
+  <span><%#= @invoice.pos_data %></span>
 
   <div class="txs">
     <%= for tx <- @invoice.tx_outputs do %>

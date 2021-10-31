@@ -1,5 +1,32 @@
 import Config
 
+# These are default values that can be overridden by settings.
+# These should be overridable via BitPalSettings later
+config :bitpal,
+  required_confirmations: 0,
+  double_spend_timeout: 2_000
+
+config :bitpal, BitPal.ExchangeRate,
+  # How long should we wait for external services to respond?
+  # 5s
+  request_timeout: 5_000,
+  # Set to :infinity to turn off auto refresh
+  # 10 minutes = 1_000 * 60 * 10
+  refresh_rate: 1_000 * 60 * 10,
+  # How long should exchange rates be valid? 
+  # 15 minutes = 1_000 * 60 * 15
+  cache_ttl: 1_000 * 60 * 15,
+  # Check for expiry every 1 min
+  cache_ttl_check_interval: 1_000 * 60
+
+config :money, :custom_currencies, %{
+  BCH: %{name: "Bitcoin Cash", exponent: 8, symbol: "BCH"},
+  BTC: %{name: "Bitcoin", exponent: 8, symbol: "BTC"},
+  DGC: %{name: "Dogecoin", exponent: 8, symbol: "DGC"},
+  LTC: %{name: "Litecoin", exponent: 8, symbol: "LTC"},
+  XMR: %{name: "Monero", exponent: 12, symbol: "XMR"}
+}
+
 config :master_proxy,
   # any Cowboy options are allowed
   http: [:inet6, port: 4000],

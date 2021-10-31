@@ -1,19 +1,32 @@
 defmodule BitPal.InvoiceTransactionsTest do
-  use BitPal.IntegrationCase
+  use BitPal.DataCase, async: true
+  import TransactionFixtures
   alias BitPal.Blocks
   alias BitPalSchemas.TxOutput
 
-  setup do
-    invoice = create_invoice!(amount: 1.2, required_confirmations: 5, address: :auto)
-    %{invoice: invoice, address: invoice.address}
+  setup tags do
+    currency_id = CurrencyFixtures.unique_currency_id()
+
+    invoice =
+      Map.take(tags, [:amount, :required_confirmations])
+      |> Map.merge(%{
+        address: :auto,
+        currency_id: currency_id
+      })
+      |> InvoiceFixtures.invoice_fixture()
+
+    %{invoice: invoice, address: invoice.address, currency_id: currency_id}
   end
 
-  test "invoice assoc", %{invoice: invoice, address: address} do
-    assert :ok = Transactions.confirmed("tx:0", [{address.id, Money.new(1_000, :BCH)}], 0)
-    assert :ok = Transactions.confirmed("tx:1", [{address.id, Money.new(2_000, :BCH)}], 1)
+  test "invoice assoc", %{invoice: invoice, address: address, currency_id: currency_id} do
+    txid0 = unique_txid()
+    txid1 = unique_txid()
 
-    tx0 = Repo.get_by!(TxOutput, txid: "tx:0") |> Repo.preload(:invoice)
-    tx1 = Repo.get_by!(TxOutput, txid: "tx:1") |> Repo.preload(:invoice)
+    assert :ok = Transactions.confirmed(txid0, [{address.id, Money.new(1_000, currency_id)}], 0)
+    assert :ok = Transactions.confirmed(txid1, [{address.id, Money.new(2_000, currency_id)}], 1)
+
+    tx0 = Repo.get_by!(TxOutput, txid: txid0) |> Repo.preload(:invoice)
+    tx1 = Repo.get_by!(TxOutput, txid: txid1) |> Repo.preload(:invoice)
 
     assert tx0.invoice.id == tx1.invoice.id
     assert tx0.invoice.id == invoice.id
@@ -22,47 +35,70 @@ defmodule BitPal.InvoiceTransactionsTest do
     assert Enum.count(invoice.tx_outputs) == 2
   end
 
-  test "amount paid calculation", %{invoice: invoice, address: address} do
-    assert :ok = Transactions.confirmed("tx:0", [{address.id, Money.parse!(0.4, :BCH)}], 0)
+  @tag amount: 1.2
+  test "amount paid calculation", %{invoice: invoice, address: address, currency_id: currency_id} do
+    assert :ok =
+             Transactions.confirmed(
+               unique_txid(),
+               [{address.id, Money.parse!(0.4, currency_id)}],
+               0
+             )
+
     invoice = Invoices.update_info_from_txs(invoice, nil)
-    assert invoice.amount_paid == Money.parse!(0.4, :BCH)
+    assert invoice.amount_paid == Money.parse!(0.4, currency_id)
     assert :underpaid == Invoices.target_amount_reached?(invoice)
 
-    assert :ok = Transactions.confirmed("tx:1", [{address.id, Money.parse!(0.8, :BCH)}], 1)
+    assert :ok =
+             Transactions.confirmed(
+               unique_txid(),
+               [{address.id, Money.parse!(0.8, currency_id)}],
+               1
+             )
+
     invoice = Invoices.update_info_from_txs(invoice, nil)
-    assert invoice.amount_paid == Money.parse!(1.2, :BCH)
+    assert invoice.amount_paid == Money.parse!(1.2, currency_id)
     assert :ok == Invoices.target_amount_reached?(invoice)
 
-    assert :ok = Transactions.confirmed("tx:2", [{address.id, Money.parse!(0.5, :BCH)}], 2)
+    assert :ok =
+             Transactions.confirmed(
+               unique_txid(),
+               [{address.id, Money.parse!(0.5, currency_id)}],
+               2
+             )
+
     invoice = Invoices.update_info_from_txs(invoice, nil)
-    assert invoice.amount_paid == Money.parse!(1.7, :BCH)
+    assert invoice.amount_paid == Money.parse!(1.7, currency_id)
     assert :overpaid == Invoices.target_amount_reached?(invoice)
   end
 
-  test "confirmations until paid", %{invoice: invoice, address: address} do
+  @tag required_confirmations: 5
+  test "confirmations until paid", %{invoice: invoice, address: address, currency_id: currency_id} do
+    txid0 = unique_txid()
+    txid1 = unique_txid()
+
     assert 5 == Invoices.confirmations_until_paid(invoice)
 
-    Blocks.set_block_height(:BCH, 0)
+    Blocks.set_block_height(currency_id, 0)
 
-    assert :ok = Transactions.seen("tx:0", [{address.id, Money.parse!(0.2, :BCH)}])
+    assert :ok = Transactions.seen(txid0, [{address.id, Money.parse!(0.2, currency_id)}])
     assert 5 == Invoices.confirmations_until_paid(invoice)
 
-    Transactions.confirmed("tx:0", [{address.id, Money.parse!(0.2, :BCH)}], 0)
+    Transactions.confirmed(txid0, [{address.id, Money.parse!(0.2, currency_id)}], 0)
     assert 4 == Invoices.confirmations_until_paid(invoice)
 
-    Blocks.new_block(:BCH, 1)
+    Blocks.new_block(currency_id, 1)
     assert 3 == Invoices.confirmations_until_paid(invoice)
 
-    assert :ok = Transactions.confirmed("tx:1", [{address.id, Money.parse!(0.2, :BCH)}], 1)
+    assert :ok = Transactions.confirmed(txid1, [{address.id, Money.parse!(0.2, currency_id)}], 1)
     assert 4 == Invoices.confirmations_until_paid(invoice)
 
-    Blocks.new_block(:BCH, 2)
+    Blocks.new_block(currency_id, 2)
     assert 3 == Invoices.confirmations_until_paid(invoice)
-    Blocks.new_block(:BCH, 3)
-    Blocks.new_block(:BCH, 4)
-    Blocks.new_block(:BCH, 5)
+    Blocks.new_block(currency_id, 3)
+    Blocks.new_block(currency_id, 4)
+    Blocks.new_block(currency_id, 5)
     assert 0 == Invoices.confirmations_until_paid(invoice)
-    Blocks.new_block(:BCH, 6)
+    Blocks.new_block(currency_id, 6)
     assert 0 == Invoices.confirmations_until_paid(invoice)
   end
 end

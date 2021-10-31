@@ -6,18 +6,22 @@ defmodule BitPal.Currencies do
   alias BitPalSchemas.Invoice
   alias Ecto.Changeset
 
-  @currencies %{
-    BCH: %{name: "Bitcoin Cash", exponent: 8, symbol: "BCH"},
-    BTC: %{name: "Bitcoin", exponent: 8, symbol: "BTC"},
-    DGC: %{name: "Dogecoin", exponent: 8, symbol: "DGC"},
-    LTC: %{name: "Litecoin", exponent: 8, symbol: "LTC"},
-    XMR: %{name: "Monero", exponent: 12, symbol: "XMR"}
-  }
-
   @type height :: non_neg_integer()
 
   @spec supported_currencies :: [Currency.id()]
-  def supported_currencies, do: Map.keys(@currencies)
+  def supported_currencies do
+    Application.get_env(:money, :custom_currencies)
+    |> Map.keys()
+  end
+
+  @spec add_custom_curreny(atom, map) :: :ok
+  def add_custom_curreny(id, opts) do
+    currencies =
+      Application.get_env(:money, :custom_currencies)
+      |> Map.put_new(id, opts)
+
+    Application.put_env(:money, :custom_currencies, currencies)
+  end
 
   @spec fetch(Currency.id()) :: {:ok, Currency.t()} | :error
   def fetch(id) do
@@ -33,7 +37,7 @@ defmodule BitPal.Currencies do
   @spec all() :: [Currency.t()]
   def all(), do: Repo.all(Currency)
 
-  @spec addresses(CurrenCy.id(), Store.id()) :: [Address.t()]
+  @spec addresses(Currency.id(), Store.id()) :: [Address.t()]
   def addresses(id, store_id) do
     from(a in Address,
       where: a.currency_id == ^id,
@@ -44,7 +48,11 @@ defmodule BitPal.Currencies do
     |> Repo.all()
   end
 
-  @spec invoices(CurrenCy.id(), Store.id()) :: [Invoice.t()]
+  def invoice_ids(ids) when is_list(ids) do
+    from(i in Invoice, where: i.currency_id in ^ids, select: i.id) |> Repo.all()
+  end
+
+  @spec invoices(Currency.id(), Store.id()) :: [Invoice.t()]
   def invoices(id, store_id) do
     from(i in Invoice, where: i.currency_id == ^id and i.store_id == ^store_id) |> Repo.all()
   end
@@ -88,11 +96,5 @@ defmodule BitPal.Currencies do
     end
   catch
     _ -> :error
-  end
-
-  def configure_money do
-    # Configure here because we want to configure :money, even when run as a library.
-    # Should probably merge with existing config...
-    Application.put_env(:money, :custom_currencies, @currencies)
   end
 end

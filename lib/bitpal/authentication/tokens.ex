@@ -40,7 +40,7 @@ defmodule BitPal.Authentication.Tokens do
   @spec create_token(Store.t(), map) :: {:ok, AccessToken.t()} | {:error, Changeset.t()}
   def create_token(store = %Store{}, params) do
     store
-    |> Ecto.build_assoc(:access_tokens, data: create_token_data(store))
+    |> Ecto.build_assoc(:access_tokens, data: params[:data] || create_token_data(store))
     |> cast(params, [:label])
     |> Repo.insert()
   end

@@ -50,26 +50,21 @@ defmodule BitPal.InvoiceHandler do
 
   @impl true
   def init(opts) do
+    # Register process directly, to prevent race condition with manager calling the handler
+    # directly after start_link.
     invoice_id = Keyword.fetch!(opts, :invoice_id)
-
     Registry.register(ProcessRegistry, via_tuple(invoice_id), invoice_id)
 
-    # Callback to initializer routine to not block start_link
-    send(self(), :init)
-
-    state =
-      case Keyword.get(opts, :double_spend_timeout) do
-        nil -> %{}
-        timeout -> %{double_spend_timeout: timeout}
-      end
-      |> Map.merge(%{invoice_id: invoice_id, block_height: 0})
-
-    {:ok, state}
+    {:ok, %{invoice_id: invoice_id, opts: opts}, {:continue, :init}}
   end
 
   @impl true
-  def handle_info(:init, state = %{invoice_id: invoice_id}) do
+  def handle_continue(:init, %{invoice_id: invoice_id, opts: opts}) do
     Logger.debug("init handler: #{invoice_id}")
+
+    if parent = opts[:parent] do
+      Ecto.Adapters.SQL.Sandbox.allow(BitPal.Repo, parent, self())
+    end
 
     # Locate a new invoice for self-healing purpises.
     # If we're restarted we need to get the up-to-date invoice.
@@ -78,16 +73,70 @@ defmodule BitPal.InvoiceHandler do
     invoice = Invoices.fetch!(invoice_id)
 
     state =
-      state
+      Keyword.take(opts, [:double_spend_timeout])
+      |> Enum.into(%{block_height: 0, invoice_id: invoice_id})
       |> Map.put_new_lazy(:double_spend_timeout, fn -> Invoices.double_spend_timeout(invoice) end)
+      |> Map.put(:invoice, invoice)
 
     case invoice.status do
       :draft ->
-        finalize(invoice, state)
+        {:noreply, state, {:continue, :finalize}}
 
       _ ->
-        recover(invoice, state)
+        {:noreply, state, {:continue, :recover}}
     end
+  end
+
+  @impl true
+  def handle_continue(:finalize, state = %{invoice: invoice}) do
+    case BackendManager.register(invoice) do
+      {:ok, invoice} ->
+        subscribe(invoice)
+        invoice = Invoices.finalize!(invoice)
+
+        state =
+          state
+          |> Map.delete(:invoice_id)
+          |> Map.put(:invoice, invoice)
+
+        {:noreply, state}
+
+      {:error, err} ->
+        Logger.error("""
+        Failed to register invoice with backend #{inspect(err)}
+        Wanted currency: #{invoice.currency_id}
+        Supported currencies by the backends: #{inspect(BackendManager.currency_list())}
+        """)
+
+        {:stop, {:shutdown, err}}
+    end
+  end
+
+  @impl true
+  def handle_continue(:recover, state = %{invoice: invoice}) do
+    subscribe(invoice)
+
+    # Should always have a block since we're trying to recover
+    block_height = Blocks.fetch_block_height!(invoice.currency_id)
+    invoice = Invoices.update_info_from_txs(invoice, block_height)
+
+    txs =
+      Enum.map(invoice.tx_outputs, fn tx ->
+        if tx.confirmed_height == nil do
+          send_double_spend_timeout(tx.txid, state)
+        end
+
+        {tx.txid, tx.confirmed_height}
+      end)
+      |> Enum.into(%{})
+
+    state
+    |> Map.put(:block_height, block_height)
+    |> Map.delete(:invoice_id)
+    |> Map.put(:invoice, invoice)
+    |> ensure_invoice_is_processing(txs)
+    |> clear_processed_txs(txs)
+    |> try_into_paid()
   end
 
   @impl true
@@ -215,51 +264,9 @@ defmodule BitPal.InvoiceHandler do
     {:reply, state.invoice, state}
   end
 
-  defp finalize(invoice, state) do
-    case BackendManager.register(invoice) do
-      {:ok, invoice} ->
-        :ok = AddressEvents.subscribe(invoice.address_id)
-        :ok = BlockchainEvents.subscribe(invoice.currency_id)
-
-        invoice = Invoices.finalize!(invoice)
-
-        state =
-          state
-          |> Map.delete(:invoice_id)
-          |> Map.put(:invoice, invoice)
-
-        {:noreply, state}
-
-      {:error, err} ->
-        {:stop, {:shutdown, err}}
-    end
-  end
-
-  defp recover(invoice, state) do
+  defp subscribe(invoice) do
     :ok = AddressEvents.subscribe(invoice.address_id)
     :ok = BlockchainEvents.subscribe(invoice.currency_id)
-
-    # Should always have a block since we're trying to recover
-    block_height = Blocks.fetch_block_height!(invoice.currency_id)
-    invoice = Invoices.update_info_from_txs(invoice, block_height)
-
-    txs =
-      Enum.map(invoice.tx_outputs, fn tx ->
-        if tx.confirmed_height == nil do
-          send_double_spend_timeout(tx.txid, state)
-        end
-
-        {tx.txid, tx.confirmed_height}
-      end)
-      |> Enum.into(%{})
-
-    state
-    |> Map.put(:block_height, block_height)
-    |> Map.delete(:invoice_id)
-    |> Map.put(:invoice, invoice)
-    |> ensure_invoice_is_processing(txs)
-    |> clear_processed_txs(txs)
-    |> try_into_paid()
   end
 
   defp ensure_invoice_is_processing(state, txs) do

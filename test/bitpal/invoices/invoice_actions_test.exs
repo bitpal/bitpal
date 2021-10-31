@@ -1,8 +1,8 @@
 defmodule BitPal.InvoiceActionsTest do
-  use BitPal.IntegrationCase
+  use BitPal.IntegrationCase, async: true
 
   setup tags do
-    %{invoice: create_invoice!(tags)}
+    %{invoice: InvoiceFixtures.invoice_fixture(tags)}
   end
 
   test "transitions", %{invoice: invoice} do
@@ -10,7 +10,10 @@ defmodule BitPal.InvoiceActionsTest do
 
     # Must have an address when finalizing
     assert {:error, _} = Invoices.finalize(invoice)
-    assert {:ok, invoice} = Invoices.finalize(%{invoice | address_id: generate_address_id()})
+
+    assert {:ok, invoice} =
+             Invoices.finalize(%{invoice | address_id: AddressFixtures.unique_address_id()})
+
     assert invoice.status == :open
     assert invoice.status_reason == nil
 

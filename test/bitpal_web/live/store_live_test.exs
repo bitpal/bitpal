@@ -1,6 +1,7 @@
 defmodule BitPalWeb.StoreLiveTest do
-  use BitPalWeb.ConnCase, integration: true
+  use BitPalWeb.ConnCase, integration: true, async: true
   alias BitPal.BackendMock
+  alias Phoenix.HTML
 
   setup tags do
     tags
@@ -9,29 +10,34 @@ defmodule BitPalWeb.StoreLiveTest do
   end
 
   describe "invoice updates" do
-    @tag backends: true
-    test "show new invoice", %{conn: conn, store: store} do
+    test "show new invoice", %{conn: conn, store: store, currency_id: currency_id} do
       {:ok, view, html} = live(conn, Routes.store_path(conn, :show, store.slug))
-      assert html =~ store.label
+      assert html =~ store.label |> HTML.html_escape() |> HTML.safe_to_string()
+
       assert html =~ "There are no invoices here yet"
 
       _invoice =
         InvoiceFixtures.invoice_fixture(store.id,
-          description: "A draft invoice"
+          description: "A draft invoice",
+          curency_id: currency_id
         )
 
       assert render_eventually(view, "A draft invoice")
     end
 
-    @tag backends: true
-    test "invoice is updated and finally marked as paid", %{conn: conn, store: store} do
+    test "invoice is updated and finally marked as paid", %{
+      conn: conn,
+      store: store,
+      currency_id: currency_id
+    } do
       {:ok, view, _html} = live(conn, Routes.store_path(conn, :show, store))
 
       {:ok, invoice, _, _} =
         HandlerSubscriberCollector.create_invoice(
           store_id: store.id,
           address: :auto,
-          required_confirmations: 3
+          required_confirmations: 3,
+          currency_id: currency_id
         )
 
       render_eventually(view, "open")
@@ -44,7 +50,7 @@ defmodule BitPalWeb.StoreLiveTest do
 
       render_eventually(view, "processing")
 
-      BackendMock.issue_blocks(2)
+      BackendMock.issue_blocks(currency_id, 2)
 
       render_eventually(view, "paid")
     end

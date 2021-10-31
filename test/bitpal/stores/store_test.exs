@@ -1,9 +1,9 @@
 defmodule BitPal.StoreTest do
-  use BitPal.IntegrationCase, db: true, async: false
+  use BitPal.DataCase, async: true
   alias BitPal.Repo
 
   setup tags do
-    %{store: create_store!(tags) |> Repo.preload([:users])}
+    %{store: StoreFixtures.store_fixture(tags) |> Repo.preload([:users])}
   end
 
   test "store invoice association", %{store: store} do
@@ -12,9 +12,9 @@ defmodule BitPal.StoreTest do
                store.id,
                %{
                  amount: "1.2",
-                 currency: "BCH",
+                 currency_id: CurrencyFixtures.unique_currency_id(),
                  exchange_rate: "2.0",
-                 fiat_currency: "USD"
+                 fiat_currency: CurrencyFixtures.fiat_currency()
                }
              )
 

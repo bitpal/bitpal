@@ -9,9 +9,17 @@ defmodule BitPal.ProcessRegistry do
 
   @spec get_process(any) :: {:ok, pid} | {:error, :not_found}
   def get_process(key) do
+    case get_process_value(key) do
+      {:ok, {pid, _}} -> {:ok, pid}
+      err -> err
+    end
+  end
+
+  @spec get_process_value(any) :: {:ok, {pid, term}} | {:error, :not_found}
+  def get_process_value(key) do
     case Registry.lookup(__MODULE__, key) do
-      [{pid, _}] ->
-        {:ok, pid}
+      [{pid, value}] ->
+        {:ok, {pid, value}}
 
       [] ->
         {:error, :not_found}

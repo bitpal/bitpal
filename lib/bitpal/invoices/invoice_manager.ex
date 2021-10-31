@@ -1,41 +1,60 @@
 defmodule BitPal.InvoiceManager do
-  use GenServer
+  use DynamicSupervisor
   alias BitPal.InvoiceHandler
   alias BitPal.Invoices
   alias BitPal.ProcessRegistry
   alias BitPalSchemas.Invoice
   alias Ecto.Changeset
 
-  @supervisor BitPal.InvoiceSupervisor
+  @type server_name :: atom | {:via, term, term}
 
+  @spec start_link(keyword) :: DynamicSupervisor.on_start()
   def start_link(opts) do
-    GenServer.start(__MODULE__, opts, name: __MODULE__)
+    name = opts[:name] || __MODULE__
+    DynamicSupervisor.start_link(__MODULE__, opts, name: name)
   end
 
-  @spec finalize_invoice(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Changeset.t()}
-  def finalize_invoice(invoice) do
-    with {:ok, invoice_id} <- finalize_and_track(invoice),
-         {:ok, invoice} <- fetch_invoice(invoice_id) do
+  def child_spec(opts) do
+    %{
+      id: opts[:name] || __MODULE__,
+      restart: :transient,
+      start: {__MODULE__, :start_link, [opts]}
+    }
+  end
+
+  # Individual invoices
+
+  @spec finalize_invoice(Invoice.t(), keyword) ::
+          {:ok, Invoice.t()} | {:error, Changeset.t()}
+  def finalize_invoice(invoice = %Invoice{}, opts \\ []) do
+    opts =
+      opts
+      |> Keyword.put_new(:parent, self())
+
+    # The handler will finalize and update the invoice, so we'll need to fetch the 
+    # updated invoice from the handler.
+    with {:ok, handler} <- start_handler(invoice, opts),
+         {:ok, invoice} <- fetch_invoice(handler) do
       {:ok, invoice}
     else
       err -> err
     end
   end
 
-  @spec finalize_and_track(Invoice.t()) :: {:ok, Invoice.id()} | {:error, Changeset.t()}
-  def finalize_and_track(invoice) do
-    GenServer.call(__MODULE__, {:finalize_and_track, invoice.id})
-    {:ok, invoice.id}
-  end
+  defp start_handler(invoice, opts) do
+    name = opts[:name] || __MODULE__
 
-  @spec count_children() :: non_neg_integer
-  def count_children do
-    Supervisor.count_children(@supervisor).workers
-  end
-
-  @spec configure([{:double_spend_timeout, non_neg_integer}]) :: :ok
-  def configure(opts) do
-    GenServer.call(__MODULE__, {:configure, opts})
+    DynamicSupervisor.start_child(
+      name,
+      {
+        InvoiceHandler,
+        manager_name: opts[:manager_name],
+        parent: opts[:parent],
+        invoice_id: invoice.id,
+        double_spend_timeout:
+          opts[:double_spend_timeout] || Invoices.double_spend_timeout(invoice)
+      }
+    )
   end
 
   @spec fetch_handler(Invoice.id()) :: {:ok, pid} | {:error, :not_found}
@@ -43,15 +62,26 @@ defmodule BitPal.InvoiceManager do
     ProcessRegistry.get_process(InvoiceHandler.via_tuple(invoice_id))
   end
 
-  @spec fetch_invoice(Invoice.id()) :: {:ok, Invoice.t()} | {:error, :not_found}
+  @spec fetch_invoice(pid | Invoice.id()) :: {:ok, Invoice.t()} | {:error, :not_found}
+  def fetch_invoice(handler) when is_pid(handler) do
+    # Blocks until handler has finalized the invoice, which may change invoice details.
+    case InvoiceHandler.fetch_invoice(handler) do
+      {:ok, invoice} ->
+        InvoiceHandler.fetch_invoice(handler)
+        # Must be finalized, otherwise there's a logic bug somewhere when initializing handler.
+        if !Invoices.finalized?(invoice), do: raise("invoice not finalized yet!")
+        {:ok, invoice}
+
+      _ ->
+        {:error, :not_found}
+    end
+  end
+
   def fetch_invoice(invoice_id) do
-    with {:ok, handler} <- fetch_handler(invoice_id),
-         # Blocks until handler has finalized the invoice, which may change invoice details.
-         {:ok, invoice} <- InvoiceHandler.fetch_invoice(handler) do
-      # Must be finalized, otherwise there's a logic bug somewhere when initializing handler.
-      if !Invoices.finalized?(invoice), do: raise("invoice not finalized yet!")
-      {:ok, invoice}
-    else
+    case fetch_handler(invoice_id) do
+      {:ok, handler} ->
+        fetch_invoice(handler)
+
       _ ->
         {:error, :not_found}
     end
@@ -65,40 +95,31 @@ defmodule BitPal.InvoiceManager do
     end
   end
 
+  # Supervision
+
+  @spec count_children(server_name) :: non_neg_integer
+  def count_children(name \\ __MODULE__) do
+    DynamicSupervisor.count_children(name).workers
+  end
+
   @spec tracked_invoices() :: [Invoice.t()]
-  def tracked_invoices do
-    DynamicSupervisor.which_children(@supervisor)
+  def tracked_invoices(name \\ __MODULE__) do
+    DynamicSupervisor.which_children(name)
     |> Enum.map(fn {_, pid, _, _} ->
       pid
       |> InvoiceHandler.fetch_invoice!()
     end)
   end
 
-  @spec terminate_children() :: :ok
-  def terminate_children do
-    DynamicSupervisor.which_children(@supervisor)
-    |> Enum.each(fn {_, pid, _, _} ->
-      DynamicSupervisor.terminate_child(@supervisor, pid)
-    end)
+  @spec terminate_handler(pid) :: :ok | {:error, :not_found}
+  def terminate_handler(name \\ __MODULE__, pid) do
+    DynamicSupervisor.terminate_child(name, pid)
   end
 
-  @impl true
-  def init(opts) do
-    # Internal supervisor to reduce the number of modules and it's not doing much
-    DynamicSupervisor.start_link(strategy: :one_for_one, name: @supervisor)
-
-    {:ok, opts}
-  end
+  # Server API
 
   @impl true
-  def handle_call({:finalize_and_track, invoice_id}, _from, state) do
-    child =
-      DynamicSupervisor.start_child(
-        @supervisor,
-        {InvoiceHandler,
-         invoice_id: invoice_id, double_spend_timeout: Keyword.get(state, :double_spend_timeout)}
-      )
-
-    {:reply, child, state}
+  def init(_opts) do
+    DynamicSupervisor.init(strategy: :one_for_one)
   end
 end

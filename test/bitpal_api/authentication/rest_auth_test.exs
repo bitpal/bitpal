@@ -1,5 +1,5 @@
 defmodule BitPalApi.AuthTest do
-  use BitPalApi.ConnCase
+  use BitPalApi.ConnCase, async: true
 
   defp protected_requests do
     [

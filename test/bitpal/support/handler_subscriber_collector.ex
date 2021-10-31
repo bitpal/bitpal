@@ -1,46 +1,38 @@
 defmodule BitPal.HandlerSubscriberCollector do
   use GenServer
-  alias BitPal.Addresses
   alias BitPal.InvoiceEvents
   alias BitPal.InvoiceManager
   alias BitPal.Invoices
-  alias BitPalFixtures.StoreFixtures
-  alias BitPalSchemas.Invoice
+  alias BitPalFixtures.InvoiceFixtures
+  alias BitPalFixtures.SettingsFixtures
+  alias BitPal.ProcessRegistry
 
   # Client API
 
-  @spec create_invoice() :: {:ok, Invoice.t(), pid, pid}
-  def create_invoice do
-    create_invoice(%{})
-  end
+  def create_invoice(opts \\ %{}) do
+    opts = Enum.into(opts, %{})
 
-  @spec create_invoice(keyword | map) :: {:ok, Invoice.t(), pid, pid}
-  def create_invoice(params) when is_list(params) do
-    create_invoice(Enum.into(params, %{}))
-  end
+    # Create invoice outside of the server process to generate unique names from the invoice id.
+    invoice = InvoiceFixtures.invoice_fixture(opts)
 
-  def create_invoice(params) do
-    {:ok, stub} = start_link(nil)
+    # Fixture may have created an address_key, but it's not guaranteed.
+    # This is needed when finalizing, so generate one if needed.
+    case Invoices.address_key(invoice) do
+      {:ok, _} ->
+        nil
 
-    params =
-      Map.merge(
-        %{
-          amount: 1.3,
-          currency: :BCH,
-          exchange_rate: 2.0,
-          fiat_currency: :USD,
-          required_confirmations: 0
-        },
-        params
-      )
+      {:error, :not_found} ->
+        SettingsFixtures.address_key_fixture(invoice)
+    end
 
-    {invoice, handler} = GenServer.call(stub, {:create_invoice, params})
+    {:ok, stub} = GenServer.start_link(__MODULE__, name: via_tuple(invoice.id), parent: self())
+    {invoice, handler} = GenServer.call(stub, {:track_invoice, invoice, opts})
 
     {:ok, invoice, stub, handler}
   end
 
-  def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts)
+  defp via_tuple(invoice_id) do
+    ProcessRegistry.via_tuple({__MODULE__, invoice_id})
   end
 
   def received(handler) do
@@ -79,25 +71,27 @@ defmodule BitPal.HandlerSubscriberCollector do
   # Server API
 
   @impl true
-  def init(_init_args) do
-    {:ok, %{received: []}}
+  def init(args) do
+    parent = Keyword.fetch!(args, :parent)
+    Ecto.Adapters.SQL.Sandbox.allow(BitPal.Repo, parent, self())
+
+    {:ok, %{received: [], parent: parent}}
   end
 
   @impl true
-  def handle_call({:create_invoice, params = %{address: {address, id}}}, _, state) do
-    {store_id, state} = get_store_id(params, state)
-    # Address specified, force the address.
-    {:ok, invoice} = Invoices.register(store_id, Map.delete(params, :address))
-    {:ok, addr} = Addresses.register(invoice.currency_id, address, id)
-    Invoices.assign_address(invoice, addr)
-    track(invoice, state)
-  end
+  def handle_call({:track_invoice, invoice, opts}, _, state) do
+    :ok = InvoiceEvents.subscribe(invoice)
 
-  @impl true
-  def handle_call({:create_invoice, params}, _, state) do
-    {store_id, state} = get_store_id(params, state)
-    {:ok, invoice} = Invoices.register(store_id, params)
-    track(invoice, state)
+    {:ok, invoice} =
+      InvoiceManager.finalize_invoice(invoice,
+        parent: state.parent,
+        double_spend_timeout: opts[:double_spend_timeout],
+        manager_name: opts[:manager_name] || BitPal.BackendManager
+      )
+
+    {:ok, handler} = InvoiceManager.fetch_handler(invoice.id)
+
+    {:reply, {invoice, handler}, state}
   end
 
   @impl true
@@ -108,25 +102,5 @@ defmodule BitPal.HandlerSubscriberCollector do
   @impl true
   def handle_info(info, state = %{received: received}) do
     {:noreply, %{state | received: [info | received]}}
-  end
-
-  defp track(invoice, state) do
-    :ok = InvoiceEvents.subscribe(invoice)
-    {:ok, invoice} = InvoiceManager.finalize_invoice(invoice)
-    {:ok, handler} = InvoiceManager.fetch_handler(invoice.id)
-    {:reply, {invoice, handler}, state}
-  end
-
-  defp get_store_id(%{store_id: store_id}, state) do
-    {store_id, state}
-  end
-
-  defp get_store_id(_params, state = %{store_id: store_id}) do
-    {store_id, state}
-  end
-
-  defp get_store_id(_params, state) do
-    store = StoreFixtures.store_fixture()
-    {store.id, Map.put(state, :store_id, store.id)}
   end
 end

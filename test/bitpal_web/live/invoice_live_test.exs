@@ -1,5 +1,5 @@
 defmodule BitPalWeb.InvoiceLiveTest do
-  use BitPalWeb.ConnCase, integration: true
+  use BitPalWeb.ConnCase, integration: true, async: true
   alias BitPal.BackendMock
 
   setup tags do
@@ -14,10 +14,11 @@ defmodule BitPalWeb.InvoiceLiveTest do
   end
 
   describe "invoice updates" do
-    @tag backends: true
+    @tag do: true
     test "invoice is updated and finally marked as paid", %{
       conn: conn,
-      invoice: invoice
+      invoice: invoice,
+      currency_id: currency_id
     } do
       {:ok, view, html} = live(conn, "/invoices/#{invoice.id}")
       assert html =~ invoice.description
@@ -32,14 +33,13 @@ defmodule BitPalWeb.InvoiceLiveTest do
 
       render_eventually(view, "processing")
 
-      BackendMock.issue_blocks(2)
+      BackendMock.issue_blocks(currency_id, 2)
 
       render_eventually(view, "paid")
     end
   end
 
   describe "security" do
-    @tag backends: true
     test "redirect from other invoice", %{conn: conn} do
       other_invoice =
         AccountFixtures.user_fixture()

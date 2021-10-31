@@ -16,18 +16,24 @@ defmodule BitPal.DataCase do
 
   use ExUnit.CaseTemplate
   use BitPalFixtures
-  alias Ecto.Adapters.SQL.Sandbox
 
   using do
     quote do
-      use BitPalFixtures
+      use BitPal.CaseHelpers
       alias BitPal.Repo
 
       import Ecto
       import Ecto.Changeset
       import Ecto.Query
       import BitPal.DataCase
-      import BitPal.CreationHelpers
+
+      alias BitPal.Addresses
+      alias BitPal.Currencies
+      alias BitPal.ExchangeRate
+      alias BitPal.Invoices
+      alias BitPal.Repo
+      alias BitPal.Stores
+      alias BitPal.Transactions
     end
   end
 
@@ -37,28 +43,10 @@ defmodule BitPal.DataCase do
   end
 
   def setup_db(tags) do
-    pid = Sandbox.start_owner!(BitPal.Repo, shared: not tags[:async])
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(BitPal.Repo, shared: not tags[:async])
 
     on_exit(fn ->
-      Sandbox.stop_owner(pid)
-    end)
-
-    CurrencyFixtures.seed_supported_currencies()
-  end
-
-  @doc """
-  A helper that transforms changeset errors into a map of messages.
-
-      assert {:error, changeset} = Accounts.create_user(%{password: "short"})
-      assert "password is too short" in errors_on(changeset).password
-      assert %{password: ["password is too short"]} = errors_on(changeset)
-
-  """
-  def errors_on(changeset) do
-    Ecto.Changeset.traverse_errors(changeset, fn {message, opts} ->
-      Regex.replace(~r"%{(\w+)}", message, fn _, key ->
-        opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
-      end)
+      Ecto.Adapters.SQL.Sandbox.stop_owner(pid)
     end)
   end
 end

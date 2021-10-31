@@ -17,6 +17,7 @@ defmodule BitPalWeb.ConnCase do
 
   use BitPalFixtures
   import Phoenix.LiveViewTest
+  import BitPal.TestHelpers
   alias BitPal.Accounts
   alias BitPal.DataCase
   alias BitPal.IntegrationCase
@@ -25,7 +26,7 @@ defmodule BitPalWeb.ConnCase do
   defmacro __using__(params) do
     quote do
       use ExUnit.Case, unquote(params)
-      use BitPalFixtures
+      use BitPal.CaseHelpers
 
       import BitPalWeb.ConnCase
       import Phoenix.ConnTest
@@ -41,13 +42,16 @@ defmodule BitPalWeb.ConnCase do
       @integration Keyword.get(unquote(params), :integration)
 
       setup tags do
-        if @integration do
-          IntegrationCase.setup_integration(tags)
-        else
-          DataCase.setup_db(tags)
-        end
+        res =
+          if @integration do
+            IntegrationCase.setup_integration(tags)
+          else
+            DataCase.setup_db(tags)
+            %{}
+          end
+          |> Map.put(:conn, Phoenix.ConnTest.build_conn())
 
-        {:ok, conn: Phoenix.ConnTest.build_conn()}
+        {:ok, res}
       end
     end
   end
@@ -60,10 +64,10 @@ defmodule BitPalWeb.ConnCase do
   It stores an updated connection and a registered user in the
   test context.
   """
-  def register_and_log_in_user(%{conn: conn}) do
+  def register_and_log_in_user(tags = %{conn: conn}) do
     password = AccountFixtures.valid_user_password()
     user = AccountFixtures.user_fixture(password: password)
-    %{conn: log_in_user(conn, user), user: user, password: password}
+    Map.merge(tags, %{conn: log_in_user(conn, user), user: user, password: password})
   end
 
   @doc """
@@ -81,35 +85,23 @@ defmodule BitPalWeb.ConnCase do
 
   def create_store(tags = %{user: user}, attrs \\ %{}) do
     Enum.into(tags, %{
-      store: StoreFixtures.store_fixture(user, attrs)
+      store: StoreFixtures.store_fixture(user, attrs),
+      label: "My 'ss'&"
     })
   end
 
-  def create_open_invoice(tags = %{store: store}, attrs \\ %{}) do
+  def create_open_invoice(tags = %{store: store, currency_id: currency_id}, attrs \\ %{}) do
     {:ok, invoice, _stub, _handler} =
       HandlerSubscriberCollector.create_invoice(
         Enum.into(attrs, %{
-          store_id: store.id
+          store_id: store.id,
+          currency_id: currency_id
         })
       )
 
     Enum.into(tags, %{
       invoice: invoice
     })
-  end
-
-  def eventually(func, timeout \\ 200) do
-    task = Task.async(fn -> _eventually(func) end)
-    Task.await(task, timeout)
-  end
-
-  defp _eventually(func) do
-    if func.() do
-      true
-    else
-      Process.sleep(10)
-      _eventually(func)
-    end
   end
 
   def render_eventually(view, match) do

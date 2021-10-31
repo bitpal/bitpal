@@ -14,6 +14,7 @@ defmodule BitPal.Invoices do
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.Store
   alias BitPalSchemas.TxOutput
+  alias BitPalSchemas.AddressKey
   alias Ecto.Changeset
   require Decimal
 
@@ -26,7 +27,7 @@ defmodule BitPal.Invoices do
       |> cast(params, [:required_confirmations, :description, :email, :pos_data])
       |> assoc_currency(params)
       |> validate_currency(params, :fiat_currency)
-      |> cast_money(params, :amount, :currency)
+      |> cast_money(params, :amount, :currency_id)
       |> cast_money(params, :fiat_amount, :fiat_currency)
       |> cast_exchange_rate(params)
       |> validate_into_matching_pairs()
@@ -84,7 +85,7 @@ defmodule BitPal.Invoices do
       |> cast(params, [:required_confirmations, :description, :email, :pos_data])
       |> assoc_currency(params)
       |> validate_currency(params, :fiat_currency)
-      |> cast_money(params, :amount, :currency)
+      |> cast_money(params, :amount, :currency_id)
       |> cast_money(params, :fiat_amount, :fiat_currency)
       |> cast_exchange_rate(params)
       |> clear_pairs_for_update()
@@ -176,9 +177,9 @@ defmodule BitPal.Invoices do
 
   # Settings
 
-  @spec xpub(Invoice.t()) :: String.t() | nil
-  def xpub(invoice) do
-    StoreSettings.get_xpub(invoice.store_id, invoice.currency_id)
+  @spec address_key(Invoice.t()) :: {:ok, AddressKey.t()} | {:error, :not_found}
+  def address_key(invoice) do
+    StoreSettings.fetch_address_key(invoice.store_id, invoice.currency_id)
   end
 
   @spec double_spend_timeout(Invoice.t()) :: non_neg_integer
@@ -336,20 +337,20 @@ defmodule BitPal.Invoices do
     |> Repo.update()
   end
 
-  @spec ensure_address(Invoice.t(), (Addresses.address_index() -> Address.id())) ::
-          {:ok, Invoice.t()} | {:error, Changeset.t()}
+  @spec ensure_address(Invoice.t(), Addresses.address_generator()) ::
+          {:ok, Invoice.t()} | {:error, Changeset.t()} | {:error, :address_key_not_assigned}
   def ensure_address(invoice = %{address_id: address_id}, _address_generator)
       when is_binary(address_id) do
     {:ok, invoice}
   end
 
   def ensure_address(invoice, address_generator) do
-    case Addresses.register_with(invoice.currency_id, address_generator) do
-      {:ok, address} ->
-        assign_address(invoice, address)
-
-      err ->
-        err
+    with {:ok, address_key} <- address_key(invoice),
+         {:ok, address} <- Addresses.generate_address(address_key, address_generator) do
+      assign_address(invoice, address)
+    else
+      {:error, :not_found} -> {:error, :address_key_not_assigned}
+      err -> err
     end
   end
 
@@ -525,17 +526,19 @@ defmodule BitPal.Invoices do
   end
 
   defp assoc_currency(changeset, params) do
-    currency = get_param(params, :currency) || get_field(changeset, :currency_id)
+    currency =
+      get_param(params, :currency_id) ||
+        get_field(changeset, :currency_id)
 
     if currency do
       changeset
       |> change(%{currency_id: Money.Currency.to_atom(currency)})
       |> assoc_constraint(:currency)
     else
-      add_error(changeset, :currency, "cannot be empty")
+      add_error(changeset, :currency_id, "cannot be empty")
     end
   rescue
-    _ -> add_error(changeset, :currency, "is invalid")
+    _ -> add_error(changeset, :currency_id, "is invalid")
   end
 
   defp cast_money(changeset, params, key, currency_key) do
@@ -579,7 +582,7 @@ defmodule BitPal.Invoices do
   end
 
   defp cast_exchange_rate(changeset, params) do
-    currency = get_currency(changeset, params, :amount, :currency)
+    currency = get_currency(changeset, params, :amount, :currency_id)
     fiat_currency = get_currency(changeset, params, :fiat_amount, :fiat_currency)
     exchange_rate = get_param(params, :exchange_rate)
 
@@ -706,13 +709,4 @@ defmodule BitPal.Invoices do
         |> validate_number(:required_confirmations, greater_than_or_equal_to: 0)
     end
   end
-
-  # defp with_default_lazy(changeset, key, val) do
-  #   if get_change(changeset, key) do
-  #     changeset
-  #   else
-  #     changeset
-  #     |> change(%{key => val.()})
-  #   end
-  # end
 end
