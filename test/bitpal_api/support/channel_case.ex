@@ -20,7 +20,7 @@ defmodule BitPalApi.ChannelCase do
 
   using do
     quote do
-      # Import conveniences for testing with channels
+      use BitPalFixtures
       import Phoenix.ChannelTest
       import BitPalApi.ChannelCase
       import BitPal.CreationHelpers

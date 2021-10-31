@@ -10,6 +10,7 @@ defmodule BitPal.CreationHelpers do
   alias BitPalSchemas.AccessToken
   alias BitPalSchemas.Store
   alias BitPalSchemas.TxOutput
+  alias BitPalFixtures.AuthFixtures
   alias Ecto.UUID
 
   # FIXME move over to fixtures
@@ -41,31 +42,10 @@ defmodule BitPal.CreationHelpers do
     {:ok, store} = Stores.create(user, params)
 
     if token = params[:token] do
-      create_token!(store, token)
+      AuthFixtures.token_fixture(store, token).data
     end
 
     store
-  end
-
-  @spec create_token!(Store.t()) :: AccessToken.t()
-  def create_token!(store) do
-    Tokens.create_token!(store).data
-  end
-
-  @spec create_token!(Store.t(), String.t()) :: AccessToken.t()
-  def create_token!(store, token_data) do
-    Tokens.insert_token!(store, token_data)
-  end
-
-  @spec create_auth! :: %{store_id: Store.id(), token: String.t()}
-  def create_auth! do
-    store = create_store!()
-    token = create_token!(store)
-
-    %{
-      store_id: store.id,
-      token: token
-    }
   end
 
   @spec create_invoice!(keyword) :: Invoice.t()

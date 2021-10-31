@@ -20,7 +20,6 @@ defmodule BitPalApi.ConnCase do
   import Plug.BasicAuth
   import Plug.Conn
   import Phoenix.ConnTest
-  alias BitPal.CreationHelpers
   alias BitPal.IntegrationCase
 
   using do
@@ -59,7 +58,7 @@ defmodule BitPalApi.ConnCase do
   end
 
   defp auth(conn, _tags) do
-    %{store_id: _store_id, token: token} = CreationHelpers.create_auth!()
+    %{store_id: _store_id, token: token} = AuthFixtures.auth_fixture()
     put_auth(conn, token)
   end
 
