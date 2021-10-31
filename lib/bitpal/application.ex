@@ -51,7 +51,11 @@ defmodule BitPal.Application do
     children = [
       BitPal.Repo,
       BitPalWeb.Endpoint,
-      Supervisor.child_spec({Phoenix.PubSub, name: BitPalWeb.PubSub}, id: BitPalWeb.PubSub)
+      Supervisor.child_spec({Phoenix.PubSub, name: BitPalWeb.PubSub}, id: BitPalWeb.PubSub),
+      Supervisor.child_spec(
+        {BitPal.Cache, name: BitPal.RuntimeStorage, ttl_check_interval: false},
+        id: BitPal.RuntimeStorage
+      )
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: BitPal.Supervisor)

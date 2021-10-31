@@ -43,7 +43,6 @@ defmodule BitPal.IntegrationCase do
     start_supervised!({Phoenix.PubSub, name: BitPal.PubSub})
     start_supervised!(BitPal.ProcessRegistry)
     start_supervised!({Task.Supervisor, name: BitPal.TaskSupervisor})
-    start_supervised!({BitPal.Cache, name: BitPal.RuntimeStorage, ttl_check_interval: false})
 
     DataCase.setup_db(tags)
 
