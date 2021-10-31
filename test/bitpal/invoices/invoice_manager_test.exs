@@ -5,7 +5,6 @@ defmodule InvoiceManagerTest do
 
   @tag backends: true
   test "initialize" do
-    Currencies.register!(:BCH)
     store = StoreFixtures.store_fixture()
 
     assert {:ok, inv1} =

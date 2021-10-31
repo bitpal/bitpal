@@ -94,6 +94,7 @@ defmodule BitPal.Addresses do
     |> unique_constraint([:generation_index, :currency_id])
   end
 
+  # FIXME should be per user/store!!!
   @doc """
   When generating addresses we track an unique index for each generation. This returns
   the next index, increasing from 0.

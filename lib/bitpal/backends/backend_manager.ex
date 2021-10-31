@@ -25,7 +25,7 @@ defmodule BitPal.BackendManager do
   defp seed_currencies do
     currencies()
     |> Enum.each(fn {currency, _, _} ->
-      Currencies.register!(currency)
+      Currencies.ensure_exists!(currency)
     end)
   end
 

@@ -3,7 +3,7 @@ defmodule Seeder do
   alias BitPal.Currencies
 
   def seed do
-    Currencies.register!([:BCH, :XMR])
+    Currencies.ensure_exists!([:BCH, :XMR])
     user1()
   end
 

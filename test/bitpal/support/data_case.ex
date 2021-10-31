@@ -15,6 +15,7 @@ defmodule BitPal.DataCase do
   """
 
   use ExUnit.CaseTemplate
+  use BitPalFixtures
   alias Ecto.Adapters.SQL.Sandbox
 
   using do
@@ -41,6 +42,8 @@ defmodule BitPal.DataCase do
     on_exit(fn ->
       Sandbox.stop_owner(pid)
     end)
+
+    CurrencyFixtures.seed_supported_currencies()
   end
 
   @doc """

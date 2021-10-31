@@ -7,10 +7,8 @@ defmodule BitPalFixtures.InvoiceFixtures do
   alias BitPal.Addresses
   alias BitPal.Invoices
   alias BitPalSchemas.Store
-  alias Ecto.UUID
-
-  @spec unique_address_id :: String.t()
-  def unique_address_id, do: "address:#{UUID.generate()}"
+  alias BitPalFixtures.AddressFixtures
+  alias BitPalFixtures.CurrencyFixtures
 
   def rand_pos_float(max \\ 1.0), do: :rand.uniform() * max
 
@@ -30,8 +28,8 @@ defmodule BitPalFixtures.InvoiceFixtures do
     Enum.into(attrs, %{
       amount: rand_pos_float(),
       exchange_rate: rand_pos_float(),
-      currency: "BCH",
-      fiat_currency: "USD",
+      currency: CurrencyFixtures.currency_id_s(:BCH),
+      fiat_currency: CurrencyFixtures.fiat_currency(),
       description: Faker.Commerce.product_name(),
       email: Faker.Internet.email()
     })
@@ -55,7 +53,9 @@ defmodule BitPalFixtures.InvoiceFixtures do
   end
 
   defp assign_address(invoice, %{address: :auto}) do
-    assign_address(invoice, %{address: unique_address_id()})
+    assign_address(invoice, %{
+      address: AddressFixtures.unique_address_id(invoice.store_id, invoice.currency_id)
+    })
   end
 
   defp assign_address(invoice, %{address: address_id}) when is_binary(address_id) do

@@ -1,10 +1,10 @@
 defmodule BitPalSettings.StoreSettingsTest do
   use BitPal.DataCase, async: true
   alias BitPalSettings.StoreSettings
+  alias BitPal.Currencies
 
   setup tags do
-    BitPal.Currencies.register!([:BCH])
-    %{store: create_store!(tags)}
+    %{store: StoreFixtures.store_fixture()}
   end
 
   describe "xpub/2" do

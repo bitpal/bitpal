@@ -16,6 +16,9 @@ defmodule BitPal.Currencies do
 
   @type height :: non_neg_integer()
 
+  @spec supported_currencies :: [Currency.id()]
+  def supported_currencies, do: Map.keys(@currencies)
+
   @spec fetch(Currency.id()) :: {:ok, Currency.t()} | :error
   def fetch(id) do
     case Repo.get(Currency, id) do
@@ -46,12 +49,13 @@ defmodule BitPal.Currencies do
     from(i in Invoice, where: i.currency_id == ^id and i.store_id == ^store_id) |> Repo.all()
   end
 
-  @spec register!([Currency.id()] | Currency.id()) :: :ok
-  def register!(ids) when is_list(ids) do
-    Enum.each(ids, &register!/1)
+  @spec ensure_exists!([Currency.id()]) :: :ok
+  def ensure_exists!(ids) when is_list(ids) do
+    Enum.each(ids, &ensure_exists!/1)
   end
 
-  def register!(id) do
+  @spec ensure_exists!(Currency.id()) :: :ok
+  def ensure_exists!(id) when is_atom(id) do
     Repo.insert!(%Currency{id: id}, on_conflict: :nothing)
   end
 

@@ -6,6 +6,7 @@ defmodule BitPal.IntegrationCase do
   """
 
   use ExUnit.CaseTemplate
+  use BitPalFixtures
   alias BitPal.DataCase
 
   using do
@@ -45,8 +46,6 @@ defmodule BitPal.IntegrationCase do
     start_supervised!({BitPal.Cache, name: BitPal.RuntimeStorage, ttl_check_interval: false})
 
     DataCase.setup_db(tags)
-
-    BitPal.Currencies.register!([:XMR, :BCH, :DGC])
 
     if tags[:backends] do
       setup_backends(tags)
