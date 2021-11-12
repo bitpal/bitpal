@@ -8,7 +8,7 @@ defmodule BitPal.BackendMock do
   alias BitPal.Invoices
   alias BitPal.ProcessRegistry
   alias BitPal.Transactions
-  alias BitPalFixtures.CurrencyFixtures
+  alias BitPalFactory.Factory
   alias BitPalFixtures.InvoiceFixtures
   alias BitPalFixtures.TransactionFixtures
   alias BitPalSchemas.Invoice
@@ -45,7 +45,7 @@ defmodule BitPal.BackendMock do
   def child_spec(opts) do
     opts =
       opts
-      |> Keyword.put_new_lazy(:currency_id, &CurrencyFixtures.unique_currency_id/0)
+      |> Keyword.put_new_lazy(:currency_id, &Factory.unique_currency_id/0)
 
     currency_id = Keyword.fetch!(opts, :currency_id)
 

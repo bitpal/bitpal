@@ -5,7 +5,7 @@ defmodule BitPal.InvoiceTransactionsTest do
   alias BitPalSchemas.TxOutput
 
   setup tags do
-    currency_id = CurrencyFixtures.unique_currency_id()
+    currency_id = unique_currency_id()
 
     invoice =
       Map.take(tags, [:amount, :required_confirmations])

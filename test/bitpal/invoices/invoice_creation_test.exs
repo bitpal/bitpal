@@ -130,9 +130,9 @@ defmodule InvoiceCreationTest do
                  store_id,
                  %{
                    amount: "1.2",
-                   currency_id: CurrencyFixtures.unique_currency_id(),
+                   currency_id: unique_currency_id(),
                    exchange_rate: "2.0",
-                   fiat_currency: CurrencyFixtures.fiat_currency()
+                   fiat_currency: unique_fiat()
                  }
                )
 

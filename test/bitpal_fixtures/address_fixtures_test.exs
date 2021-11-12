@@ -18,7 +18,7 @@ defmodule BitPalFixtures.AddressFixturesTest do
     end
 
     test "existing currency_id" do
-      currency_id = CurrencyFixtures.unique_currency_id()
+      currency_id = unique_currency_id()
       address = AddressFixtures.address_fixture(currency_id: currency_id)
       assert address.currency_id == currency_id
     end
@@ -39,7 +39,7 @@ defmodule BitPalFixtures.AddressFixturesTest do
 
     test "assoc address_key via store and currency_id" do
       store = insert(:store)
-      currency_id = CurrencyFixtures.unique_currency_id()
+      currency_id = unique_currency_id()
       address = AddressFixtures.address_fixture(store: store, currency_id: currency_id)
       address_key = StoreSettings.fetch_address_key!(store.id, currency_id)
       assert address.address_key_id == address_key.id
@@ -47,7 +47,7 @@ defmodule BitPalFixtures.AddressFixturesTest do
 
     test "unique addresses" do
       store = insert(:store)
-      currency_id = CurrencyFixtures.unique_currency_id()
+      currency_id = unique_currency_id()
 
       Enum.reduce(0..4, MapSet.new(), fn _, seen ->
         address_id = AddressFixtures.address_fixture(store: store, currency_id: currency_id).id

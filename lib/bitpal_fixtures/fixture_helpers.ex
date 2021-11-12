@@ -28,7 +28,7 @@ defmodule BitPalFixtures.FixtureHelpers do
     currency_id
   end
 
-  def get_or_create_currency_id(_), do: CurrencyFixtures.unique_currency_id()
+  def get_or_create_currency_id(_), do: unique_currency_id()
 
   @spec get_or_create_invoice(map) :: Invoice.t()
   def get_or_create_invoice(%{invoice: invoice}), do: invoice

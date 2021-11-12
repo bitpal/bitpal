@@ -37,18 +37,18 @@ defmodule BitPal.Authentication.Tokens do
       {:error, :not_found}
   end
 
-  @spec create_token(Store.t(), map) :: {:ok, AccessToken.t()} | {:error, Changeset.t()}
-  def create_token(store = %Store{}, params) do
+  @spec create_token(Store.t(), map | keyword) :: {:ok, AccessToken.t()} | {:error, Changeset.t()}
+  def create_token(store = %Store{}, attrs \\ %{}) do
     store
-    |> Ecto.build_assoc(:access_tokens, data: params[:data] || create_token_data(store))
-    |> cast(params, [:label])
+    |> Ecto.build_assoc(:access_tokens, data: attrs[:data] || create_token_data(store))
+    |> cast(attrs, [:label])
     |> Repo.insert()
   end
 
-  @spec create_token!(Store.t()) :: AccessToken.t()
-  def create_token!(store) do
-    token_data = Phoenix.Token.sign(@secret_key_base, @salt, store.id)
-    insert_token!(store, token_data)
+  @spec create_token!(Store.t(), map | keyword) :: AccessToken.t()
+  def create_token!(store, attrs \\ %{}) do
+    {:ok, token} = create_token(store, Enum.into(attrs, %{}))
+    token
   end
 
   @spec insert_token!(Store.t(), String.t()) :: AccessToken.t()
@@ -63,7 +63,7 @@ defmodule BitPal.Authentication.Tokens do
     Repo.delete!(token)
   end
 
-  defp create_token_data(store) do
+  def create_token_data(store) do
     Phoenix.Token.sign(@secret_key_base, @salt, store.id)
   end
 end

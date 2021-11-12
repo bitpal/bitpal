@@ -54,7 +54,7 @@ defmodule BitPalApi.ConnCase do
   end
 
   defp auth(conn, _tags) do
-    %{store_id: _store_id, token: token} = AuthFixtures.auth_fixture()
+    %{store_id: _store_id, token: token} = generate_auth()
     put_auth(conn, token)
   end
 

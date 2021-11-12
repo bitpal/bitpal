@@ -13,7 +13,7 @@ defmodule BitPalFixtures.SettingsFixturesTest do
     end
 
     test "with currency" do
-      currency_id = CurrencyFixtures.unique_currency_id()
+      currency_id = unique_currency_id()
       address_key = SettingsFixtures.address_key_fixture(currency_id: currency_id)
       assert address_key.currency_id == currency_id
     end

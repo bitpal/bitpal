@@ -40,7 +40,7 @@ defmodule AddressTest do
       other_address_key =
         SettingsFixtures.address_key_fixture(
           store: store,
-          currency_id: CurrencyFixtures.unique_currency_id()
+          currency_id: unique_currency_id()
         )
 
       assert {:ok, _} = Addresses.register(other_address_key, unique_address_id(), 0)

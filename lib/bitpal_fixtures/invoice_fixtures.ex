@@ -9,9 +9,9 @@ defmodule BitPalFixtures.InvoiceFixtures do
   alias BitPal.Invoices
   alias BitPalSchemas.Store
   alias BitPalFixtures.AddressFixtures
-  alias BitPalFixtures.CurrencyFixtures
   alias BitPalFixtures.SettingsFixtures
   alias BitPalApi.Authentication.BasicAuth
+  alias BitPalFactory.Factory
 
   def rand_pos_float(max \\ 1.0), do: :rand.uniform() * max
 
@@ -35,8 +35,8 @@ defmodule BitPalFixtures.InvoiceFixtures do
     Enum.into(attrs, %{
       amount: rand_pos_float(),
       exchange_rate: rand_pos_float(),
-      currency_id: CurrencyFixtures.unique_currency_id() |> Atom.to_string(),
-      fiat_currency: CurrencyFixtures.fiat_currency(),
+      currency_id: Factory.unique_currency_id() |> Atom.to_string(),
+      fiat_currency: Factory.unique_fiat(),
       description: Faker.Commerce.product_name(),
       email: Faker.Internet.email()
     })

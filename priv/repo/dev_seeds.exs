@@ -12,21 +12,20 @@ defmodule BitPal.DevSeeds do
   end
 
   def store1(user) do
-    store = StoreFixtures.store_fixture(user: user, label: "Seed store")
-
-    AuthFixtures.token_fixture(
-      store,
-      data: "SFMyNTY.g2gDYQFuBgDWhevRegFiAAFRgA.fuiV-GbJoBUmKaSS5PW776HyeFh30-L9pgvn7wuQWKk"
-    )
+    store =
+      insert(:store, label: "Seed store", users: [user])
+      |> with_token(
+        data: "SFMyNTY.g2gDYQFuBgDWhevRegFiAAFRgA.fuiV-GbJoBUmKaSS5PW776HyeFh30-L9pgvn7wuQWKk"
+      )
 
     generate_invoices1(store)
   end
 
   def store2(user) do
-    _store = StoreFixtures.store_fixture(user: user, label: "Other store")
+    _store = insert(:store, label: "Other store", users: [user])
   end
 
-  def generate_invoices1(store) do
+  def generate_invoices1(_store) do
     # InvoiceFixtures.invoice_fixture(store,
     #   amount: 1,
     #   exchange_rate: 438.75,

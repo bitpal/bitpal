@@ -23,7 +23,7 @@ defmodule BitPalFixtures.InvoiceFixturesTest do
     end
 
     test "assigns existing address", %{store: store} do
-      currency_id = CurrencyFixtures.unique_currency_id()
+      currency_id = unique_currency_id()
       address = AddressFixtures.address_fixture(store_id: store.id, currency_id: currency_id)
 
       assert InvoiceFixtures.invoice_fixture(store, address: address.id, currency_id: currency_id).address_id ==
@@ -44,7 +44,7 @@ defmodule BitPalFixtures.InvoiceFixturesTest do
     end
 
     test "specify currency" do
-      currency_id = CurrencyFixtures.unique_currency_id()
+      currency_id = unique_currency_id()
       assert InvoiceFixtures.invoice_fixture(currency_id: currency_id).currency_id == currency_id
     end
 
