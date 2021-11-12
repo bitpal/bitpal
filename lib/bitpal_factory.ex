@@ -1,4 +1,4 @@
-defmodule BitPalFactory.Factory do
+defmodule BitPalFactory do
   use ExMachina.Ecto, repo: BitPal.Repo
 
   use BitPalFactory.AccountFactory

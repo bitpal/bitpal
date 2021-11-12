@@ -1,5 +1,4 @@
 defmodule BitPalFactory.StoreFactory do
-  alias BitPalFactory.Factory
   alias BitPal.Stores
   alias BitPalSchemas.Store
   alias BitPalSchemas.User
@@ -44,12 +43,12 @@ defmodule BitPalFactory.StoreFactory do
       @spec get_or_insert_store(map) :: Store.t()
       def get_or_insert_store(%{store_id: store_id}), do: Stores.fetch!(store_id)
       def get_or_insert_store(%{store: store}), do: store
-      def get_or_insert_store(_), do: Factory.insert(:store)
+      def get_or_insert_store(_), do: BitPalFactory.insert(:store)
 
       @spec get_or_insert_store_id(map) :: Store.id()
       def get_or_insert_store_id(%{store_id: store_id}), do: store_id
       def get_or_insert_store_id(%{store: store}), do: store.id
-      def get_or_insert_store_id(_), do: Factory.insert(:store).id
+      def get_or_insert_store_id(_), do: BitPalFactory.insert(:store).id
     end
   end
 end

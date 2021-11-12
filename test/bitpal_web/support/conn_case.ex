@@ -22,7 +22,6 @@ defmodule BitPalWeb.ConnCase do
   alias BitPal.DataCase
   alias BitPal.IntegrationCase
   alias BitPal.HandlerSubscriberCollector
-  alias BitPalFactory.Factory
 
   defmacro __using__(params) do
     quote do
@@ -66,8 +65,8 @@ defmodule BitPalWeb.ConnCase do
   test context.
   """
   def register_and_log_in_user(tags = %{conn: conn}) do
-    password = Factory.valid_user_password()
-    user = Factory.insert(:user, password: password)
+    password = BitPalFactory.valid_user_password()
+    user = BitPalFactory.insert(:user, password: password)
     Map.merge(tags, %{conn: log_in_user(conn, user), user: user, password: password})
   end
 
@@ -84,6 +83,7 @@ defmodule BitPalWeb.ConnCase do
     |> Plug.Conn.put_session(:user_token, token)
   end
 
+  # FIXME remove
   def create_store(tags = %{user: user}, attrs \\ %{}) do
     Enum.into(tags, %{
       store: insert(:store, attrs) |> assoc_user(user),
@@ -91,6 +91,7 @@ defmodule BitPalWeb.ConnCase do
     })
   end
 
+  # FIXME remove
   def create_open_invoice(tags = %{store: store, currency_id: currency_id}, attrs \\ %{}) do
     {:ok, invoice, _stub, _handler} =
       HandlerSubscriberCollector.create_invoice(
