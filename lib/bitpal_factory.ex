@@ -47,21 +47,32 @@ defmodule BitPalFactory do
     amount = into_money(attrs[:amount], currency_id)
     fiat_amount = into_money(attrs[:fiat_amount], attrs[:fiat_currency] || unique_fiat())
 
+    pos_data =
+      if :rand.uniform() > 0.25 do
+        %{"ref" => Faker.Random.Elixir.random_between(0, 1_000_000)}
+      else
+        nil
+      end
+
     %Invoice{
-      # FIXME does this work??
       store_id: store_id,
       amount: amount,
       fiat_amount: fiat_amount,
       currency_id: currency_id,
       description: Faker.Commerce.product_name(),
-      email: Faker.Internet.email()
+      email: Faker.Internet.email(),
+      pos_data: pos_data
     }
   end
 
-  def money_factory do
+  def money_factory(attrs) do
+    currency = attrs[:currency] || Faker.Util.pick([:USD, :EUR, :SEK])
+    exponent = Money.Currency.exponent(currency) || 2
+    amount = attrs[:amount] || Faker.random_between(0, 100 * floor(:math.pow(10, exponent)))
+
     %Money{
-      amount: 200,
-      currency: :USD
+      amount: amount,
+      currency: currency
     }
   end
 end

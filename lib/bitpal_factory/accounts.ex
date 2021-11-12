@@ -1,6 +1,5 @@
 defmodule BitPalFactory.Accounts do
   alias BitPalSchemas.User
-  import BitPalFactory
 
   def unique_user_email, do: ExMachina.sequence(:email, &"#{&1}#{Faker.Internet.email()}")
   def valid_user_password, do: Faker.String.base64(Faker.random_between(12, 20))
@@ -14,7 +13,7 @@ defmodule BitPalFactory.Accounts do
   end
 
   def with_store(user = %User{}) do
-    insert(:store, users: [user])
+    BitPalFactory.insert(:store, users: [user])
     user
   end
 end
