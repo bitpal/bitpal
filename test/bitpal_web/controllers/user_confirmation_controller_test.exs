@@ -5,7 +5,6 @@ defmodule BitPalWeb.UserConfirmationControllerTest do
   alias BitPal.Repo
   alias BitPal.Accounts.Users
   alias BitPalSchemas.UserToken
-  import AccountFixtures
 
   setup do
     %{user: insert(:user)}

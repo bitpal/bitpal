@@ -3,7 +3,6 @@ defmodule BitPalWeb.UserAuthTest do
 
   alias BitPal.Accounts
   alias BitPalWeb.UserAuth
-  import AccountFixtures
 
   @remember_me_cookie "_tmp_phx_web_user_remember_me"
 

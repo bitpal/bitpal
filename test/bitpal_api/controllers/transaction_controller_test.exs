@@ -6,7 +6,7 @@ defmodule BitPalApi.TransactionControllerTest do
     {:ok, store_id} = BasicAuth.parse(conn)
     _ = TransactionFixtures.generate_txs(store_id, 3)
 
-    other_store = StoreFixtures.store_fixture()
+    other_store = insert(:store)
     _ = TransactionFixtures.generate_txs(other_store.id, 1)
 
     conn = get(conn, "/v1/transactions/")
@@ -39,7 +39,7 @@ defmodule BitPalApi.TransactionControllerTest do
   end
 
   test "tx to other store not found", %{conn: conn} do
-    other_store = StoreFixtures.store_fixture()
+    other_store = insert(:store)
     [txid] = TransactionFixtures.generate_txs(other_store.id, 1)
 
     {_, _, response} =

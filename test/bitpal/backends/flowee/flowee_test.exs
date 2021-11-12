@@ -16,7 +16,7 @@ defmodule BitPal.Backend.FloweeTest do
 
   setup do
     init_mock(@client)
-    %{store: StoreFixtures.store_fixture()}
+    %{store: insert(:store)}
   end
 
   setup tags do

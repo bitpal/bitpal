@@ -4,9 +4,10 @@ defmodule InvoiceCreationTest do
   alias BitPal.ExchangeRate
   alias BitPal.Invoices
   alias BitPalSchemas.Address
+  alias BitPalSchemas.Store
 
   setup do
-    store = StoreFixtures.store_fixture()
+    store = insert(:store)
     %{store_id: store.id}
   end
 
@@ -121,6 +122,23 @@ defmodule InvoiceCreationTest do
                  fiat_currency: "USD",
                  email: "bad email"
                })
+    end
+
+    test "store invoice association", %{store_id: store_id} do
+      assert {:ok, invoice} =
+               Invoices.register(
+                 store_id,
+                 %{
+                   amount: "1.2",
+                   currency_id: CurrencyFixtures.unique_currency_id(),
+                   exchange_rate: "2.0",
+                   fiat_currency: CurrencyFixtures.fiat_currency()
+                 }
+               )
+
+      store = Repo.get!(Store, store_id) |> Repo.preload([:invoices])
+      assert length(store.invoices) == 1
+      assert invoice.store_id == store.id
     end
 
     test "amount calculations", %{store_id: store_id} do

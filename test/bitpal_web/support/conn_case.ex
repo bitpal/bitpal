@@ -86,7 +86,7 @@ defmodule BitPalWeb.ConnCase do
 
   def create_store(tags = %{user: user}, attrs \\ %{}) do
     Enum.into(tags, %{
-      store: StoreFixtures.store_fixture(user, attrs),
+      store: insert(:store, attrs) |> assoc_user(user),
       label: "My 'ss'&"
     })
   end

@@ -1,8 +1,6 @@
 defmodule BitPalWeb.UserRegistrationControllerTest do
   use BitPalWeb.ConnCase, async: true
 
-  import AccountFixtures
-
   describe "GET /users/register" do
     test "renders registration page", %{conn: conn} do
       conn = get(conn, Routes.user_registration_path(conn, :new))

@@ -41,10 +41,7 @@ defmodule BitPalWeb.InvoiceLiveTest do
 
   describe "security" do
     test "redirect from other invoice", %{conn: conn} do
-      other_invoice =
-        insert(:user)
-        |> StoreFixtures.store_fixture()
-        |> InvoiceFixtures.invoice_fixture()
+      other_invoice = InvoiceFixtures.invoice_fixture()
 
       {:error, {:redirect, %{to: "/"}}} = live(conn, "/invoices/#{other_invoice.id}")
     end

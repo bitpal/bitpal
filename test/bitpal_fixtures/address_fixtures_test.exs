@@ -38,7 +38,7 @@ defmodule BitPalFixtures.AddressFixturesTest do
     end
 
     test "assoc address_key via store and currency_id" do
-      store = StoreFixtures.store_fixture()
+      store = insert(:store)
       currency_id = CurrencyFixtures.unique_currency_id()
       address = AddressFixtures.address_fixture(store: store, currency_id: currency_id)
       address_key = StoreSettings.fetch_address_key!(store.id, currency_id)
@@ -46,7 +46,7 @@ defmodule BitPalFixtures.AddressFixturesTest do
     end
 
     test "unique addresses" do
-      store = StoreFixtures.store_fixture()
+      store = insert(:store)
       currency_id = CurrencyFixtures.unique_currency_id()
 
       Enum.reduce(0..4, MapSet.new(), fn _, seen ->

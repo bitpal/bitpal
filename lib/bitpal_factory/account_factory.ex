@@ -24,7 +24,7 @@ defmodule BitPalFactory.AccountFactory do
       end
 
       def with_store(user = %User{}) do
-        insert_pair(:store, users: [user])
+        insert(:store, users: [user])
         user
       end
     end

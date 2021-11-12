@@ -4,7 +4,7 @@ defmodule BitPalSettings.StoreSettingsTest do
   alias BitPalSchemas.AddressKey
 
   setup _tags do
-    %{store: StoreFixtures.store_fixture(), currency_id: CurrencyFixtures.unique_currency_id()}
+    %{store: insert(:store), currency_id: CurrencyFixtures.unique_currency_id()}
   end
 
   describe "address_key" do

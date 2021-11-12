@@ -3,6 +3,7 @@ defmodule BitPalFactory.StoreFactory do
     quote do
       alias BitPal.Stores
       alias BitPalSchemas.Store
+      alias BitPalSchemas.User
 
       def store_factory do
         label = sequence(:store, &"#{Faker.Company.name()} #{&1}")
@@ -12,6 +13,10 @@ defmodule BitPalFactory.StoreFactory do
           label: label,
           slug: slug
         }
+      end
+
+      def assoc_user(store = %Store{}, user = %User{}) do
+        Stores.assoc_user(store, user)
       end
     end
   end

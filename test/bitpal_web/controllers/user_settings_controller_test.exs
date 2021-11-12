@@ -2,7 +2,6 @@ defmodule BitPalWeb.UserSettingsControllerTest do
   use BitPalWeb.ConnCase, async: true
 
   alias BitPal.Accounts
-  import AccountFixtures
 
   setup :register_and_log_in_user
 

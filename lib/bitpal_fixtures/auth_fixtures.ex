@@ -1,7 +1,7 @@
 defmodule BitPalFixtures.AuthFixtures do
   alias BitPalSchemas.Store
   alias BitPal.Authentication.Tokens
-  alias BitPalFixtures.StoreFixtures
+  import BitPalFixtures.FixtureHelpers
 
   def valid_token_attributes(attrs \\ %{}) do
     Enum.into(attrs, %{
@@ -17,13 +17,7 @@ defmodule BitPalFixtures.AuthFixtures do
 
   @spec auth_fixture(map) :: %{store_id: Store.id(), token: String.t()}
   def auth_fixture(attrs \\ %{}) do
-    store =
-      if store = attrs[:store] do
-        store
-      else
-        StoreFixtures.store_fixture(attrs)
-      end
-
+    store = get_or_create_store(attrs)
     token = token_fixture(store)
 
     %{

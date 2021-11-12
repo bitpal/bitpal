@@ -19,7 +19,7 @@ defmodule BitPalFixtures.SettingsFixturesTest do
     end
 
     test "with store" do
-      store = StoreFixtures.store_fixture()
+      store = insert(:store)
 
       address_key =
         SettingsFixtures.address_key_fixture(store: store)

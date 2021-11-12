@@ -6,7 +6,7 @@ defmodule AddressTest do
 
   setup tags do
     currency_id = Map.fetch!(tags, :currency_id)
-    store = StoreFixtures.store_fixture()
+    store = insert(:store)
     address_key = SettingsFixtures.address_key_fixture(store: store, currency_id: currency_id)
     %{store: store, address_key: address_key, currency_id: currency_id}
   end
@@ -53,7 +53,7 @@ defmodule AddressTest do
 
       other_address_key =
         SettingsFixtures.address_key_fixture(
-          store: StoreFixtures.store_fixture(),
+          store: insert(:store),
           currency_id: address_key.currency_id
         )
 

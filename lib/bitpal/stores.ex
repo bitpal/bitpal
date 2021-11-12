@@ -54,6 +54,16 @@ defmodule BitPal.Stores do
     user.stores
   end
 
+  @spec assoc_user(Store.t(), User.t()) :: Store.t()
+  def assoc_user(store = %Store{}, user = %User{}) do
+    store = Repo.preload(store, :users)
+
+    store
+    |> change()
+    |> put_assoc(:users, [user | store.users])
+    |> Repo.update!()
+  end
+
   @spec tx_outputs(Store.id()) :: [TxOutput.t()]
   def tx_outputs(store_id) do
     from(t in TxOutput,
