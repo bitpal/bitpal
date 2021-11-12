@@ -5,16 +5,15 @@ defmodule BitPalWeb.InvoiceLiveTest do
   setup tags do
     tags
     |> register_and_log_in_user()
-    |> create_store()
-    |> create_open_invoice(
+    |> add_store()
+    |> add_open_invoice(
       description: "My test invoice",
-      address: :auto,
+      address_id: :auto,
       required_confirmations: Map.get(tags, :required_confirmations, 1)
     )
   end
 
   describe "invoice updates" do
-    @tag do: true
     test "invoice is updated and finally marked as paid", %{
       conn: conn,
       invoice: invoice,
@@ -42,9 +41,9 @@ defmodule BitPalWeb.InvoiceLiveTest do
   describe "security" do
     test "redirect from other invoice", %{conn: conn} do
       other_invoice =
-        AccountFixtures.user_fixture()
-        |> StoreFixtures.store_fixture()
-        |> InvoiceFixtures.invoice_fixture()
+        create_user()
+        |> create_store()
+        |> create_invoice()
 
       {:error, {:redirect, %{to: "/"}}} = live(conn, "/invoices/#{other_invoice.id}")
     end

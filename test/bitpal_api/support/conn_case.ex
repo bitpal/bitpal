@@ -16,7 +16,7 @@ defmodule BitPalApi.ConnCase do
   """
 
   use ExUnit.CaseTemplate
-  use BitPalFixtures
+  use BitPalFactory
   import Plug.BasicAuth
   import Plug.Conn
   import Phoenix.ConnTest
@@ -24,7 +24,7 @@ defmodule BitPalApi.ConnCase do
 
   using do
     quote do
-      use BitPalFixtures
+      use BitPalFactory
       import Plug.Conn
       import Phoenix.ConnTest
       import BitPalApi.ConnCase
@@ -54,7 +54,7 @@ defmodule BitPalApi.ConnCase do
   end
 
   defp auth(conn, _tags) do
-    %{store_id: _store_id, token: token} = AuthFixtures.auth_fixture()
+    %{store_id: _store_id, token: token} = create_auth()
     put_auth(conn, token)
   end
 

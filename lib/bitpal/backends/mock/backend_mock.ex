@@ -3,14 +3,12 @@ defmodule BitPal.BackendMock do
 
   use GenServer
   import BitPalSettings.ConfigHelpers
+  use BitPalFactory
   alias BitPal.Backend
   alias BitPal.Blocks
   alias BitPal.Invoices
   alias BitPal.ProcessRegistry
   alias BitPal.Transactions
-  alias BitPalFixtures.CurrencyFixtures
-  alias BitPalFixtures.InvoiceFixtures
-  alias BitPalFixtures.TransactionFixtures
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.TxOutput
 
@@ -45,7 +43,7 @@ defmodule BitPal.BackendMock do
   def child_spec(opts) do
     opts =
       opts
-      |> Keyword.put_new_lazy(:currency_id, &CurrencyFixtures.unique_currency_id/0)
+      |> Keyword.put_new_lazy(:currency_id, &unique_currency_id/0)
 
     currency_id = Keyword.fetch!(opts, :currency_id)
 
@@ -111,6 +109,8 @@ defmodule BitPal.BackendMock do
       __MODULE__
     )
 
+    block_height(currency_id)
+
     if opts.auto do
       setup_auto_blocks(opts)
     end
@@ -139,7 +139,7 @@ defmodule BitPal.BackendMock do
 
   @impl true
   def handle_call({:register, invoice}, _from, state) do
-    invoice = InvoiceFixtures.ensure_address(invoice, state)
+    invoice = with_address(invoice, state)
 
     if state.auto do
       setup_auto_invoice(invoice, state)
@@ -150,10 +150,8 @@ defmodule BitPal.BackendMock do
 
   @impl true
   def handle_call({:tx_seen, invoice}, _from, state) do
-    txid = TransactionFixtures.unique_txid()
-
+    txid = unique_txid()
     :ok = Transactions.seen(txid, [{invoice.address_id, invoice.amount}])
-
     {:reply, txid, state}
   end
 
@@ -179,9 +177,7 @@ defmodule BitPal.BackendMock do
 
   @impl true
   def handle_info({:auto_tx_seen, invoice}, state) do
-    :ok =
-      Transactions.seen(TransactionFixtures.unique_txid(), [{invoice.address_id, invoice.amount}])
-
+    :ok = Transactions.seen(unique_txid(), [{invoice.address_id, invoice.amount}])
     {:noreply, append_auto_confirm(state, invoice)}
   end
 
@@ -246,11 +242,8 @@ defmodule BitPal.BackendMock do
   defp confirm_transactions(invoice, state) do
     txid =
       case Invoices.one_tx_output(invoice) do
-        {:ok, tx} ->
-          tx.txid
-
-        _ ->
-          TransactionFixtures.unique_txid()
+        {:ok, tx} -> tx.txid
+        _ -> unique_txid()
       end
 
     :ok = Transactions.confirmed(txid, [{invoice.address_id, invoice.amount}], state.height)

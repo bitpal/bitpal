@@ -1,7 +1,6 @@
 defmodule BitPal.AccountsTest do
   use BitPal.DataCase, async: true
 
-  import AccountFixtures
   alias BitPal.Accounts
   alias BitPalSchemas.{User, UserToken}
 
@@ -11,7 +10,7 @@ defmodule BitPal.AccountsTest do
     end
 
     test "returns the user if the email exists" do
-      %{id: id} = user = user_fixture()
+      %{id: id} = user = create_user()
       assert %User{id: ^id} = Accounts.get_user_by_email(user.email)
     end
   end
@@ -22,13 +21,13 @@ defmodule BitPal.AccountsTest do
     end
 
     test "does not return the user if the password is not valid" do
-      user = user_fixture()
+      user = create_user()
       refute Accounts.get_user_by_email_and_password(user.email, "invalid")
     end
 
     test "returns the user if the email and password are valid" do
       password = valid_user_password()
-      %{id: id} = user = user_fixture(password: password)
+      %{id: id} = user = create_user(password: password)
 
       assert %User{id: ^id} = Accounts.get_user_by_email_and_password(user.email, password)
     end
@@ -42,7 +41,7 @@ defmodule BitPal.AccountsTest do
     end
 
     test "returns the user with the given id" do
-      %{id: id} = user = user_fixture()
+      %{id: id} = user = create_user()
       assert %User{id: ^id} = Accounts.get_user!(user.id)
     end
   end
@@ -74,7 +73,7 @@ defmodule BitPal.AccountsTest do
     end
 
     test "validates email uniqueness" do
-      %{email: email} = user_fixture()
+      %{email: email} = create_user()
       {:error, changeset} = Accounts.register_user(%{email: email})
       assert "has already been taken" in errors_on(changeset).email
 
@@ -126,7 +125,7 @@ defmodule BitPal.AccountsTest do
   describe "apply_user_email/3" do
     setup do
       password = valid_user_password()
-      %{user: user_fixture(password: password), password: password}
+      %{user: create_user(password: password), password: password}
     end
 
     test "requires email to change", %{user: user, password: password} do
@@ -149,7 +148,7 @@ defmodule BitPal.AccountsTest do
     end
 
     test "validates email uniqueness", %{user: user, password: password} do
-      %{email: email} = user_fixture()
+      %{email: email} = create_user()
 
       {:error, changeset} = Accounts.apply_user_email(user, password, %{email: email})
 
@@ -173,7 +172,7 @@ defmodule BitPal.AccountsTest do
 
   describe "deliver_update_email_instructions/3" do
     setup do
-      %{user: user_fixture()}
+      %{user: create_user()}
     end
 
     test "sends token through notification", %{user: user} do
@@ -192,7 +191,7 @@ defmodule BitPal.AccountsTest do
 
   describe "update_user_email/2" do
     setup do
-      user = user_fixture()
+      user = create_user()
       email = unique_user_email()
 
       token =
@@ -254,7 +253,7 @@ defmodule BitPal.AccountsTest do
   describe "update_user_password/3" do
     setup do
       password = valid_user_password()
-      %{user: user_fixture(password: password), password: password}
+      %{user: create_user(password: password), password: password}
     end
 
     test "validates password", %{user: user, password: password} do
@@ -308,7 +307,7 @@ defmodule BitPal.AccountsTest do
 
   describe "generate_user_session_token/1" do
     setup do
-      %{user: user_fixture()}
+      %{user: create_user()}
     end
 
     test "generates a token", %{user: user} do
@@ -320,7 +319,7 @@ defmodule BitPal.AccountsTest do
       assert_raise Ecto.ConstraintError, fn ->
         Repo.insert!(%UserToken{
           token: user_token.token,
-          user_id: user_fixture().id,
+          user_id: create_user().id,
           context: "session"
         })
       end
@@ -329,7 +328,7 @@ defmodule BitPal.AccountsTest do
 
   describe "get_user_by_session_token/1" do
     setup do
-      user = user_fixture()
+      user = create_user()
       token = Accounts.generate_user_session_token(user)
       %{user: user, token: token}
     end
@@ -351,7 +350,7 @@ defmodule BitPal.AccountsTest do
 
   describe "delete_session_token/1" do
     test "deletes the token" do
-      user = user_fixture()
+      user = create_user()
       token = Accounts.generate_user_session_token(user)
       assert Accounts.delete_session_token(token) == :ok
       refute Accounts.get_user_by_session_token(token)
@@ -360,7 +359,7 @@ defmodule BitPal.AccountsTest do
 
   describe "deliver_user_confirmation_instructions/2" do
     setup do
-      %{user: user_fixture()}
+      %{user: create_user()}
     end
 
     test "sends token through notification", %{user: user} do
@@ -379,7 +378,7 @@ defmodule BitPal.AccountsTest do
 
   describe "confirm_user/1" do
     setup do
-      user = user_fixture()
+      user = create_user()
 
       token =
         extract_user_token(fn url ->
@@ -413,7 +412,7 @@ defmodule BitPal.AccountsTest do
 
   describe "deliver_user_reset_password_instructions/2" do
     setup do
-      %{user: user_fixture()}
+      %{user: create_user()}
     end
 
     test "sends token through notification", %{user: user} do
@@ -432,7 +431,7 @@ defmodule BitPal.AccountsTest do
 
   describe "get_user_by_reset_password_token/1" do
     setup do
-      user = user_fixture()
+      user = create_user()
 
       token =
         extract_user_token(fn url ->
@@ -461,7 +460,7 @@ defmodule BitPal.AccountsTest do
 
   describe "reset_user_password/2" do
     setup do
-      %{user: user_fixture()}
+      %{user: create_user()}
     end
 
     test "validates password", %{user: user} do

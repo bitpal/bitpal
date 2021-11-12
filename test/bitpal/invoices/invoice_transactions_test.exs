@@ -1,19 +1,18 @@
 defmodule BitPal.InvoiceTransactionsTest do
   use BitPal.DataCase, async: true
-  import TransactionFixtures
   alias BitPal.Blocks
   alias BitPalSchemas.TxOutput
 
   setup tags do
-    currency_id = CurrencyFixtures.unique_currency_id()
+    currency_id = unique_currency_id()
 
     invoice =
       Map.take(tags, [:amount, :required_confirmations])
       |> Map.merge(%{
-        address: :auto,
+        address_id: :auto,
         currency_id: currency_id
       })
-      |> InvoiceFixtures.invoice_fixture()
+      |> create_invoice()
 
     %{invoice: invoice, address: invoice.address, currency_id: currency_id}
   end

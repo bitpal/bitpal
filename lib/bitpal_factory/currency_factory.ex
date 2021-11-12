@@ -1,42 +1,62 @@
-defmodule BitPalFixtures.CurrencyFixtures do
+defmodule BitPalFactory.CurrencyFactory do
+  alias BitPalFactory.CurrencyCounter
   alias BitPal.Currencies
   alias BitPalSchemas.Currency
-  alias BitPalFixtures.TestCurrencyCounter
-
-  @spec seed_supported_currencies :: :ok
-  def seed_supported_currencies do
-    Currencies.ensure_exists!(Currencies.supported_currencies())
-  end
 
   @spec unique_currency_id :: Currency.id()
   def unique_currency_id do
-    TestCurrencyCounter.next_currency_id()
+    CurrencyCounter.next_currency_id()
   end
 
   @spec unique_currency_ids(non_neg_integer) :: [Currency.id()]
   def unique_currency_ids(count) do
-    Enum.map(1..count, fn _ ->
-      unique_currency_id()
-    end)
+    Stream.repeatedly(&unique_currency_id/0)
+    |> Enum.take(count)
   end
 
   @spec unique_fiat :: atom
   def unique_fiat do
-    TestCurrencyCounter.next_fiat()
+    CurrencyCounter.next_fiat()
   end
 
   @spec fiat_currency([atom]) :: String.t()
   def fiat_currency(blacklist \\ []) do
     Faker.Util.pick(["USD", "EUR", "SEK"], blacklist)
   end
+
+  @spec get_or_create_currency_id(map) :: Currency.id()
+  def get_or_create_currency_id(%{currency_id: currency_id}), do: currency_id
+
+  def get_or_create_currency_id(%{currency: currency_id}) when is_atom(currency_id) do
+    currency_id
+  end
+
+  def get_or_create_currency_id(_), do: unique_currency_id()
+
+  def block_height(currency_id, opts \\ %{}) do
+    min_height = opts[:min]
+
+    case Currencies.fetch_height!(currency_id) do
+      nil ->
+        height = Faker.random_between(min_height || 1, 100_000)
+        Currencies.set_height!(currency_id, height)
+        height
+
+      height ->
+        if min_height && height < min_height do
+          Currencies.set_height!(currency_id, min_height)
+          min_height
+        else
+          height
+        end
+    end
+  end
 end
 
-defmodule BitPalFixtures.TestCurrencyCounter do
+defmodule BitPalFactory.CurrencyCounter do
   use GenServer
-  use Agent
   alias BitPal.Currencies
-
-  # FIXME maybe preseed 100 currencies or so?
+  # alias BitPalFactory.CurrencyFactory
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -44,6 +64,7 @@ defmodule BitPalFixtures.TestCurrencyCounter do
 
   def next_currency_id do
     id = GenServer.call(__MODULE__, {:next_currency_id, :crypto})
+    # CurrencyFactory.create_currency(id)
     Currencies.ensure_exists!(id)
     id
   end

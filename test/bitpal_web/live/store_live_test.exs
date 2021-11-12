@@ -6,7 +6,7 @@ defmodule BitPalWeb.StoreLiveTest do
   setup tags do
     tags
     |> register_and_log_in_user()
-    |> create_store()
+    |> add_store()
   end
 
   describe "invoice updates" do
@@ -17,7 +17,7 @@ defmodule BitPalWeb.StoreLiveTest do
       assert html =~ "There are no invoices here yet"
 
       _invoice =
-        InvoiceFixtures.invoice_fixture(store.id,
+        create_invoice(store.id,
           description: "A draft invoice",
           curency_id: currency_id
         )
@@ -35,7 +35,7 @@ defmodule BitPalWeb.StoreLiveTest do
       {:ok, invoice, _, _} =
         HandlerSubscriberCollector.create_invoice(
           store_id: store.id,
-          address: :auto,
+          address_id: :auto,
           required_confirmations: 3,
           currency_id: currency_id
         )
@@ -59,8 +59,8 @@ defmodule BitPalWeb.StoreLiveTest do
   describe "security" do
     test "redirect from other store", %{conn: conn, store: _store} do
       other_store =
-        AccountFixtures.user_fixture()
-        |> StoreFixtures.store_fixture()
+        create_user()
+        |> create_store()
 
       {:error, {:redirect, %{to: "/"}}} = live(conn, Routes.store_path(conn, :show, other_store))
     end

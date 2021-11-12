@@ -1,13 +1,12 @@
 defmodule AddressTest do
   use BitPal.IntegrationCase, async: true
-  import BitPalFixtures.AddressFixtures, only: [unique_address_id: 0]
   alias BitPal.Addresses
   alias BitPal.Invoices
 
   setup tags do
     currency_id = Map.fetch!(tags, :currency_id)
-    store = StoreFixtures.store_fixture()
-    address_key = SettingsFixtures.address_key_fixture(store: store, currency_id: currency_id)
+    store = create_store()
+    address_key = create_address_key(store: store, currency_id: currency_id)
     %{store: store, address_key: address_key, currency_id: currency_id}
   end
 
@@ -38,9 +37,9 @@ defmodule AddressTest do
       assert {:ok, _} = Addresses.register(address_key, unique_address_id(), 0)
 
       other_address_key =
-        SettingsFixtures.address_key_fixture(
+        create_address_key(
           store: store,
-          currency_id: CurrencyFixtures.unique_currency_id()
+          currency_id: unique_currency_id()
         )
 
       assert {:ok, _} = Addresses.register(other_address_key, unique_address_id(), 0)
@@ -52,8 +51,8 @@ defmodule AddressTest do
       assert {:ok, _} = Addresses.register(address_key, unique_address_id(), 0)
 
       other_address_key =
-        SettingsFixtures.address_key_fixture(
-          store: StoreFixtures.store_fixture(),
+        create_address_key(
+          store: create_store(),
           currency_id: address_key.currency_id
         )
 
@@ -110,19 +109,19 @@ defmodule AddressTest do
   describe "addresses with invoice statuses" do
     setup %{currency_id: currency_id} do
       draft_address =
-        InvoiceFixtures.invoice_fixture(currency_id: currency_id, address: :auto).address_id
+        create_invoice(currency_id: currency_id, address_id: :auto, status: :draft).address_id
 
       open_address =
-        InvoiceFixtures.invoice_fixture(
+        create_invoice(
           currency_id: currency_id,
-          address: :auto,
+          address_id: :auto,
           status: :open
         ).address_id
 
       processing_address =
-        InvoiceFixtures.invoice_fixture(
+        create_invoice(
           currency_id: currency_id,
-          address: :auto,
+          address_id: :auto,
           status: :processing
         ).address_id
 
@@ -156,7 +155,7 @@ defmodule AddressTest do
   end
 
   defp assign_address(address) do
-    invoice = InvoiceFixtures.invoice_fixture()
+    invoice = create_invoice(status: :draft)
     assert {:ok, _} = Invoices.assign_address(invoice, address)
   end
 end

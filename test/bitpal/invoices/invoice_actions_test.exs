@@ -2,18 +2,17 @@ defmodule BitPal.InvoiceActionsTest do
   use BitPal.IntegrationCase, async: true
 
   setup tags do
-    %{invoice: InvoiceFixtures.invoice_fixture(tags)}
+    %{invoice: create_invoice(tags)}
   end
 
+  @tag status: :draft
   test "transitions", %{invoice: invoice} do
     assert invoice.status == :draft
 
     # Must have an address when finalizing
     assert {:error, _} = Invoices.finalize(invoice)
 
-    assert {:ok, invoice} =
-             Invoices.finalize(%{invoice | address_id: AddressFixtures.unique_address_id()})
-
+    assert {:ok, invoice} = Invoices.finalize(%{invoice | address_id: unique_address_id()})
     assert invoice.status == :open
     assert invoice.status_reason == nil
 
@@ -34,14 +33,14 @@ defmodule BitPal.InvoiceActionsTest do
     assert x.status_reason == :timed_out
   end
 
-  @tag address: :auto, status: :open
+  @tag address_id: :auto, status: :open, required_confirmations: 0
   test "verifying", %{invoice: invoice} do
     invoice = Invoices.process!(invoice)
     assert invoice.status == :processing
     assert invoice.status_reason == :verifying
   end
 
-  @tag address: :auto, status: :open, required_confirmations: 3
+  @tag address_id: :auto, status: :open, required_confirmations: 3
   test "confirming", %{invoice: invoice} do
     invoice = Invoices.process!(invoice)
     assert invoice.status == :processing

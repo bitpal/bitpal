@@ -22,12 +22,12 @@ defmodule BitPalApi.CurrencyControllerTest do
 
   @tag backends: @backends
   test "show", %{conn: conn, currencies: [c0, c1]} do
-    a = InvoiceFixtures.invoice_fixture(conn, address: :auto, currency_id: c0)
-    b = InvoiceFixtures.invoice_fixture(conn, address: :auto, currency_id: c0)
+    a = create_invoice(conn, address_id: :auto, currency_id: c0)
+    b = create_invoice(conn, address_id: :auto, currency_id: c0)
 
     # Should not show up
-    _ = InvoiceFixtures.invoice_fixture(address: :auto)
-    _ = InvoiceFixtures.invoice_fixture(currency_id: c1, address: :auto)
+    _ = create_invoice(address_id: :auto)
+    _ = create_invoice(currency_id: c1, address_id: :auto)
 
     conn = get(conn, "/v1/currencies/#{c0}")
 

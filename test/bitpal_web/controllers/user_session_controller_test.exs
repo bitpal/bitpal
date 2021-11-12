@@ -1,11 +1,9 @@
 defmodule BitPalWeb.UserSessionControllerTest do
   use BitPalWeb.ConnCase, async: true
 
-  import AccountFixtures
-
   setup do
     password = valid_user_password()
-    %{user: user_fixture(password: password), password: password}
+    %{user: create_user(password: password), password: password}
   end
 
   describe "GET /users/log_in" do

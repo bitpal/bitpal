@@ -1,11 +1,11 @@
-defmodule BitPalFixtures.AddressFixtures do
-  import BitPalFixtures.FixtureHelpers
+defmodule BitPalFactory.AddressFactory do
   alias BitPal.Addresses
   alias BitPal.Invoices
   alias BitPalSchemas.Address
   alias BitPalSchemas.AddressKey
   alias BitPalSchemas.Invoice
-  alias BitPalFixtures.InvoiceFixtures
+  alias BitPalFactory.SettingsFactory
+  alias BitPalFactory.InvoiceFactory
 
   # Note that in the future we might generate addresses that look real.
   # This is good enough for now...
@@ -20,40 +20,40 @@ defmodule BitPalFixtures.AddressFixtures do
     String.downcase(prefix) <> ":" <> Faker.UUID.v4()
   end
 
-  @spec address_fixture :: Address.t()
-  def address_fixture do
-    InvoiceFixtures.invoice_fixture()
-    |> address_fixture()
+  @spec create_address :: Address.t()
+  def create_address do
+    InvoiceFactory.create_invoice()
+    |> create_address()
   end
 
-  @spec address_fixture(map | keyword) :: Address.t()
-  def address_fixture(attrs) when not is_struct(attrs) do
+  @spec create_address(map | keyword) :: Address.t()
+  def create_address(attrs) when not is_struct(attrs) do
     attrs = Enum.into(attrs, %{})
 
     address =
-      get_or_create_address_key(attrs)
-      |> address_fixture(attrs)
+      SettingsFactory.get_or_create_address_key(attrs)
+      |> create_address(attrs)
 
     if invoice = attrs[:invoice] do
-      {:ok, _} = Invoices.assign_address(invoice, address)
+      InvoiceFactory.assoc_address(invoice, address)
     end
 
     address
   end
 
-  @spec address_fixture(Invoice.t() | AddressKey.t(), map | keyword) :: Address.t()
-  def address_fixture(ref, attrs \\ %{})
+  @spec create_address(Invoice.t() | AddressKey.t(), map | keyword) :: Address.t()
+  def create_address(ref, attrs \\ %{})
 
-  def address_fixture(invoice = %Invoice{}, attrs) do
+  def create_address(invoice = %Invoice{}, attrs) do
     address =
-      get_or_create_address_key(invoice)
-      |> address_fixture(attrs)
+      SettingsFactory.get_or_create_address_key(invoice)
+      |> create_address(attrs)
 
-    {:ok, _} = Invoices.assign_address(invoice, address)
+    InvoiceFactory.assoc_address(invoice, address)
     address
   end
 
-  def address_fixture(address_key = %AddressKey{}, attrs) do
+  def create_address(address_key = %AddressKey{}, attrs) do
     if address_id = attrs[:address_id] do
       {:ok, address} = Addresses.register_next_address(address_key, address_id)
       address

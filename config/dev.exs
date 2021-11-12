@@ -49,6 +49,8 @@ config :phoenix, :plug_init_mode, :runtime
 # Run a preview email server during dev
 config :bitpal, BitPal.Mailer, adapter: Swoosh.Adapters.Local
 
+config :bitpal, BitPalFactory, init: true
+
 config :swoosh, serve_mailbox: true, preview_port: 4011
 
 config :logger, level: :info

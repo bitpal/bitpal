@@ -32,6 +32,7 @@ defmodule BitPal.Invoices do
       |> cast_exchange_rate(params)
       |> validate_into_matching_pairs()
       |> validate_required_confirmations()
+      # FIXME should have a validate_email thingie
       |> validate_format(:email, ~r/^.+@.+$/, message: "Must be a valid email")
       |> Repo.insert()
 
@@ -370,6 +371,10 @@ defmodule BitPal.Invoices do
   end
 
   @spec target_amount_reached?(Invoice.t()) :: :ok | :underpaid | :overpaid
+  def target_amount_reached?(%Invoice{amount_paid: nil}) do
+    :underpaid
+  end
+
   def target_amount_reached?(invoice) do
     case Money.cmp(invoice.amount_paid, invoice.amount) do
       :lt -> :underpaid

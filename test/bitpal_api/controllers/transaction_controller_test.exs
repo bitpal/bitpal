@@ -1,24 +1,29 @@
 defmodule BitPalApi.TransactionControllerTest do
   use BitPalApi.ConnCase, async: true
   alias BitPalApi.Authentication.BasicAuth
+  alias BitPal.Stores
 
-  test "index", %{conn: conn} do
+  setup tags = %{conn: conn} do
     {:ok, store_id} = BasicAuth.parse(conn)
-    _ = TransactionFixtures.generate_txs(store_id, 3)
+    store = Stores.fetch!(store_id)
+    Map.put(tags, :store, store)
+  end
 
-    other_store = StoreFixtures.store_fixture()
-    _ = TransactionFixtures.generate_txs(other_store.id, 1)
+  test "index", %{conn: conn, store: store, currency_id: currency_id} do
+    create_invoice(store, status: :open)
+    |> with_txs(tx_count: 2, currency_id: currency_id)
+
+    create_store()
+    |> with_invoices(txs: :auto, currency_id: currency_id)
 
     conn = get(conn, "/v1/transactions/")
     assert txs = json_response(conn, 200)
-    assert length(txs) == 3
+    assert length(txs) == 2
   end
 
-  @tag do: true
-  test "show", %{conn: conn} do
-    {:ok, store_id} = BasicAuth.parse(conn)
-
-    [txid] = TransactionFixtures.generate_txs(store_id, 1)
+  test "show", %{conn: conn, store: store, currency_id: currency_id} do
+    tx = create_tx(store, currency_id: currency_id)
+    txid = tx.txid
 
     conn = get(conn, "/v1/transactions/#{txid}")
     assert %{"txid" => ^txid, "amount" => _, "address" => _} = json_response(conn, 200)
@@ -38,9 +43,10 @@ defmodule BitPalApi.TransactionControllerTest do
            } = Jason.decode!(response)
   end
 
-  test "tx to other store not found", %{conn: conn} do
-    other_store = StoreFixtures.store_fixture()
-    [txid] = TransactionFixtures.generate_txs(other_store.id, 1)
+  test "tx to other store not found", %{conn: conn, currency_id: currency_id} do
+    other_store = create_store()
+    tx = create_tx(other_store, currency_id: currency_id)
+    txid = tx.txid
 
     {_, _, response} =
       assert_error_sent(404, fn ->

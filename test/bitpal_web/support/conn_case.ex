@@ -15,7 +15,7 @@ defmodule BitPalWeb.ConnCase do
   this option is not recommended for other databases.
   """
 
-  use BitPalFixtures
+  use BitPalFactory
   import Phoenix.LiveViewTest
   import BitPal.TestHelpers
   alias BitPal.Accounts
@@ -65,8 +65,8 @@ defmodule BitPalWeb.ConnCase do
   test context.
   """
   def register_and_log_in_user(tags = %{conn: conn}) do
-    password = AccountFixtures.valid_user_password()
-    user = AccountFixtures.user_fixture(password: password)
+    password = valid_user_password()
+    user = create_user(password: password)
     Map.merge(tags, %{conn: log_in_user(conn, user), user: user, password: password})
   end
 
@@ -83,14 +83,13 @@ defmodule BitPalWeb.ConnCase do
     |> Plug.Conn.put_session(:user_token, token)
   end
 
-  def create_store(tags = %{user: user}, attrs \\ %{}) do
+  def add_store(tags = %{user: user}, attrs \\ %{}) do
     Enum.into(tags, %{
-      store: StoreFixtures.store_fixture(user, attrs),
-      label: "My 'ss'&"
+      store: create_store(user, attrs)
     })
   end
 
-  def create_open_invoice(tags = %{store: store, currency_id: currency_id}, attrs \\ %{}) do
+  def add_open_invoice(tags = %{store: store, currency_id: currency_id}, attrs \\ %{}) do
     {:ok, invoice, _stub, _handler} =
       HandlerSubscriberCollector.create_invoice(
         Enum.into(attrs, %{

@@ -1,9 +1,4 @@
-defmodule BitPalFixtures.AccountFixtures do
-  @moduledoc """
-  This module defines test helpers for creating
-  entities via the `BitPal.Accounts` context.
-  """
-
+defmodule BitPalFactory.AccountFactory do
   def unique_user_email, do: Faker.Internet.email()
   def valid_user_password, do: Faker.String.base64(Faker.random_between(12, 20))
 
@@ -15,8 +10,8 @@ defmodule BitPalFixtures.AccountFixtures do
     })
   end
 
-  @spec user_fixture(map | keyword) :: User.t()
-  def user_fixture(attrs \\ %{}) do
+  @spec create_user(map | keyword) :: User.t()
+  def create_user(attrs \\ %{}) do
     {:ok, user} =
       attrs
       |> valid_user_attributes()

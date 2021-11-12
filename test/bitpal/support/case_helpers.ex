@@ -3,7 +3,7 @@ defmodule BitPal.CaseHelpers do
 
   defmacro __using__(_) do
     quote do
-      use BitPalFixtures
+      use BitPalFactory
       import BitPal.TestHelpers
       import BitPal.CaseHelpers
     end

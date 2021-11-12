@@ -6,7 +6,6 @@ defmodule BitPal.IntegrationCase do
   """
 
   use ExUnit.CaseTemplate
-  use BitPalFixtures
   alias BitPal.Backend
   alias BitPal.BackendManager
   alias BitPal.BackendMock
@@ -63,19 +62,11 @@ defmodule BitPal.IntegrationCase do
     res
   end
 
-  defp add_allow_parent_opt(backend) when is_atom(backend) do
-    add_allow_parent_opt({backend, []})
-  end
-
-  defp add_allow_parent_opt({backend, opts}) when is_list(opts) do
-    {backend, Keyword.put(opts, :parent, self())}
-  end
-
   defp setup_backends(backends) when is_list(backends) do
     backends =
       Enum.map(backends, fn backend ->
         backend
-        |> add_allow_parent_opt()
+        |> BackendManager.add_allow_parent_opt(parent: self())
         |> BackendManager.start_backend()
       end)
 

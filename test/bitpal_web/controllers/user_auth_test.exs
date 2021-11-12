@@ -3,7 +3,6 @@ defmodule BitPalWeb.UserAuthTest do
 
   alias BitPal.Accounts
   alias BitPalWeb.UserAuth
-  import AccountFixtures
 
   @remember_me_cookie "_tmp_phx_web_user_remember_me"
 
@@ -13,7 +12,7 @@ defmodule BitPalWeb.UserAuthTest do
       |> Map.replace!(:secret_key_base, BitPalWeb.Endpoint.config(:secret_key_base))
       |> init_test_session(%{})
 
-    %{user: user_fixture(), conn: conn}
+    %{user: create_user(), conn: conn}
   end
 
   describe "log_in_user/3" do

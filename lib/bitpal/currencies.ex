@@ -72,7 +72,7 @@ defmodule BitPal.Currencies do
     Repo.update!(Changeset.change(%Currency{id: id}, block_height: height))
   end
 
-  @spec fetch_height!(Currency.id()) :: height
+  @spec fetch_height!(Currency.id()) :: height | nil
   def fetch_height!(id) do
     from(c in Currency, where: c.id == ^id, select: c.block_height)
     |> Repo.one!()
@@ -80,7 +80,10 @@ defmodule BitPal.Currencies do
 
   @spec fetch_height(Currency.id()) :: {:ok, height} | :error
   def fetch_height(id) do
-    {:ok, fetch_height!(id)}
+    case fetch_height!(id) do
+      nil -> :error
+      height -> {:ok, height}
+    end
   rescue
     _ -> :error
   end

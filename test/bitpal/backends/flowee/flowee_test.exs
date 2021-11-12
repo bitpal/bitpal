@@ -16,7 +16,7 @@ defmodule BitPal.Backend.FloweeTest do
 
   setup do
     init_mock(@client)
-    %{store: StoreFixtures.store_fixture()}
+    %{store: create_store()}
   end
 
   setup tags do
@@ -47,7 +47,7 @@ defmodule BitPal.Backend.FloweeTest do
     })
   end
 
-  defp create_invoice(params) do
+  defp test_invoice(params) do
     params
     |> Enum.into(%{
       address_key: @xpub,
@@ -79,7 +79,7 @@ defmodule BitPal.Backend.FloweeTest do
 
   test "transaction 0-conf acceptance", %{store: store, manager_name: manager_name} do
     {:ok, _inv, stub, _invoice_handler} =
-      create_invoice(
+      test_invoice(
         store: store,
         required_confirmations: 0,
         amount: 0.000_01,
@@ -99,7 +99,7 @@ defmodule BitPal.Backend.FloweeTest do
 
   test "transaction confirmation acceptance", %{store: store} do
     {:ok, _inv, stub, _invoice_handler} =
-      create_invoice(
+      test_invoice(
         store: store,
         required_confirmations: 1,
         amount: 0.000_01
@@ -118,21 +118,21 @@ defmodule BitPal.Backend.FloweeTest do
 
   test "single tx 0-conf to multiple monitored addresses", %{store: store} do
     {:ok, _invoice, stub1, _invoice_handler} =
-      create_invoice(
+      test_invoice(
         store: store,
         double_spend_timeout: 1,
         required_confirmations: 0,
         amount: 0.000_1,
-        address: "bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa"
+        address_id: "bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa"
       )
 
     {:ok, _invoice, stub2, _invoice_handler} =
-      create_invoice(
+      test_invoice(
         store: store,
         double_spend_timeout: 1,
         required_confirmations: 0,
         amount: 0.000_2,
-        address: "bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc"
+        address_id: "bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc"
       )
 
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_seen())
@@ -155,21 +155,21 @@ defmodule BitPal.Backend.FloweeTest do
   @tag double_spend_timeout: 1
   test "multiple tx 0-conf to multiple monitored addresses", %{store: store} do
     {:ok, _invoice, stub1, _invoice_handler} =
-      create_invoice(
+      test_invoice(
         store: store,
         double_spend_timeout: 1,
         required_confirmations: 0,
         amount: 0.000_15,
-        address: "bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa"
+        address_id: "bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa"
       )
 
     {:ok, _invoice, stub2, _invoice_handler} =
-      create_invoice(
+      test_invoice(
         store: store,
         double_spend_timeout: 1,
         required_confirmations: 0,
         amount: 0.000_2,
-        address: "bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc"
+        address_id: "bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc"
       )
 
     # Give 10000 to the first one, and 20000 to the second one
@@ -203,21 +203,21 @@ defmodule BitPal.Backend.FloweeTest do
   @tag double_spend_timeout: 1
   test "single tx 1-conf to multiple monitored addresses", %{store: store} do
     {:ok, _invoice, stub1, _invoice_handler} =
-      create_invoice(
+      test_invoice(
         store: store,
         double_spend_timeout: 1,
         required_confirmations: 1,
         amount: 0.000_1,
-        address: "bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa"
+        address_id: "bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa"
       )
 
     {:ok, _invoice, stub2, _invoice_handler} =
-      create_invoice(
+      test_invoice(
         store: store,
         double_spend_timeout: 1,
         required_confirmations: 1,
         amount: 0.000_2,
-        address: "bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc"
+        address_id: "bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc"
       )
 
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_seen())
@@ -258,21 +258,21 @@ defmodule BitPal.Backend.FloweeTest do
   @tag double_spend_timeout: 1
   test "multiple tx 1-conf to multiple monitored addresses", %{store: store} do
     {:ok, _invoice, stub1, _invoice_handler} =
-      create_invoice(
+      test_invoice(
         store: store,
         double_spend_timeout: 1,
         required_confirmations: 1,
         amount: 0.000_15,
-        address: "bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa"
+        address_id: "bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa"
       )
 
     {:ok, _invoice, stub2, _invoice_handler} =
-      create_invoice(
+      test_invoice(
         store: store,
         double_spend_timeout: 1,
         required_confirmations: 1,
         amount: 0.000_2,
-        address: "bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc"
+        address_id: "bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc"
       )
 
     # Give 10000 to the first one, and 20000 to the second one
@@ -336,19 +336,19 @@ defmodule BitPal.Backend.FloweeTest do
   test "make sure recovery works", %{store: store} do
     # Simulate the state stored in the DB:
     {:ok, _invoice, stub1, _invoice_handler} =
-      create_invoice(
+      test_invoice(
         store: store,
         required_confirmations: 1,
         amount: 0.000_15,
-        address: "bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa"
+        address_id: "bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa"
       )
 
     {:ok, _invoice, stub2, _invoice_handler} =
-      create_invoice(
+      test_invoice(
         store: store,
         required_confirmations: 1,
         amount: 0.000_2,
-        address: "bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc"
+        address_id: "bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc"
       )
 
     # We are now at height 690933:

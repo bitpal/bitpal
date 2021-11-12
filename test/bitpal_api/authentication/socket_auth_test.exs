@@ -2,14 +2,14 @@ defmodule BitPalApi.SocketAuthTest do
   use BitPalApi.ChannelCase, async: true
 
   test "successful auth with headers" do
-    %{store_id: _store_id, token: token} = AuthFixtures.auth_fixture()
+    %{store_id: _store_id, token: token} = create_auth()
 
     {:ok, _socket} =
       connect(BitPalApi.StoreSocket, %{}, %{x_headers: [{"x-access-token", token}]})
   end
 
   test "successful auth with params" do
-    %{store_id: _store_id, token: token} = AuthFixtures.auth_fixture()
+    %{store_id: _store_id, token: token} = create_auth()
 
     {:ok, _socket} = connect(BitPalApi.StoreSocket, %{"token" => token}, %{})
   end

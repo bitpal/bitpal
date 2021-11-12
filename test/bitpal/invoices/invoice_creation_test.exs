@@ -6,7 +6,7 @@ defmodule InvoiceCreationTest do
   alias BitPalSchemas.Address
 
   setup do
-    store = StoreFixtures.store_fixture()
+    store = create_store()
     %{store_id: store.id}
   end
 
@@ -198,7 +198,6 @@ defmodule InvoiceCreationTest do
   end
 
   describe "assign_address/2" do
-    @tag do: true
     test "address assigning", %{store_id: store_id} do
       assert {:ok, invoice} =
                Invoices.register(store_id, %{
@@ -209,7 +208,7 @@ defmodule InvoiceCreationTest do
                })
 
       assert address =
-               AddressFixtures.address_fixture(
+               create_address(
                  currency_id: invoice.currency_id,
                  store_id: invoice.store_id
                )
@@ -236,7 +235,7 @@ defmodule InvoiceCreationTest do
                  fiat_amount: :USD
                })
 
-      SettingsFixtures.address_key_fixture(inv)
+      create_address_key(inv)
 
       assert {:ok, one = %{address_id: "one"}} =
                Invoices.ensure_address(inv, fn _ ->

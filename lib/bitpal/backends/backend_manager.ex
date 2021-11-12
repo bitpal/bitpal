@@ -159,7 +159,31 @@ defmodule BitPal.BackendManager do
 
   @impl true
   def init(opts) do
-    children = opts[:backends] || BitPalSettings.currency_backends()
+    children =
+      Map.get(opts, :backends, BitPalSettings.currency_backends())
+      |> add_allow_parent_opt(opts)
+
     Supervisor.init(children, strategy: :one_for_one)
+  end
+
+  def add_allow_parent_opt(backends, manager_opts) do
+    if parent = manager_opts[:parent] do
+      add_parent_opt(backends, parent)
+    else
+      backends
+    end
+  end
+
+  defp add_parent_opt(backends, parent) when is_list(backends) and is_pid(parent) do
+    Enum.map(backends, fn backend -> add_parent_opt(backend, parent) end)
+  end
+
+  defp add_parent_opt(backend, parent) when is_atom(backend) and is_pid(parent) do
+    add_parent_opt({backend, []}, parent)
+  end
+
+  defp add_parent_opt({backend, opts}, parent)
+       when is_atom(backend) and is_list(opts) and is_pid(parent) do
+    {backend, Keyword.put(opts, :parent, parent)}
   end
 end

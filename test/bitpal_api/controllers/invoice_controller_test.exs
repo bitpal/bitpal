@@ -4,7 +4,7 @@ defmodule BitPalApi.InvoiceControllerTest do
   describe "create" do
     test "basic", %{conn: conn, currency_id: currency_id} do
       # FIXME should use this
-      # attrs = InvoiceFixtures.valid_invoice_attributes(currency_id: currency_id)
+      # attrs = valid_invoice_attributes(currency_id: currency_id)
       # conn = post(conn, "/v1/invoices", attrs)
 
       conn =
@@ -336,7 +336,7 @@ defmodule BitPalApi.InvoiceControllerTest do
   end
 
   test "other invoices not found", %{conn: conn} do
-    id = InvoiceFixtures.invoice_fixture().id
+    id = create_invoice().id
 
     for f <- [
           fn -> get(conn, "/v1/invoices/#{id}") end,
@@ -359,7 +359,7 @@ defmodule BitPalApi.InvoiceControllerTest do
 
   @tag auth: false
   test "unauthorized", %{conn: conn} do
-    id = InvoiceFixtures.invoice_fixture().id
+    id = create_invoice().id
 
     for f <- [
           fn -> post(conn, "/v1/invoices/", %{"amount" => "1.0", "currency" => "BCH"}) end,
@@ -381,12 +381,12 @@ defmodule BitPalApi.InvoiceControllerTest do
   end
 
   test "show all invoices", %{conn: conn} do
-    id0 = InvoiceFixtures.invoice_fixture(conn, amount: 1).id
-    id1 = InvoiceFixtures.invoice_fixture(conn, amount: 2).id
-    id2 = InvoiceFixtures.invoice_fixture(conn, amount: 3, status: :open).id
+    id0 = create_invoice(conn, amount: 1).id
+    id1 = create_invoice(conn, amount: 2).id
+    id2 = create_invoice(conn, amount: 3, status: :open).id
 
     # Invoices from other store should not show up
-    _ = InvoiceFixtures.invoice_fixture(amount: 4)
+    _ = create_invoice(amount: 4)
 
     conn = get(conn, "/v1/invoices")
     # Can sometimes be in another order, so sorting is necessary
@@ -397,19 +397,19 @@ defmodule BitPalApi.InvoiceControllerTest do
   end
 
   defp setup_draft(context) do
-    create_invoice(context, amount: "1.2", exchange_rate: "2.0")
+    add_invoice(context, amount: "1.2", exchange_rate: "2.0", status: :draft)
   end
 
   defp setup_open(context) do
-    create_invoice(context,
-      address: :auto,
+    add_invoice(context,
+      address_id: :auto,
       status: :open
     )
   end
 
   defp setup_uncollectable(context) do
-    create_invoice(context,
-      address: :auto,
+    add_invoice(context,
+      address_id: :auto,
       status: :uncollectible
     )
   end

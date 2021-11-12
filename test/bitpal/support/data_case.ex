@@ -15,7 +15,6 @@ defmodule BitPal.DataCase do
   """
 
   use ExUnit.CaseTemplate
-  use BitPalFixtures
 
   using do
     quote do

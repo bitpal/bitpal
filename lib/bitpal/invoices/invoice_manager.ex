@@ -24,12 +24,13 @@ defmodule BitPal.InvoiceManager do
 
   # Individual invoices
 
-  @spec finalize_invoice(Invoice.t(), keyword) ::
+  @spec finalize_invoice(Invoice.t(), keyword | map) ::
           {:ok, Invoice.t()} | {:error, Changeset.t()}
   def finalize_invoice(invoice = %Invoice{}, opts \\ []) do
     opts =
-      opts
-      |> Keyword.put_new(:parent, self())
+      Enum.into(opts, %{
+        parent: self()
+      })
 
     # The handler will finalize and update the invoice, so we'll need to fetch the 
     # updated invoice from the handler.
@@ -55,6 +56,14 @@ defmodule BitPal.InvoiceManager do
           opts[:double_spend_timeout] || Invoices.double_spend_timeout(invoice)
       }
     )
+  end
+
+  @spec ensure_handler(Invoice.t(), keyword | map) :: {:ok, pid} | {:error, term}
+  def ensure_handler(invoice, opts) do
+    case fetch_handler(invoice.id) do
+      handler = {:ok, _} -> handler
+      {:error, _} -> start_handler(invoice, opts)
+    end
   end
 
   @spec fetch_handler(Invoice.id()) :: {:ok, pid} | {:error, :not_found}

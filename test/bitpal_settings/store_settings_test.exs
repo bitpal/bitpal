@@ -4,7 +4,7 @@ defmodule BitPalSettings.StoreSettingsTest do
   alias BitPalSchemas.AddressKey
 
   setup _tags do
-    %{store: StoreFixtures.store_fixture(), currency_id: CurrencyFixtures.unique_currency_id()}
+    %{store: create_store(), currency_id: unique_currency_id()}
   end
 
   describe "address_key" do
@@ -14,8 +14,7 @@ defmodule BitPalSettings.StoreSettingsTest do
     end
 
     test "update if no addresses has been generated", %{store: store, currency_id: currency_id} do
-      default_key =
-        SettingsFixtures.address_key_fixture(%{store: store, currency_id: currency_id})
+      default_key = create_address_key(%{store: store, currency_id: currency_id})
 
       assert {:ok, new_key} = StoreSettings.set_address_key(store.id, currency_id, "myxpub")
       assert new_key.id == default_key.id
@@ -23,10 +22,9 @@ defmodule BitPalSettings.StoreSettingsTest do
     end
 
     test "insert a new if address references exists", %{store: store, currency_id: currency_id} do
-      default_key =
-        SettingsFixtures.address_key_fixture(%{store: store, currency_id: currency_id})
+      default_key = create_address_key(%{store: store, currency_id: currency_id})
 
-      assert AddressFixtures.address_fixture(default_key)
+      assert create_address(default_key)
 
       assert {:ok, new_key} = StoreSettings.set_address_key(store.id, currency_id, "myxpub")
       assert new_key.id != default_key.id

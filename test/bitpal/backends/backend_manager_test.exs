@@ -8,8 +8,9 @@ defmodule BackendManagerTest do
       pid =
         start_supervised!(
           {BackendManager,
-           backends: [{BackendMock, currency_id: CurrencyFixtures.unique_currency_id()}],
-           name: unique_server_name()}
+           backends: [{BackendMock, currency_id: unique_currency_id(), parent: self()}],
+           name: unique_server_name(),
+           parent: self()}
         )
 
       %{active: 1} = DynamicSupervisor.count_children(pid)
@@ -23,7 +24,7 @@ defmodule BackendManagerTest do
     end
 
     test "setup and fetch" do
-      [c0, c1, c2] = CurrencyFixtures.unique_currency_ids(3)
+      [c0, c1, c2] = unique_currency_ids(3)
 
       start_supervised!(
         {BackendManager,
@@ -31,6 +32,7 @@ defmodule BackendManagerTest do
            {BackendMock, currency_id: c0},
            {BackendMock, currency_id: c1}
          ],
+         parent: self(),
          name: unique_server_name()}
       )
 
@@ -43,7 +45,7 @@ defmodule BackendManagerTest do
   describe "currency_list/0" do
     test "list multiple" do
       name = unique_server_name()
-      [c0, c1] = CurrencyFixtures.unique_currency_ids(2)
+      [c0, c1] = unique_currency_ids(2)
 
       start_supervised!(
         {BackendManager,
@@ -51,6 +53,7 @@ defmodule BackendManagerTest do
            {BackendMock, currency_id: c0},
            {BackendMock, currency_id: c1}
          ],
+         parent: self(),
          name: name}
       )
 
@@ -60,11 +63,13 @@ defmodule BackendManagerTest do
 
   describe "status/1" do
     test "Finding status" do
-      currency_id = CurrencyFixtures.unique_currency_id()
+      currency_id = unique_currency_id()
 
       start_supervised!(
         {BackendManager,
-         backends: [{BackendMock, currency_id: currency_id}], name: unique_server_name()}
+         parent: self(),
+         backends: [{BackendMock, currency_id: currency_id}],
+         name: unique_server_name()}
       )
 
       assert :ok == BackendManager.status(currency_id)
@@ -75,10 +80,11 @@ defmodule BackendManagerTest do
     test "change config" do
       name = unique_server_name()
 
-      [c0, c1, c2] = CurrencyFixtures.unique_currency_ids(3)
+      [c0, c1, c2] = unique_currency_ids(3)
 
       start_supervised!(
         {BackendManager,
+         parent: self(),
          backends: [
            {BackendMock, currency_id: c0},
            {BackendMock, currency_id: c1}
@@ -93,8 +99,8 @@ defmodule BackendManagerTest do
       BackendManager.config_change(
         name,
         backends: [
-          {BackendMock, currency_id: c0},
-          {BackendMock, currency_id: c2}
+          {BackendMock, currency_id: c0, parent: self()},
+          {BackendMock, currency_id: c2, parent: self()}
         ]
       )
 

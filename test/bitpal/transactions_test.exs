@@ -1,18 +1,17 @@
 defmodule BitPal.TransactionsTest do
   use BitPal.IntegrationCase, async: true
-  import TransactionFixtures
   alias BitPalSchemas.TxOutput
 
   setup tags do
-    address = AddressFixtures.address_fixture()
+    address = create_address()
 
     res = %{
       address: address,
-      txid: TransactionFixtures.unique_txid()
+      txid: unique_txid()
     }
 
     if tags[:other_address] do
-      other_address = AddressFixtures.address_fixture(currency_id: address.currency_id)
+      other_address = create_address(currency_id: address.currency_id)
 
       Map.put(res, :other_address, other_address)
     else
@@ -22,7 +21,7 @@ defmodule BitPal.TransactionsTest do
 
   describe "seen/2" do
     test "seen", %{address: address, txid: txid} do
-      assert :ok = Transactions.seen(txid, [{address.id, money_fixture(address.currency_id)}])
+      assert :ok = Transactions.seen(txid, [{address.id, create_money(address.currency_id)}])
       tx = Repo.get_by!(TxOutput, txid: txid)
       assert tx.txid == txid
       assert tx.address_id == address.id
@@ -32,8 +31,8 @@ defmodule BitPal.TransactionsTest do
     test "2x output seen", %{address: address, txid: txid} do
       assert :ok =
                Transactions.seen(txid, [
-                 {address.id, money_fixture(address.currency_id)},
-                 {address.id, money_fixture(address.currency_id)}
+                 {address.id, create_money(address.currency_id)},
+                 {address.id, create_money(address.currency_id)}
                ])
 
       txs = Repo.all(TxOutput)
@@ -55,8 +54,8 @@ defmodule BitPal.TransactionsTest do
     } do
       assert :ok =
                Transactions.seen(txid, [
-                 {address.id, money_fixture(address.currency_id)},
-                 {other_address.id, money_fixture(address.currency_id)}
+                 {address.id, create_money(address.currency_id)},
+                 {other_address.id, create_money(address.currency_id)}
                ])
 
       tx0 = Repo.get_by!(TxOutput, txid: txid, address_id: address.id)
@@ -72,7 +71,7 @@ defmodule BitPal.TransactionsTest do
   describe "confirmed/2" do
     test "confirmed", %{address: address, txid: txid} do
       assert :ok =
-               Transactions.confirmed(txid, [{address.id, money_fixture(address.currency_id)}], 0)
+               Transactions.confirmed(txid, [{address.id, create_money(address.currency_id)}], 0)
 
       tx = Repo.get_by!(TxOutput, txid: txid)
       assert tx.txid == txid
@@ -88,16 +87,16 @@ defmodule BitPal.TransactionsTest do
     } do
       assert :ok =
                Transactions.seen(txid, [
-                 {address.id, money_fixture(address.currency_id)},
-                 {other_address.id, money_fixture(address.currency_id)}
+                 {address.id, create_money(address.currency_id)},
+                 {other_address.id, create_money(address.currency_id)}
                ])
 
       assert :ok =
                Transactions.confirmed(
                  txid,
                  [
-                   {address.id, money_fixture(address.currency_id)},
-                   {other_address.id, money_fixture(address.currency_id)}
+                   {address.id, create_money(address.currency_id)},
+                   {other_address.id, create_money(address.currency_id)}
                  ],
                  1
                )
@@ -114,14 +113,14 @@ defmodule BitPal.TransactionsTest do
     end
 
     test "seen then confirmed", %{address: address, txid: txid} do
-      assert :ok = Transactions.seen(txid, [{address.id, money_fixture(address.currency_id)}])
+      assert :ok = Transactions.seen(txid, [{address.id, create_money(address.currency_id)}])
       tx = Repo.get_by!(TxOutput, txid: txid)
       assert tx.confirmed_height == nil
 
       assert :ok =
                Transactions.confirmed(
                  txid,
-                 [{address.id, money_fixture(address.currency_id)}],
+                 [{address.id, create_money(address.currency_id)}],
                  1
                )
 
@@ -136,14 +135,14 @@ defmodule BitPal.TransactionsTest do
       assert :ok =
                Transactions.confirmed(
                  txid,
-                 [{address.id, money_fixture(address.currency_id)}],
+                 [{address.id, create_money(address.currency_id)}],
                  0
                )
 
       tx = Repo.get_by!(TxOutput, txid: txid)
       assert tx.confirmed_height == 0
 
-      assert :ok = Transactions.reversed(txid, [{address.id, money_fixture(address.currency_id)}])
+      assert :ok = Transactions.reversed(txid, [{address.id, create_money(address.currency_id)}])
 
       tx = Repo.get_by!(TxOutput, txid: txid)
       assert tx.confirmed_height == nil
@@ -153,13 +152,13 @@ defmodule BitPal.TransactionsTest do
 
   describe "double_spent/2" do
     test "0-conf double spent", %{address: address, txid: txid} do
-      assert :ok = Transactions.seen(txid, [{address.id, money_fixture(address.currency_id)}])
+      assert :ok = Transactions.seen(txid, [{address.id, create_money(address.currency_id)}])
       tx = Repo.get_by!(TxOutput, txid: txid)
       assert !tx.double_spent
 
       assert :ok =
                Transactions.double_spent(txid, [
-                 {address.id, money_fixture(address.currency_id)}
+                 {address.id, create_money(address.currency_id)}
                ])
 
       tx = Repo.get_by!(TxOutput, txid: txid)
@@ -172,7 +171,7 @@ defmodule BitPal.TransactionsTest do
       assert :ok =
                Transactions.confirmed(
                  txid,
-                 [{address.id, money_fixture(address.currency_id)}],
+                 [{address.id, create_money(address.currency_id)}],
                  0
                )
 
@@ -182,7 +181,7 @@ defmodule BitPal.TransactionsTest do
 
       assert :ok =
                Transactions.double_spent(txid, [
-                 {address.id, money_fixture(address.currency_id)}
+                 {address.id, create_money(address.currency_id)}
                ])
 
       tx = Repo.get_by!(TxOutput, txid: txid)
