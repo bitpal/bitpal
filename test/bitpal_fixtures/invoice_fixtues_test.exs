@@ -3,11 +3,10 @@ defmodule BitPalFixtures.InvoiceFixturesTest do
   alias BitPalSettings.StoreSettings
 
   setup _tags do
-    %{store: StoreFixtures.store_fixture()}
+    %{store: Factory.insert(:store)}
   end
 
   describe "invoice_fixture/2" do
-    @tag do: true
     test "inserts into db", %{store: store} do
       invoice = InvoiceFixtures.invoice_fixture(store: store)
       assert {:ok, _} = BitPal.Invoices.fetch(invoice.id)

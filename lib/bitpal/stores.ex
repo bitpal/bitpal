@@ -75,7 +75,7 @@ defmodule BitPal.Stores do
     end
   end
 
-  defp slugified_label(label) do
+  def slugified_label(label) do
     label
     |> String.downcase()
     |> String.replace(~r/[^a-z0-9\s-]/, "")

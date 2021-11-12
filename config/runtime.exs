@@ -32,7 +32,10 @@ case Config.config_env() do
 
   :dev ->
     config :bitpal,
-      backends: [{BitPal.BackendMock, auto: true, time_between_blocks: 60_000}]
+      backends:
+        Enum.map([:BCH, :XMR], fn currency_id ->
+          {BitPal.BackendMock, auto: true, time_between_blocks: 60_000, currency_id: currency_id}
+        end)
 
     config :bitpal, BitPal.ExchangeRate, backends: [BitPal.ExchangeRateMock]
 

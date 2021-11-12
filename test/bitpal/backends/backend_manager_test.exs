@@ -9,7 +9,8 @@ defmodule BackendManagerTest do
         start_supervised!(
           {BackendManager,
            backends: [{BackendMock, currency_id: CurrencyFixtures.unique_currency_id()}],
-           name: unique_server_name()}
+           name: unique_server_name(),
+           parent: self()}
         )
 
       %{active: 1} = DynamicSupervisor.count_children(pid)
@@ -31,7 +32,8 @@ defmodule BackendManagerTest do
            {BackendMock, currency_id: c0},
            {BackendMock, currency_id: c1}
          ],
-         name: unique_server_name()}
+         name: unique_server_name(),
+         parent: self()}
       )
 
       assert {:ok, {_pid, BackendMock}} = BackendManager.fetch_backend(c0)
@@ -51,7 +53,8 @@ defmodule BackendManagerTest do
            {BackendMock, currency_id: c0},
            {BackendMock, currency_id: c1}
          ],
-         name: name}
+         name: name,
+         parent: self()}
       )
 
       assert Enum.sort(BackendManager.currency_list(name)) === Enum.sort([c0, c1])
@@ -64,7 +67,9 @@ defmodule BackendManagerTest do
 
       start_supervised!(
         {BackendManager,
-         backends: [{BackendMock, currency_id: currency_id}], name: unique_server_name()}
+         backends: [{BackendMock, currency_id: currency_id}],
+         name: unique_server_name(),
+         parent: self()}
       )
 
       assert :ok == BackendManager.status(currency_id)
@@ -83,7 +88,8 @@ defmodule BackendManagerTest do
            {BackendMock, currency_id: c0},
            {BackendMock, currency_id: c1}
          ],
-         name: name}
+         name: name,
+         parent: self()}
       )
 
       assert {:ok, pid0} = BackendManager.fetch_backend(c0)

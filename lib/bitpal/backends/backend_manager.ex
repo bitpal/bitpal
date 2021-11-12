@@ -4,6 +4,7 @@ defmodule BitPal.BackendManager do
   alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
   alias BitPal.ProcessRegistry
+  alias BitPal.Currencies
 
   @type server_name :: atom | {:via, term, term} | pid
   @type backend_spec() :: Supervisor.child_spec()
@@ -15,7 +16,19 @@ defmodule BitPal.BackendManager do
   def start_link(opts) do
     opts = Enum.into(opts, %{})
     name = Map.get(opts, :name, __MODULE__)
-    Supervisor.start_link(__MODULE__, opts, name: name)
+    res = Supervisor.start_link(__MODULE__, opts, name: name)
+
+    if parent = opts[:parent] do
+      Ecto.Adapters.SQL.Sandbox.allow(BitPal.Repo, parent, self())
+    end
+
+    # Ensure that all currencies exists in the Repo
+    # Easier to it this way so we can add whatever backend we want,
+    # and it should work automatically.
+    currency_list(name)
+    |> Currencies.ensure_exists!()
+
+    res
   end
 
   def child_spec(opts) do
@@ -127,6 +140,7 @@ defmodule BitPal.BackendManager do
         {pid, backend}
 
       {:ok, pid} when is_pid(pid) ->
+        # NOTE maybe we need to ensure that currency exists here too?
         {pid, backend}
     end
   end

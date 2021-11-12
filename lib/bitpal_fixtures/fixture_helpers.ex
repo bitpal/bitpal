@@ -14,12 +14,12 @@ defmodule BitPalFixtures.FixtureHelpers do
   @spec get_or_create_store(map) :: Store.id()
   def get_or_create_store(%{store_id: store_id}), do: Stores.fetch!(store_id)
   def get_or_create_store(%{store: store}), do: store
-  def get_or_create_store(attrs), do: StoreFixtures.store_fixture(attrs)
+  def get_or_create_store(attrs), do: Factory.insert(:store)
 
   @spec get_or_create_store_id(map) :: Store.id()
   def get_or_create_store_id(%{store_id: store_id}), do: store_id
   def get_or_create_store_id(%{store: store}), do: store.id
-  def get_or_create_store_id(attrs), do: StoreFixtures.store_fixture(attrs).id
+  def get_or_create_store_id(attrs), do: Factory.insert(:store).id
 
   @spec get_or_create_currency_id(map) :: Currency.id()
   def get_or_create_currency_id(%{currency_id: currency_id}), do: currency_id

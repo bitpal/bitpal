@@ -9,6 +9,7 @@ defmodule BitPalFixtures do
       alias BitPalFixtures.InvoiceFixtures
       alias BitPalFixtures.StoreFixtures
       alias BitPalFixtures.TransactionFixtures
+      alias BitPalFactory.Factory
     end
   end
 end
