@@ -5,6 +5,7 @@ defmodule BitPalFixtures.InvoiceFixtures do
   """
 
   import BitPalFixtures.FixtureHelpers
+  use BitPalFactory
   alias BitPal.Addresses
   alias BitPal.Invoices
   alias BitPalSchemas.Store
@@ -34,8 +35,8 @@ defmodule BitPalFixtures.InvoiceFixtures do
     Enum.into(attrs, %{
       amount: rand_pos_float(),
       exchange_rate: rand_pos_float(),
-      currency_id: BitPalFactory.unique_currency_id() |> Atom.to_string(),
-      fiat_currency: BitPalFactory.unique_fiat(),
+      currency_id: unique_currency_id() |> Atom.to_string(),
+      fiat_currency: unique_fiat(),
       description: Faker.Commerce.product_name(),
       email: Faker.Internet.email()
     })
@@ -76,7 +77,7 @@ defmodule BitPalFixtures.InvoiceFixtures do
     end
 
     invoice
-    |> assign_address(attrs)
+    |> assoc_address(attrs)
     |> change_status(attrs)
   end
 
@@ -93,17 +94,17 @@ defmodule BitPalFixtures.InvoiceFixtures do
   end
 
   def ensure_address(invoice, params) do
-    assign_address(invoice, %{address: params[:address] || :auto})
+    assoc_address(invoice, %{address: params[:address] || :auto})
   end
 
-  defp assign_address(invoice, %{address: :auto}) do
+  defp assoc_address(invoice, %{address: :auto}) do
     address = AddressFixtures.address_fixture(invoice)
     {:ok, invoice} = Invoices.assign_address(invoice, address)
     invoice
   end
 
   # FIXME address_id here
-  defp assign_address(invoice, %{address: address_id}) when is_binary(address_id) do
+  defp assoc_address(invoice, %{address: address_id}) when is_binary(address_id) do
     address_key = get_or_create_address_key(invoice)
 
     address =
@@ -118,7 +119,7 @@ defmodule BitPalFixtures.InvoiceFixtures do
     invoice
   end
 
-  defp assign_address(invoice, _), do: invoice
+  defp assoc_address(invoice, _), do: invoice
 
   defp change_status(invoice, %{status: status}) do
     Invoices.set_status!(invoice, status)

@@ -3,6 +3,7 @@ defmodule BitPal.BackendMock do
 
   use GenServer
   import BitPalSettings.ConfigHelpers
+  use BitPalFactory
   alias BitPal.Backend
   alias BitPal.Blocks
   alias BitPal.Invoices
@@ -44,7 +45,7 @@ defmodule BitPal.BackendMock do
   def child_spec(opts) do
     opts =
       opts
-      |> Keyword.put_new_lazy(:currency_id, &BitPalFactory.unique_currency_id/0)
+      |> Keyword.put_new_lazy(:currency_id, &unique_currency_id/0)
 
     currency_id = Keyword.fetch!(opts, :currency_id)
 

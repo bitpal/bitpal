@@ -20,19 +20,23 @@ defmodule BitPal.Invoices do
 
   # External
 
+  def register_changeset(store_id, params) do
+    %Invoice{store_id: store_id}
+    |> cast(params, [:required_confirmations, :description, :email, :pos_data])
+    |> assoc_currency(params)
+    |> validate_currency(params, :fiat_currency)
+    |> cast_money(params, :amount, :currency_id)
+    |> cast_money(params, :fiat_amount, :fiat_currency)
+    |> cast_exchange_rate(params)
+    |> validate_into_matching_pairs()
+    |> validate_required_confirmations()
+    |> validate_format(:email, ~r/^.+@.+$/, message: "Must be a valid email")
+  end
+
   @spec register(Store.id(), map) :: {:ok, Invoice.t()} | {:error, Changeset.t()}
   def register(store_id, params) do
     res =
-      %Invoice{store_id: store_id}
-      |> cast(params, [:required_confirmations, :description, :email, :pos_data])
-      |> assoc_currency(params)
-      |> validate_currency(params, :fiat_currency)
-      |> cast_money(params, :amount, :currency_id)
-      |> cast_money(params, :fiat_amount, :fiat_currency)
-      |> cast_exchange_rate(params)
-      |> validate_into_matching_pairs()
-      |> validate_required_confirmations()
-      |> validate_format(:email, ~r/^.+@.+$/, message: "Must be a valid email")
+      register_changeset(store_id, params)
       |> Repo.insert()
 
     case res do

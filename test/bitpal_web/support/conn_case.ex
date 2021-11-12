@@ -65,8 +65,8 @@ defmodule BitPalWeb.ConnCase do
   test context.
   """
   def register_and_log_in_user(tags = %{conn: conn}) do
-    password = BitPalFactory.valid_user_password()
-    user = BitPalFactory.insert(:user, password: password)
+    password = valid_user_password()
+    user = insert(:user, password: password)
     Map.merge(tags, %{conn: log_in_user(conn, user), user: user, password: password})
   end
 

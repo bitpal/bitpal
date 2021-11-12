@@ -1,7 +1,7 @@
 defmodule BitPalFixtures do
   defmacro __using__(_) do
     quote do
-      import BitPalFactory
+      use BitPalFactory
 
       alias BitPalFixtures.SettingsFixtures
       alias BitPalFixtures.AddressFixtures

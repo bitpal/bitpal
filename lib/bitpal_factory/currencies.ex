@@ -1,26 +1,31 @@
-defmodule BitPalFactory.CurrencyFactory do
-  defmacro __using__(_opts) do
-    quote do
-      alias BitPalFactory.CurrencyGenerator
+defmodule BitPalFactory.Currencies do
+  alias BitPalFactory.CurrencyGenerator
 
-      @spec unique_currency_id :: Currency.id()
-      def unique_currency_id do
-        CurrencyGenerator.next_currency_id()
-      end
-
-      @spec unique_currency_ids(non_neg_integer) :: [Currency.id()]
-      def unique_currency_ids(count) do
-        Enum.map(1..count, fn _ ->
-          unique_currency_id()
-        end)
-      end
-
-      @spec unique_fiat :: atom
-      def unique_fiat do
-        CurrencyGenerator.next_fiat()
-      end
-    end
+  @spec unique_currency_id :: Currency.id()
+  def unique_currency_id do
+    CurrencyGenerator.next_currency_id()
   end
+
+  @spec unique_currency_ids(non_neg_integer) :: [Currency.id()]
+  def unique_currency_ids(count) do
+    Enum.map(1..count, fn _ ->
+      unique_currency_id()
+    end)
+  end
+
+  @spec unique_fiat :: atom
+  def unique_fiat do
+    CurrencyGenerator.next_fiat()
+  end
+
+  @spec get_or_create_currency_id(map) :: Currency.id()
+  def get_or_create_currency_id(%{currency_id: currency_id}), do: currency_id
+
+  def get_or_create_currency_id(%{currency: currency_id}) when is_atom(currency_id) do
+    currency_id
+  end
+
+  def get_or_create_currency_id(_), do: unique_currency_id()
 end
 
 defmodule BitPalFactory.CurrencyGenerator do
