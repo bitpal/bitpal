@@ -22,6 +22,7 @@ defmodule BitPalWeb.ConnCase do
   alias BitPal.DataCase
   alias BitPal.IntegrationCase
   alias BitPal.HandlerSubscriberCollector
+  alias BitPalFactory.Factory
 
   defmacro __using__(params) do
     quote do
@@ -65,8 +66,8 @@ defmodule BitPalWeb.ConnCase do
   test context.
   """
   def register_and_log_in_user(tags = %{conn: conn}) do
-    password = AccountFixtures.valid_user_password()
-    user = AccountFixtures.user_fixture(password: password)
+    password = Factory.valid_user_password()
+    user = Factory.insert(:user, password: password)
     Map.merge(tags, %{conn: log_in_user(conn, user), user: user, password: password})
   end
 

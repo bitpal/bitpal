@@ -6,7 +6,7 @@ defmodule BitPal.DevSeeds do
   end
 
   def user1 do
-    user = AccountFixtures.user_fixture(email: "test@bitpal.dev", password: "test_test_test_test")
+    user = insert(:user, email: "test@bitpal.dev", password: "test_test_test_test")
     store1(user)
     store2(user)
   end

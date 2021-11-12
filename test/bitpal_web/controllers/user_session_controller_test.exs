@@ -5,7 +5,7 @@ defmodule BitPalWeb.UserSessionControllerTest do
 
   setup do
     password = valid_user_password()
-    %{user: user_fixture(password: password), password: password}
+    %{user: insert(:user, password: password), password: password}
   end
 
   describe "GET /users/log_in" do

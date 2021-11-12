@@ -34,6 +34,8 @@ defmodule BitPal.DataCase do
       alias BitPal.Repo
       alias BitPal.Stores
       alias BitPal.Transactions
+
+      import BitPalFactory.Factory
     end
   end
 

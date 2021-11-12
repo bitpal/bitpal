@@ -59,8 +59,8 @@ defmodule BitPalWeb.StoreLiveTest do
   describe "security" do
     test "redirect from other store", %{conn: conn, store: _store} do
       other_store =
-        AccountFixtures.user_fixture()
-        |> StoreFixtures.store_fixture()
+        insert(:user)
+        |> with_store()
 
       {:error, {:redirect, %{to: "/"}}} = live(conn, Routes.store_path(conn, :show, other_store))
     end

@@ -42,7 +42,7 @@ defmodule BitPalWeb.InvoiceLiveTest do
   describe "security" do
     test "redirect from other invoice", %{conn: conn} do
       other_invoice =
-        AccountFixtures.user_fixture()
+        insert(:user)
         |> StoreFixtures.store_fixture()
         |> InvoiceFixtures.invoice_fixture()
 

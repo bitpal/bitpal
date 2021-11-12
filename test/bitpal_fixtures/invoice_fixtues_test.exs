@@ -3,7 +3,7 @@ defmodule BitPalFixtures.InvoiceFixturesTest do
   alias BitPalSettings.StoreSettings
 
   setup _tags do
-    %{store: Factory.insert(:store)}
+    %{store: insert(:store)}
   end
 
   describe "invoice_fixture/2" do
