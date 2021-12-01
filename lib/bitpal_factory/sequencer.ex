@@ -17,14 +17,13 @@ defmodule BitPalFactory.Sequencer do
   end
 
   @impl true
-  def handle_call({:next, name}, _, state = %{name: count}) do
-    next = count + 1
-    {:reply, next, Map.put(state, name, next)}
-  end
-
-  @impl true
   def handle_call({:next, name}, _, state) do
-    next = 0
+    next =
+      case Map.get(state, name) do
+        nil -> 0
+        count -> count + 1
+      end
+
     {:reply, next, Map.put(state, name, next)}
   end
 end
