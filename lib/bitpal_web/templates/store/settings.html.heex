@@ -1,0 +1,54 @@
+<%= render "_bar.html", assigns %>
+
+<section class="settings">
+
+  <.form let={f}, for={@create_token} phx-change="change", phx-submit="submit">
+    <%= label f, :label, "Token name" %>
+    <%= text_input f, :label %>
+
+    <%= label f, :label, "Expiration date" %>
+    <%= text_input f, :label %>
+
+    <%= submit "Create store access token" %>
+  </.form>
+
+  <table class="access-tokens">
+    <thead>
+      <tr>
+        <th>Token Name</th>
+        <th>Created</th>
+        <th>Last Used</th>
+        <th>Expires</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <%= for token <- @store.access_tokens do %>
+        <tr>
+          <td><%= token.label %></td>
+          <td>2021-01-01</td>
+          <td>Never</td>
+          <td>Never</td>
+          <td><a class="revoke">Revoke</a></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+
+  <section class="currencies">
+    <%= for {currency_id, changeset} <- @currency_settings do %>
+      <.form let={f}, for={changeset} phx-change="change", phx-submit="submit" as="{currency_id}">
+        <h3><%= currency_id %></h3>
+
+        <%= label f, :required_confirmations, "Required confirmations" %>
+        <%= text_input f, :required_confirmations %>
+
+        <%= label f, :address_key, "xpub" %>
+        <%= text_input f, :address_key %>
+
+        <%= submit "Save" %>
+      </.form>
+    <% end %>
+  </section>
+</section>
+

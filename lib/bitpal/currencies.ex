@@ -14,6 +14,12 @@ defmodule BitPal.Currencies do
     |> Map.keys()
   end
 
+  @spec is_crypto(atom) :: boolean
+  def is_crypto(id) do
+    Application.get_env(:money, :custom_currencies)
+    |> Map.has_key?(id)
+  end
+
   @spec add_custom_curreny(atom, map) :: :ok
   def add_custom_curreny(id, opts) do
     currencies =

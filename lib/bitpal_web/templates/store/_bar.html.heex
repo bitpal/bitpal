@@ -1,0 +1,35 @@
+<section class="title-bar">
+  <h1><%= @store.label %></h1>
+</section>
+
+<section class="store-nav-bar">
+  <nav>
+    <ul>
+      <li>
+        <%= store_link(
+          label: "Invoices",
+          to: Routes.store_path(@socket, :show, @store), 
+          from: @uri) %>
+      </li>
+      <li>
+        <%= store_link(
+          label: "Addresses",
+          to: Routes.store_addresses_path(@socket, :show, @store), 
+          from: @uri) %>
+      </li>
+      <li>
+        <%= store_link(
+          label: "Transactions",
+          to: Routes.store_transactions_path(@socket, :show, @store), 
+          from: @uri) %>
+      </li>
+      <li>
+        <%= store_link(
+          label: "Settings",
+          to: Routes.store_settings_path(@socket, :show, @store), 
+          from: @uri) %>
+      </li>
+    </ul>
+  </nav>
+</section>
+

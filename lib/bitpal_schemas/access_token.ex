@@ -6,6 +6,10 @@ defmodule BitPalSchemas.AccessToken do
     field(:data, :string)
     field(:label, :string)
 
+    # FIXME
+    # valid until
+    # created at
+
     belongs_to(:store, Store)
   end
 end

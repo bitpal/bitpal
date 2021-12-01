@@ -399,6 +399,12 @@ defmodule BitPal.Invoices do
     _ -> invoice.required_confirmations
   end
 
+  @spec update_info_from_txs(Invoice.t()) :: Invoice.t()
+  def update_info_from_txs(invoice) do
+    curr_height = Blocks.fetch_block_height!(invoice.currency_id)
+    update_info_from_txs(invoice, curr_height)
+  end
+
   @spec update_info_from_txs(Invoice.t(), non_neg_integer) :: Invoice.t()
   def update_info_from_txs(invoice, block_height) do
     invoice = Repo.preload(invoice, :tx_outputs, force: true)

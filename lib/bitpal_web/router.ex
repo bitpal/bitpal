@@ -15,7 +15,7 @@ defmodule BitPalWeb.Router do
   end
 
   pipeline :store_layout do
-    plug(:put_root_layout, {BitPalWeb.LayoutView, :store})
+    plug(:put_root_layout, {BitPalWeb.LayoutView, :web})
   end
 
   pipeline :doc_layout do
@@ -35,10 +35,14 @@ defmodule BitPalWeb.Router do
   scope "/", BitPalWeb do
     pipe_through([:browser, :store_layout, :require_authenticated_user])
 
+    # FIXME needs to redirect
+    # forward("/stores/:slug", redirect("/stores/:slug/invoices"))
     live("/stores/:slug", StoreLive, :show)
-    live("/invoices/:id", InvoiceLive, :show)
+    live("/stores/:slug/addresses", StoreAddressesLive, :show)
+    live("/stores/:slug/transactions", StoreTransactionsLive, :show)
+    live("/stores/:slug/settings", StoreSettingsLive, :show)
 
-    live("/stores/:id/settings", StoreSettingsLive, :show)
+    live("/invoices/:id", InvoiceLive, :show)
   end
 
   # Admin and server management

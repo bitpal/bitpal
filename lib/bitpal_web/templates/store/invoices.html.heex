@@ -1,0 +1,21 @@
+<%= render "_bar.html", assigns %>
+
+<section class="invoices">
+  <%= if Enum.empty?(@store.invoices) do %>
+    <div class="no-invoices">
+      There are no invoices here yet
+    </div>
+  <% else %>
+    <%= for invoice <- @store.invoices do %>
+      <div class="invoice">
+        <div class="status"><%= format_status(invoice) %></div>
+        <div class="date"><%= NaiveDateTime.to_date(invoice.updated_at) %></div>
+        <%#= link("Link", to: Routes.invoice_path(@socket, :show, invoice)) %>
+        <div class="crypto-amount"><%= format_amount(invoice) %></div>
+        <div class="fiat-amount"><%= format_fiat_amount(invoice) %></div>
+        <div class="description"><%= invoice.description %></div>
+      </div>
+    <% end %>
+  <% end %>
+</section>
+
