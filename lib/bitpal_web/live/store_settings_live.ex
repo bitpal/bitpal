@@ -16,7 +16,9 @@ defmodule BitPalWeb.StoreSettingsLive do
       socket.assigns.store
       |> Repo.preload([:access_tokens, currency_settings: :address_key])
 
-    # |> IO.inspect()
+    # IO.inspect(_params)
+    # IO.inspect(_session)
+    # IO.inspect(socket.assigns)
 
     # currencies = Currencies.all()
     #
