@@ -1,5 +1,6 @@
 defmodule BitPal.Currencies do
   import Ecto.Query
+  require Logger
   alias BitPal.Repo
   alias BitPalSchemas.Address
   alias BitPalSchemas.Currency
@@ -103,7 +104,36 @@ defmodule BitPal.Currencies do
     else
       :error
     end
-  catch
+  rescue
     _ -> :error
+  end
+
+  def valid_address_key?(currency_id, key) when is_binary(key) do
+    cond do
+      is_test_currency?(currency_id) ->
+        key != ""
+
+      has_xpub?(currency_id) ->
+        case key do
+          "xpub" <> _ -> true
+          _ -> false
+        end
+
+      true ->
+        Logger.error("Unknown address key format for: #{currency_id}")
+        true
+    end
+  end
+
+  def valid_address_key?(_, _), do: false
+
+  def has_xpub?(:XMR), do: false
+  def has_xpub?(_), do: true
+
+  def is_test_currency?(currency_id) do
+    case Money.Currency.name!(currency_id) do
+      "Testcrypto " <> _ -> true
+      _ -> false
+    end
   end
 end

@@ -5,6 +5,18 @@ defmodule BitPalFactory.SettingsFactory do
   alias BitPalSettings.StoreSettings
   alias BitPalSchemas.Invoice
 
+  @spec store_settings_update_params(keyword | map) :: map
+  def store_settings_update_params(params \\ %{}) do
+    Enum.into(
+      params,
+      %{
+        "required_confirmations" => Faker.random_between(0, 100),
+        "double_spend_timeout" => Faker.random_between(1, 1_000_1000),
+        "address_key" => unique_address_key_id()
+      }
+    )
+  end
+
   @spec unique_address_key_id :: String.t()
   def unique_address_key_id, do: sequence("testkey")
 

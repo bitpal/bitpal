@@ -1,99 +1,132 @@
 @use "sizes.scss" as *;
 @use "colors.scss" as *;
 
-.title-bar, .store-nav-bar, .invoices {
-    margin: 0 $spc-32;
+.title-bar,
+.store-nav-bar,
+.invoices {
+  margin: 0 $spc-32;
 }
 
 .top-nav > nav {
-    display: flex;
-    justify-content: right;
-    margin: $spc-8;
+  display: flex;
+  justify-content: right;
+  margin: $spc-8;
 
-    li:not(:first-child) {
-        margin-left: $spc-4;
-    }
+  li:not(:first-child) {
+    margin-left: $spc-4;
+  }
 }
 
 .title-bar > h1 {
-    font-size: $fnt-36; 
+  font-size: $fnt-36;
 }
 
 .store-nav-bar > nav {
-    font-size: $fnt-18;
-    margin: $spc-16 0;
+  font-size: $fnt-18;
+  margin: $spc-16 0;
 
-    li:not(:first-child) {
-        margin-left: $spc-16;
-    }
+  li:not(:first-child) {
+    margin-left: $spc-16;
+  }
 }
 
 ul {
-    li {
-        display: inline-block;
-    }
+  li {
+    display: inline-block;
+  }
 }
 
 .top_nav {
-    width: 100%;
-    display: flex;
+  width: 100%;
+  display: flex;
 }
 
 .invoices {
-    // display: grid;
-    // grid-template-columns: 1fr 1fr 1fr 1fr;
+  // display: grid;
+  // grid-template-columns: 1fr 1fr 1fr 1fr;
 
-    // display: flex;
-    border: 1px solid $brown-100;
-    // padding: $spc-16;
+  // display: flex;
+  border: 1px solid $brown-100;
+  // padding: $spc-16;
 
-    .invoice {
-        display: flex;
-        padding: $spc-12;
-        align-items: center;
-        // justify-content: space-between;
-
-        .status { width: 200px; }
-        .date { width: 140px; }
-        .crypto-amount { width: 150px; }
-        .fiat-amount { width: 150px; }
-    }
-    .invoice:not(:first-child) {
-        border-top: 1px solid $brown-100;
-    }
+  .invoice {
+    display: flex;
+    padding: $spc-12;
+    align-items: center;
+    // justify-content: space-between;
 
     .status {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
+      width: 200px;
     }
-
-    .void, .paid, .processing, .open, .draft, .uncollectible {
-        padding: 0 $spc-4;
-        border-radius: $spc-4;
+    .date {
+      width: 140px;
     }
-
-    .paid { background-color: $green-300; box-shadow: 1px 1px $green-200; }
-    .processing { background-color: $aqua-200; box-shadow: 1px 1px $aqua-100; }
-    .open { background-color: $brown-300; box-shadow: 1px 1px $brown-200; }
-    .draft { background-color: $warm-grey-200; box-shadow: 1px 1px $warm-grey-100; }
-    .uncollectible { background-color: $pink-400; box-shadow: 1px 1px $pink-400; }
-    .void { background-color: $grey-100; box-shadow: 1px 1px $grey-100; }
-
-    .status-reason {
-        margin-top: $spc-4;
-        margin-left: 2px;
-        font-size: $fnt-14;
+    .crypto-amount {
+      width: 150px;
     }
+    .fiat-amount {
+      width: 150px;
+    }
+  }
+  .invoice:not(:first-child) {
+    border-top: 1px solid $brown-100;
+  }
+
+  .status {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .void,
+  .paid,
+  .processing,
+  .open,
+  .draft,
+  .uncollectible {
+    padding: 0 $spc-4;
+    border-radius: $spc-4;
+  }
+
+  .paid {
+    background-color: $green-300;
+    box-shadow: 1px 1px $green-200;
+  }
+  .processing {
+    background-color: $aqua-200;
+    box-shadow: 1px 1px $aqua-100;
+  }
+  .open {
+    background-color: $brown-300;
+    box-shadow: 1px 1px $brown-200;
+  }
+  .draft {
+    background-color: $warm-grey-200;
+    box-shadow: 1px 1px $warm-grey-100;
+  }
+  .uncollectible {
+    background-color: $pink-400;
+    box-shadow: 1px 1px $pink-400;
+  }
+  .void {
+    background-color: $grey-100;
+    box-shadow: 1px 1px $grey-100;
+  }
+
+  .status-reason {
+    margin-top: $spc-4;
+    margin-left: 2px;
+    font-size: $fnt-14;
+  }
 }
 
 .invoices .invoice {
-    // display: flex;
-    // justify-content: space-evenly;
-    // align-items: center;
+  // display: flex;
+  // justify-content: space-evenly;
+  // align-items: center;
 
-    // .status-date {
-    //     display: flex;
-    //     flex-direction: column;
-    // }
+  // .status-date {
+  //     display: flex;
+  //     flex-direction: column;
+  // }
 }

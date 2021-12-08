@@ -42,6 +42,9 @@ defmodule BitPal.Authentication.Tokens do
     store
     |> Ecto.build_assoc(:access_tokens, data: params[:data] || create_token_data(store))
     |> cast(params, [:label])
+    |> validate_required(:label)
+    |> validate_length(:label, min: 1)
+    |> unique_constraint(:data, name: :access_tokens_data_index)
     |> Repo.insert()
   end
 

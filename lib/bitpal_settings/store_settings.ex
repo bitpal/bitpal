@@ -1,5 +1,5 @@
 defmodule BitPalSettings.StoreSettings do
-  import Ecto.Query
+  import Ecto.Query, only: [from: 2]
   import Ecto.Changeset
   alias BitPalSchemas.Address
   alias BitPalSchemas.Store
@@ -7,6 +7,7 @@ defmodule BitPalSettings.StoreSettings do
   alias BitPalSchemas.CurrencySettings
   alias BitPalSchemas.AddressKey
   alias BitPal.Repo
+  alias BitPal.Currencies
 
   # Default vaLues can be overridden in config
   @default_required_confirmations Application.compile_env!(:bitpal, :required_confirmations)
@@ -37,21 +38,38 @@ defmodule BitPalSettings.StoreSettings do
       get_or_create_currency_settings(store_id, currency_id)
       |> Repo.preload(:address_key)
 
-    if settings.address_key do
-      # Key exists, but hasn't been used yet so we can just update it.
-      if is_used(settings.address_key) do
-        # Key exists and has address references we'd like to keep, so disconnect it from settings.
-        change(settings.address_key, currency_settings_id: nil)
+    set_address_key(settings, key)
+  end
+
+  @spec set_address_key(CurrencySettings.t(), String.t()) ::
+          {:ok, AddressKey.t()} | {:error, Changeset.t()}
+  def set_address_key(settings = %CurrencySettings{address_key: address_key = %AddressKey{}}, key)
+      when is_binary(key) do
+    cond do
+      # We're already up to date.
+      address_key.data == key ->
+        {:ok, address_key}
+
+      # Key exists and has address references we'd like to keep, so disconnect it from settings.
+      is_used(address_key) ->
+        change(address_key, currency_settings_id: nil)
         |> Repo.update!()
 
-        insert_address_key(settings.id, currency_id, key)
-      else
-        change(settings.address_key, data: key)
+        insert_address_key(settings.id, settings.currency_id, key)
+
+      # Key exists, but hasn't been used yet so we can just update it.
+      true ->
+        change(address_key, data: key)
+        |> validate_address_key_data(:data, currency_id: settings.currency_id)
+        |> foreign_key_constraint(:currency_settings_id)
+        |> foreign_key_constraint(:currency_id)
+        |> unique_constraint(:data, name: :address_keys_data_index)
         |> Repo.update()
-      end
-    else
-      insert_address_key(settings.id, currency_id, key)
     end
+  end
+
+  def set_address_key(settings, key) when is_binary(key) do
+    insert_address_key(settings.id, settings.currency_id, key)
   end
 
   defp is_used(address_key) do
@@ -59,12 +77,26 @@ defmodule BitPalSettings.StoreSettings do
     |> Repo.exists?()
   end
 
-  defp insert_address_key(settings_id, currency_id, key) do
+  defp insert_address_key(settings_id, currency_id, key) when is_binary(key) do
     %AddressKey{currency_settings_id: settings_id, currency_id: currency_id}
     |> change(%{data: key})
+    |> validate_address_key_data(:data, currency_id: currency_id)
     |> foreign_key_constraint(:currency_settings_id)
     |> foreign_key_constraint(:currency_id)
+    |> unique_constraint(:data, name: :address_keys_data_index)
     |> Repo.insert()
+  end
+
+  @spec validate_address_key_data(Changeset.t(), atom, keyword) :: Changeset.t()
+  def validate_address_key_data(changeset, data_key, opts) do
+    currency_id = Keyword.fetch!(opts, :currency_id)
+    data = get_change(changeset, data_key)
+
+    if Currencies.valid_address_key?(currency_id, data) do
+      changeset
+    else
+      add_error(changeset, :data, "invalid key")
+    end
   end
 
   @spec get_required_confirmations(Store.id(), Currency.id()) :: non_neg_integer
@@ -75,7 +107,7 @@ defmodule BitPalSettings.StoreSettings do
   @spec set_required_confirmations(Store.id(), Currency.id(), non_neg_integer) ::
           {:ok, CurrencySettings.t()} | {:error, Changeset.t()}
   def set_required_confirmations(store_id, currency_id, confs) do
-    set_simple(store_id, currency_id, :required_confirmations, confs)
+    update_simple(store_id, currency_id, required_confirmations: confs)
   end
 
   @spec get_double_spend_timeout(Store.id(), Currency.id()) :: non_neg_integer
@@ -86,13 +118,28 @@ defmodule BitPalSettings.StoreSettings do
   @spec set_double_spend_timeout(Store.id(), Currency.id(), non_neg_integer) ::
           {:ok, CurrencySettings.t()} | {:error, Changeset.t()}
   def set_double_spend_timeout(store_id, currency_id, timeout) do
-    set_simple(store_id, currency_id, :double_spend_timeout, timeout)
+    update_simple(store_id, currency_id, double_spend_timeout: timeout)
   end
 
   @spec get_currency_settings(Store.id(), Currency.id()) :: CurrencySettings.t() | nil
   def get_currency_settings(store_id, currency_id) do
     currency_settings_query(store_id, currency_id)
     |> Repo.one()
+  end
+
+  @spec create_default_settings(Store.id(), Currency.id()) :: CurrencySettings.t()
+  def create_default_settings(store_id, currency_id) do
+    %CurrencySettings{
+      store_id: store_id,
+      currency_id: currency_id,
+      double_spend_timeout: @default_double_spend_timeout,
+      required_confirmations: @default_required_confirmations,
+      address_key: nil
+    }
+    |> change()
+    |> foreign_key_constraint(:currency_id)
+    |> foreign_key_constraint(:store_id)
+    |> Repo.insert!()
   end
 
   defp currency_settings_query(store_id, currency_id) do
@@ -118,28 +165,28 @@ defmodule BitPalSettings.StoreSettings do
     |> Repo.one()
   end
 
-  defp set_simple(store_id, currency_id, key, value) do
-    case get_currency_settings(store_id, currency_id) do
-      nil -> %CurrencySettings{store_id: store_id, currency_id: currency_id}
-      settings -> settings
-    end
-    |> change(%{key => value})
-    |> foreign_key_constraint(:currency_id)
-    |> foreign_key_constraint(:store_id)
-    |> Repo.insert_or_update()
-  end
-
   defp get_or_create_currency_settings(store_id, currency_id) do
     case get_currency_settings(store_id, currency_id) do
       nil ->
-        %CurrencySettings{store_id: store_id, currency_id: currency_id}
-        |> change()
-        |> foreign_key_constraint(:currency_id)
-        |> foreign_key_constraint(:store_id)
-        |> Repo.insert!()
+        create_default_settings(store_id, currency_id)
 
       settings ->
         settings
     end
+  end
+
+  @spec update_simple(Store.id(), Currency.id(), map | keyword) ::
+          {:ok, CurrencySettings.t()} | {:error, Changeset.t()}
+  def update_simple(store_id, currency_id, params) do
+    case get_currency_settings(store_id, currency_id) do
+      nil -> %CurrencySettings{store_id: store_id, currency_id: currency_id}
+      settings -> settings
+    end
+    |> cast(Enum.into(params, %{}), [:required_confirmations, :double_spend_timeout])
+    |> foreign_key_constraint(:currency_id)
+    |> foreign_key_constraint(:store_id)
+    |> validate_number(:required_confirmations, greater_than_or_equal_to: 0)
+    |> validate_number(:double_spend_timeout, greater_than: 0)
+    |> Repo.insert_or_update()
   end
 end

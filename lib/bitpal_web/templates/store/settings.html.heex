@@ -2,12 +2,20 @@
 
 <section class="settings">
 
-  <.form let={f}, for={@create_token} phx-change="change", phx-submit="submit">
+  <%= if token = assigns[:created_token] do %>
+    <section class="created-token">
+      <div class="label"><%= token.label %></div>
+      <div class="data"><%= token.data %></div>
+    </section>
+  <% end %>
+
+  <.form let={f} for={@create_token} phx-submit="create_token" id="create_token">
+    <%= error_tag f, :label %>
     <%= label f, :label, "Token name" %>
     <%= text_input f, :label %>
 
-    <%= label f, :label, "Expiration date" %>
-    <%= text_input f, :label %>
+    <%#= label f, :expire, "Expiration date" %>
+    <%#= date_input f, :expire %>
 
     <%= submit "Create store access token" %>
   </.form>
@@ -17,8 +25,8 @@
       <tr>
         <th>Token Name</th>
         <th>Created</th>
-        <th>Last Used</th>
-        <th>Expires</th>
+        <%#<th>Last Used</th>%>
+        <%#<th>Expires</th>%>
         <th></th>
       </tr>
     </thead>
@@ -27,27 +35,47 @@
         <tr>
           <td><%= token.label %></td>
           <td>2021-01-01</td>
-          <td>Never</td>
-          <td>Never</td>
-          <td><a class="revoke">Revoke</a></td>
+          <%#<td>Never</td>%>
+          <%#<td>Never</td>%>
+          <td><a class="revoke-token" phx-click="revoke_token" phx-value-id={token.id}>Revoke</a></td>
         </tr>
       <% end %>
     </tbody>
   </table>
 
   <section class="currencies">
-    <%= for {currency_id, changeset} <- @currency_settings do %>
-      <.form let={f}, for={changeset} phx-change="change", phx-submit="submit" as="{currency_id}">
-        <h3><%= currency_id %></h3>
+    <%= for {currency_id, settings} <- @currency_settings do %>
+      <div class="currency">
+        <h3><%= Money.Currency.name!(currency_id)%> (<%=currency_id%>)</h3>
 
-        <%= label f, :required_confirmations, "Required confirmations" %>
-        <%= text_input f, :required_confirmations %>
+        <.form let={f} for={settings.address_key_changeset} phx-submit="address_key" as={currency_id} class="address_key">
+          <%= case settings.address_key_changeset.action do %>
+            <% :success -> %>
+              <div class="alert success">
+                <p>Key updated</p>
+              </div>
+            <% :fail -> %>
+              <div class="alert alert-danger">
+                <p>Failed to update key</p>
+              </div>
+            <% _ -> %>
+              <%= nil %>
+          <% end %>
 
-        <%= label f, :address_key, "xpub" %>
-        <%= text_input f, :address_key %>
+          <%= error_tag f, :data %>
+          <%= label f, :data, "xpub" %>
+          <%= text_input f, :data %>
 
-        <%= submit "Save" %>
-      </.form>
+          <%= submit "Update xpub" %>
+        </.form>
+
+        <.form let={f} for={settings.settings_changeset} phx-change="settings" as={currency_id} class="settings">
+
+          <%= error_tag f, :required_confirmations %>
+          <%= label f, :required_confirmations, "Required confirmations" %>
+          <%= text_input f, :required_confirmations, type: "number", min: 0 %>
+        </.form>
+      </div>
     <% end %>
   </section>
 </section>

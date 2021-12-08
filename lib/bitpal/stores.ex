@@ -64,6 +64,18 @@ defmodule BitPal.Stores do
     |> Repo.all()
   end
 
+  @spec find_token(Store.t(), AccessToken.id()) :: {:ok, AccessToken.id()} | {:error, :not_found}
+  def find_token(store, token_id) when is_integer(token_id) do
+    case Enum.find(store.access_tokens, fn token -> token.id == token_id end) do
+      nil -> {:error, :not_found}
+      token -> {:ok, token}
+    end
+  end
+
+  def find_token(_store, _token_id) do
+    {:error, :not_found}
+  end
+
   defp create_slug(changeset) do
     case get_field(changeset, :label) do
       nil ->

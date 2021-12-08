@@ -118,7 +118,7 @@ defmodule BitPalWeb.StoreView do
     end
   end
 
-  def store_link(opts) do
+  def live_store_link(opts) do
     to = Keyword.fetch!(opts, :to)
     from = Keyword.fetch!(opts, :from)
     label = Keyword.fetch!(opts, :label)
@@ -127,9 +127,9 @@ defmodule BitPalWeb.StoreView do
     from_path = URI.parse(from).path
 
     if to_path == from_path do
-      link(label, to: to, class: "active")
+      live_redirect(label, to: to, class: "active")
     else
-      link(label, to: to)
+      live_redirect(label, to: to)
     end
   end
 end
