@@ -93,7 +93,6 @@ defmodule BitPalWeb.StoreView do
   #   DateTime.to_date(invoice.inserted_at)
   # end
 
-  # FIXME these needs to be formated better
   def format_amount(invoice) do
     invoice.amount |> money_to_string()
   end

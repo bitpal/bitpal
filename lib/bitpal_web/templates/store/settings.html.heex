@@ -37,7 +37,18 @@
           <td>2021-01-01</td>
           <%#<td>Never</td>%>
           <%#<td>Never</td>%>
-          <td><a class="revoke-token" phx-click="revoke_token" phx-value-id={token.id}>Revoke</a></td>
+          <td>
+            <% modal = ~s{.revoke-token-modal[token-id="#{token.id}"]} %>
+            <button class="revoke-token" phx-click={JS.show(to: modal, display: "inline")}>Revoke</button>
+            <span class="revoke-token-modal" token-id={token.id}>
+              <button class="confirm" 
+                      phx-click={JS.push("revoke_token") |> JS.hide(to: modal)}
+                      phx-value-id={token.id}>
+                Confirm
+              </button>
+              <button class="cancel" phx-click={JS.hide(to: modal)}>Cancel</button>
+            </span>
+          </td>
         </tr>
       <% end %>
     </tbody>
