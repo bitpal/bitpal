@@ -192,7 +192,11 @@ defmodule BitPalWeb.StoreSettingsLive do
   def handle_event("create_token", %{"access_token" => updates}, socket) do
     case Tokens.create_token(socket.assigns.store, Map.take(updates, ["label"])) do
       {:ok, token} ->
-        {:noreply, assign(socket, created_token: token)}
+        {:noreply,
+         assign(socket,
+           created_token: token,
+           store: Repo.preload(socket.assigns.store, :access_tokens, force: true)
+         )}
 
       {:error, changeset} ->
         {:noreply, assign(socket, create_token: changeset)}
