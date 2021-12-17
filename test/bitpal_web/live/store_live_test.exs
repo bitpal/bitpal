@@ -43,15 +43,12 @@ defmodule BitPalWeb.StoreLiveTest do
       render_eventually(view, "open")
 
       BackendMock.tx_seen(invoice)
-
       render_eventually(view, "processing")
 
       BackendMock.confirmed_in_new_block(invoice)
-
       render_eventually(view, "processing")
 
       BackendMock.issue_blocks(currency_id, 2)
-
       render_eventually(view, "paid")
     end
   end

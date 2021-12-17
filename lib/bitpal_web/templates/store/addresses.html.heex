@@ -6,7 +6,23 @@
       There are no addresses here yet
     </div>
   <% else %>
+    <%= for {_key_address, addresses} <- @addresses do %>
+      <%= for address <- addresses do %>
+        <div class="address">
+          <div class="address_id"><%= address.id %></div>
+          <div class="currency"><%= address.currency_id %></div>
+          <div class="invoice">
+            <%= if address.invoice do %>
+              <%= address.invoice.status %>
+            <% else %>
+              "Unused"
+            <% end %>
+          </div>
+          <div class="xpub"><%= address.address_key.data %></div>
+          <div class="xpub_index"><%= address.address_index %></div>
+        </div>
+      <% end %>
+    <% end %>
   <% end %>
 </section>
-
 

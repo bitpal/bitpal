@@ -5,6 +5,9 @@ defmodule BitPal.Stores do
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.Store
   alias BitPalSchemas.User
+  alias BitPalSchemas.Address
+  alias BitPalSchemas.AddressKey
+  alias BitPalSchemas.CurrencySettings
   alias BitPalSchemas.TxOutput
 
   @spec fetch(non_neg_integer) :: {:ok, Store.t()} | :error
@@ -60,6 +63,26 @@ defmodule BitPal.Stores do
       left_join: i in Invoice,
       on: t.address_id == i.address_id,
       where: i.store_id == ^store_id
+    )
+    |> Repo.all()
+  end
+
+  @spec all_addresses(Store.id() | Store.t()) :: [Address.t()]
+  def all_addresses(store = %Store{}) do
+    all_addresses(store.id)
+  end
+
+  def all_addresses(store_id) do
+    from(a in Address,
+      left_join: i in Invoice,
+      on: a.id == i.address_id,
+      left_join: key in AddressKey,
+      on: a.address_key_id == key.id,
+      left_join: settings in CurrencySettings,
+      on: key.currency_settings_id == settings.id,
+      where: i.store_id == ^store_id or settings.store_id == ^store_id,
+      select: a,
+      order_by: [asc: a.inserted_at, asc: a.address_index]
     )
     |> Repo.all()
   end
