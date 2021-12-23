@@ -88,12 +88,12 @@ defmodule BitPal.Backend.FloweeTest do
       )
 
     MockTCPClient.response(@client, FloweeFixtures.tx_seen())
-    HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub)
   end
 
@@ -107,12 +107,12 @@ defmodule BitPal.Backend.FloweeTest do
 
     MockTCPClient.response(@client, FloweeFixtures.tx_1_conf())
     MockTCPClient.response(@client, FloweeFixtures.new_block())
-    HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub)
   end
 
@@ -136,19 +136,19 @@ defmodule BitPal.Backend.FloweeTest do
       )
 
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_seen())
-    HandlerSubscriberCollector.await_msg(stub1, :invoice_paid)
-    HandlerSubscriberCollector.await_msg(stub2, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub1, {:invoice, :paid})
+    HandlerSubscriberCollector.await_msg(stub2, {:invoice, :paid})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub2)
   end
 
@@ -179,24 +179,24 @@ defmodule BitPal.Backend.FloweeTest do
     # at the same time, causing us to miss the `invoice_underpaid` event.
     # This has no importance in the real world, but may screw up the test if
     # we don't have this wait between.
-    HandlerSubscriberCollector.await_msg(stub2, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub2, {:invoice, :paid})
 
     # Give 5000 to the first one.
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_a_seen())
 
-    HandlerSubscriberCollector.await_msg(stub1, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub1, {:invoice, :paid})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_underpaid, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :underpaid}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub2)
   end
 
@@ -222,36 +222,36 @@ defmodule BitPal.Backend.FloweeTest do
 
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_seen())
 
-    HandlerSubscriberCollector.await_msg(stub1, :invoice_processing)
-    HandlerSubscriberCollector.await_msg(stub2, :invoice_processing)
+    HandlerSubscriberCollector.await_msg(stub1, {:invoice, :processing})
+    HandlerSubscriberCollector.await_msg(stub2, {:invoice, :processing})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _}
            ] = HandlerSubscriberCollector.received(stub2)
 
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_1_conf())
     # Manually set blocks to avoid having to find fixtures for all things
     Blocks.new_block(@currency, 690_933)
 
-    HandlerSubscriberCollector.await_msg(stub1, :invoice_paid)
-    HandlerSubscriberCollector.await_msg(stub2, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub1, {:invoice, :paid})
+    HandlerSubscriberCollector.await_msg(stub2, {:invoice, :paid})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub2)
   end
 
@@ -283,18 +283,18 @@ defmodule BitPal.Backend.FloweeTest do
     # Manually set blocks to avoid having to find fixtures for all things
     Blocks.new_block(@currency, 690_933)
 
-    HandlerSubscriberCollector.await_msg(stub1, :invoice_finalized)
-    HandlerSubscriberCollector.await_msg(stub2, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub1, {:invoice, :finalized})
+    HandlerSubscriberCollector.await_msg(stub2, {:invoice, :paid})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_underpaid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :underpaid}, _}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub2)
 
     # Give 5000 to the first one.
@@ -305,13 +305,13 @@ defmodule BitPal.Backend.FloweeTest do
     # Manually set blocks to avoid having to find fixtures for all things
     Blocks.new_block(@currency, 690_934)
 
-    HandlerSubscriberCollector.await_msg(stub1, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub1, {:invoice, :paid})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_underpaid, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :underpaid}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub1)
   end
 
@@ -377,8 +377,8 @@ defmodule BitPal.Backend.FloweeTest do
     MockTCPClient.response(@client, FloweeFixtures.blockchain_info_690933())
 
     # Both should be paid by now.
-    HandlerSubscriberCollector.await_msg(stub1, :invoice_paid)
-    HandlerSubscriberCollector.await_msg(stub2, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub1, {:invoice, :paid})
+    HandlerSubscriberCollector.await_msg(stub2, {:invoice, :paid})
 
     # It should also be ready now.
     assert Flowee.ready?(BitPal.Backend.Flowee) == true

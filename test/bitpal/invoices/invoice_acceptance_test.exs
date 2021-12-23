@@ -11,14 +11,14 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
     BackendMock.tx_seen(inv)
 
-    HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
 
     id = inv.id
 
     assert [
-             {:invoice_finalized, %{id: ^id, status: :open, address_id: _}},
-             {:invoice_processing, %{id: ^id, reason: :verifying}},
-             {:invoice_paid, %{id: ^id}}
+             {{:invoice, :finalized}, %{id: ^id, status: :open, address_id: _}},
+             {{:invoice, :processing}, %{id: ^id, reason: :verifying}},
+             {{:invoice, :paid}, %{id: ^id}}
            ] = HandlerSubscriberCollector.received(stub)
   end
 
@@ -35,12 +35,12 @@ defmodule BitPal.InvoiceAcceptanceTest do
     BackendMock.tx_seen(inv)
     BackendMock.confirmed_in_new_block(inv)
 
-    HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, %{reason: :verifying}},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, %{reason: :verifying}},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub)
   end
 
@@ -54,12 +54,12 @@ defmodule BitPal.InvoiceAcceptanceTest do
     BackendMock.tx_seen(inv)
     BackendMock.confirmed_in_new_block(inv)
 
-    HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, %{reason: {:confirming, 1}}},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, %{reason: {:confirming, 1}}},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub)
   end
 
@@ -72,12 +72,12 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
     BackendMock.confirmed_in_new_block(inv)
 
-    HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, %{reason: {:confirming, 0}}},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, %{reason: {:confirming, 0}}},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub)
   end
 
@@ -92,14 +92,14 @@ defmodule BitPal.InvoiceAcceptanceTest do
     BackendMock.confirmed_in_new_block(inv)
     BackendMock.issue_blocks(currency_id, 5)
 
-    HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, %{reason: {:confirming, 3}}},
-             {:invoice_processing, %{reason: {:confirming, 2}}},
-             {:invoice_processing, %{reason: {:confirming, 1}}},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, %{reason: {:confirming, 3}}},
+             {{:invoice, :processing}, %{reason: {:confirming, 2}}},
+             {{:invoice, :processing}, %{reason: {:confirming, 1}}},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub)
   end
 
@@ -134,49 +134,49 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
     BackendMock.tx_seen(inv0)
     BackendMock.tx_seen(inv1)
-    HandlerSubscriberCollector.await_msg(stub0, :invoice_paid)
-    HandlerSubscriberCollector.await_msg(stub1, :invoice_processing)
+    HandlerSubscriberCollector.await_msg(stub0, {:invoice, :paid})
+    HandlerSubscriberCollector.await_msg(stub1, {:invoice, :processing})
 
     assert [
-             {:invoice_finalized, %{id: ^inv0_id}},
-             {:invoice_processing, %{id: ^inv0_id, reason: :verifying}},
-             {:invoice_paid, %{id: ^inv0_id}}
+             {{:invoice, :finalized}, %{id: ^inv0_id}},
+             {{:invoice, :processing}, %{id: ^inv0_id, reason: :verifying}},
+             {{:invoice, :paid}, %{id: ^inv0_id}}
            ] = HandlerSubscriberCollector.received(stub0)
 
     assert [
-             {:invoice_finalized, %{id: ^inv1_id}},
-             {:invoice_processing, %{id: ^inv1_id, reason: {:confirming, 1}}}
+             {{:invoice, :finalized}, %{id: ^inv1_id}},
+             {{:invoice, :processing}, %{id: ^inv1_id, reason: {:confirming, 1}}}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
-             {:invoice_finalized, %{id: ^inv2_id}}
+             {{:invoice, :finalized}, %{id: ^inv2_id}}
            ] = HandlerSubscriberCollector.received(stub2)
 
     BackendMock.confirmed_in_new_block(inv2)
-    HandlerSubscriberCollector.await_msg(stub2, :invoice_processing)
+    HandlerSubscriberCollector.await_msg(stub2, {:invoice, :processing})
 
     assert [
-             {:invoice_finalized, %{id: ^inv1_id}},
-             {:invoice_processing, %{id: ^inv1_id, reason: {:confirming, 1}}}
+             {{:invoice, :finalized}, %{id: ^inv1_id}},
+             {{:invoice, :processing}, %{id: ^inv1_id, reason: {:confirming, 1}}}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
-             {:invoice_finalized, %{id: ^inv2_id}},
-             {:invoice_processing, %{id: ^inv2_id, reason: {:confirming, 1}}}
+             {{:invoice, :finalized}, %{id: ^inv2_id}},
+             {{:invoice, :processing}, %{id: ^inv2_id, reason: {:confirming, 1}}}
            ] = HandlerSubscriberCollector.received(stub2)
 
     BackendMock.issue_blocks(currency_id, 2)
-    HandlerSubscriberCollector.await_msg(stub2, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub2, {:invoice, :paid})
 
     assert [
-             {:invoice_finalized, %{id: ^inv1_id}},
-             {:invoice_processing, %{id: ^inv1_id, reason: {:confirming, 1}}}
+             {{:invoice, :finalized}, %{id: ^inv1_id}},
+             {{:invoice, :processing}, %{id: ^inv1_id, reason: {:confirming, 1}}}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
-             {:invoice_finalized, %{id: ^inv2_id}},
-             {:invoice_processing, %{id: ^inv2_id, reason: {:confirming, 1}}},
-             {:invoice_paid, %{id: ^inv2_id}}
+             {{:invoice, :finalized}, %{id: ^inv2_id}},
+             {{:invoice, :processing}, %{id: ^inv2_id, reason: {:confirming, 1}}},
+             {{:invoice, :paid}, %{id: ^inv2_id}}
            ] = HandlerSubscriberCollector.received(stub2)
   end
 
@@ -201,12 +201,12 @@ defmodule BitPal.InvoiceAcceptanceTest do
     BackendMock.tx_seen(inv)
     BackendMock.doublespend(inv)
 
-    HandlerSubscriberCollector.await_msg(stub, :invoice_uncollectible)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :uncollectible})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, %{reason: :verifying}},
-             {:invoice_uncollectible, %{reason: :double_spent}}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, %{reason: :verifying}},
+             {{:invoice, :uncollectible}, %{reason: :double_spent}}
            ] = HandlerSubscriberCollector.received(stub)
   end
 
@@ -221,22 +221,22 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
     BackendMock.tx_seen(%{inv | amount: Money.parse!(0.3, currency_id)})
 
-    HandlerSubscriberCollector.await_msg(stub, :invoice_underpaid)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :underpaid})
     due = Money.parse!(0.7, currency_id)
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_underpaid, %{amount_due: ^due}}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :underpaid}, %{amount_due: ^due}}
            ] = HandlerSubscriberCollector.received(stub)
 
     BackendMock.tx_seen(%{inv | amount: Money.parse!(0.7, currency_id)})
-    HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_underpaid, %{amount_due: ^due}},
-             {:invoice_processing, %{reason: :verifying}},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :underpaid}, %{amount_due: ^due}},
+             {{:invoice, :processing}, %{reason: :verifying}},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub)
   end
 
@@ -250,20 +250,20 @@ defmodule BitPal.InvoiceAcceptanceTest do
       )
 
     BackendMock.tx_seen(%{inv | amount: Money.parse!(0.3, currency_id)})
-    HandlerSubscriberCollector.await_msg(stub, :invoice_underpaid)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :underpaid})
 
     BackendMock.tx_seen(%{inv | amount: Money.parse!(1.3, currency_id)})
-    HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
 
     due = Money.parse!(0.7, currency_id)
     overpaid = Money.parse!(0.6, currency_id)
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_underpaid, %{amount_due: ^due}},
-             {:invoice_overpaid, %{overpaid_amount: ^overpaid}},
-             {:invoice_processing, %{reason: :verifying}},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :underpaid}, %{amount_due: ^due}},
+             {{:invoice, :overpaid}, %{overpaid_amount: ^overpaid}},
+             {{:invoice, :processing}, %{reason: :verifying}},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub)
   end
 end

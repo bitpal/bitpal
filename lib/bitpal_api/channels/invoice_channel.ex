@@ -19,8 +19,8 @@ defmodule BitPalApi.InvoiceChannel do
   end
 
   @impl true
-  def handle_info({event, data}, socket) do
-    broadcast_event(Atom.to_string(event), data, socket)
+  def handle_info(event, socket) do
+    broadcast_event(event, socket)
     {:noreply, socket}
   end
 
@@ -28,15 +28,12 @@ defmodule BitPalApi.InvoiceChannel do
     :authorized
   end
 
-  defp broadcast_event("invoice_" <> event, data, socket) do
-    broadcast!(
-      socket,
-      event,
-      InvoiceView.render(event <> ".json", data)
-    )
+  defp broadcast_event({{:invoice, event}, data}, socket) do
+    event = Atom.to_string(event)
+    broadcast!(socket, event, InvoiceView.render(event <> ".json", data))
   end
 
-  defp broadcast_event(event, _data, _socket) do
-    Logger.warn("unknown event: #{event}")
+  defp broadcast_event(event, _socket) do
+    Logger.warn("unknown event: #{inspect(event)}")
   end
 end

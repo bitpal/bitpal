@@ -8,7 +8,7 @@ defmodule BitPal.StoreEvents do
   alias BitPalSchemas.Invoice
 
   @type msg ::
-          {:invoice_created, %{id: Store.id(), invoice_id: Invoice.id()}}
+          {{:store, :invoice_created}, %{id: Store.id(), invoice_id: Invoice.id()}}
 
   @spec subscribe(Store.id() | Store.t()) :: :ok | {:error, term}
   def subscribe(%Store{id: id}), do: EventHelpers.subscribe(topic(id))

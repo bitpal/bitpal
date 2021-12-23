@@ -140,7 +140,7 @@ defmodule BitPal.InvoiceHandler do
   end
 
   @impl true
-  def handle_info({:tx_seen, txid}, state) do
+  def handle_info({{:tx, :seen}, txid}, state) do
     block_height = state.block_height
     invoice = Invoices.update_info_from_txs(state.invoice, block_height)
     state = put_tx_to_process(state, txid, nil)
@@ -166,7 +166,7 @@ defmodule BitPal.InvoiceHandler do
   end
 
   @impl true
-  def handle_info({:tx_confirmed, txid, height}, state) do
+  def handle_info({{:tx, :confirmed}, txid, height}, state) do
     block_height = state.block_height
     invoice = Invoices.update_info_from_txs(state.invoice, block_height)
     new_tx? = !processing_tx?(state, txid)
@@ -208,18 +208,18 @@ defmodule BitPal.InvoiceHandler do
   end
 
   @impl true
-  def handle_info({:tx_double_spent, _txid}, state) do
+  def handle_info({{:tx, :double_spent}, _txid}, state) do
     invoice = Invoices.double_spent!(state.invoice)
     {:noreply, %{state | invoice: invoice}}
   end
 
   @impl true
-  def handle_info({:tx_reversed, _tx}, _state) do
+  def handle_info({{:tx, :reversed}, _tx}, _state) do
     # Need to handle reversals
   end
 
   @impl true
-  def handle_info({:new_block, _currency, height}, state = %{processing_txs: txs}) do
+  def handle_info({{:block, :new}, _currency, height}, state = %{processing_txs: txs}) do
     state = Map.put(state, :block_height, height)
 
     if state.invoice.required_confirmations > 0 do
@@ -232,12 +232,12 @@ defmodule BitPal.InvoiceHandler do
     end
   end
 
-  def handle_info({:new_block, _currency, height}, state) do
+  def handle_info({{:block, :new}, _currency, height}, state) do
     {:noreply, Map.put(state, :block_height, height)}
   end
 
   @impl true
-  def handle_info({:set_block_height, _currency, height}, state = %{processing_txs: txs}) do
+  def handle_info({{:block, :set_height}, _currency, height}, state = %{processing_txs: txs}) do
     state = Map.put(state, :block_height, height)
 
     if state.invoice.required_confirmations > 0 do
@@ -249,7 +249,7 @@ defmodule BitPal.InvoiceHandler do
     end
   end
 
-  def handle_info({:set_block_height, _currency, _height}, state) do
+  def handle_info({{:block, :set_height}, _currency, _height}, state) do
     {:noreply, state}
   end
 

@@ -30,24 +30,18 @@ defmodule BitPalWeb.StoreLive do
   end
 
   @impl true
-  def handle_info({:invoice_created, %{invoice_id: invoice_id}}, socket) do
+  def handle_info({{:store, :invoice_created}, %{invoice_id: invoice_id}}, socket) do
     InvoiceEvents.subscribe(invoice_id)
     update_invoice(invoice_id, socket)
   end
 
   @impl true
-  def handle_info({event, %{id: invoice_id}}, socket) do
+  def handle_info({{:invoice, _}, %{id: invoice_id}}, socket) do
     # A better solution is a CRDT, where we rebuild the invoice status
     # depending on the messages we receive. It's a bit more cumbersome,
     # but it would us allow to combine distributed data easily.
     # For now we'll just reload from the database for simplicity.
-    case Atom.to_string(event) do
-      "invoice_" <> _ ->
-        update_invoice(invoice_id, socket)
-
-      _ ->
-        {:noreply, socket}
-    end
+    update_invoice(invoice_id, socket)
   end
 
   @impl true

@@ -19,21 +19,21 @@ defmodule BackendMockTest do
         amount: 3.0
       )
 
-    HandlerSubscriberCollector.await_msg(stub1, :invoice_paid)
-    HandlerSubscriberCollector.await_msg(stub3, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub1, {:invoice, :paid})
+    HandlerSubscriberCollector.await_msg(stub3, {:invoice, :paid})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _},
-             {:invoice_processing, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub3)
   end
 end

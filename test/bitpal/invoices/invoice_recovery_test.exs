@@ -12,7 +12,7 @@ defmodule BitPal.InvoiceRecoveryTest do
     assert inv.status == :open
 
     BackendMock.tx_seen(inv)
-    HandlerSubscriberCollector.await_msg(stub, :invoice_processing)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :processing})
 
     inv = Invoices.fetch!(inv.id)
     assert inv.status == :processing
@@ -27,7 +27,7 @@ defmodule BitPal.InvoiceRecoveryTest do
 
     BackendMock.confirmed_in_new_block(inv)
 
-    HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
   end
 
   test "invoice recover missing tx seen", %{currency_id: currency_id} do
@@ -51,7 +51,7 @@ defmodule BitPal.InvoiceRecoveryTest do
     # have to repeat ourselves here.
     InvoiceManager.finalize_invoice(inv, double_spend_timeout: 1)
 
-    HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
   end
 
   test "invoice recover missing confirmation", %{currency_id: currency_id} do
@@ -64,7 +64,7 @@ defmodule BitPal.InvoiceRecoveryTest do
     assert inv.status == :open
 
     BackendMock.tx_seen(inv)
-    HandlerSubscriberCollector.await_msg(stub, :invoice_processing)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :processing})
 
     inv = Invoices.fetch!(inv.id)
     assert inv.status == :processing
@@ -77,7 +77,7 @@ defmodule BitPal.InvoiceRecoveryTest do
 
     InvoiceManager.finalize_invoice(inv)
 
-    HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
   end
 
   defp wait_for_handler(invoice_id, prev_handler) do

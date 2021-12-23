@@ -7,6 +7,7 @@ defmodule BitPalWeb.StoreAddressesLive do
   alias BitPal.InvoiceManager
   alias BitPal.StoreEvents
   alias BitPal.Invoices
+  alias BitPalSchemas.Invoice
   require Logger
 
   on_mount(BitPalWeb.UserLiveAuth)
@@ -37,7 +38,7 @@ defmodule BitPalWeb.StoreAddressesLive do
   end
 
   @impl true
-  def handle_info({:invoice_created, %{invoice_id: invoice_id}}, socket) do
+  def handle_info({{:store, :invoice_created}, %{invoice_id: invoice_id}}, socket) do
     IO.puts("invoice created #{invoice_id}")
     {:ok, invoice} = InvoiceManager.fetch_or_load_invoice(invoice_id)
 
@@ -51,8 +52,13 @@ defmodule BitPalWeb.StoreAddressesLive do
   end
 
   @impl true
-  def handle_info({:invoice_finalized, invoice}, socket) do
-    IO.puts("invoice finalized #{invoice.address_id}")
+  def handle_info({{:invoice, _}, args}, socket) do
+    IO.puts("invoice updated #{inspect(args)}")
+
+    invoice =
+      get_invoice(args)
+      |> Repo.preload(:address)
+
     # AddressEvents.subscribe(invoice.address_id)
     # InvoiceEvents.unsubscribe(invoice)
     {:noreply, update_address(invoice.address, socket)}
@@ -60,7 +66,7 @@ defmodule BitPalWeb.StoreAddressesLive do
 
   @impl true
   def handle_info(event, socket) do
-    IO.inspect(event)
+    IO.inspect(event, label: "unknown")
     {:noreply, socket}
   end
 
@@ -94,32 +100,14 @@ defmodule BitPalWeb.StoreAddressesLive do
     assign(socket, addresses: add_address(address, socket.assigns.addresses))
   end
 
-  # @impl true
-  # def handle_info({:invoice_created, %{invoice_id: invoice_id}}, socket) do
-  #   # InvoiceEvents.subscribe(invoice_id)
-  #   # update_invoice(invoice_id, socket)
-  # end
-  #
-  # @impl true
-  # def handle_info({:invoice_finalized, invoice}, socket) do
-  #   # InvoiceEvents.subscribe(invoice_id)
-  #   # update_invoice(invoice_id, socket)
-  # end
+  defp get_invoice(invoice = %Invoice{}) do
+    invoice
+  end
 
-  # @impl true
-  # def handle_info({event, %{id: invoice_id}}, socket) do
-  #   # A better solution is a CRDT, where we rebuild the invoice status
-  #   # depending on the messages we receive. It's a bit more cumbersome,
-  #   # but it would us allow to combine distributed data easily.
-  #   # For now we'll just reload from the database for simplicity.
-  #   case Atom.to_string(event) do
-  #     "invoice_" <> _ ->
-  #       update_invoice(invoice_id, socket)
-  #
-  #     _ ->
-  #       {:noreply, socket}
-  #   end
-  # end
+  defp get_invoice(%{id: id}) do
+    {:ok, invoice} = InvoiceManager.fetch_or_load_invoice(id)
+    invoice
+  end
 
   @impl true
   def handle_params(_params, uri, socket) do

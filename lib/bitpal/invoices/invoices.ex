@@ -38,7 +38,10 @@ defmodule BitPal.Invoices do
 
     case res do
       {:ok, invoice} ->
-        StoreEvents.broadcast({:invoice_created, %{id: invoice.store_id, invoice_id: invoice.id}})
+        StoreEvents.broadcast(
+          {{:store, :invoice_created}, %{id: invoice.store_id, invoice_id: invoice.id}}
+        )
+
         {:ok, invoice}
 
       err ->
@@ -102,7 +105,7 @@ defmodule BitPal.Invoices do
   def delete(invoice) do
     with false <- finalized?(invoice),
          {:ok, invoice} <- Repo.delete(invoice) do
-      InvoiceEvents.broadcast({:invoice_deleted, %{id: invoice.id, status: invoice.status}})
+      InvoiceEvents.broadcast({{:invoice, :deleted}, %{id: invoice.id, status: invoice.status}})
       {:ok, invoice}
     else
       true ->
@@ -128,7 +131,7 @@ defmodule BitPal.Invoices do
 
     case res do
       {:ok, invoice} ->
-        InvoiceEvents.broadcast({:invoice_finalized, invoice})
+        InvoiceEvents.broadcast({{:invoice, :finalized}, invoice})
         {:ok, invoice}
 
       err ->
@@ -140,7 +143,7 @@ defmodule BitPal.Invoices do
   def void(invoice) do
     case transition(invoice, :void) do
       {:ok, invoice} ->
-        InvoiceEvents.broadcast({:invoice_voided, %{id: invoice.id, status: invoice.status}})
+        InvoiceEvents.broadcast({{:invoice, :voided}, %{id: invoice.id, status: invoice.status}})
         {:ok, invoice}
 
       err ->
@@ -156,7 +159,7 @@ defmodule BitPal.Invoices do
     with {:ok, height} <- Blocks.fetch_block_height(invoice.currency_id),
          invoice <- update_info_from_txs(invoice, height),
          {:ok, invoice} <- transition(invoice, :paid) do
-      InvoiceEvents.broadcast({:invoice_paid, %{id: invoice.id, status: invoice.status}})
+      InvoiceEvents.broadcast({{:invoice, :paid}, %{id: invoice.id, status: invoice.status}})
       {:ok, invoice}
     else
       :error ->
@@ -297,7 +300,7 @@ defmodule BitPal.Invoices do
       FSM.transition_changeset(invoice, :paid)
       |> Repo.update!()
 
-    InvoiceEvents.broadcast({:invoice_paid, %{id: invoice.id, status: invoice.status}})
+    InvoiceEvents.broadcast({{:invoice, :paid}, %{id: invoice.id, status: invoice.status}})
     invoice
   end
 
@@ -306,7 +309,7 @@ defmodule BitPal.Invoices do
     {:ok, invoice} = transition(invoice, :uncollectible, reason)
 
     InvoiceEvents.broadcast(
-      {:invoice_uncollectible, %{id: invoice.id, status: invoice.status, reason: reason}}
+      {{:invoice, :uncollectible}, %{id: invoice.id, status: invoice.status, reason: reason}}
     )
 
     invoice
@@ -454,7 +457,7 @@ defmodule BitPal.Invoices do
       end
 
     InvoiceEvents.broadcast(
-      {:invoice_processing,
+      {{:invoice, :processing},
        %{
          id: invoice.id,
          status: invoice.status,
@@ -467,7 +470,7 @@ defmodule BitPal.Invoices do
   @spec broadcast_underpaid(Invoice.t()) :: :ok | {:error, term}
   def broadcast_underpaid(invoice) do
     InvoiceEvents.broadcast(
-      {:invoice_underpaid,
+      {{:invoice, :underpaid},
        %{
          id: invoice.id,
          status: invoice.status,
@@ -480,7 +483,7 @@ defmodule BitPal.Invoices do
   @spec broadcast_overpaid(Invoice.t()) :: :ok | {:error, term}
   def broadcast_overpaid(invoice) do
     InvoiceEvents.broadcast(
-      {:invoice_overpaid,
+      {{:invoice, :overpaid},
        %{
          id: invoice.id,
          status: invoice.status,

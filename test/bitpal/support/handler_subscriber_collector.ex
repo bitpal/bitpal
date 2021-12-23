@@ -65,7 +65,7 @@ defmodule BitPal.HandlerSubscriberCollector do
   end
 
   def paid?(handler) do
-    contains_id?(handler, :invoide_paid)
+    contains_id?(handler, {:invoice, :paid})
   end
 
   # Server API
