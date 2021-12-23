@@ -8,16 +8,20 @@
   <% else %>
     <%= for tx <- @txs do %>
       <div class="tx">
+        <%= live_invoice_link(@socket, id: tx.address.invoice.id, label: "Invoice") %>
         <div class="txid"><%= tx.id %></div>
         <div class="amount"><%= tx.amount %></div>
         <div class="address_id"><%= tx.address_id %></div>
-        <div class="invoice"><%= tx.address.invoice.status %></div>
-        <div class="confirmed_height"><%= tx.confirmed_height %></div>
+        <div class="confirmed_height">
+          <%= if tx.confirmed_height do %>
+            <%= tx.confirmed_height %>
+          <% else %>
+            Unconfirmed
+          <% end %>
+        </div>
         <div class="double_spent"><%= tx.double_spent %></div>
       </div>
     <% end %>
   <% end %>
 </section>
-
-
 

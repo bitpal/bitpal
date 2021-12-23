@@ -19,18 +19,30 @@ defmodule BitPal.Blocks do
   @spec new_block(currency_id, height) :: :ok | {:error, term}
   def new_block(currency_id, height) do
     Currencies.set_height!(currency_id, height)
-    BlockchainEvents.broadcast(currency_id, {{:block, :new}, currency_id, height})
+
+    BlockchainEvents.broadcast(
+      currency_id,
+      {{:block, :new}, %{currency_id: currency_id, height: height}}
+    )
   end
 
   @spec set_block_height(currency_id, height) :: :ok | {:error, term}
   def set_block_height(currency_id, height) do
     Currencies.set_height!(currency_id, height)
-    BlockchainEvents.broadcast(currency_id, {{:block, :set_height}, currency_id, height})
+
+    BlockchainEvents.broadcast(
+      currency_id,
+      {{:block, :set_height}, %{currency_id: currency_id, height: height}}
+    )
   end
 
   @spec block_reversed(currency_id, height) :: :ok | {:error, term}
   def block_reversed(currency_id, height) do
     Currencies.set_height!(currency_id, height)
-    BlockchainEvents.broadcast(currency_id, {{:block, :reversed}, currency_id, height})
+
+    BlockchainEvents.broadcast(
+      currency_id,
+      {{:block, :reversed}, %{currency_id: currency_id, height: height}}
+    )
   end
 end

@@ -6,6 +6,7 @@ defmodule BitPal.BackendMock do
   use BitPalFactory
   alias BitPal.Backend
   alias BitPal.Blocks
+  alias BitPal.BlockchainEvents
   alias BitPal.Invoices
   alias BitPal.ProcessRegistry
   alias BitPal.Transactions
@@ -110,6 +111,7 @@ defmodule BitPal.BackendMock do
     )
 
     block_height(currency_id)
+    BlockchainEvents.subscribe(currency_id)
 
     if opts.auto do
       setup_auto_blocks(opts)
@@ -173,6 +175,12 @@ defmodule BitPal.BackendMock do
   def handle_call({:issue_blocks, block_count, time_between_blocks}, _from, state) do
     schedule_issue_blocks(block_count, time_between_blocks)
     {:reply, :ok, state}
+  end
+
+  @impl true
+  def handle_info({{:block, _}, %{height: height}}, state) do
+    # Allows us to set block height in tests after initiolizing backend.
+    {:noreply, %{state | height: height}}
   end
 
   @impl true

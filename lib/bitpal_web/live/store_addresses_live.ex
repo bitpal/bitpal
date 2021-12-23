@@ -6,7 +6,6 @@ defmodule BitPalWeb.StoreAddressesLive do
   alias BitPal.AddressEvents
   alias BitPal.InvoiceManager
   alias BitPal.StoreEvents
-  alias BitPal.Invoices
   alias BitPalSchemas.Invoice
   require Logger
 
@@ -22,10 +21,6 @@ defmodule BitPalWeb.StoreAddressesLive do
         InvoiceEvents.subscribe(invoice)
       end
 
-      for address <- Stores.all_addresses(store.id) do
-        AddressEvents.subscribe(address.id)
-      end
-
       StoreEvents.subscribe(store.id)
     end
 
@@ -34,12 +29,13 @@ defmodule BitPalWeb.StoreAddressesLive do
 
   @impl true
   def render(assigns) do
+    # FIXME
+    # Don't print invoice status here, just if there's an invoice or not?
     render(BitPalWeb.StoreView, "addresses.html", assigns)
   end
 
   @impl true
   def handle_info({{:store, :invoice_created}, %{invoice_id: invoice_id}}, socket) do
-    IO.puts("invoice created #{invoice_id}")
     {:ok, invoice} = InvoiceManager.fetch_or_load_invoice(invoice_id)
 
     InvoiceEvents.subscribe(invoice_id)
@@ -52,9 +48,12 @@ defmodule BitPalWeb.StoreAddressesLive do
   end
 
   @impl true
-  def handle_info({{:invoice, _}, args}, socket) do
-    IO.puts("invoice updated #{inspect(args)}")
+  def handle_info({{:store, :address_created}, _}, socket) do
+    {:noreply, socket}
+  end
 
+  @impl true
+  def handle_info({{:invoice, _}, args}, socket) do
     invoice =
       get_invoice(args)
       |> Repo.preload(:address)
@@ -62,12 +61,6 @@ defmodule BitPalWeb.StoreAddressesLive do
     # AddressEvents.subscribe(invoice.address_id)
     # InvoiceEvents.unsubscribe(invoice)
     {:noreply, update_address(invoice.address, socket)}
-  end
-
-  @impl true
-  def handle_info(event, socket) do
-    IO.inspect(event, label: "unknown")
-    {:noreply, socket}
   end
 
   defp fetch_addresses(socket) do
@@ -97,6 +90,7 @@ defmodule BitPalWeb.StoreAddressesLive do
   end
 
   defp update_address(address, socket) do
+    # FIXME doesn't always update address?
     assign(socket, addresses: add_address(address, socket.assigns.addresses))
   end
 

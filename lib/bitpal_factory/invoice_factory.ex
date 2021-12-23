@@ -15,6 +15,7 @@ defmodule BitPalFactory.InvoiceFactory do
   alias BitPalFactory.SettingsFactory
   alias BitPalFactory.CurrencyFactory
   alias BitPalFactory.AddressFactory
+  alias BitPal.InvoiceManager
 
   def valid_pos_data do
     %{"ref" => Faker.Random.Elixir.random_between(0, 1_000_000)}
@@ -113,6 +114,12 @@ defmodule BitPalFactory.InvoiceFactory do
     |> change_status(invoice_params)
     |> change_address(params)
     |> ensure_consistency()
+  end
+
+  @spec finalize_and_track(Invoice.t()) :: Invoice.t()
+  def finalize_and_track(invoice = %Invoice{}) do
+    {:ok, invoice} = InvoiceManager.finalize_invoice(invoice)
+    invoice
   end
 
   @spec change_status(Invoice.t(), map) :: Invoice.t()

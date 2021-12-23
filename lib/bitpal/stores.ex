@@ -25,6 +25,23 @@ defmodule BitPal.Stores do
     store
   end
 
+  @spec fetch_by_invoice(Invoice.id()) :: {:ok, Store.t()} | :error
+  def fetch_by_invoice(invoice_id) do
+    res =
+      from(s in Store,
+        left_join: i in Invoice,
+        on: i.store_id == s.id,
+        where: i.id == ^invoice_id
+      )
+      |> Repo.one()
+
+    if res do
+      {:ok, res}
+    else
+      :error
+    end
+  end
+
   @spec create(map) :: {:ok, Store.t()} | {:error, Changeset.t()}
   def create(params) do
     %Store{}

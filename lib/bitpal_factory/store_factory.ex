@@ -66,6 +66,11 @@ defmodule BitPalFactory.StoreFactory do
     |> Repo.preload(:access_tokens, force: true)
   end
 
+  @spec with_invoice(Store.t(), map | keyword) :: Store.t()
+  def with_invoice(store, params \\ %{}) do
+    with_invoices(store, Enum.into(params, %{invoice_count: 1}))
+  end
+
   @spec with_invoices(Store.t(), map | keyword) :: Store.t()
   def with_invoices(store, params \\ %{}) do
     params = Enum.into(params, %{})
@@ -87,12 +92,6 @@ defmodule BitPalFactory.StoreFactory do
 
     %{store | invoices: invoices}
   end
-
-  # @spec with_invoice(Store.t(), map | keyword) :: Store.t()
-  # def with_invoice(store, params \\ %{}) do
-  #   InvoiceFactory.create_invoice(store, params)
-  #   store
-  # end
 
   defp pick_currency_id(%{currencies: currencies}) do
     Enum.random(currencies)

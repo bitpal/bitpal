@@ -36,6 +36,11 @@ defmodule BitPalWeb.StoreLive do
   end
 
   @impl true
+  def handle_info({{:store, :address_created}, _}, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_info({{:invoice, _}, %{id: invoice_id}}, socket) do
     # A better solution is a CRDT, where we rebuild the invoice status
     # depending on the messages we receive. It's a bit more cumbersome,

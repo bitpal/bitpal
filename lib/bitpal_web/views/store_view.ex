@@ -131,4 +131,11 @@ defmodule BitPalWeb.StoreView do
       live_redirect(label, to: to)
     end
   end
+
+  def live_invoice_link(socket, opts) do
+    id = Keyword.fetch!(opts, :id)
+    label = Keyword.fetch!(opts, :label)
+
+    live_redirect(label, to: Routes.invoice_path(socket, :show, id))
+  end
 end

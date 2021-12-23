@@ -9,6 +9,11 @@
     <%= for {_key_address, addresses} <- @addresses do %>
       <%= for address <- addresses do %>
         <div class="address">
+          <%= if address.invoice do %>
+            <%= live_invoice_link(@socket, id: address.invoice.id, label: "Invoice") %>
+          <% else %>
+            No invoice
+          <% end %>
           <div class="address_id"><%= address.id %></div>
           <div class="currency"><%= address.currency_id %></div>
           <div class="invoice">

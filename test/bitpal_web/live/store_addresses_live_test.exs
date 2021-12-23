@@ -1,6 +1,7 @@
 defmodule BitPalWeb.StoreAddressesLiveTest do
   use BitPalWeb.ConnCase, integration: true, async: true
   alias BitPal.BackendMock
+  alias BitPal.InvoiceManager
   alias BitPal.Invoices
   alias Phoenix.HTML
 
@@ -35,29 +36,30 @@ defmodule BitPalWeb.StoreAddressesLiveTest do
   end
 
   describe "updates" do
-    # @tag do: true
-    # test "add address when invoice finalized", %{
-    #   conn: conn,
-    #   store: store,
-    #   currency_id: currency_id
-    # } do
-    #   {:ok, view, html} = live(conn, Routes.store_addresses_path(conn, :show, store.slug))
-    #   assert html =~ "There are no addresses here yet"
-    #
-    #   {:ok, invoice, _, _} =
-    #     HandlerSubscriberCollector.create_invoice(
-    #       store_id: store.id,
-    #       required_confirmations: 3,
-    #       currency_id: currency_id,
-    #       status: :draft
-    #     )
-    #
-    # end
+    test "add address when invoice created & finalized", %{
+      conn: conn,
+      store: store,
+      currency_id: currency_id
+    } do
+      {:ok, view, html} = live(conn, Routes.store_addresses_path(conn, :show, store.slug))
+      assert html =~ "There are no addresses here yet"
 
-    @tag do: true
+      invoice =
+        create_invoice(
+          store_id: store.id,
+          required_confirmations: 3,
+          currency_id: currency_id,
+          status: :draft,
+          address: :auto
+        )
+        |> finalize_and_track()
+
+      assert render_eventually(view, invoice.address_id)
+    end
+
     test "update invoice status", %{conn: conn, store: store, currency_id: currency_id} do
-      {:ok, invoice, _, _} =
-        HandlerSubscriberCollector.create_invoice(
+      invoice =
+        create_invoice(
           store_id: store.id,
           required_confirmations: 3,
           currency_id: currency_id,
@@ -66,8 +68,13 @@ defmodule BitPalWeb.StoreAddressesLiveTest do
 
       {:ok, view, html} = live(conn, Routes.store_addresses_path(conn, :show, store.slug))
 
-      Invoices.finalize(invoice)
+      invoice =
+        invoice
+        |> with_address()
+        |> finalize_and_track()
+
       assert render_eventually(view, "open")
+      assert render_eventually(view, invoice.address_id)
 
       BackendMock.tx_seen(invoice)
       render_eventually(view, "processing")

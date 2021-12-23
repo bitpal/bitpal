@@ -3,6 +3,8 @@ defmodule BitPal.Addresses do
   import Ecto.Query
   alias BitPal.Invoices
   alias BitPal.Repo
+  alias BitPal.StoreEvents
+  alias BitPalSettings.StoreSettings
   alias BitPalSchemas.Address
   alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
@@ -60,18 +62,38 @@ defmodule BitPal.Addresses do
   @spec register(AddressKey.t(), Address.id(), address_index) ::
           {:ok, Address.t()} | {:error, Changeset.t()}
   def register(address_key, address_id, address_index) do
-    %Address{
-      id: address_id,
-      address_index: address_index,
-      currency_id: address_key.currency_id,
-      address_key_id: address_key.id
-    }
-    |> change()
-    |> assoc_constraint(:currency)
-    |> assoc_constraint(:address_key)
-    |> unique_constraint(:id, name: :addresses_pkey)
-    |> unique_constraint([:address_index, :address_key_id])
-    |> Repo.insert()
+    res =
+      %Address{
+        id: address_id,
+        address_index: address_index,
+        currency_id: address_key.currency_id,
+        address_key_id: address_key.id
+      }
+      |> change()
+      |> assoc_constraint(:currency)
+      |> assoc_constraint(:address_key)
+      |> unique_constraint(:id, name: :addresses_pkey)
+      |> unique_constraint([:address_index, :address_key_id])
+      |> Repo.insert()
+
+    case res do
+      {:ok, address} ->
+        case StoreSettings.address_key_store(address_key) do
+          {:ok, store} ->
+            StoreEvents.broadcast(
+              {{:store, :address_created},
+               %{id: store.id, address_id: address.id, currency_id: address.currency_id}}
+            )
+
+          _ ->
+            nil
+        end
+
+        {:ok, address}
+
+      err ->
+        err
+    end
   end
 
   @spec register_next_address(AddressKey.t(), Address.id()) ::

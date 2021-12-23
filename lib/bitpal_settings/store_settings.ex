@@ -87,6 +87,24 @@ defmodule BitPalSettings.StoreSettings do
     |> Repo.insert()
   end
 
+  @spec address_key_store(AddressKey.t()) :: {:ok, Store.t()} | :error
+  def address_key_store(address_key) do
+    res =
+      from(s in Store,
+        left_join: cs in CurrencySettings,
+        on: cs.store_id == s.id,
+        where: ^address_key.currency_settings_id == cs.id,
+        select: s
+      )
+      |> Repo.one()
+
+    if res do
+      {:ok, res}
+    else
+      :error
+    end
+  end
+
   @spec validate_address_key_data(Changeset.t(), atom, keyword) :: Changeset.t()
   def validate_address_key_data(changeset, data_key, opts) do
     currency_id = Keyword.fetch!(opts, :currency_id)

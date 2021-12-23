@@ -2,6 +2,7 @@ defmodule BitPalWeb.InvoiceLive do
   use BitPalWeb, :live_view
   alias BitPal.Repo
   alias BitPal.InvoiceEvents
+  alias BitPal.Stores
   alias BitPal.InvoiceManager
   alias BitPal.Accounts.Users
   require Logger
@@ -11,7 +12,8 @@ defmodule BitPalWeb.InvoiceLive do
   @impl true
   def mount(%{"id" => invoice_id}, _session, socket) do
     if Users.invoice_access?(socket.assigns.current_user, invoice_id) do
-      {:ok, assign(socket, invoice_id: invoice_id)}
+      {:ok, store} = Stores.fetch_by_invoice(invoice_id)
+      {:ok, assign(socket, invoice_id: invoice_id, store: store)}
     else
       {:ok, redirect(socket, to: "/")}
     end
@@ -23,9 +25,9 @@ defmodule BitPalWeb.InvoiceLive do
   end
 
   @impl true
-  def handle_params(%{"id" => invoice_id}, _uri, socket) do
+  def handle_params(%{"id" => invoice_id}, uri, socket) do
     InvoiceEvents.subscribe(invoice_id)
-    update_invoice(invoice_id, socket)
+    update_invoice(invoice_id, assign(socket, uri: uri))
   end
 
   @impl true

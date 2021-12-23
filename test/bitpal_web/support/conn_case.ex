@@ -106,4 +106,10 @@ defmodule BitPalWeb.ConnCase do
   def render_eventually(view, match) do
     eventually(fn -> render(view) =~ match end)
   end
+
+  def render_eventually(view, match, selector, text_filter \\ nil) do
+    eventually(fn ->
+      view |> element(selector, text_filter) |> render() =~ match
+    end)
+  end
 end
