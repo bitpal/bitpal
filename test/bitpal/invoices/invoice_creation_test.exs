@@ -199,11 +199,13 @@ defmodule InvoiceCreationTest do
 
   describe "assign_address/2" do
     test "address assigning", %{store_id: store_id} do
+      currency_id = unique_currency_id()
+
       assert {:ok, invoice} =
                Invoices.register(store_id, %{
                  amount: 1.2,
                  exchange_rate: 2.0,
-                 currency_id: :BCH,
+                 currency_id: currency_id,
                  fiat_amount: :USD
                })
 
@@ -220,18 +222,20 @@ defmodule InvoiceCreationTest do
                Invoices.assign_address(invoice, %Address{
                  id: "not-in-db",
                  address_index: 1,
-                 currency_id: :BCH
+                 currency_id: currency_id
                })
     end
   end
 
   describe "ensure_address/2" do
     test "ensuring addresses", %{store_id: store_id} do
+      currency_id = unique_currency_id()
+
       assert {:ok, inv} =
                Invoices.register(store_id, %{
                  amount: 1.2,
                  exchange_rate: 2.0,
-                 currency_id: :BCH,
+                 currency_id: currency_id,
                  fiat_amount: :USD
                })
 
@@ -263,7 +267,7 @@ defmodule InvoiceCreationTest do
       assert {:ok, _} =
                Invoices.register(store_id, %{
                  amount: 1.2,
-                 currency_id: :BCH,
+                 currency_id: currency_id,
                  exchange_rate: 2.0,
                  fiat_currency: :USD
                })

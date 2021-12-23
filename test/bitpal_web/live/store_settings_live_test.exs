@@ -141,7 +141,7 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
 
       rendered =
         view
-        |> element(~s{.revoke-token[phx-value-id="#{t0.id}"})
+        |> element(~s{.confirm[phx-value-id="#{t0.id}"})
         |> render_click(%{"id" => to_string(t0.id)})
 
       assert !(rendered =~ to_string(t0.id))

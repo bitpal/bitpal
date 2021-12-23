@@ -41,7 +41,7 @@
             <% modal = ~s{.revoke-token-modal[token-id="#{token.id}"]} %>
             <button class="revoke-token" phx-click={JS.show(to: modal, display: "inline")}>Revoke</button>
             <span class="revoke-token-modal" token-id={token.id}>
-              <button class="confirm" 
+              <button class="confirm"
                       phx-click={JS.push("revoke_token") |> JS.hide(to: modal)}
                       phx-value-id={token.id}>
                 Confirm

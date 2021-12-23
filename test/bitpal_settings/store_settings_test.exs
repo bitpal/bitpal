@@ -74,14 +74,12 @@ defmodule BitPalSettings.StoreSettingsTest do
     end
 
     test "validates BCH xpub", %{store: store} do
-      assert {:error, changeset} =
+      assert {:ok, _} =
                StoreSettings.set_address_key(
                  store.id,
                  :BCH,
                  "xpub6C23JpFE6ABbBudoQfwMU239R5Bm6QGoigtLq1BD3cz3cC6DUTg89H3A7kf95GDzfcTis1K1m7ypGuUPmXCaCvoxDKbeNv6wRBEGEnt1NV7"
                )
-
-      assert "invalid key" in errors_on(changeset).data
     end
 
     test "errors on invalid BCH xpub", %{store: store} do
@@ -104,12 +102,11 @@ defmodule BitPalSettings.StoreSettingsTest do
     end
   end
 
-  # FIXME
-  # should return an updated changeset
   describe "update" do
     setup tags = %{store: store, currency_id: currency_id} do
       if tags[:update] do
-        {:ok, _} = StoreSettings.update(store.id, currency_id, store_settings_update_params())
+        {:ok, _} =
+          StoreSettings.update_simple(store.id, currency_id, store_settings_update_params())
       end
 
       tags
@@ -117,7 +114,7 @@ defmodule BitPalSettings.StoreSettingsTest do
 
     test "create if not exists", %{store: store, currency_id: currency_id} do
       assert {:ok, _} =
-               StoreSettings.update(store.id, currency_id, store_settings_update_params())
+               StoreSettings.update_simple(store.id, currency_id, store_settings_update_params())
 
       assert StoreSettings.get_currency_settings(store.id, currency_id) != nil
     end
@@ -127,64 +124,13 @@ defmodule BitPalSettings.StoreSettingsTest do
       assert StoreSettings.get_currency_settings(store.id, currency_id) != nil
 
       assert {:ok, settings} =
-               StoreSettings.update(store.id, currency_id, %{
+               StoreSettings.update_simple(store.id, currency_id, %{
                  "required_confirmations" => 2,
                  "double_spend_timeout" => 1337
                })
 
       assert settings.required_confirmations == 2
       assert settings.double_spend_timeout == 1337
-    end
-
-    @tag update: true
-    test "update address_key", %{store: store, currency_id: currency_id} do
-      assert StoreSettings.get_currency_settings(store.id, currency_id) != nil
-
-      mykey = unique_address_key_id()
-
-      assert {:ok, settings} =
-               StoreSettings.update(store.id, currency_id, %{
-                 "address_key" => mykey
-               })
-
-      assert settings.address_key.data == mykey
-
-      address_key = StoreSettings.fetch_address_key!(store.id, currency_id)
-      assert address_key.data == mykey
-    end
-
-    @tag do: true
-    test "merges changes on address_key error", %{store: store} do
-      assert {:error, changeset} =
-               StoreSettings.update(store.id, :BCH, %{
-                 "address_key" => "xyz",
-                 "required_confirmations" => 2
-               })
-
-      assert changeset.changes == %{data: "xyz", required_confirmations: 2}
-      assert "invalid key" in errors_on(changeset).data
-      assert "invalid key" in errors_on(changeset).required_confirmations
-    end
-
-    @tag do: true
-    test "merges changes on required_confirmations error", %{
-      store: store,
-      currency_id: currency_id
-    } do
-      assert {:error, changeset} =
-               StoreSettings.update(store.id, currency_id, %{
-                 "address_key" => unique_address_key_id(),
-                 "required_confirmations" => "bad"
-               })
-
-      assert changeset.changes == %{data: "xyz", required_confirmations: "bad"}
-      assert "invalid key" in errors_on(changeset).data
-      assert "invalid key" in errors_on(changeset).required_confirmations
-    end
-
-    test "errors on invalid BCH xpub", %{store: store} do
-      assert {:error, changeset} = StoreSettings.update(store.id, :BCH, %{"address_key" => "xyz"})
-      assert "invalid key" in errors_on(changeset).data
     end
   end
 end

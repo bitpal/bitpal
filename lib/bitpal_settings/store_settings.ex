@@ -92,10 +92,15 @@ defmodule BitPalSettings.StoreSettings do
     currency_id = Keyword.fetch!(opts, :currency_id)
     data = get_change(changeset, data_key)
 
-    if Currencies.valid_address_key?(currency_id, data) do
-      changeset
-    else
-      add_error(changeset, :data, "invalid key")
+    cond do
+      data == "" ->
+        add_error(changeset, :data, "cannot be empty")
+
+      Currencies.valid_address_key?(currency_id, data) ->
+        changeset
+
+      true ->
+        add_error(changeset, :data, "invalid key")
     end
   end
 
