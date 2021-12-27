@@ -1,25 +1,25 @@
 <%= render "_bar.html", assigns %>
 
-<section class="transactions">
+<section class="store-wrapper">
   <%= if Enum.empty?(@txs) do %>
     <div class="no-transactions">
       There are no transactions here yet
     </div>
   <% else %>
+    <div class="tx-header">
+      <span class="link"></span>
+      <span class="txid">Txid</span>
+      <span class="amount">Amount</span>
+      <span class="address-id">Address</span>
+      <span class="status">Status</span>
+    </div>
     <%= for tx <- @txs do %>
       <div class="tx">
-        <%= live_invoice_link(@socket, id: tx.address.invoice.id, label: "Invoice") %>
-        <div class="txid"><%= tx.id %></div>
-        <div class="amount"><%= tx.amount %></div>
-        <div class="address_id"><%= tx.address_id %></div>
-        <div class="confirmed_height">
-          <%= if tx.confirmed_height do %>
-            <%= tx.confirmed_height %>
-          <% else %>
-            Unconfirmed
-          <% end %>
-        </div>
-        <div class="double_spent"><%= tx.double_spent %></div>
+        <span class="link"><%= live_invoice_link(@socket, id: tx.address.invoice.id, label: "Invoice") %></span>
+        <span class="txid"><%= tx.id %></span>
+        <span class="amount"><%= money_to_string(tx.amount) %></span>
+        <span class="address-id"><%= tx.address_id %></span>
+        <%= tx_status(%{tx: tx}) %>
       </div>
     <% end %>
   <% end %>

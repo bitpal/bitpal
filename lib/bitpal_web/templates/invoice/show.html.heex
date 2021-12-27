@@ -1,25 +1,54 @@
-<%= render BitPalWeb.StoreView, "_bar.html", assigns %>
+<% alias BitPalWeb.StoreView %>
+<%= render StoreView, "_bar.html", assigns %>
 
-<div class="detailed-invoice">
-  <span><%= @invoice.inserted_at %></span>
-  <span><%= @invoice.amount %></span>
-  <span><%= @invoice.exchange_rate %></span>
-  <span><%= @invoice.status %></span>
-  <span><%= @invoice.status_reason %></span>
-  <span><%= @invoice.description %></span>
-  <span><%= @invoice.address_id %></span>
-  <span><%= @invoice.currency_id %></span>
-  <span><%= @invoice.email %></span>
-  <span><%#= @invoice.pos_data %></span>
+<section class="store-wrapper">
+  <div class="detailed-invoice">
+    <div class="row">
+      <span class="descr">Created at</span>
+      <span class="data"><%= NaiveDateTime.to_date(@invoice.inserted_at) %></span>
+    </div>
+    <div class="row">
+      <span class="descr">Invoiced amount</span>
+      <span class="data">
+        <%= StoreView.format_amount(@invoice) %>
+        <%= StoreView.money_to_string(@invoice.fiat_amount) %>
+      </span>
+    </div>
+    <div class="row">
+      <span class="descr">Paid amount</span>
+      <span class="data"><%= StoreView.money_to_string(@invoice.amount_paid) %></span>
+    </div>
+    <div class="row">
+      <span class="descr">Status</span>
+      <span class="data"><%= StoreView.format_status(@invoice) %></span>
+    </div>
+    <div class="row">
+      <span class="descr">Description</span>
+      <span class="data"><%= @invoice.description %></span>
+    </div>
+    <div class="row">
+      <span class="descr">Address</span>
+      <span class="data"><%= @invoice.address_id %></span>
+    </div>
+    <div class="row">
+      <span class="descr">Email</span>
+      <span class="data"><%= @invoice.email %></span>
+    </div>
 
-  <div class="txs">
-    <%= for tx <- @invoice.tx_outputs do %>
-      <div class="tx">
-        <span><%= tx.txid %></span>
-        <span><%= tx.amount %></span>
-        <span><%= tx.confirmed_height %></span>
-        <span><%= tx.double_spent %></span>
-      </div>
-    <% end %>
+    <div class="pos-data">
+      <div class="header">POS data</div>
+      <div class="data"><%= inspect(@invoice.pos_data) %></div>
+    </div>
+
+    <div class="txs">
+      <div class="header">Transactions</div>
+      <%= for tx <- @invoice.tx_outputs do %>
+        <div class="tx-details">
+          <span class="txid"><%= tx.txid %></span>
+          <span class="amount"><%= StoreView.format_amount(@invoice) %></span>
+          <%= StoreView.tx_status(%{tx: tx}) %>
+        </div>
+      <% end %>
+    </div>
   </div>
-</div>
+</section>

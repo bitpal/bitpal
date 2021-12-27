@@ -3,6 +3,7 @@ defmodule BitPalWeb.InvoiceLive do
   alias BitPal.Repo
   alias BitPal.InvoiceEvents
   alias BitPal.Stores
+  alias BitPal.Invoices
   alias BitPal.InvoiceManager
   alias BitPal.Accounts.Users
   require Logger
@@ -49,6 +50,7 @@ defmodule BitPalWeb.InvoiceLive do
         invoice =
           invoice
           |> Repo.preload([:tx_outputs])
+          |> Invoices.update_info_from_txs()
 
         {:noreply, assign(socket, invoice: invoice)}
 

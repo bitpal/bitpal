@@ -69,6 +69,7 @@ defmodule BitPalWeb.StoreAddressesLive do
     else
       addresses =
         Stores.all_addresses(socket.assigns.store)
+        |> Repo.preload(:tx_outputs)
         |> Enum.reduce(%{}, &add_address/2)
 
       assign(socket, addresses: addresses)

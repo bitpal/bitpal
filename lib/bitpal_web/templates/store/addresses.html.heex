@@ -1,30 +1,40 @@
 <%= render "_bar.html", assigns %>
 
-<section class="addresses">
+<section class="store-wrapper">
   <%= if Enum.empty?(@addresses) do %>
     <div class="no-addresses">
       There are no addresses here yet
     </div>
   <% else %>
+    <div class="address-header">
+      <span class="link"></span>
+      <span class="address-id">Address</span>
+      <span class="currency">Currency</span>
+      <span class="xpub">Xpub</span>
+      <span class="xpub-index">Xpub index</span>
+      <span class="txs">Transactions</span>
+    </div>
     <%= for {_key_address, addresses} <- @addresses do %>
       <%= for address <- addresses do %>
         <div class="address">
-          <%= if address.invoice do %>
-            <%= live_invoice_link(@socket, id: address.invoice.id, label: "Invoice") %>
-          <% else %>
-            No invoice
-          <% end %>
-          <div class="address_id"><%= address.id %></div>
-          <div class="currency"><%= address.currency_id %></div>
-          <div class="invoice">
+          <span class="link">
             <%= if address.invoice do %>
-              <%= address.invoice.status %>
+              <%= live_invoice_link(@socket, id: address.invoice.id, label: "Invoice") %>
             <% else %>
-              "Unused"
+              No invoice
             <% end %>
-          </div>
-          <div class="xpub"><%= address.address_key.data %></div>
-          <div class="xpub_index"><%= address.address_index %></div>
+          </span>
+          <span class="address-id"><%= address.id %></span>
+          <span class="currency"><%= address.currency_id %></span>
+          <span class="xpub"><%= address.address_key.data %></span>
+          <span class="xpub-index"><%= address.address_index %></span>
+          <span class="txs">
+            <ul>
+            <%= for tx <- address.tx_outputs do %>
+              <li><%= tx.txid %></li>
+            <% end %>
+            </ul>
+          </span>
         </div>
       <% end %>
     <% end %>

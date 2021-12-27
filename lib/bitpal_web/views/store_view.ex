@@ -138,4 +138,19 @@ defmodule BitPalWeb.StoreView do
 
     live_redirect(label, to: Routes.invoice_path(socket, :show, id))
   end
+
+  def tx_status(assigns) do
+    ~H"""
+    <span class="status">
+      <%= cond do %>
+        <% @tx.confirmed_height -> %>
+          <span class="confirmed">Confirmed in block <%= @tx.confirmed_height %></span>
+        <% @tx.double_spent -> %>
+          <span class="double-spent">Double spent</span>
+        <% true -> %>
+          <span class="unconfirmed">Unconfirmed</span>
+      <% end %>
+    </span>
+    """
+  end
 end

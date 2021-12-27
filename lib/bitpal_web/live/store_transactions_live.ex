@@ -20,7 +20,6 @@ defmodule BitPalWeb.StoreTransactionsLive do
 
     if connected?(socket) do
       for address <- addresses do
-        IO.puts("subbing #{address.id} #{address.currency_id}")
         AddressEvents.subscribe(address.id)
       end
 

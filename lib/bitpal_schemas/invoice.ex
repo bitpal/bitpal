@@ -14,6 +14,7 @@ defmodule BitPalSchemas.Invoice do
   alias BitPalSchemas.Address
   alias BitPalSchemas.Currency
   alias BitPalSchemas.Store
+  alias BitPalSchemas.InvoiceLog
   alias Money.Ecto.NumericType
 
   @type id :: Ecto.UUID.t()
@@ -59,6 +60,7 @@ defmodule BitPalSchemas.Invoice do
       values: [:expired, :canceled, :double_spent, :timed_out, :verifying, :confirming]
     ) :: status_reason
 
+    # FIXME remove updated_at timestamp
     timestamps()
 
     belongs_to(:store, Store)
