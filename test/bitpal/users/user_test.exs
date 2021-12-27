@@ -1,8 +1,8 @@
 defmodule BitPal.UserTest do
   use BitPal.DataCase, async: true
+  alias BitPal.Accounts
   alias BitPal.Repo
   alias BitPal.Stores
-  alias BitPal.Accounts
 
   test "user store association" do
     {:ok, user} =

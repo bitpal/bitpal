@@ -1,13 +1,13 @@
 defmodule BitPalSettings.StoreSettings do
   import Ecto.Query, only: [from: 2]
   import Ecto.Changeset
+  alias BitPal.Currencies
+  alias BitPal.Repo
   alias BitPalSchemas.Address
-  alias BitPalSchemas.Store
+  alias BitPalSchemas.AddressKey
   alias BitPalSchemas.Currency
   alias BitPalSchemas.CurrencySettings
-  alias BitPalSchemas.AddressKey
-  alias BitPal.Repo
-  alias BitPal.Currencies
+  alias BitPalSchemas.Store
 
   # Default vaLues can be overridden in config
   @default_required_confirmations Application.compile_env!(:bitpal, :required_confirmations)

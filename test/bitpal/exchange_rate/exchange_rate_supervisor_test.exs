@@ -1,5 +1,5 @@
 defmodule BitPal.ExchangeRateSupervisorTest do
-  # # FIXME these randomly fail!
+  # # NOTE these randomly fail!
   #
   # use ExUnit.Case, async: false
   # import BitPal.TestHelpers

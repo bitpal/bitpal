@@ -1,11 +1,11 @@
 defmodule BitPalWeb.InvoiceLive do
   use BitPalWeb, :live_view
-  alias BitPal.Repo
-  alias BitPal.InvoiceEvents
-  alias BitPal.Stores
-  alias BitPal.Invoices
-  alias BitPal.InvoiceManager
   alias BitPal.Accounts.Users
+  alias BitPal.InvoiceEvents
+  alias BitPal.InvoiceManager
+  alias BitPal.Invoices
+  alias BitPal.Repo
+  alias BitPal.Stores
   require Logger
 
   on_mount(BitPalWeb.UserLiveAuth)

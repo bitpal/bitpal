@@ -35,8 +35,6 @@ defmodule BitPalWeb.Router do
   scope "/", BitPalWeb do
     pipe_through([:browser, :store_layout, :require_authenticated_user])
 
-    # FIXME needs to redirect
-    # forward("/stores/:slug", redirect("/stores/:slug/invoices"))
     live("/stores/:slug", StoreLive, :show)
     live("/stores/:slug/addresses", StoreAddressesLive, :show)
     live("/stores/:slug/transactions", StoreTransactionsLive, :show)

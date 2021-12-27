@@ -9,6 +9,7 @@ defmodule BitPal.InvoiceHandler do
   alias BitPal.Transactions
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.TxOutput
+  alias Ecto.Adapters.SQL.Sandbox
   require Logger
 
   @type handler :: pid
@@ -63,7 +64,7 @@ defmodule BitPal.InvoiceHandler do
     Logger.debug("init handler: #{invoice_id}")
 
     if parent = opts[:parent] do
-      Ecto.Adapters.SQL.Sandbox.allow(BitPal.Repo, parent, self())
+      Sandbox.allow(BitPal.Repo, parent, self())
     end
 
     # Locate a new invoice for self-healing purpises.

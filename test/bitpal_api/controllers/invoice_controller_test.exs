@@ -3,10 +3,6 @@ defmodule BitPalApi.InvoiceControllerTest do
 
   describe "create" do
     test "basic", %{conn: conn, currency_id: currency_id} do
-      # FIXME should use this
-      # attrs = valid_invoice_attributes(currency_id: currency_id)
-      # conn = post(conn, "/v1/invoices", attrs)
-
       conn =
         post(conn, "/v1/invoices", %{
           amount: "1.2",

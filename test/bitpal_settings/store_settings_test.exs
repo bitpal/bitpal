@@ -1,7 +1,7 @@
 defmodule BitPalSettings.StoreSettingsTest do
   use BitPal.DataCase, async: true
-  alias BitPalSettings.StoreSettings
   alias BitPalSchemas.AddressKey
+  alias BitPalSettings.StoreSettings
 
   setup _tags do
     %{store: create_store(), currency_id: unique_currency_id()}

@@ -1,11 +1,10 @@
 defmodule BitPalWeb.StoreView do
   use BitPalWeb, :view
-  alias BitPalSchemas.Invoice
-  alias BitPal.Invoices
   alias BitPal.Currencies
+  alias BitPal.Invoices
+  alias BitPalSchemas.Invoice
 
   def format_status(invoice = %Invoice{}) do
-    # FIXME Also need to detect underpaid and overpaid!
     assigns = %{
       status: readable_status(invoice.status),
       reason: readable_status_reason(invoice),
@@ -22,7 +21,6 @@ defmodule BitPalWeb.StoreView do
     """
   end
 
-  # FIXME wrap in status class
   defp readable_status(status) do
     tag = Atom.to_string(status)
     readable = tag |> String.capitalize()
@@ -61,7 +59,7 @@ defmodule BitPalWeb.StoreView do
   end
 
   defp readable_status_reason_msg(invoice = %Invoice{status_reason: :confirming}) do
-    # FIXME this is slow, as it forces txs to be reloaded
+    # This is slow, as it forces txs to be reloaded
     # Maybe we could have the invoices be loaded with txs directly?
     invoice = Invoices.update_info_from_txs(invoice)
 

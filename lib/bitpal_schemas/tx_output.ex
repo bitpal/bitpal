@@ -1,7 +1,6 @@
 defmodule BitPalSchemas.TxOutput do
   use TypedEctoSchema
   alias BitPalSchemas.Address
-  alias BitPalSchemas.TxLog
   alias Money.Ecto.NumericType
 
   @type txid :: String.t()

@@ -10,7 +10,7 @@ defmodule BitPalWeb.UserSettingsController do
     render(conn, "edit.html")
   end
 
-  def update(conn, %{"action" => "update_email"} = params) do
+  def update(conn, params = %{"action" => "update_email"}) do
     %{"current_password" => password, "user" => user_params} = params
     user = conn.assigns.current_user
 
@@ -34,7 +34,7 @@ defmodule BitPalWeb.UserSettingsController do
     end
   end
 
-  def update(conn, %{"action" => "update_password"} = params) do
+  def update(conn, params = %{"action" => "update_password"}) do
     %{"current_password" => password, "user" => user_params} = params
     user = conn.assigns.current_user
 

@@ -1,8 +1,8 @@
 defmodule BitPalWeb.StoreLive do
   use BitPalWeb, :live_view
-  alias BitPal.Repo
   alias BitPal.InvoiceEvents
   alias BitPal.InvoiceManager
+  alias BitPal.Repo
   alias BitPal.StoreEvents
   require Logger
 
@@ -59,12 +59,12 @@ defmodule BitPalWeb.StoreLive do
       {:ok, invoice} ->
         store = socket.assigns.store
 
-        # FIXME should do this in place
-        updated_invoices =
-          Enum.reject(store.invoices, fn x ->
-            x.id == invoice.id
-          end) ++
-            [invoice]
+        updated_invoices = [
+          invoice
+          | Enum.reject(store.invoices, fn x ->
+              x.id == invoice.id
+            end)
+        ]
 
         {:noreply, assign(socket, store: %{store | invoices: updated_invoices})}
 

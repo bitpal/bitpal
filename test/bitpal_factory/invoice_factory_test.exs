@@ -1,7 +1,7 @@
 defmodule BitPalFactory.InvoiceFactoryTest do
   use BitPal.IntegrationCase, async: true
-  alias BitPalSettings.StoreSettings
   alias BitPalSchemas.Address
+  alias BitPalSettings.StoreSettings
 
   setup _tags do
     %{store: create_store()}

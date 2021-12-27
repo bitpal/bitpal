@@ -2,10 +2,10 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
   # Tests must be async as we're testing for currency existance
   use BitPalWeb.ConnCase, integration: true, async: false
   import Ecto.Query
+  alias BitPal.Repo
   alias BitPalSchemas.AccessToken
   alias BitPalSchemas.AddressKey
   alias BitPalSettings.StoreSettings
-  alias BitPal.Repo
   alias Phoenix.HTML
 
   setup tags do

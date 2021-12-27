@@ -1,10 +1,10 @@
 defmodule BitPal.Accounts.Users do
   import Ecto.Changeset
   import Ecto.Query
-  alias BitPalSchemas.User
-  alias BitPalSchemas.Store
-  alias BitPalSchemas.Invoice
   alias BitPal.Repo
+  alias BitPalSchemas.Invoice
+  alias BitPalSchemas.Store
+  alias BitPalSchemas.User
 
   @doc """
   A user changeset for registration.

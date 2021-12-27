@@ -1,8 +1,8 @@
 defmodule BitPalFactory.AddressFactoryTest do
   use BitPal.DataCase, async: true
   alias BitPal.Invoices
-  alias BitPalSettings.StoreSettings
   alias BitPalSchemas.Address
+  alias BitPalSettings.StoreSettings
 
   describe "address_fixture" do
     test "generate all" do

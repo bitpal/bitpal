@@ -26,14 +26,14 @@ defmodule BitPalFactory.StoreFactoryTest do
 
   describe "with_invoices/2" do
     setup tags = %{store: store} do
-      unless tags[:manual] do
+      if tags[:manual] do
+        tags
+      else
         store =
           store
           |> with_invoices(Map.take(tags, [:invoice_count, :currencies, :currency_id, :txs]))
 
         %{tags | store: store}
-      else
-        tags
       end
     end
 

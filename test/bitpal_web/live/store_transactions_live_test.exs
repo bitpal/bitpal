@@ -2,8 +2,6 @@ defmodule BitPalWeb.StoreTransacionsLiveTest do
   use BitPalWeb.ConnCase, integration: true, async: true
   alias BitPal.BackendMock
   alias BitPal.Blocks
-  alias BitPal.InvoiceManager
-  alias BitPal.Invoices
   alias BitPal.Repo
   alias Phoenix.HTML
 
@@ -14,7 +12,7 @@ defmodule BitPalWeb.StoreTransacionsLiveTest do
   end
 
   describe "show" do
-    test "show tx with invoice", %{conn: conn, store: store, currency_id: currency_id} do
+    test "show tx with invoice", %{conn: conn, store: store} do
       invoice =
         create_invoice(store,
           status: :paid,
@@ -66,7 +64,7 @@ defmodule BitPalWeb.StoreTransacionsLiveTest do
 
       BackendMock.tx_seen(invoice)
 
-      {:ok, view, html} = live(conn, Routes.store_transactions_path(conn, :show, store.slug))
+      {:ok, view, _html} = live(conn, Routes.store_transactions_path(conn, :show, store.slug))
       render_eventually(view, "Unconfirmed", ".confirmed_height")
 
       BackendMock.confirmed_in_new_block(invoice)

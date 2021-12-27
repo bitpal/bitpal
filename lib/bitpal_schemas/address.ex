@@ -1,9 +1,9 @@
 defmodule BitPalSchemas.Address do
   use TypedEctoSchema
+  alias BitPalSchemas.AddressKey
   alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.TxOutput
-  alias BitPalSchemas.AddressKey
 
   @type id :: String.t()
 

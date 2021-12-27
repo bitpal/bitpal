@@ -1,4 +1,4 @@
-use Mix.Config
+import Config
 
 config :bitpal, BitPal.Repo,
   username: "postgres",

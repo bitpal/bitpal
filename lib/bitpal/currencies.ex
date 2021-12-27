@@ -1,11 +1,11 @@
 defmodule BitPal.Currencies do
   import Ecto.Query
-  require Logger
   alias BitPal.Repo
   alias BitPalSchemas.Address
   alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
   alias Ecto.Changeset
+  require Logger
 
   @type height :: non_neg_integer()
 
@@ -41,8 +41,8 @@ defmodule BitPal.Currencies do
   @spec get!(Currency.id()) :: Currency.t()
   def get!(id), do: Repo.get!(Currency, id)
 
-  @spec all() :: [Currency.t()]
-  def all(), do: Repo.all(Currency)
+  @spec all :: [Currency.t()]
+  def all, do: Repo.all(Currency)
 
   @spec addresses(Currency.id(), Store.id()) :: [Address.t()]
   def addresses(id, store_id) do

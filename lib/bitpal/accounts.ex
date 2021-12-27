@@ -6,8 +6,11 @@ defmodule BitPal.Accounts do
   import Ecto.Query, warn: false
   alias BitPal.Repo
 
-  alias BitPal.Accounts.{Users, UserTokens, UserNotifier}
-  alias BitPalSchemas.{User, UserToken}
+  alias BitPal.Accounts.UserNotifier
+  alias BitPal.Accounts.Users
+  alias BitPal.Accounts.UserTokens
+  alias BitPalSchemas.User
+  alias BitPalSchemas.UserToken
 
   ## Database getters
 
@@ -90,7 +93,7 @@ defmodule BitPal.Accounts do
       %Ecto.Changeset{data: %User{}}
 
   """
-  def change_user_registration(%User{} = user, attrs \\ %{}) do
+  def change_user_registration(user = %User{}, attrs \\ %{}) do
     Users.registration_changeset(user, attrs, hash_password: false)
   end
 

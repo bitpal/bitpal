@@ -1,6 +1,4 @@
 defmodule BitPalFactory do
-  use Supervisor
-
   @moduledoc """
   Factory creation functions
 
@@ -12,6 +10,8 @@ defmodule BitPalFactory do
 
   Note that create_invoice will *not* track it, for that we need to ...
   """
+
+  use Supervisor
 
   defmacro __using__(_opts) do
     quote do

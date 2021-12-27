@@ -1,6 +1,6 @@
 defmodule BitPalFactory.CurrencyFactory do
-  alias BitPalFactory.CurrencyCounter
   alias BitPal.Currencies
+  alias BitPalFactory.CurrencyCounter
   alias BitPalSchemas.Currency
 
   @spec unique_currency_id :: Currency.id()
@@ -81,7 +81,7 @@ defmodule BitPalFactory.CurrencyCounter do
   @impl true
   def handle_call({:next_currency_id, :crypto}, _, state) do
     id_s = "𝓒" <> to_string(state.crypto_count)
-    id = String.to_atom(id_s)
+    id = id_to_atom(id_s)
 
     Currencies.add_custom_curreny(id, %{
       name: "Testcrypto #{state.crypto_count}",
@@ -95,7 +95,7 @@ defmodule BitPalFactory.CurrencyCounter do
   @impl true
   def handle_call({:next_currency_id, :fiat}, _, state) do
     id_s = "𝓕 " <> to_string(state.fiat_count)
-    id = String.to_atom(id_s)
+    id = id_to_atom(id_s)
 
     Currencies.add_custom_curreny(id, %{
       name: "Testfiat #{state.fiat_count}",
@@ -104,5 +104,11 @@ defmodule BitPalFactory.CurrencyCounter do
     })
 
     {:reply, id, %{state | fiat_count: state.fiat_count + 1}}
+  end
+
+  defp id_to_atom(id) when is_binary(id) do
+    # This is fine as atoms are bounded by the number of generated test currencies.
+    # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
+    String.to_atom(id)
   end
 end

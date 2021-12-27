@@ -1,17 +1,18 @@
 defmodule BitPal.BackendMock do
   @behaviour BitPal.Backend
 
+  use BitPalFactory
   use GenServer
   import BitPalSettings.ConfigHelpers
-  use BitPalFactory
   alias BitPal.Backend
-  alias BitPal.Blocks
   alias BitPal.BlockchainEvents
+  alias BitPal.Blocks
   alias BitPal.Invoices
   alias BitPal.ProcessRegistry
   alias BitPal.Transactions
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.TxOutput
+  alias Ecto.Adapters.SQL.Sandbox
 
   @type backend :: pid()
 
@@ -92,7 +93,7 @@ defmodule BitPal.BackendMock do
   @impl true
   def init(opts) do
     if parent = opts[:parent] do
-      Ecto.Adapters.SQL.Sandbox.allow(BitPal.Repo, parent, self())
+      Sandbox.allow(BitPal.Repo, parent, self())
     end
 
     opts =

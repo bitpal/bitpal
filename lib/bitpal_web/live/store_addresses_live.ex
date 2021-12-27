@@ -1,11 +1,10 @@
 defmodule BitPalWeb.StoreAddressesLive do
   use BitPalWeb, :live_view
-  alias BitPal.Repo
-  alias BitPal.Stores
   alias BitPal.InvoiceEvents
-  alias BitPal.AddressEvents
   alias BitPal.InvoiceManager
+  alias BitPal.Repo
   alias BitPal.StoreEvents
+  alias BitPal.Stores
   alias BitPalSchemas.Invoice
   require Logger
 
@@ -29,8 +28,6 @@ defmodule BitPalWeb.StoreAddressesLive do
 
   @impl true
   def render(assigns) do
-    # FIXME
-    # Don't print invoice status here, just if there's an invoice or not?
     render(BitPalWeb.StoreView, "addresses.html", assigns)
   end
 
@@ -58,8 +55,6 @@ defmodule BitPalWeb.StoreAddressesLive do
       get_invoice(args)
       |> Repo.preload(:address)
 
-    # AddressEvents.subscribe(invoice.address_id)
-    # InvoiceEvents.unsubscribe(invoice)
     {:noreply, update_address(invoice.address, socket)}
   end
 
@@ -91,7 +86,6 @@ defmodule BitPalWeb.StoreAddressesLive do
   end
 
   defp update_address(address, socket) do
-    # FIXME doesn't always update address?
     assign(socket, addresses: add_address(address, socket.assigns.addresses))
   end
 

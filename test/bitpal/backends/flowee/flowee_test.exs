@@ -5,8 +5,8 @@ defmodule BitPal.Backend.FloweeTest do
   alias BitPal.Backend.Flowee
   alias BitPal.Backend.FloweeFixtures
   alias BitPal.Blocks
-  alias BitPal.MockTCPClient
   alias BitPal.HandlerSubscriberCollector
+  alias BitPal.MockTCPClient
 
   @currency :BCH
   @xpub Application.compile_env!(:bitpal, [:BCH, :xpub])
@@ -24,8 +24,6 @@ defmodule BitPal.Backend.FloweeTest do
     if Map.get(tags, :init_message, true) do
       MockTCPClient.response(@client, FloweeFixtures.blockchain_info())
     end
-
-    # FIXME make this async!
 
     manager_name = unique_server_name()
 

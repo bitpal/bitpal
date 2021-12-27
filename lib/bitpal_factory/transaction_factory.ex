@@ -2,13 +2,13 @@ defmodule BitPalFactory.TransactionFactory do
   import Ecto.Changeset
   import BitPalFactory.UtilFactory
   import BitPalFactory.InvoiceFactory
-  alias BitPalFactory.CurrencyFactory
   alias BitPal.Invoices
-  alias BitPalSchemas.Address
-  alias BitPalSchemas.Store
-  alias BitPalSchemas.Invoice
-  alias BitPalSchemas.TxOutput
   alias BitPal.Repo
+  alias BitPalFactory.CurrencyFactory
+  alias BitPalSchemas.Address
+  alias BitPalSchemas.Invoice
+  alias BitPalSchemas.Store
+  alias BitPalSchemas.TxOutput
 
   @spec unique_txid :: String.t()
   def unique_txid do
@@ -65,7 +65,6 @@ defmodule BitPalFactory.TransactionFactory do
   end
 
   def with_txs(invoice = %Invoice{status: :processing}, _opts) do
-    # FIXME sometimes more txs
     create_tx(invoice,
       amount: paid_or_overpaid_amount(invoice)
     )
@@ -123,7 +122,6 @@ defmodule BitPalFactory.TransactionFactory do
         nil
       end
 
-    # FIXME sometimes more txs
     create_tx(invoice, amount: amount, confirmed_height: confirmed_height)
     invoice |> update_info_from_txs()
   end

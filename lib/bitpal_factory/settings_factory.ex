@@ -1,9 +1,9 @@
 defmodule BitPalFactory.SettingsFactory do
   import BitPalFactory.FactoryHelpers
-  alias BitPalFactory.StoreFactory
   alias BitPalFactory.CurrencyFactory
-  alias BitPalSettings.StoreSettings
+  alias BitPalFactory.StoreFactory
   alias BitPalSchemas.Invoice
+  alias BitPalSettings.StoreSettings
 
   @spec store_settings_update_params(keyword | map) :: map
   def store_settings_update_params(params \\ %{}) do
@@ -11,7 +11,7 @@ defmodule BitPalFactory.SettingsFactory do
       params,
       %{
         "required_confirmations" => Faker.random_between(0, 100),
-        "double_spend_timeout" => Faker.random_between(1, 1_000_1000),
+        "double_spend_timeout" => Faker.random_between(1, 1_000_000),
         "address_key" => unique_address_key_id()
       }
     )

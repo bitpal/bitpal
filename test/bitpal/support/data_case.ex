@@ -15,6 +15,7 @@ defmodule BitPal.DataCase do
   """
 
   use ExUnit.CaseTemplate
+  alias Ecto.Adapters.SQL.Sandbox
 
   using do
     quote do
@@ -42,10 +43,10 @@ defmodule BitPal.DataCase do
   end
 
   def setup_db(tags) do
-    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(BitPal.Repo, shared: not tags[:async])
+    pid = Sandbox.start_owner!(BitPal.Repo, shared: not tags[:async])
 
     on_exit(fn ->
-      Ecto.Adapters.SQL.Sandbox.stop_owner(pid)
+      Sandbox.stop_owner(pid)
     end)
   end
 end

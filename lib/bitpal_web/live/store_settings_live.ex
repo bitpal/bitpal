@@ -1,16 +1,16 @@
 defmodule BitPalWeb.StoreSettingsLive do
   use BitPalWeb, :live_view
   import Ecto.Changeset
-  alias Ecto.Changeset
+  alias BitPal.Authentication.Tokens
+  alias BitPal.BackendManager
+  alias BitPal.Currencies
   alias BitPal.Repo
   alias BitPal.Stores
-  alias BitPal.Currencies
-  alias BitPalSettings.StoreSettings
-  alias BitPal.BackendManager
   alias BitPalSchemas.AccessToken
   alias BitPalSchemas.AddressKey
   alias BitPalSchemas.CurrencySettings
-  alias BitPal.Authentication.Tokens
+  alias BitPalSettings.StoreSettings
+  alias Ecto.Changeset
   require Logger
 
   defmodule DisplayedSettings do
@@ -83,11 +83,11 @@ defmodule BitPalWeb.StoreSettingsLive do
       assign(socket,
         store: store,
         currency_settings: initial_currency_settings(store),
-        # FIXME remove when styling is better
-        created_token: %{
-          label: "My awesome token",
-          data: "SFMyNTY.g2gDYQFuBgAZBNaYfQFiAAFRgA.TZIBKkOxMKsU16yT_Xqo5RxxtonNM5hX5YZcl9FtU6Q"
-        },
+        # Placeholder to examine styling.
+        # created_token: %{
+        #   label: "My awesome token",
+        #   data: "SFMyNTY.g2gDYQFuBgAZBNaYfQFiAAFRgA.TZIBKkOxMKsU16yT_Xqo5RxxtonNM5hX5YZcl9FtU6Q"
+        # },
         create_token: tokens_changeset()
       )
     end
@@ -212,8 +212,8 @@ defmodule BitPalWeb.StoreSettingsLive do
       {:noreply,
        assign(socket, store: Repo.preload(socket.assigns.store, :access_tokens, force: true))}
     else
-      _ ->
-        # FIXME should have an "internal error" flash message or something?
+      err ->
+        Logger.warn("Failed to revoke token id: #{id} err: #{err}")
         {:noreply, socket}
     end
   end

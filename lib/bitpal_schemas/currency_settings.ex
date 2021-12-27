@@ -1,8 +1,8 @@
 defmodule BitPalSchemas.CurrencySettings do
   use TypedEctoSchema
+  alias BitPalSchemas.AddressKey
   alias BitPalSchemas.Currency
   alias BitPalSchemas.Store
-  alias BitPalSchemas.AddressKey
 
   typed_schema "currency_settings" do
     field(:required_confirmations, :integer) :: non_neg_integer

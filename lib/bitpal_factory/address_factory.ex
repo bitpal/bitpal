@@ -1,11 +1,10 @@
 defmodule BitPalFactory.AddressFactory do
   alias BitPal.Addresses
-  alias BitPal.Invoices
+  alias BitPalFactory.InvoiceFactory
+  alias BitPalFactory.SettingsFactory
   alias BitPalSchemas.Address
   alias BitPalSchemas.AddressKey
   alias BitPalSchemas.Invoice
-  alias BitPalFactory.SettingsFactory
-  alias BitPalFactory.InvoiceFactory
 
   # Note that in the future we might generate addresses that look real.
   # This is good enough for now...

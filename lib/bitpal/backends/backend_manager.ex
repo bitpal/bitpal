@@ -1,9 +1,9 @@
 defmodule BitPal.BackendManager do
   use Supervisor
   alias BitPal.Backend
+  alias BitPal.ProcessRegistry
   alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
-  alias BitPal.ProcessRegistry
 
   @type server_name :: atom | {:via, term, term} | pid
   @type backend_spec() :: Supervisor.child_spec()
@@ -47,13 +47,6 @@ defmodule BitPal.BackendManager do
     start_or_update_backend(name, backend)
   end
 
-  # FIXME Proper backend status
-  # {:started, :ready}
-  # {:started, {:syncing, progress}}
-  # :ok
-  # :stopped
-  # {:syncing, height/progress}
-  # :not_found
   @spec status(Currency.id()) :: :ok | :not_found
   def status(currency_id) do
     case fetch_backend(currency_id) do

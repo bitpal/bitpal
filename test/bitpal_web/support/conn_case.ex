@@ -20,8 +20,8 @@ defmodule BitPalWeb.ConnCase do
   import BitPal.TestHelpers
   alias BitPal.Accounts
   alias BitPal.DataCase
-  alias BitPal.IntegrationCase
   alias BitPal.HandlerSubscriberCollector
+  alias BitPal.IntegrationCase
 
   defmacro __using__(params) do
     quote do
@@ -33,8 +33,8 @@ defmodule BitPalWeb.ConnCase do
       import Phoenix.LiveViewTest
       import Plug.Conn
 
-      alias BitPalWeb.Router.Helpers, as: Routes
       alias BitPal.HandlerSubscriberCollector
+      alias BitPalWeb.Router.Helpers, as: Routes
 
       # The default endpoint for testing
       @endpoint BitPalWeb.Endpoint

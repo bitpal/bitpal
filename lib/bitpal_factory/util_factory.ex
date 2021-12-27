@@ -41,7 +41,7 @@ defmodule BitPalFactory.UtilFactory do
     end)
   end
 
-  @spec pick([{float, term}], float) :: term
+  @spec pick([{number, term}], float) :: term
   def pick(xs, selection \\ :rand.uniform()) when is_list(xs) do
     total_prob =
       Enum.reduce(xs, 0, fn {prob, _}, sum ->

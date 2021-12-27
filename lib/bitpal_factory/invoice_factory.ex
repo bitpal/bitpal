@@ -5,25 +5,23 @@ defmodule BitPalFactory.InvoiceFactory do
   """
   import BitPalFactory.UtilFactory
   import Ecto.Changeset
-  alias BitPal.Repo
   alias BitPal.Addresses
-  alias BitPal.Invoices
-  alias BitPalSchemas.Store
-  alias BitPalSchemas.Invoice
-  alias BitPalApi.Authentication.BasicAuth
-  alias BitPalFactory.StoreFactory
-  alias BitPalFactory.SettingsFactory
-  alias BitPalFactory.CurrencyFactory
-  alias BitPalFactory.AddressFactory
   alias BitPal.InvoiceManager
+  alias BitPal.Invoices
+  alias BitPal.Repo
+  alias BitPalApi.Authentication.BasicAuth
+  alias BitPalFactory.AddressFactory
+  alias BitPalFactory.CurrencyFactory
+  alias BitPalFactory.SettingsFactory
+  alias BitPalFactory.StoreFactory
+  alias BitPalSchemas.Invoice
+  alias BitPalSchemas.Store
 
   def valid_pos_data do
-    %{"ref" => Faker.Random.Elixir.random_between(0, 1_000_000)}
+    %{"ref" => Faker.random_between(0, 1_000_000)}
   end
 
   def valid_invoice_attributes(attrs \\ %{}) do
-    # FIXME it's unnecessry to generate currency ids if they're not used
-    # Make it so they're lazily evaluated
     Enum.into(attrs, %{
       amount: rand_pos_float(),
       exchange_rate: rand_pos_float(),
@@ -166,8 +164,6 @@ defmodule BitPalFactory.InvoiceFactory do
     else
       invoice
     end
-
-    # FIXME also setup status_reason if in a relevant status
   end
 
   @doc """
@@ -197,7 +193,7 @@ defmodule BitPalFactory.InvoiceFactory do
     assoc_address(invoice, address)
   end
 
-  def with_address(invoice = %{address_id: address_id}, _) when not is_nil(address_id) do
+  def with_address(invoice = %{address_id: address_id}, _) when is_binary(address_id) do
     invoice
   end
 

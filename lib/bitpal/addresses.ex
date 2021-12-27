@@ -4,10 +4,10 @@ defmodule BitPal.Addresses do
   alias BitPal.Invoices
   alias BitPal.Repo
   alias BitPal.StoreEvents
-  alias BitPalSettings.StoreSettings
   alias BitPalSchemas.Address
   alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
+  alias BitPalSettings.StoreSettings
 
   @type address_index :: non_neg_integer
   @type address_generator_args :: %{

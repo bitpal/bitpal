@@ -2,8 +2,8 @@ defmodule BitPalWeb.UserConfirmationControllerTest do
   use BitPalWeb.ConnCase, async: true
 
   alias BitPal.Accounts
-  alias BitPal.Repo
   alias BitPal.Accounts.Users
+  alias BitPal.Repo
   alias BitPalSchemas.UserToken
 
   setup do

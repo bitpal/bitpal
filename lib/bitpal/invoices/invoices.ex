@@ -6,15 +6,15 @@ defmodule BitPal.Invoices do
   alias BitPal.ExchangeRate
   alias BitPal.FSM
   alias BitPal.InvoiceEvents
-  alias BitPal.StoreEvents
   alias BitPal.Repo
+  alias BitPal.StoreEvents
   alias BitPal.Transactions
-  alias BitPalSettings.StoreSettings
   alias BitPalSchemas.Address
+  alias BitPalSchemas.AddressKey
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.Store
   alias BitPalSchemas.TxOutput
-  alias BitPalSchemas.AddressKey
+  alias BitPalSettings.StoreSettings
   alias Ecto.Changeset
   require Decimal
 
@@ -32,7 +32,6 @@ defmodule BitPal.Invoices do
       |> cast_exchange_rate(params)
       |> validate_into_matching_pairs()
       |> validate_required_confirmations()
-      # FIXME should have a validate_email thingie
       |> validate_format(:email, ~r/^.+@.+$/, message: "Must be a valid email")
       |> Repo.insert()
 

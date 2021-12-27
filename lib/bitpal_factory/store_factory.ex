@@ -5,12 +5,12 @@ defmodule BitPalFactory.StoreFactory do
   """
 
   import BitPalFactory.FactoryHelpers
+  alias BitPal.Repo
+  alias BitPal.Stores
   alias BitPalFactory.AuthFactory
   alias BitPalFactory.CurrencyFactory
-  alias BitPalFactory.TransactionFactory
   alias BitPalFactory.InvoiceFactory
-  alias BitPal.Stores
-  alias BitPal.Repo
+  alias BitPalFactory.TransactionFactory
   alias BitPalSchemas.User
 
   def unique_store_label do
@@ -24,7 +24,7 @@ defmodule BitPalFactory.StoreFactory do
   end
 
   @spec create_store :: Store.t()
-  def create_store() do
+  def create_store do
     {:ok, store} = Stores.create(valid_store_attributes(%{}))
     store
   end

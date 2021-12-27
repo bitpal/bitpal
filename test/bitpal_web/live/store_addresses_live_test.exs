@@ -1,8 +1,6 @@
 defmodule BitPalWeb.StoreAddressesLiveTest do
   use BitPalWeb.ConnCase, integration: true, async: true
   alias BitPal.BackendMock
-  alias BitPal.InvoiceManager
-  alias BitPal.Invoices
   alias Phoenix.HTML
 
   setup tags do
@@ -66,7 +64,7 @@ defmodule BitPalWeb.StoreAddressesLiveTest do
           status: :draft
         )
 
-      {:ok, view, html} = live(conn, Routes.store_addresses_path(conn, :show, store.slug))
+      {:ok, view, _html} = live(conn, Routes.store_addresses_path(conn, :show, store.slug))
 
       invoice =
         invoice
@@ -84,9 +82,6 @@ defmodule BitPalWeb.StoreAddressesLiveTest do
 
       BackendMock.issue_blocks(currency_id, 2)
       render_eventually(view, "paid")
-    end
-
-    test "add incoming tx", %{conn: conn, store: store, currency_id: currency_id} do
     end
   end
 

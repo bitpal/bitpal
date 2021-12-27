@@ -11,6 +11,7 @@ defmodule BitPal.IntegrationCase do
   alias BitPal.BackendMock
   alias BitPal.Currencies
   alias BitPal.InvoiceManager
+  alias Ecto.Adapters.SQL.Sandbox
 
   using do
     quote do
@@ -30,8 +31,8 @@ defmodule BitPal.IntegrationCase do
 
       alias BitPal.BackendManager
       alias BitPal.BackendMock
-      alias BitPal.InvoiceManager
       alias BitPal.HandlerSubscriberCollector
+      alias BitPal.InvoiceManager
 
       alias BitPalSchemas.Invoice
     end
@@ -42,7 +43,7 @@ defmodule BitPal.IntegrationCase do
   end
 
   def setup_integration(tags \\ []) do
-    repo_pid = Ecto.Adapters.SQL.Sandbox.start_owner!(BitPal.Repo, shared: not tags[:async])
+    repo_pid = Sandbox.start_owner!(BitPal.Repo, shared: not tags[:async])
 
     res = setup_backends(tags[:backends] || [BackendMock])
 
@@ -50,13 +51,13 @@ defmodule BitPal.IntegrationCase do
 
     on_exit(fn ->
       if tags[:async] do
-        Ecto.Adapters.SQL.Sandbox.allow(BitPal.Repo, test_pid, self())
+        Sandbox.allow(BitPal.Repo, test_pid, self())
       end
 
       # Shut down in order to prevent race conditions
       remove_invoice_handlers(res.currencies)
       remove_backends(res.backends)
-      Ecto.Adapters.SQL.Sandbox.stop_owner(repo_pid)
+      Sandbox.stop_owner(repo_pid)
     end)
 
     res

@@ -1,7 +1,7 @@
 defmodule BitPalApi.TransactionControllerTest do
   use BitPalApi.ConnCase, async: true
-  alias BitPalApi.Authentication.BasicAuth
   alias BitPal.Stores
+  alias BitPalApi.Authentication.BasicAuth
 
   setup tags = %{conn: conn} do
     {:ok, store_id} = BasicAuth.parse(conn)

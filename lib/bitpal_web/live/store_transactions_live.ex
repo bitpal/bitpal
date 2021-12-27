@@ -26,7 +26,6 @@ defmodule BitPalWeb.StoreTransactionsLive do
       StoreEvents.subscribe(store.id)
     end
 
-    # FIXME need more info to sort on
     txs =
       Enum.flat_map(addresses, fn address ->
         address.tx_outputs

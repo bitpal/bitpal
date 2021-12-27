@@ -32,7 +32,7 @@ defmodule BitPal.InvoiceManager do
         parent: self()
       })
 
-    # The handler will finalize and update the invoice, so we'll need to fetch the 
+    # The handler will finalize and update the invoice, so we'll need to fetch the
     # updated invoice from the handler.
     with {:ok, handler} <- start_handler(invoice, opts),
          {:ok, invoice} <- fetch_invoice(handler) do

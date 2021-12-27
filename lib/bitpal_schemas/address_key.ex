@@ -1,8 +1,8 @@
 defmodule BitPalSchemas.AddressKey do
   use TypedEctoSchema
   alias BitPalSchemas.Address
-  alias BitPalSchemas.CurrencySettings
   alias BitPalSchemas.Currency
+  alias BitPalSchemas.CurrencySettings
 
   typed_schema "address_keys" do
     field(:data, :string)

@@ -2,13 +2,13 @@ defmodule BitPal.Stores do
   import Ecto.Changeset
   import Ecto.Query, only: [from: 2]
   alias BitPal.Repo
-  alias BitPalSchemas.Invoice
-  alias BitPalSchemas.Store
-  alias BitPalSchemas.User
   alias BitPalSchemas.Address
   alias BitPalSchemas.AddressKey
   alias BitPalSchemas.CurrencySettings
+  alias BitPalSchemas.Invoice
+  alias BitPalSchemas.Store
   alias BitPalSchemas.TxOutput
+  alias BitPalSchemas.User
 
   @spec fetch(non_neg_integer) :: {:ok, Store.t()} | :error
   def fetch(id) do

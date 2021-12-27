@@ -4,8 +4,9 @@ defmodule BitPal.HandlerSubscriberCollector do
   alias BitPal.InvoiceManager
   alias BitPal.Invoices
   alias BitPal.ProcessRegistry
-  alias BitPalFactory.SettingsFactory
   alias BitPalFactory.InvoiceFactory
+  alias BitPalFactory.SettingsFactory
+  alias Ecto.Adapters.SQL.Sandbox
 
   # Client API
 
@@ -73,7 +74,7 @@ defmodule BitPal.HandlerSubscriberCollector do
   @impl true
   def init(args) do
     parent = Keyword.fetch!(args, :parent)
-    Ecto.Adapters.SQL.Sandbox.allow(BitPal.Repo, parent, self())
+    Sandbox.allow(BitPal.Repo, parent, self())
 
     {:ok, %{received: [], parent: parent}}
   end

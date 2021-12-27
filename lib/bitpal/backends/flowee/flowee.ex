@@ -11,8 +11,8 @@ defmodule BitPal.Backend.Flowee do
   alias BitPal.Blocks
   alias BitPal.Cache
   alias BitPal.Invoices
-  alias BitPal.Transactions
   alias BitPal.ProcessRegistry
+  alias BitPal.Transactions
   require Logger
 
   @supervisor BitPal.Backend.Flowee.TaskSupervisor

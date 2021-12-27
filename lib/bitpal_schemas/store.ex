@@ -1,9 +1,9 @@
 defmodule BitPalSchemas.Store do
   use TypedEctoSchema
   alias BitPalSchemas.AccessToken
+  alias BitPalSchemas.CurrencySettings
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.User
-  alias BitPalSchemas.CurrencySettings
 
   @type id :: integer
 
