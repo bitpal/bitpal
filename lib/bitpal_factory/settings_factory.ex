@@ -1,5 +1,6 @@
 defmodule BitPalFactory.SettingsFactory do
   import BitPalFactory.FactoryHelpers
+  alias BitPal.Currencies
   alias BitPalFactory.CurrencyFactory
   alias BitPalFactory.StoreFactory
   alias BitPalSchemas.AddressKey
@@ -21,7 +22,22 @@ defmodule BitPalFactory.SettingsFactory do
   end
 
   @spec unique_address_key_id :: String.t()
-  def unique_address_key_id, do: sequence("testkey")
+  def unique_address_key_id do
+    sequence("testkey")
+  end
+
+  def unique_address_key_id(currency_id) do
+    cond do
+      Currencies.is_test_currency?(currency_id) ->
+        sequence("testkey")
+
+      Currencies.has_xpub?(currency_id) ->
+        sequence("xpub:test")
+
+      currency_id == :XMR ->
+        sequence("xmr:test")
+    end
+  end
 
   @spec create_address_key(Invoice.t() | map | keyword) :: AddressKey.t()
   def create_address_key(attrs \\ %{})
@@ -35,7 +51,7 @@ defmodule BitPalFactory.SettingsFactory do
 
     store_id = StoreFactory.get_or_create_store_id(attrs)
     currency_id = CurrencyFactory.get_or_create_currency_id(attrs)
-    data = attrs[:data] || unique_address_key_id()
+    data = attrs[:data] || unique_address_key_id(currency_id)
 
     {:ok, address_key} = StoreSettings.set_address_key(store_id, currency_id, data)
     address_key
@@ -53,7 +69,7 @@ defmodule BitPalFactory.SettingsFactory do
         address_key
 
       _ ->
-        data = attrs[:data] || unique_address_key_id()
+        data = attrs[:data] || unique_address_key_id(currency_id)
         {:ok, address_key} = StoreSettings.set_address_key(store_id, currency_id, data)
         address_key
     end
