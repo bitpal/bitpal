@@ -16,10 +16,12 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
 
   describe "display" do
     test "show tokens", %{conn: conn, store: store} do
+      now = System.system_time(:second)
+
       store =
         store
-        |> with_token()
-        |> with_token()
+        |> with_token(signed_at: now - 1_000)
+        |> with_token(signed_at: now)
 
       {:ok, _view, html} = live(conn, Routes.store_settings_path(conn, :show, store.slug))
 

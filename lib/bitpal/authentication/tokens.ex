@@ -40,7 +40,9 @@ defmodule BitPal.Authentication.Tokens do
   @spec create_token(Store.t(), map) :: {:ok, AccessToken.t()} | {:error, Changeset.t()}
   def create_token(store = %Store{}, params) do
     store
-    |> Ecto.build_assoc(:access_tokens, data: params[:data] || create_token_data(store))
+    |> Ecto.build_assoc(:access_tokens,
+      data: params[:data] || create_token_data(store, signed_at: params[:signed_at])
+    )
     |> cast(params, [:label])
     |> validate_required(:label)
     |> validate_length(:label, min: 1)
@@ -66,7 +68,7 @@ defmodule BitPal.Authentication.Tokens do
     Repo.delete!(token)
   end
 
-  defp create_token_data(store) do
-    Phoenix.Token.sign(@secret_key_base, @salt, store.id)
+  defp create_token_data(store, opts) do
+    Phoenix.Token.sign(@secret_key_base, @salt, store.id, opts)
   end
 end
