@@ -5,6 +5,8 @@ defmodule BitPal.Application do
 
   use Application
 
+  @dialyzer {:nowarn_function, factory: 0}
+
   @init_factory Application.compile_env(:bitpal, [BitPalFactory, :init], false)
 
   @impl true
