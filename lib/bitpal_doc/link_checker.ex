@@ -3,6 +3,8 @@ defmodule BitPalDoc.LinkChecker do
   Check if links are valid.
   """
 
+  @dialyzer {:nowarn_function, has_entry?: 1}
+
   # It exists both here and in BitPalDoc.Entries because we do link transformation
   # in compile time, and @entries doesn't exist yet as the module hasn't finished compiling yet.
   # This is an ugly workaround.

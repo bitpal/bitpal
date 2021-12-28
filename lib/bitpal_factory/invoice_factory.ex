@@ -14,6 +14,7 @@ defmodule BitPalFactory.InvoiceFactory do
   alias BitPalFactory.CurrencyFactory
   alias BitPalFactory.SettingsFactory
   alias BitPalFactory.StoreFactory
+  alias BitPalSchemas.Address
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.Store
 

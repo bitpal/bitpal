@@ -2,6 +2,7 @@ defmodule BitPal.Stores do
   import Ecto.Changeset
   import Ecto.Query, only: [from: 2]
   alias BitPal.Repo
+  alias BitPalSchemas.AccessToken
   alias BitPalSchemas.Address
   alias BitPalSchemas.AddressKey
   alias BitPalSchemas.CurrencySettings
@@ -9,6 +10,7 @@ defmodule BitPal.Stores do
   alias BitPalSchemas.Store
   alias BitPalSchemas.TxOutput
   alias BitPalSchemas.User
+  alias Ecto.Changeset
 
   @spec fetch(non_neg_integer) :: {:ok, Store.t()} | :error
   def fetch(id) do
@@ -104,7 +106,7 @@ defmodule BitPal.Stores do
     |> Repo.all()
   end
 
-  @spec find_token(Store.t(), AccessToken.id()) :: {:ok, AccessToken.id()} | {:error, :not_found}
+  @spec find_token(Store.t(), AccessToken.id()) :: {:ok, AccessToken.t()} | {:error, :not_found}
   def find_token(store, token_id) when is_integer(token_id) do
     case Enum.find(store.access_tokens, fn token -> token.id == token_id end) do
       nil -> {:error, :not_found}

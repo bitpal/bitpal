@@ -3,7 +3,9 @@ defmodule BitPalFactory.AuthFactory do
   alias BitPal.Authentication.Tokens
   alias BitPalFactory.AccountFactory
   alias BitPalFactory.StoreFactory
+  alias BitPalSchemas.AccessToken
   alias BitPalSchemas.Store
+  alias BitPalSchemas.User
 
   def valid_token_attributes(attrs \\ %{}) do
     Enum.into(attrs, %{
@@ -11,7 +13,7 @@ defmodule BitPalFactory.AuthFactory do
     })
   end
 
-  @spec create_token(Store.t(), map) :: Token.t()
+  @spec create_token(Store.t(), map) :: AccessToken.t()
   def create_token(store = %Store{}, attrs \\ %{}) do
     {:ok, token} = Tokens.create_token(store, valid_token_attributes(attrs))
     token

@@ -2,7 +2,10 @@ defmodule BitPalFactory.SettingsFactory do
   import BitPalFactory.FactoryHelpers
   alias BitPalFactory.CurrencyFactory
   alias BitPalFactory.StoreFactory
+  alias BitPalSchemas.AddressKey
+  alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
+  alias BitPalSchemas.Store
   alias BitPalSettings.StoreSettings
 
   @spec store_settings_update_params(keyword | map) :: map

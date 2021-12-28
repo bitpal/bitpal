@@ -1,4 +1,7 @@
 defmodule BitPalFactory.AccountFactory do
+  alias BitPal.Accounts
+  alias BitPalSchemas.User
+
   def unique_user_email, do: Faker.Internet.email()
   def valid_user_password, do: Faker.String.base64(Faker.random_between(12, 20))
 
@@ -15,7 +18,7 @@ defmodule BitPalFactory.AccountFactory do
     {:ok, user} =
       attrs
       |> valid_user_attributes()
-      |> BitPal.Accounts.register_user()
+      |> Accounts.register_user()
 
     user
   end

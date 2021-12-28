@@ -8,6 +8,7 @@ defmodule BitPalSettings.StoreSettings do
   alias BitPalSchemas.Currency
   alias BitPalSchemas.CurrencySettings
   alias BitPalSchemas.Store
+  alias Ecto.Changeset
 
   # Default vaLues can be overridden in config
   @default_required_confirmations Application.compile_env!(:bitpal, :required_confirmations)

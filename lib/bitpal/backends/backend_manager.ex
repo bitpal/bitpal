@@ -6,8 +6,8 @@ defmodule BitPal.BackendManager do
   alias BitPalSchemas.Invoice
 
   @type server_name :: atom | {:via, term, term} | pid
-  @type backend_spec() :: Supervisor.child_spec()
-  @type backend_name() :: atom
+  @type backend_spec :: Supervisor.child_spec() | {module, term} | module
+  @type backend_name :: atom
 
   # Startup
 
@@ -98,7 +98,7 @@ defmodule BitPal.BackendManager do
     if backends = Keyword.get(changed, :backends), do: update_backends(name, backends)
   end
 
-  @spec update_backends(server_name, backend_spec()) :: :ok
+  @spec update_backends(server_name, backend_spec) :: :ok
   defp update_backends(name, backends) do
     to_keep =
       backends

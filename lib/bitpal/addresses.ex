@@ -5,10 +5,12 @@ defmodule BitPal.Addresses do
   alias BitPal.Repo
   alias BitPal.StoreEvents
   alias BitPalSchemas.Address
+  alias BitPalSchemas.AddressKey
   alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.TxOutput
   alias BitPalSettings.StoreSettings
+  alias Ecto.Changeset
 
   @type address_index :: non_neg_integer
   @type address_generator_args :: %{

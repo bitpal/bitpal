@@ -4,6 +4,7 @@ defmodule BitPal.Currencies do
   alias BitPalSchemas.Address
   alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
+  alias BitPalSchemas.Store
   alias Ecto.Changeset
   require Logger
 

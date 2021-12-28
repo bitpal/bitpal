@@ -1,5 +1,6 @@
 defmodule BitPal.Backend do
   alias BitPal.ProcessRegistry
+  alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
 
   @type backend_ref() :: {pid(), module()}

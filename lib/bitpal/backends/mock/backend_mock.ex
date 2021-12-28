@@ -10,6 +10,7 @@ defmodule BitPal.BackendMock do
   alias BitPal.Invoices
   alias BitPal.ProcessRegistry
   alias BitPal.Transactions
+  alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.TxOutput
   alias Ecto.Adapters.SQL.Sandbox

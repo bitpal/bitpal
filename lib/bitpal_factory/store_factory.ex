@@ -11,6 +11,7 @@ defmodule BitPalFactory.StoreFactory do
   alias BitPalFactory.CurrencyFactory
   alias BitPalFactory.InvoiceFactory
   alias BitPalFactory.TransactionFactory
+  alias BitPalSchemas.Store
   alias BitPalSchemas.User
 
   def unique_store_label do
@@ -48,7 +49,7 @@ defmodule BitPalFactory.StoreFactory do
     store
   end
 
-  @spec get_or_create_store(map) :: Store.id()
+  @spec get_or_create_store(map) :: Store.t()
   def get_or_create_store(%{store_id: store_id}), do: Stores.fetch!(store_id)
   def get_or_create_store(%{store: store}), do: store
   def get_or_create_store(attrs), do: create_store(attrs)
