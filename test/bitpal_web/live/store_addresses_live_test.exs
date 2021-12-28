@@ -55,33 +55,21 @@ defmodule BitPalWeb.StoreAddressesLiveTest do
       assert render_eventually(view, invoice.address_id)
     end
 
-    test "update invoice status", %{conn: conn, store: store, currency_id: currency_id} do
+    test "add tx", %{conn: conn, store: store, currency_id: currency_id} do
       invoice =
         create_invoice(
           store_id: store.id,
           required_confirmations: 3,
           currency_id: currency_id,
-          status: :draft
+          status: :draft,
+          address: :auto
         )
+        |> finalize_and_track()
 
       {:ok, view, _html} = live(conn, Routes.store_addresses_path(conn, :show, store.slug))
 
-      invoice =
-        invoice
-        |> with_address()
-        |> finalize_and_track()
-
-      assert render_eventually(view, "open")
-      assert render_eventually(view, invoice.address_id)
-
-      BackendMock.tx_seen(invoice)
-      render_eventually(view, "processing")
-
-      BackendMock.confirmed_in_new_block(invoice)
-      render_eventually(view, "processing")
-
-      BackendMock.issue_blocks(currency_id, 2)
-      render_eventually(view, "paid")
+      txid = BackendMock.tx_seen(invoice)
+      render_eventually(view, txid)
     end
   end
 

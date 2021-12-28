@@ -7,6 +7,7 @@ defmodule BitPal.Addresses do
   alias BitPalSchemas.Address
   alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
+  alias BitPalSchemas.TxOutput
   alias BitPalSettings.StoreSettings
 
   @type address_index :: non_neg_integer
@@ -23,6 +24,17 @@ defmodule BitPal.Addresses do
   def get(address_id) do
     from(a in Address, where: a.id == ^address_id)
     |> Repo.one()
+  end
+
+  @spec get_by_txid(TxOutput.txid()) :: [Address.t()]
+  def get_by_txid(txid) do
+    from(a in Address,
+      left_join: t in TxOutput,
+      on: t.address_id == a.id,
+      where: t.txid == ^txid,
+      select: a
+    )
+    |> Repo.all()
   end
 
   @spec exists?(String.t()) :: boolean

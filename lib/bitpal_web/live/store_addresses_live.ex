@@ -1,11 +1,10 @@
 defmodule BitPalWeb.StoreAddressesLive do
   use BitPalWeb, :live_view
-  alias BitPal.InvoiceEvents
-  alias BitPal.InvoiceManager
+  alias BitPal.Addresses
+  alias BitPal.AddressEvents
   alias BitPal.Repo
   alias BitPal.StoreEvents
   alias BitPal.Stores
-  alias BitPalSchemas.Invoice
   require Logger
 
   on_mount(BitPalWeb.UserLiveAuth)
@@ -13,17 +12,26 @@ defmodule BitPalWeb.StoreAddressesLive do
 
   @impl true
   def mount(%{"slug" => _slug}, _session, socket) do
-    if connected?(socket) do
-      store = socket.assigns.store |> Repo.preload(:invoices)
+    store = socket.assigns.store
 
-      for invoice <- store.invoices do
-        InvoiceEvents.subscribe(invoice)
+    addresses =
+      Stores.all_addresses(store.id)
+      |> Repo.preload(tx_outputs: [address: :invoice])
+
+    if connected?(socket) do
+      for address <- addresses do
+        AddressEvents.subscribe(address.id)
       end
 
       StoreEvents.subscribe(store.id)
     end
 
-    {:ok, fetch_addresses(socket)}
+    addresses =
+      Stores.all_addresses(socket.assigns.store)
+      |> Repo.preload(:tx_outputs)
+      |> Enum.reduce(%{}, &add_address/2)
+
+    {:ok, assign(socket, addresses: addresses)}
   end
 
   @impl true
@@ -32,47 +40,36 @@ defmodule BitPalWeb.StoreAddressesLive do
   end
 
   @impl true
-  def handle_info({{:store, :invoice_created}, %{invoice_id: invoice_id}}, socket) do
-    {:ok, invoice} = InvoiceManager.fetch_or_load_invoice(invoice_id)
-
-    InvoiceEvents.subscribe(invoice_id)
-
-    if invoice.address_id do
-      {:noreply, update_address(invoice.address, socket)}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_info({{:store, :address_created}, _}, socket) do
+  def handle_info({{:store, :invoice_created}, _}, socket) do
     {:noreply, socket}
   end
 
   @impl true
-  def handle_info({{:invoice, _}, args}, socket) do
-    invoice =
-      get_invoice(args)
-      |> Repo.preload(:address)
+  def handle_info({{:store, :address_created}, %{address_id: address_id}}, socket) do
+    case Addresses.get(address_id) do
+      nil ->
+        {:noreply, socket}
 
-    {:noreply, update_address(invoice.address, socket)}
-  end
-
-  defp fetch_addresses(socket) do
-    if socket.assigns[:addresses] do
-      socket
-    else
-      addresses =
-        Stores.all_addresses(socket.assigns.store)
-        |> Repo.preload(:tx_outputs)
-        |> Enum.reduce(%{}, &add_address/2)
-
-      assign(socket, addresses: addresses)
+      address ->
+        AddressEvents.subscribe(address_id)
+        {:noreply, update_address(address, socket)}
     end
   end
 
+  @impl true
+  def handle_info({{:tx, _}, %{id: txid}}, socket) do
+    socket =
+      Addresses.get_by_txid(txid)
+      |> Stream.map(&Repo.preload(&1, [:address_key, :tx_outputs]))
+      |> Enum.reduce(socket, fn address, socket ->
+        update_address(address, socket)
+      end)
+
+    {:noreply, socket}
+  end
+
   defp add_address(address, addresses) do
-    address = Repo.preload(address, [:invoice, :address_key])
+    address = Repo.preload(address, [:invoice, :address_key, :tx_outputs])
     key = address.address_key.data
 
     Map.put(
@@ -87,15 +84,6 @@ defmodule BitPalWeb.StoreAddressesLive do
 
   defp update_address(address, socket) do
     assign(socket, addresses: add_address(address, socket.assigns.addresses))
-  end
-
-  defp get_invoice(invoice = %Invoice{}) do
-    invoice
-  end
-
-  defp get_invoice(%{id: id}) do
-    {:ok, invoice} = InvoiceManager.fetch_or_load_invoice(id)
-    invoice
   end
 
   @impl true

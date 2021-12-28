@@ -36,13 +36,6 @@ defmodule BitPalWeb.StoreTransactionsLive do
 
   @impl true
   def render(assigns) do
-    # Txid
-    # Amount
-    # Address id(s)
-    # Currency
-    # Invoice link
-    # Confirmed height
-    # Double spent?
     render(BitPalWeb.StoreView, "transactions.html", assigns)
   end
 
