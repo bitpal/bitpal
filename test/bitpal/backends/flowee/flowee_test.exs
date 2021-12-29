@@ -358,10 +358,7 @@ defmodule BitPal.Backend.FloweeTest do
 
     # Note: The addresses may be in any order, so we check for both of them.
     assert eventually(fn ->
-             last = MockTCPClient.last_sent(@client)
-
-             last == FloweeFixtures.block_info_query_690933_a() ||
-               last == FloweeFixtures.block_info_query_690933_b()
+             MockTCPClient.last_sent(@client) in FloweeFixtures.block_info_query_690933_alts()
            end)
 
     # At this point, Flowee should not report being ready.
