@@ -1,12 +1,14 @@
 defmodule BitPal.Backend.FloweeTest do
-  use BitPal.DataCase
+  use BitPal.DataCase, async: false
   import Mox
   import BitPal.MockTCPClient
   alias BitPal.Backend.Flowee
   alias BitPal.Backend.FloweeFixtures
   alias BitPal.Blocks
   alias BitPal.HandlerSubscriberCollector
+  alias BitPal.IntegrationCase
   alias BitPal.MockTCPClient
+  alias Ecto.Adapters.SQL.Sandbox
 
   @currency :BCH
   @xpub Application.compile_env!(:bitpal, [:BCH, :xpub])
@@ -27,17 +29,22 @@ defmodule BitPal.Backend.FloweeTest do
 
     manager_name = unique_server_name()
 
-    start_supervised!(
-      {BitPal.BackendManager,
-       backends: [
-         {BitPal.Backend.Flowee,
-          tcp_client: @client, ping_timeout: tags[:ping_timeout] || :timer.minutes(1)}
-       ],
-       name: manager_name}
-    )
+    backends = [
+      {BitPal.Backend.Flowee,
+       tcp_client: @client, ping_timeout: tags[:ping_timeout] || :timer.minutes(1)}
+    ]
+
+    start_supervised!({BitPal.BackendManager, backends: backends, name: manager_name})
+
+    test_pid = self()
 
     on_exit(fn ->
-      BitPal.IntegrationCase.remove_invoice_handlers([@currency])
+      if tags[:async] do
+        Sandbox.allow(Repo, test_pid, self())
+      end
+
+      IntegrationCase.remove_invoice_handlers([@currency])
+      # We don't need to remove backends as we start_supervised! will shut it down for us.
     end)
 
     Map.merge(tags, %{

@@ -26,8 +26,7 @@ defmodule BitPal.Backend do
     try do
       backend.supported_currencies(pid)
     catch
-      :exit, _reason ->
-        []
+      :exit, _reason -> []
     end
   end
 

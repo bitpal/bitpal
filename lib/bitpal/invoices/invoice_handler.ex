@@ -215,8 +215,9 @@ defmodule BitPal.InvoiceHandler do
   end
 
   @impl true
-  def handle_info({{:tx, :reversed}, _tx}, _state) do
-    # Need to handle reversals
+  def handle_info({{:tx, :reversed}, _tx}, state) do
+    # NOTE Need to handle reversals
+    {:noreply, state}
   end
 
   @impl true

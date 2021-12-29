@@ -9,8 +9,8 @@ defmodule BitPal.IntegrationCase do
   alias BitPal.Backend
   alias BitPal.BackendManager
   alias BitPal.BackendMock
-  alias BitPal.Currencies
   alias BitPal.InvoiceManager
+  alias BitPal.Repo
   alias Ecto.Adapters.SQL.Sandbox
 
   using do
@@ -43,7 +43,7 @@ defmodule BitPal.IntegrationCase do
   end
 
   def setup_integration(tags \\ []) do
-    repo_pid = Sandbox.start_owner!(BitPal.Repo, shared: not tags[:async])
+    repo_pid = Sandbox.start_owner!(Repo, shared: not tags[:async])
 
     res = setup_backends(tags[:backends] || [BackendMock])
 
@@ -51,7 +51,7 @@ defmodule BitPal.IntegrationCase do
 
     on_exit(fn ->
       if tags[:async] do
-        Sandbox.allow(BitPal.Repo, test_pid, self())
+        Sandbox.allow(Repo, test_pid, self())
       end
 
       # Shut down in order to prevent race conditions
@@ -88,13 +88,18 @@ defmodule BitPal.IntegrationCase do
   end
 
   def remove_invoice_handlers(currencies) do
-    for invoice_id <- Currencies.invoice_ids(currencies) do
-      case InvoiceManager.fetch_handler(invoice_id) do
-        {:ok, handler} ->
-          InvoiceManager.terminate_handler(handler)
+    currencies_to_remove = MapSet.new(currencies)
 
-        _ ->
-          nil
+    # Alternative way, to avoid db accesses.
+    for invoice <- InvoiceManager.tracked_invoices() do
+      if invoice.currency_id in currencies_to_remove do
+        case InvoiceManager.fetch_handler(invoice.id) do
+          {:ok, handler} ->
+            InvoiceManager.terminate_handler(handler)
+
+          _ ->
+            nil
+        end
       end
     end
   end

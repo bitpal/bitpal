@@ -56,7 +56,6 @@ end
 defmodule BitPalFactory.CurrencyCounter do
   use GenServer
   alias BitPal.Currencies
-  # alias BitPalFactory.CurrencyFactory
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -64,7 +63,6 @@ defmodule BitPalFactory.CurrencyCounter do
 
   def next_currency_id do
     id = GenServer.call(__MODULE__, {:next_currency_id, :crypto})
-    # CurrencyFactory.create_currency(id)
     Currencies.ensure_exists!(id)
     id
   end

@@ -114,9 +114,11 @@ defmodule BitPal.InvoiceManager do
   @spec tracked_invoices() :: [Invoice.t()]
   def tracked_invoices(name \\ __MODULE__) do
     DynamicSupervisor.which_children(name)
-    |> Enum.map(fn {_, pid, _, _} ->
-      pid
-      |> InvoiceHandler.fetch_invoice!()
+    |> Enum.flat_map(fn {_, pid, _, _} ->
+      case InvoiceHandler.fetch_invoice(pid) do
+        {:ok, invoice} -> [invoice]
+        _ -> []
+      end
     end)
   end
 
