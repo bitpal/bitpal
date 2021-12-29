@@ -1,13 +1,13 @@
 defmodule BitPalApi.InvoiceControllerTest do
-  use BitPalApi.ConnCase
+  use BitPalApi.ConnCase, async: true
 
   describe "create" do
-    test "basic", %{conn: conn} do
+    test "basic", %{conn: conn, currency_id: currency_id} do
       conn =
         post(conn, "/v1/invoices", %{
           amount: "1.2",
           exchange_rate: "2.0",
-          currency: "BCH",
+          currency_id: currency_id,
           fiat_currency: "USD",
           email: "test@bitpal.dev",
           description: "My awesome invoice",
@@ -17,11 +17,13 @@ defmodule BitPalApi.InvoiceControllerTest do
           }
         })
 
+      currency = Atom.to_string(currency_id)
+
       assert %{
                "id" => id,
                "address" => nil,
-               "amount" => "1.20000000",
-               "currency" => "BCH",
+               "amount" => "1.20" <> _,
+               "currency" => ^currency,
                "fiat_amount" => "2.40",
                "fiat_currency" => "USD",
                "required_confirmations" => 0,
@@ -37,22 +39,23 @@ defmodule BitPalApi.InvoiceControllerTest do
       assert id != nil
     end
 
-    @tag backends: true
-    test "create and finalize", %{conn: conn} do
+    test "create and finalize", %{conn: conn, currency_id: currency_id} do
       conn =
         post(conn, "/v1/invoices", %{
           "amount" => "1.2",
           "exchange_rate" => "2.0",
-          "currency" => "BCH",
+          "currency_id" => currency_id,
           "fiat_currency" => "USD",
           "finalize" => true
         })
 
+      currency = Atom.to_string(currency_id)
+
       assert %{
                "id" => id,
                "address" => address,
-               "amount" => "1.20000000",
-               "currency" => "BCH",
+               "amount" => "1.20" <> _,
+               "currency" => ^currency,
                "fiat_amount" => "2.40",
                "fiat_currency" => "USD",
                "required_confirmations" => 0,
@@ -77,7 +80,7 @@ defmodule BitPalApi.InvoiceControllerTest do
                "errors" => %{
                  "fiat_amount" => "must provide amount in either crypto or fiat",
                  "amount" => "must provide amount in either crypto or fiat",
-                 "currency" => "cannot be empty"
+                 "currency_id" => "cannot be empty"
                }
              } = Jason.decode!(response)
     end
@@ -86,26 +89,30 @@ defmodule BitPalApi.InvoiceControllerTest do
   describe "draft" do
     setup [:setup_draft]
 
-    @tag backends: true
-    test "finalize", %{conn: conn, invoice_id: id} do
-      conn = post(conn, "/v1/invoices/#{id}/finalize")
+    test "finalize", %{conn: conn, invoice: invoice} do
+      conn = post(conn, "/v1/invoices/#{invoice.id}/finalize")
+
+      id = invoice.id
+      currency = Atom.to_string(invoice.currency_id)
+      fiat_currency = Atom.to_string(invoice.fiat_amount.currency)
 
       assert %{
                "id" => ^id,
                "address" => address,
-               "amount" => "1.20000000",
-               "currency" => "BCH",
+               "amount" => "1.20" <> _,
+               "currency" => ^currency,
                "fiat_amount" => "2.40",
-               "fiat_currency" => "USD",
+               "fiat_currency" => ^fiat_currency,
                "status" => "open"
              } = json_response(conn, 200)
 
       assert address != nil
     end
 
-    test "get invoice", %{conn: conn, invoice_id: id} do
+    test "get invoice", %{conn: conn, invoice_id: id, currency_id: currency_id} do
       conn = get(conn, "/v1/invoices/#{id}")
-      assert %{"id" => ^id, "currency" => "BCH"} = json_response(conn, 200)
+      currency = Atom.to_string(currency_id)
+      assert %{"id" => ^id, "currency" => ^currency} = json_response(conn, 200)
     end
 
     test "delete", %{conn: conn, invoice_id: id} do
@@ -139,73 +146,87 @@ defmodule BitPalApi.InvoiceControllerTest do
              } = Jason.decode!(response)
     end
 
-    test "update amount", %{conn: conn, invoice_id: id} do
+    test "update amount", %{conn: conn, invoice: invoice} do
       conn =
-        post(conn, "/v1/invoices/#{id}", %{
+        post(conn, "/v1/invoices/#{invoice.id}", %{
           amount: "7.0"
         })
 
+      currency = Atom.to_string(invoice.currency_id)
+      fiat_currency = Atom.to_string(invoice.fiat_amount.currency)
+
       assert %{
-               "amount" => "7.00000000",
-               "currency" => "BCH",
+               "amount" => "7.0" <> _,
+               "currency" => ^currency,
                "fiat_amount" => "14.00",
-               "fiat_currency" => "USD"
+               "fiat_currency" => ^fiat_currency
              } = json_response(conn, 200)
     end
 
-    test "update fiat amount", %{conn: conn, invoice_id: id} do
+    test "update fiat amount", %{conn: conn, invoice: invoice} do
       conn =
-        post(conn, "/v1/invoices/#{id}", %{
+        post(conn, "/v1/invoices/#{invoice.id}", %{
           fiat_amount: "8"
         })
 
+      currency = Atom.to_string(invoice.currency_id)
+      fiat_currency = Atom.to_string(invoice.fiat_amount.currency)
+
       assert %{
-               "amount" => "4.00000000",
-               "currency" => "BCH",
+               "amount" => "4.0" <> _,
+               "currency" => ^currency,
                "fiat_amount" => "8.00",
-               "fiat_currency" => "USD"
+               "fiat_currency" => ^fiat_currency
              } = json_response(conn, 200)
     end
 
-    test "update exchange rate", %{conn: conn, invoice_id: id} do
+    test "update exchange rate", %{conn: conn, invoice: invoice} do
       conn =
-        post(conn, "/v1/invoices/#{id}", %{
+        post(conn, "/v1/invoices/#{invoice.id}", %{
           exchange_rate: "3.0"
         })
 
+      currency = Atom.to_string(invoice.currency_id)
+      fiat_currency = Atom.to_string(invoice.fiat_amount.currency)
+
       assert %{
-               "amount" => "1.20000000",
-               "currency" => "BCH",
+               "amount" => "1.20" <> _,
+               "currency" => ^currency,
                "fiat_amount" => "3.60",
-               "fiat_currency" => "USD"
+               "fiat_currency" => ^fiat_currency
              } = json_response(conn, 200)
     end
 
-    test "update amount and exchange rate", %{conn: conn, invoice_id: id} do
+    test "update amount and exchange rate", %{conn: conn, invoice: invoice} do
       conn =
-        post(conn, "/v1/invoices/#{id}", %{
+        post(conn, "/v1/invoices/#{invoice.id}", %{
           amount: "7.0",
           exchange_rate: "3.0"
         })
 
+      currency = Atom.to_string(invoice.currency_id)
+      fiat_currency = Atom.to_string(invoice.fiat_amount.currency)
+
       assert %{
-               "amount" => "7.00000000",
-               "currency" => "BCH",
+               "amount" => "7.0" <> _,
+               "currency" => ^currency,
                "fiat_amount" => "21.00",
-               "fiat_currency" => "USD"
+               "fiat_currency" => ^fiat_currency
              } = json_response(conn, 200)
     end
 
-    test "change currency", %{conn: conn, invoice_id: id} do
+    test "change currency", %{conn: conn, invoice_id: id, currency_id: currency_id} do
+      currency = Atom.to_string(currency_id)
+
       conn =
         post(conn, "/v1/invoices/#{id}", %{
           amount: "7.0",
-          currency: "XMR"
+          currency: currency
         })
 
       assert %{
-               "amount" => "7.000000000000",
-               "currency" => "XMR"
+               "amount" => "7.0" <> _,
+               "currency" => ^currency
              } = json_response(conn, 200)
     end
 
@@ -226,11 +247,13 @@ defmodule BitPalApi.InvoiceControllerTest do
              } = Jason.decode!(response)
     end
 
-    test "update many", %{conn: conn, invoice_id: id} do
+    test "update many", %{conn: conn, invoice_id: id, currency_id: currency_id} do
+      currency = Atom.to_string(currency_id)
+
       conn =
         post(conn, "/v1/invoices/#{id}", %{
           amount: "7.0",
-          currency: "XMR",
+          currency: currency,
           exchange_rate: "3.0",
           fiat_currency: "USD",
           email: "test@bitpal.dev",
@@ -242,8 +265,8 @@ defmodule BitPalApi.InvoiceControllerTest do
         })
 
       assert %{
-               "amount" => "7.000000000000",
-               "currency" => "XMR",
+               "amount" => "7.0" <> _,
+               "currency" => ^currency,
                "fiat_amount" => "21.00",
                "fiat_currency" => "USD",
                "email" => "test@bitpal.dev",
@@ -370,14 +393,20 @@ defmodule BitPalApi.InvoiceControllerTest do
   end
 
   defp setup_draft(context) do
-    create_invoice(context, [])
+    add_invoice(context, amount: "1.2", exchange_rate: "2.0", status: :draft)
   end
 
   defp setup_open(context) do
-    create_invoice(context, address: :auto, status: :open)
+    add_invoice(context,
+      address_id: :auto,
+      status: :open
+    )
   end
 
   defp setup_uncollectable(context) do
-    create_invoice(context, address: :auto, status: :uncollectible)
+    add_invoice(context,
+      address_id: :auto,
+      status: :uncollectible
+    )
   end
 end

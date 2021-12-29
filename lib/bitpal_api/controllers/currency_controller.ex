@@ -12,7 +12,7 @@ defmodule BitPalApi.CurrencyController do
     with {:ok, id} <- Currencies.cast(id),
          addresses <- Currencies.addresses(id, current_store),
          invoices <- Currencies.invoices(id, current_store),
-         backend_status <- BackendManager.currency_status(id) do
+         backend_status <- BackendManager.status(id) do
       render(conn, "show.json",
         currency_id: id,
         status: backend_status,

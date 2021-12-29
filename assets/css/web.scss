@@ -1,0 +1,233 @@
+@use "sizes.scss" as *;
+@use "colors.scss" as *;
+
+.title-bar,
+.store-nav-bar,
+.store-wrapper {
+  margin: 0 $spc-32;
+}
+
+.top-nav > nav {
+  display: flex;
+  justify-content: right;
+  margin: $spc-8;
+
+  li:not(:first-child) {
+    margin-left: $spc-4;
+  }
+}
+
+.title-bar > h1 {
+  font-size: $fnt-36;
+}
+
+.store-nav-bar > nav {
+  font-size: $fnt-18;
+  margin: $spc-16 0;
+
+  li:not(:first-child) {
+    margin-left: $spc-16;
+  }
+}
+
+ul {
+  li {
+    display: inline-block;
+  }
+}
+
+.top_nav {
+  width: 100%;
+  display: flex;
+}
+
+.store-wrapper {
+  // display: grid;
+  // grid-template-columns: 1fr 1fr 1fr 1fr;
+
+  // display: flex;
+  border: 1px solid $brown-100;
+  // padding: $spc-16;
+
+  .invoice,
+  .invoice-header,
+  .address,
+  .address-header,
+  .tx,
+  .tx-header {
+    display: flex;
+    padding: $spc-12;
+    align-items: center;
+  }
+
+  .invoice,
+  .invoice-header {
+    .link {
+      width: 80px;
+    }
+    .status {
+      width: 200px;
+    }
+    .date {
+      width: 140px;
+    }
+    .crypto-amount {
+      width: 150px;
+    }
+    .fiat-amount {
+      width: 150px;
+    }
+  }
+  .invoice:not(:first-child),
+  .address:not(:first-child),
+  .tx:not(:first-child) {
+    border-top: 1px solid $brown-100;
+  }
+
+  .invoice-header,
+  .address-header,
+  .tx-header {
+    font-weight: bold;
+  }
+
+  .address,
+  .address-header {
+    .link {
+      width: 80px;
+    }
+    .address-id {
+      width: 400px;
+    }
+    .currency {
+      text-align: center;
+      width: 100px;
+    }
+    .xpub {
+      text-align: center;
+      width: 100px;
+    }
+    .xpub-index {
+      text-align: center;
+      width: 100px;
+    }
+    .txs {
+      width: 150px;
+    }
+  }
+
+  .tx,
+  .tx-header {
+    .link {
+      width: 80px;
+    }
+    .txid {
+      width: 80px;
+    }
+    .amount {
+      width: 150px;
+    }
+    .address-id {
+      width: 400px;
+    }
+    .status {
+      width: 400px;
+    }
+
+    .confirmed,
+    .double-spent,
+    .unconfirmed {
+      padding: 0 $spc-4;
+      border-radius: $spc-4;
+    }
+    .confirmed {
+      background-color: $green-300;
+      box-shadow: 1px 1px $green-200;
+    }
+    .double-spent {
+      background-color: $pink-400;
+      box-shadow: 1px 1px $pink-400;
+    }
+    .unconfirmed {
+      background-color: $aqua-200;
+      box-shadow: 1px 1px $aqua-100;
+    }
+  }
+
+  .detailed-invoice {
+    .txs .header,
+    .txs .tx-details,
+    .pos-data .header,
+    .pos-data .data {
+      padding: $spc-12;
+    }
+
+    .row .descr,
+    .pos-data .header,
+    .txs .header {
+      font-weight: bold;
+    }
+
+    .row {
+      display: flex;
+
+      .descr,
+      .data {
+        padding: $spc-12;
+      }
+
+      .descr {
+        width: 150px;
+      }
+
+      .data {
+      }
+    }
+  }
+
+  .status {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .void,
+  .paid,
+  .processing,
+  .open,
+  .draft,
+  .uncollectible {
+    padding: 0 $spc-4;
+    border-radius: $spc-4;
+  }
+
+  .paid {
+    background-color: $green-300;
+    box-shadow: 1px 1px $green-200;
+  }
+  .processing {
+    background-color: $aqua-200;
+    box-shadow: 1px 1px $aqua-100;
+  }
+  .open {
+    background-color: $brown-300;
+    box-shadow: 1px 1px $brown-200;
+  }
+  .draft {
+    background-color: $warm-grey-200;
+    box-shadow: 1px 1px $warm-grey-100;
+  }
+  .uncollectible {
+    background-color: $pink-400;
+    box-shadow: 1px 1px $pink-400;
+  }
+  .void {
+    background-color: $grey-100;
+    box-shadow: 1px 1px $grey-100;
+  }
+
+  .status-reason {
+    margin-top: $spc-4;
+    margin-left: 2px;
+    font-size: $fnt-14;
+  }
+}

@@ -30,8 +30,8 @@ defmodule BitPal.ExchangeRateSupervisor do
       {Cache,
        name: @cache,
        ttl_check_interval:
-         opts[:ttl_check_interval] || BitPalConfig.exchange_rate_ttl_check_interval(),
-       ttl: opts[:ttl] || BitPalConfig.exchange_rate_ttl()}
+         opts[:ttl_check_interval] || BitPalSettings.exchange_rate_ttl_check_interval(),
+       ttl: opts[:ttl] || BitPalSettings.exchange_rate_ttl()}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
@@ -41,7 +41,7 @@ defmodule BitPal.ExchangeRateSupervisor do
 
   @spec all_supported(keyword) :: %{atom => [Currency.id()]}
   def all_supported(opts \\ []) do
-    backends = opts[:backends] || BitPalConfig.exchange_rate_backends()
+    backends = opts[:backends] || BitPalSettings.exchange_rate_backends()
 
     Enum.reduce(backends, %{}, fn backend, acc ->
       Map.merge(acc, backend.supported(), fn _key, a, b ->

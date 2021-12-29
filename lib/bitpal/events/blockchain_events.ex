@@ -4,9 +4,9 @@ defmodule BitPal.BlockchainEvents do
 
   @type height :: non_neg_integer()
   @type msg ::
-          {:set_block_height, Currency.id(), height}
-          | {:new_block, Currency.id(), height}
-          | {:block_reversed, Currency.id(), height}
+          {{:block, :set_height}, %{currency_id: Currency.id(), height: height}}
+          | {{:block, :new}, %{currency_id: Currency.id(), height: height}}
+          | {{:block, :reversed}, %{currency_id: Currency.id(), height: height}}
 
   @spec subscribe(Currency.id()) :: :ok | {:error, term}
   def subscribe(id) do

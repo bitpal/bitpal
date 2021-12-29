@@ -80,22 +80,24 @@ defmodule BitPal.Transactions do
 
   @spec seen(TxOutput.txid(), outputs) :: :ok | :error
   def seen(txid, outputs) do
-    insert(txid, outputs, {:tx_seen, txid})
+    insert(txid, outputs, {{:tx, :seen}, %{id: txid}})
   end
 
   @spec confirmed(TxOutput.txid(), outputs, height) :: :ok | :error
   def confirmed(txid, outputs, height) do
-    update(txid, outputs, {:tx_confirmed, txid, height}, confirmed_height: height)
+    update(txid, outputs, {{:tx, :confirmed}, %{id: txid, height: height}},
+      confirmed_height: height
+    )
   end
 
   @spec double_spent(TxOutput.txid(), outputs) :: :ok | :error
   def double_spent(txid, outputs) do
-    update(txid, outputs, {:tx_double_spent, txid}, double_spent: true)
+    update(txid, outputs, {{:tx, :double_spent}, %{id: txid}}, double_spent: true)
   end
 
   @spec reversed(TxOutput.txid(), outputs) :: :ok | :error
   def reversed(txid, outputs) do
-    update(txid, outputs, {:tx_reversed, txid}, confirmed_height: nil)
+    update(txid, outputs, {{:tx, :reversed}, %{id: txid}}, confirmed_height: nil)
   end
 
   @spec update(TxOutput.txid(), outputs, AddressEvents.msg(), keyword) :: :ok | :error

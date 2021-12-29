@@ -11,6 +11,7 @@ defmodule BitPal.Backend.Flowee do
   alias BitPal.Blocks
   alias BitPal.Cache
   alias BitPal.Invoices
+  alias BitPal.ProcessRegistry
   alias BitPal.Transactions
   require Logger
 
@@ -63,6 +64,12 @@ defmodule BitPal.Backend.Flowee do
       |> Map.put_new(:tcp_client, BitPal.TCPClient)
       |> Map.put_new(:backend_ready, false)
 
+    Registry.register(
+      ProcessRegistry,
+      Backend.via_tuple(@bch),
+      __MODULE__
+    )
+
     state = start_flowee(state)
 
     {:ok, state}
@@ -70,12 +77,18 @@ defmodule BitPal.Backend.Flowee do
 
   @impl true
   def handle_call({:register, invoice}, _from, state) do
-    {:ok, invoice} =
-      Invoices.ensure_address(invoice, fn address_index ->
-        Cashaddress.derive_address(BitPalConfig.xpub(), address_index)
+    registered =
+      Invoices.ensure_address(invoice, fn %{key: xpub, index: address_index} ->
+        Cashaddress.derive_address(xpub, address_index)
       end)
 
-    {:reply, invoice, watch_address(invoice.address_id, state)}
+    case registered do
+      {:ok, invoice} ->
+        {:reply, {:ok, invoice}, watch_address(invoice.address_id, state)}
+
+      err ->
+        {:reply, err, state}
+    end
   end
 
   @impl true

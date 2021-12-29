@@ -1,122 +1,22 @@
-# 1. Create a store
-# 2. Add access token
+defmodule BitPal.DevSeeds do
+  use BitPalFactory
+  alias BitPal.Currencies
 
-import BitPal.CreationHelpers
-alias BitPal.Authentication.Tokens
-alias BitPal.Currencies
+  def seed do
+    currencies = [:BCH, :XMR]
+    Currencies.ensure_exists!(currencies)
 
-Currencies.register!(:BCH)
-Currencies.register!(:XMR)
+    user = create_user(email: "test@bitpal.dev", password: "test_test_test_test")
 
-# Create a store with an access token
-store = create_store(label: "Seed store")
+    create_store(user: user, label: "Reputable store")
+    |> with_token(
+      data: "SFMyNTY.g2gDYQFuBgDWhevRegFiAAFRgA.fuiV-GbJoBUmKaSS5PW776HyeFh30-L9pgvn7wuQWKk"
+    )
+    |> with_invoices(invoice_count: 100, currencies: currencies, txs: :auto)
 
-token =
-  Tokens.insert_token!(
-    store,
-    "SFMyNTY.g2gDYQFuBgDWhevRegFiAAFRgA.fuiV-GbJoBUmKaSS5PW776HyeFh30-L9pgvn7wuQWKk"
-  )
+    create_store(user: user, label: "Shady store")
+    |> with_invoices(invoice_count: 12, currencies: currencies, txs: :auto)
+  end
+end
 
-# Add some invoices just for testing and introspection purposes
-create_invoice(
-  store_id: store.id,
-  amount: 1,
-  exchange_rate: 438.75,
-  currency: "BCH",
-  fiat_currency: "USD"
-)
-
-create_invoice(
-  store_id: store.id,
-  amount: 2,
-  exchange_rate: 438.75,
-  currency: "BCH",
-  fiat_currency: "USD",
-  address: :auto,
-  status: :open
-)
-
-create_invoice(
-  store_id: store.id,
-  amount: 2,
-  exchange_rate: 438.75,
-  currency: "BCH",
-  fiat_currency: "USD",
-  address: :auto,
-  status: :open
-)
-|> create_invoice_transaction(amount: 1)
-
-create_invoice(
-  store_id: store.id,
-  amount: 3,
-  exchange_rate: 438.75,
-  currency: "BCH",
-  fiat_currency: "USD",
-  address: :auto,
-  status: :paid
-)
-|> create_invoice_transaction()
-
-create_invoice(
-  store_id: store.id,
-  amount: 4,
-  exchange_rate: 438.75,
-  currency: "BCH",
-  fiat_currency: "USD",
-  address: :auto,
-  status: :uncollectible
-)
-
-create_invoice(
-  store_id: store.id,
-  amount: 5,
-  exchange_rate: 438.15,
-  currency: "BCH",
-  fiat_currency: "USD",
-  address: :auto,
-  status: :paid
-)
-|> create_invoice_transaction(amount: 3)
-|> create_invoice_transaction(amount: 2)
-
-create_invoice(
-  store_id: store.id,
-  amount: 6,
-  exchange_rate: 438.15,
-  currency: "BCH",
-  fiat_currency: "USD",
-  address: :auto,
-  status: :paid
-)
-|> create_invoice_transaction(amount: 10)
-
-create_invoice(
-  store_id: store.id,
-  amount: 100,
-  exchange_rate: 438.15,
-  currency: "BCH",
-  fiat_currency: "USD",
-  address: :auto,
-  status: :void
-)
-
-create_invoice(
-  store_id: store.id,
-  amount: 0.1,
-  exchange_rate: 198.52,
-  currency: "XMR",
-  fiat_currency: "USD",
-  address: :auto,
-  status: :paid
-)
-
-create_invoice(
-  store_id: store.id,
-  amount: 0.2,
-  exchange_rate: 168.58,
-  currency: "XMR",
-  fiat_currency: "EUR",
-  address: :auto,
-  status: :paid
-)
+BitPal.DevSeeds.seed()

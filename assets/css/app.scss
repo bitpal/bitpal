@@ -1,2 +1,4 @@
-/* This file is for your main application css. */
-@import "./doc.scss";
+@use "general.scss";
+@use "doc.scss";
+@use "web.scss";
+

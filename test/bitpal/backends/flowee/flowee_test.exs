@@ -1,36 +1,67 @@
 defmodule BitPal.Backend.FloweeTest do
-  use BitPal.IntegrationCase
+  use BitPal.DataCase, async: false
   import Mox
   import BitPal.MockTCPClient
   alias BitPal.Backend.Flowee
   alias BitPal.Backend.FloweeFixtures
   alias BitPal.Blocks
+  alias BitPal.HandlerSubscriberCollector
+  alias BitPal.IntegrationCase
   alias BitPal.MockTCPClient
+  alias Ecto.Adapters.SQL.Sandbox
 
+  @currency :BCH
+  @xpub Application.compile_env!(:bitpal, [:BCH, :xpub])
   @client FloweeMock
 
   setup :set_mox_from_context
 
-  setup tags do
+  setup do
     init_mock(@client)
+    %{store: create_store()}
+  end
 
+  setup tags do
     # Some tests don't want to have the initialization automatically enabled.
     if Map.get(tags, :init_message, true) do
       MockTCPClient.response(@client, FloweeFixtures.blockchain_info())
     end
 
-    start_supervised!(
-      {BitPal.BackendManager,
-       backends: [
-         {BitPal.Backend.Flowee,
-          tcp_client: @client, ping_timeout: tags[:ping_timeout] || :timer.minutes(1)}
-       ]}
-    )
+    manager_name = unique_server_name()
 
-    :ok
+    backends = [
+      {BitPal.Backend.Flowee,
+       tcp_client: @client, ping_timeout: tags[:ping_timeout] || :timer.minutes(1)}
+    ]
+
+    start_supervised!({BitPal.BackendManager, backends: backends, name: manager_name})
+
+    test_pid = self()
+
+    on_exit(fn ->
+      if tags[:async] do
+        Sandbox.allow(Repo, test_pid, self())
+      end
+
+      IntegrationCase.remove_invoice_handlers([@currency])
+      # We don't need to remove backends as we start_supervised! will shut it down for us.
+    end)
+
+    Map.merge(tags, %{
+      manager_name: manager_name
+    })
   end
 
-  @tag backends: [], ping_timeout: 1
+  defp test_invoice(params) do
+    params
+    |> Enum.into(%{
+      address_key: @xpub,
+      currency_id: @currency
+    })
+    |> HandlerSubscriberCollector.create_invoice()
+  end
+
+  @tag ping_timeout: 1
   test "ping/pong" do
     # Pong doesn't do anything, just ensure we parse it
     MockTCPClient.response(@client, FloweeFixtures.pong())
@@ -39,103 +70,111 @@ defmodule BitPal.Backend.FloweeTest do
     assert eventually(fn -> MockTCPClient.last_sent(@client) == FloweeFixtures.ping() end)
   end
 
-  @tag backends: []
   test "new block" do
     assert eventually(fn ->
-             Blocks.fetch_block_height(:BCH) == {:ok, 690_637}
+             Blocks.fetch_block_height(@currency) == {:ok, 690_637}
            end)
 
     MockTCPClient.response(@client, FloweeFixtures.new_block())
 
     assert eventually(fn ->
-             Blocks.fetch_block_height(:BCH) == {:ok, 690_638}
+             Blocks.fetch_block_height(@currency) == {:ok, 690_638}
            end)
   end
 
-  @tag backends: [], double_spend_timeout: 1
-  test "transaction 0-conf acceptance" do
+  test "transaction 0-conf acceptance", %{store: store, manager_name: manager_name} do
     {:ok, _inv, stub, _invoice_handler} =
-      HandlerSubscriberCollector.create_invoice(
+      test_invoice(
+        store: store,
         required_confirmations: 0,
-        amount: 0.000_01
+        amount: 0.000_01,
+        double_spend_timeout: 1,
+        manager_name: manager_name
       )
 
     MockTCPClient.response(@client, FloweeFixtures.tx_seen())
-    HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub)
   end
 
-  @tag backends: []
-  test "transaction confirmation acceptance" do
+  test "transaction confirmation acceptance", %{store: store} do
     {:ok, _inv, stub, _invoice_handler} =
-      HandlerSubscriberCollector.create_invoice(
+      test_invoice(
+        store: store,
         required_confirmations: 1,
         amount: 0.000_01
       )
 
     MockTCPClient.response(@client, FloweeFixtures.tx_1_conf())
     MockTCPClient.response(@client, FloweeFixtures.new_block())
-    HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub)
   end
 
-  @tag backends: [], double_spend_timeout: 1
-  test "single tx 0-conf to multiple monitored addresses" do
+  test "single tx 0-conf to multiple monitored addresses", %{store: store} do
     {:ok, _invoice, stub1, _invoice_handler} =
-      HandlerSubscriberCollector.create_invoice(
+      test_invoice(
+        store: store,
+        double_spend_timeout: 1,
         required_confirmations: 0,
         amount: 0.000_1,
-        address: {"bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa", -1}
+        address_id: "bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa"
       )
 
     {:ok, _invoice, stub2, _invoice_handler} =
-      HandlerSubscriberCollector.create_invoice(
+      test_invoice(
+        store: store,
+        double_spend_timeout: 1,
         required_confirmations: 0,
         amount: 0.000_2,
-        address: {"bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc", -2}
+        address_id: "bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc"
       )
 
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_seen())
-    HandlerSubscriberCollector.await_msg(stub1, :invoice_paid)
-    HandlerSubscriberCollector.await_msg(stub2, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub1, {:invoice, :paid})
+    HandlerSubscriberCollector.await_msg(stub2, {:invoice, :paid})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub2)
   end
 
-  @tag backends: [], double_spend_timeout: 1
-  test "multiple tx 0-conf to multiple monitored addresses" do
+  @tag double_spend_timeout: 1
+  test "multiple tx 0-conf to multiple monitored addresses", %{store: store} do
     {:ok, _invoice, stub1, _invoice_handler} =
-      HandlerSubscriberCollector.create_invoice(
+      test_invoice(
+        store: store,
+        double_spend_timeout: 1,
         required_confirmations: 0,
         amount: 0.000_15,
-        address: {"bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa", -1}
+        address_id: "bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa"
       )
 
     {:ok, _invoice, stub2, _invoice_handler} =
-      HandlerSubscriberCollector.create_invoice(
+      test_invoice(
+        store: store,
+        double_spend_timeout: 1,
         required_confirmations: 0,
         amount: 0.000_2,
-        address: {"bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc", -2}
+        address_id: "bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc"
       )
 
     # Give 10000 to the first one, and 20000 to the second one
@@ -145,92 +184,100 @@ defmodule BitPal.Backend.FloweeTest do
     # at the same time, causing us to miss the `invoice_underpaid` event.
     # This has no importance in the real world, but may screw up the test if
     # we don't have this wait between.
-    HandlerSubscriberCollector.await_msg(stub2, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub2, {:invoice, :paid})
 
     # Give 5000 to the first one.
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_a_seen())
 
-    HandlerSubscriberCollector.await_msg(stub1, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub1, {:invoice, :paid})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_underpaid, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :underpaid}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub2)
   end
 
-  @tag backends: [], double_spend_timeout: 1
-  test "single tx 1-conf to multiple monitored addresses" do
+  @tag double_spend_timeout: 1
+  test "single tx 1-conf to multiple monitored addresses", %{store: store} do
     {:ok, _invoice, stub1, _invoice_handler} =
-      HandlerSubscriberCollector.create_invoice(
+      test_invoice(
+        store: store,
+        double_spend_timeout: 1,
         required_confirmations: 1,
         amount: 0.000_1,
-        address: {"bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa", -1}
+        address_id: "bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa"
       )
 
     {:ok, _invoice, stub2, _invoice_handler} =
-      HandlerSubscriberCollector.create_invoice(
+      test_invoice(
+        store: store,
+        double_spend_timeout: 1,
         required_confirmations: 1,
         amount: 0.000_2,
-        address: {"bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc", -2}
+        address_id: "bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc"
       )
 
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_seen())
 
-    HandlerSubscriberCollector.await_msg(stub1, :invoice_processing)
-    HandlerSubscriberCollector.await_msg(stub2, :invoice_processing)
+    HandlerSubscriberCollector.await_msg(stub1, {:invoice, :processing})
+    HandlerSubscriberCollector.await_msg(stub2, {:invoice, :processing})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _}
            ] = HandlerSubscriberCollector.received(stub2)
 
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_1_conf())
     # Manually set blocks to avoid having to find fixtures for all things
-    Blocks.new_block(:BCH, 690_933)
+    Blocks.new_block(@currency, 690_933)
 
-    HandlerSubscriberCollector.await_msg(stub1, :invoice_paid)
-    HandlerSubscriberCollector.await_msg(stub2, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub1, {:invoice, :paid})
+    HandlerSubscriberCollector.await_msg(stub2, {:invoice, :paid})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub2)
   end
 
-  @tag backends: [], double_spend_timeout: 1
-  test "multiple tx 1-conf to multiple monitored addresses" do
+  @tag double_spend_timeout: 1
+  test "multiple tx 1-conf to multiple monitored addresses", %{store: store} do
     {:ok, _invoice, stub1, _invoice_handler} =
-      HandlerSubscriberCollector.create_invoice(
+      test_invoice(
+        store: store,
+        double_spend_timeout: 1,
         required_confirmations: 1,
         amount: 0.000_15,
-        address: {"bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa", 0}
+        address_id: "bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa"
       )
 
     {:ok, _invoice, stub2, _invoice_handler} =
-      HandlerSubscriberCollector.create_invoice(
+      test_invoice(
+        store: store,
+        double_spend_timeout: 1,
         required_confirmations: 1,
         amount: 0.000_2,
-        address: {"bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc", 1}
+        address_id: "bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc"
       )
 
     # Give 10000 to the first one, and 20000 to the second one
@@ -239,20 +286,20 @@ defmodule BitPal.Backend.FloweeTest do
     # Confirm the first transaction.
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_1_conf())
     # Manually set blocks to avoid having to find fixtures for all things
-    Blocks.new_block(:BCH, 690_933)
+    Blocks.new_block(@currency, 690_933)
 
-    HandlerSubscriberCollector.await_msg(stub1, :invoice_finalized)
-    HandlerSubscriberCollector.await_msg(stub2, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub1, {:invoice, :finalized})
+    HandlerSubscriberCollector.await_msg(stub2, {:invoice, :paid})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_underpaid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :underpaid}, _}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub2)
 
     # Give 5000 to the first one.
@@ -261,19 +308,20 @@ defmodule BitPal.Backend.FloweeTest do
     # And confirm.
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_a_1_conf())
     # Manually set blocks to avoid having to find fixtures for all things
-    Blocks.new_block(:BCH, 690_934)
+    Blocks.new_block(@currency, 690_934)
 
-    HandlerSubscriberCollector.await_msg(stub1, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub1, {:invoice, :paid})
 
     assert [
-             {:invoice_finalized, _},
-             {:invoice_underpaid, _},
-             {:invoice_processing, _},
-             {:invoice_paid, _}
+             {{:invoice, :finalized}, _},
+             {{:invoice, :underpaid}, _},
+             {{:invoice, :processing}, _},
+             {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub1)
   end
 
-  @tag backends: [], init_message: false
+  # NOTE that this test sometimes times out
+  @tag init_message: false
   test "wait for Flowee to become ready" do
     # Send it an incomplete startup message to get it going.
     MockTCPClient.response(@client, FloweeFixtures.blockchain_verifying_info())
@@ -289,25 +337,27 @@ defmodule BitPal.Backend.FloweeTest do
     assert eventually(fn -> Flowee.ready?(BitPal.Backend.Flowee) end)
   end
 
-  @tag backends: [], init_message: false
-  test "make sure recovery works" do
+  @tag init_message: false
+  test "make sure recovery works", %{store: store} do
     # Simulate the state stored in the DB:
     {:ok, _invoice, stub1, _invoice_handler} =
-      HandlerSubscriberCollector.create_invoice(
+      test_invoice(
+        store: store,
         required_confirmations: 1,
         amount: 0.000_15,
-        address: {"bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa", 0}
+        address_id: "bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa"
       )
 
     {:ok, _invoice, stub2, _invoice_handler} =
-      HandlerSubscriberCollector.create_invoice(
+      test_invoice(
+        store: store,
         required_confirmations: 1,
         amount: 0.000_2,
-        address: {"bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc", 1}
+        address_id: "bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc"
       )
 
     # We are now at height 690933:
-    Blocks.set_block_height(:BCH, 690_932)
+    Blocks.set_block_height(@currency, 690_932)
 
     # Now, we tell Flowee the current block height. It will try to recover, and ask for the missing
     # block.
@@ -315,10 +365,7 @@ defmodule BitPal.Backend.FloweeTest do
 
     # Note: The addresses may be in any order, so we check for both of them.
     assert eventually(fn ->
-             last = MockTCPClient.last_sent(@client)
-
-             last == FloweeFixtures.block_info_query_690933_a() ||
-               last == FloweeFixtures.block_info_query_690933_b()
+             MockTCPClient.last_sent(@client) in FloweeFixtures.block_info_query_690933_alts()
            end)
 
     # At this point, Flowee should not report being ready.
@@ -332,8 +379,8 @@ defmodule BitPal.Backend.FloweeTest do
     MockTCPClient.response(@client, FloweeFixtures.blockchain_info_690933())
 
     # Both should be paid by now.
-    HandlerSubscriberCollector.await_msg(stub1, :invoice_paid)
-    HandlerSubscriberCollector.await_msg(stub2, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub1, {:invoice, :paid})
+    HandlerSubscriberCollector.await_msg(stub2, {:invoice, :paid})
 
     # It should also be ready now.
     assert Flowee.ready?(BitPal.Backend.Flowee) == true

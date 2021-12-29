@@ -5,10 +5,10 @@ defmodule BitPal.AddressEvents do
 
   @type height :: non_neg_integer
   @type msg ::
-          {:tx_seen, TxOutput.txid()}
-          | {:tx_confirmed, TxOutput.txid(), height}
-          | {:tx_double_spent, TxOutput.txid()}
-          | {:tx_reversed, TxOutput.txid()}
+          {{:tx, :seen}, %{id: TxOutput.txid()}}
+          | {{:tx, :confirmed}, %{id: TxOutput.txid(), height: height}}
+          | {{:tx, :double_spent}, %{id: TxOutput.txid()}}
+          | {{:tx, :reversed}, %{id: TxOutput.txid()}}
 
   @spec subscribe(Address.id()) :: :ok | {:error, term}
   def subscribe(address_id) do

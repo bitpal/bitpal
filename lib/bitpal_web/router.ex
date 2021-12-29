@@ -1,6 +1,9 @@
 defmodule BitPalWeb.Router do
   use BitPalWeb, :router
 
+  import BitPalWeb.UserAuth
+  import Phoenix.LiveDashboard.Router
+
   pipeline :browser do
     plug(:accepts, ["html"])
     plug(:fetch_session)
@@ -8,44 +11,92 @@ defmodule BitPalWeb.Router do
     plug(:put_root_layout, {BitPalWeb.LayoutView, :root})
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
+    plug(:fetch_current_user)
   end
 
-  pipeline :doc do
-    plug(:browser)
+  pipeline :store_layout do
+    plug(:put_root_layout, {BitPalWeb.LayoutView, :web})
+  end
+
+  pipeline :doc_layout do
     plug(:put_root_layout, {BitPalWeb.LayoutView, :doc})
   end
 
-  scope "/", BitPalWeb do
-    pipe_through(:browser)
+  # Dashboard
 
-    get("/", HomeController, :index)
+  scope "/", BitPalWeb do
+    pipe_through([:browser, :store_layout, :require_authenticated_user])
+
+    live("/", HomeLive, :dashboard)
   end
 
+  # Store management
+
+  scope "/", BitPalWeb do
+    pipe_through([:browser, :store_layout, :require_authenticated_user])
+
+    live("/stores/:slug", StoreLive, :show)
+    live("/stores/:slug/addresses", StoreAddressesLive, :show)
+    live("/stores/:slug/transactions", StoreTransactionsLive, :show)
+    live("/stores/:slug/settings", StoreSettingsLive, :show)
+
+    live("/invoices/:id", InvoiceLive, :show)
+  end
+
+  # Admin and server management
+
+  scope "/", BitPalWeb do
+    pipe_through([:browser, :store_layout, :require_authenticated_user])
+
+    live("/server/settings", ServerSettingsLive, :show)
+  end
+
+  scope "/", BitPalWeb do
+    pipe_through([:browser, :require_authenticated_user])
+
+    live_dashboard("/dashboard", metrics: BitPalWeb.Telemetry)
+  end
+
+  # Documentation
+
   scope "/doc", BitPalWeb do
-    pipe_through(:doc)
+    pipe_through([:browser, :doc_layout])
 
     get("/", DocController, :index)
     get("/toc", DocController, :toc)
     get("/:id", DocController, :show)
   end
 
-  # Server hosted payment UI
+  ## Authentication routes
 
-  # Admin portal
+  scope "/", BitPalWeb do
+    pipe_through([:browser, :store_layout, :redirect_if_user_is_authenticated])
 
-  # Enables LiveDashboard only for development
-  #
-  # If you want to use the LiveDashboard in production, you should put
-  # it behind authentication and allow only admins to access it.
-  # If your application does not have an admins-only section yet,
-  # you can use Plug.BasicAuth to set up some basic authentication
-  # as long as you are also using SSL (which you should anyway).
-  if Application.get_env(:bitpal, :enable_live_dashboard) do
-    import Phoenix.LiveDashboard.Router
+    get("/users/register", UserRegistrationController, :new)
+    post("/users/register", UserRegistrationController, :create)
+    get("/users/log_in", UserSessionController, :new)
+    post("/users/log_in", UserSessionController, :create)
+    get("/users/reset_password", UserResetPasswordController, :new)
+    post("/users/reset_password", UserResetPasswordController, :create)
+    get("/users/reset_password/:token", UserResetPasswordController, :edit)
+    put("/users/reset_password/:token", UserResetPasswordController, :update)
+  end
 
-    scope "/" do
-      pipe_through(:browser)
-      live_dashboard("/dashboard", metrics: BitPalWeb.Telemetry)
-    end
+  scope "/", BitPalWeb do
+    pipe_through([:browser, :store_layout, :require_authenticated_user])
+
+    get("/users/settings", UserSettingsController, :edit)
+    put("/users/settings", UserSettingsController, :update)
+    get("/users/settings/confirm_email/:token", UserSettingsController, :confirm_email)
+  end
+
+  scope "/", BitPalWeb do
+    pipe_through([:browser])
+
+    delete("/users/log_out", UserSessionController, :delete)
+    get("/users/confirm", UserConfirmationController, :new)
+    post("/users/confirm", UserConfirmationController, :create)
+    get("/users/confirm/:token", UserConfirmationController, :edit)
+    post("/users/confirm/:token", UserConfirmationController, :update)
   end
 end

@@ -22,7 +22,7 @@ defmodule Mix.Tasks.Bitpal.Ci do
           mix("credo --all --strict")
         ])
       ]),
-      timeout: :timer.minutes(15),
+      timeout: :timer.minutes(20),
       telemetry_id: [:ci]
     )
     |> report_errors()
@@ -58,7 +58,9 @@ defmodule Mix.Tasks.Bitpal.Ci do
   defp report_errors({:ok, _}), do: info("All the checks have passed 🎉")
 
   defp report_errors({:error, errors}),
-    do: [errors] |> List.flatten() |> Enum.map(&error/1) |> Enum.join("\n") |> Mix.raise()
+    do: [errors] |> List.flatten() |> Enum.map_join("\n", &error/1) |> Mix.raise()
+
+  defp report_errors({:exit, :timeout}), do: Mix.raise("Timed out")
 
   defp error(%OsCmd.Error{message: message}), do: message
   defp error(other), do: inspect(other)

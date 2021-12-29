@@ -1,18 +1,21 @@
 defmodule BitPal.BackendMock do
   @behaviour BitPal.Backend
 
+  use BitPalFactory
   use GenServer
-  import BitPal.ConfigHelpers
-  alias BitPal.Addresses
+  import BitPalSettings.ConfigHelpers
   alias BitPal.Backend
-  alias BitPal.BCH.Cashaddress
+  alias BitPal.BlockchainEvents
   alias BitPal.Blocks
   alias BitPal.Invoices
+  alias BitPal.ProcessRegistry
   alias BitPal.Transactions
-  alias BitPalSchemas.Address
+  alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
+  alias BitPalSchemas.TxOutput
+  alias Ecto.Adapters.SQL.Sandbox
 
-  @type backend :: pid() | module()
+  @type backend :: pid()
 
   @impl Backend
   def register(backend, invoice) do
@@ -25,7 +28,7 @@ defmodule BitPal.BackendMock do
   end
 
   @impl Backend
-  def configure(backend \\ __MODULE__, opts) do
+  def configure(backend, opts) do
     GenServer.call(backend, {:configure, opts})
   end
 
@@ -37,53 +40,80 @@ defmodule BitPal.BackendMock do
   # Client API
 
   def start_link(opts) do
-    opts = Keyword.put_new(opts, :name, __MODULE__)
-    GenServer.start_link(__MODULE__, opts, name: opts[:name])
+    GenServer.start_link(__MODULE__, opts)
   end
 
-  def child_spec(arg) do
-    id = Keyword.get(arg, :name) || __MODULE__
+  def child_spec(opts) do
+    opts =
+      opts
+      |> Keyword.put_new_lazy(:currency_id, &unique_currency_id/0)
+
+    currency_id = Keyword.fetch!(opts, :currency_id)
 
     %{
-      id: id,
-      start: {__MODULE__, :start_link, [arg]}
+      id: currency_id,
+      start: {__MODULE__, :start_link, [opts]}
     }
   end
 
-  def tx_seen(backend \\ __MODULE__, invoice) do
-    GenServer.call(backend, {:tx_seen, invoice})
+  @spec tx_seen(Invoice.t()) :: TxOutput.txid()
+  def tx_seen(invoice) do
+    GenServer.call(server(invoice), {:tx_seen, invoice})
   end
 
-  def doublespend(backend \\ __MODULE__, invoice) do
-    GenServer.call(backend, {:doublespend, invoice})
+  @spec doublespend(Invoice.t()) :: TxOutput.txid()
+  def doublespend(invoice) do
+    GenServer.call(server(invoice), {:doublespend, invoice})
   end
 
-  def confirmed_in_new_block(backend \\ __MODULE__, invoice) do
-    GenServer.call(backend, {:confirmed_in_new_block, invoice})
+  @spec confirmed_in_new_block(Invoice.t()) :: :ok
+  def confirmed_in_new_block(invoice) do
+    GenServer.call(server(invoice), {:confirmed_in_new_block, invoice})
   end
 
-  def issue_blocks(backend \\ __MODULE__, block_count, time_between_blocks \\ 0) do
-    GenServer.call(backend, {:issue_blocks, block_count, time_between_blocks})
+  @spec issue_blocks(Currency.id() | Invoice.t(), non_neg_integer, non_neg_integer) :: :ok
+  def issue_blocks(ref, block_count, time_between_blocks \\ 0) do
+    GenServer.call(server(ref), {:issue_blocks, block_count, time_between_blocks})
+  end
+
+  defp via_tuple(currency_id) do
+    Backend.via_tuple(currency_id)
+  end
+
+  defp server(invoice = %Invoice{}) do
+    server(invoice.currency_id)
+  end
+
+  defp server(currency_id) when is_atom(currency_id) do
+    {:ok, pid} = ProcessRegistry.get_process(via_tuple(currency_id))
+    pid
   end
 
   # Server API
 
   @impl true
   def init(opts) do
+    if parent = opts[:parent] do
+      Sandbox.allow(BitPal.Repo, parent, self())
+    end
+
     opts =
-      opts
-      |> Enum.into(%{})
-      |> Map.put_new(:currency, :BCH)
-      |> Map.put_new(:height, 0)
-      |> Map.put_new(:auto, false)
-      |> Map.put_new(:tx_index, 0)
-      |> (fn map ->
-            if Map.has_key?(map, :address) do
-              map
-            else
-              Map.put_new(map, :xpub, BitPalConfig.xpub())
-            end
-          end).()
+      Enum.into(opts, %{
+        height: 0,
+        auto: false,
+        tx_index: 0
+      })
+
+    currency_id = Map.fetch!(opts, :currency_id)
+
+    Registry.register(
+      ProcessRegistry,
+      Backend.via_tuple(currency_id),
+      __MODULE__
+    )
+
+    block_height(currency_id)
+    BlockchainEvents.subscribe(currency_id)
 
     if opts.auto do
       setup_auto_blocks(opts)
@@ -97,7 +127,7 @@ defmodule BitPal.BackendMock do
     setup_auto = opts[:auto] && !state[:auto]
 
     state =
-      update_state(state, opts, [:auto, :time_until_tx_seen, :time_between_blocks, :currency])
+      update_state(state, opts, [:auto, :time_until_tx_seen, :time_between_blocks, :currency_id])
 
     if setup_auto do
       setup_auto_blocks(state)
@@ -108,31 +138,32 @@ defmodule BitPal.BackendMock do
 
   @impl true
   def handle_call(:supported_currencies, _, state) do
-    {:reply, [state.currency], state}
+    {:reply, [state.currency_id], state}
   end
 
   @impl true
   def handle_call({:register, invoice}, _from, state) do
-    {:ok, invoice} = ensure_address(invoice, state)
+    invoice = with_address(invoice, state)
 
     if state.auto do
       setup_auto_invoice(invoice, state)
     end
 
-    {:reply, invoice, state}
+    {:reply, {:ok, invoice}, state}
   end
 
   @impl true
   def handle_call({:tx_seen, invoice}, _from, state) do
-    :ok = Transactions.seen(generate_txid(), [{invoice.address_id, invoice.amount}])
-    {:reply, :ok, state}
+    txid = unique_txid()
+    :ok = Transactions.seen(txid, [{invoice.address_id, invoice.amount}])
+    {:reply, txid, state}
   end
 
   @impl true
   def handle_call({:doublespend, invoice}, _from, state) do
     {:ok, tx} = Invoices.one_tx_output(invoice)
     :ok = Transactions.double_spent(tx.txid, [{invoice.address_id, tx.amount}])
-    {:reply, :ok, state}
+    {:reply, tx.txid, state}
   end
 
   @impl true
@@ -149,8 +180,14 @@ defmodule BitPal.BackendMock do
   end
 
   @impl true
+  def handle_info({{:block, _}, %{height: height}}, state) do
+    # Allows us to set block height in tests after initiolizing backend.
+    {:noreply, %{state | height: height}}
+  end
+
+  @impl true
   def handle_info({:auto_tx_seen, invoice}, state) do
-    :ok = Transactions.seen(generate_txid(), [{invoice.address_id, invoice.amount}])
+    :ok = Transactions.seen(unique_txid(), [{invoice.address_id, invoice.amount}])
     {:noreply, append_auto_confirm(state, invoice)}
   end
 
@@ -181,7 +218,7 @@ defmodule BitPal.BackendMock do
 
   defp incr_height(state) do
     height = state.height + 1
-    :ok = Blocks.new_block(state.currency, height)
+    :ok = Blocks.new_block(state.currency_id, height)
 
     %{state | height: height}
     |> auto_confirm_invoices
@@ -212,37 +249,11 @@ defmodule BitPal.BackendMock do
     Map.update(state, :auto_confirm, [invoice], fn xs -> [invoice | xs] end)
   end
 
-  @spec ensure_address(Invoice.t(), map) :: {:ok, Address.t()}
-  defp ensure_address(invoice, %{address: address_id}) do
-    if address = Addresses.get(address_id) do
-      {:ok, address}
-    else
-      Addresses.register_next_address(invoice.currency_id, address_id)
-    end
-  end
-
-  defp ensure_address(invoice, %{xpub: xpub, currency: :BCH}) do
-    Invoices.ensure_address(invoice, fn address_index ->
-      Cashaddress.derive_address(xpub, address_index)
-    end)
-  end
-
-  defp ensure_address(_invoice, %{xpub: _xpub, currency: currency}) do
-    raise RuntimeError, "not implemented mocking with xpub for currency #{currency}"
-  end
-
-  defp generate_txid do
-    "txid:#{Ecto.UUID.generate()}"
-  end
-
   defp confirm_transactions(invoice, state) do
     txid =
       case Invoices.one_tx_output(invoice) do
-        {:ok, tx} ->
-          tx.txid
-
-        _ ->
-          generate_txid()
+        {:ok, tx} -> tx.txid
+        _ -> unique_txid()
       end
 
     :ok = Transactions.confirmed(txid, [{invoice.address_id, invoice.amount}], state.height)

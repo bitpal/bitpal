@@ -20,26 +20,19 @@ defmodule BitPalApi.ChannelCase do
 
   using do
     quote do
-      # Import conveniences for testing with channels
+      use BitPalFactory
       import Phoenix.ChannelTest
       import BitPalApi.ChannelCase
-      import BitPal.CreationHelpers
       import BitPal.TestHelpers
-      import BitPal.CreationHelpers
 
       # The default endpoint for testing
       @endpoint BitPalApi.Endpoint
+
+      alias BitPal.HandlerSubscriberCollector
     end
   end
 
   setup tags do
     IntegrationCase.setup_integration(tags)
-
-    start_supervised!({BitPal.ExchangeRateSupervisor, ttl: tags[:cache_clear_interval]})
-
-    start_supervised!({Phoenix.PubSub, name: BitPalApi.PubSub}, id: BitPalApi.PubSub)
-    start_supervised!(BitPalApi.Endpoint)
-
-    :ok
   end
 end

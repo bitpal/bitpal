@@ -1,41 +1,53 @@
 defmodule InvoiceManagerTest do
-  use BitPal.IntegrationCase
-  alias BitPal.Currencies
+  use BitPal.IntegrationCase, async: true
   alias BitPal.InvoiceManager
 
-  @tag backends: true
-  test "initialize" do
-    Currencies.register!(:BCH)
-    store = Stores.create!()
+  setup tags do
+    name = unique_server_name()
+    start_supervised!({InvoiceManager, name: name})
 
-    assert {:ok, inv1} =
-             Invoices.register(store.id, %{
-               amount: 2.5,
-               exchange_rate: 1.1,
-               currency: "BCH",
-               fiat_currency: "USD"
-             })
+    Map.put(tags, :name, name)
+  end
 
-    assert {:ok, inv1_id} = InvoiceManager.finalize_and_track(inv1)
+  describe "finalize_invoice/2" do
+    test "initialize", %{currency_id: currency_id, name: name} do
+      inv1 = create_invoice(currency_id: currency_id)
+      assert {:ok, got_inv1} = InvoiceManager.finalize_invoice(inv1, name: name)
+      assert inv1.id == got_inv1.id
 
-    assert {:ok, inv2} =
-             Invoices.register(store.id, %{
-               amount: 5.2,
-               exchange_rate: 1.1,
-               currency: "BCH",
-               fiat_currency: "USD"
-             })
+      inv2 = create_invoice(currency_id: currency_id)
+      assert {:ok, got_inv2} = InvoiceManager.finalize_invoice(inv2, name: name)
+      assert inv2.id == got_inv2.id
 
-    assert {:ok, inv2_id} = InvoiceManager.finalize_and_track(inv2)
+      assert inv1.id != inv2.id
+      assert {:ok, inv1_pid} = InvoiceManager.fetch_handler(inv1.id)
+      assert {:ok, inv2_pid} = InvoiceManager.fetch_handler(inv2.id)
+      assert inv1_pid != inv2_pid
 
-    assert inv1_id != inv2_id
-    assert {:ok, inv1_pid} = InvoiceManager.get_handler(inv1_id)
-    assert {:ok, inv2_pid} = InvoiceManager.get_handler(inv2_id)
-    assert inv1_pid != inv2_pid
-    assert InvoiceManager.count_children() == 2
+      assert InvoiceManager.count_children(name) == 2
 
-    assert_shutdown(inv2_pid)
+      assert_shutdown(inv2_pid)
+      assert InvoiceManager.count_children(name) == 2
+    end
 
-    assert InvoiceManager.count_children() == 2
+    test "finalizes", %{currency_id: currency_id, name: name} do
+      inv = create_invoice(currency_id: currency_id, status: :draft)
+      assert {:ok, got_inv} = InvoiceManager.finalize_invoice(inv, name: name)
+      assert inv.id == got_inv.id
+      assert got_inv.status == :open
+    end
+  end
+
+  describe "ensure_handler/2" do
+    test "associates handler with already finalized invoice", %{
+      currency_id: currency_id,
+      name: name
+    } do
+      inv = create_invoice(currency_id: currency_id, status: :open)
+      assert inv.status == :open
+      assert {:ok, handler} = InvoiceManager.ensure_handler(inv, name: name)
+      assert is_pid(handler)
+      assert {:ok, ^handler} = InvoiceManager.fetch_handler(inv.id)
+    end
   end
 end

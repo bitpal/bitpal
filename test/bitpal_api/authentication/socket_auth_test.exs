@@ -1,5 +1,5 @@
 defmodule BitPalApi.SocketAuthTest do
-  use BitPalApi.ChannelCase
+  use BitPalApi.ChannelCase, async: true
 
   test "successful auth with headers" do
     %{store_id: _store_id, token: token} = create_auth()

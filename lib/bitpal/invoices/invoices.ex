@@ -7,11 +7,14 @@ defmodule BitPal.Invoices do
   alias BitPal.FSM
   alias BitPal.InvoiceEvents
   alias BitPal.Repo
+  alias BitPal.StoreEvents
   alias BitPal.Transactions
   alias BitPalSchemas.Address
+  alias BitPalSchemas.AddressKey
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.Store
   alias BitPalSchemas.TxOutput
+  alias BitPalSettings.StoreSettings
   alias Ecto.Changeset
   require Decimal
 
@@ -19,17 +22,30 @@ defmodule BitPal.Invoices do
 
   @spec register(Store.id(), map) :: {:ok, Invoice.t()} | {:error, Changeset.t()}
   def register(store_id, params) do
-    %Invoice{store_id: store_id}
-    |> cast(params, [:required_confirmations, :description, :email, :pos_data])
-    |> assoc_currency(params)
-    |> validate_currency(params, :fiat_currency)
-    |> cast_money(params, :amount, :currency)
-    |> cast_money(params, :fiat_amount, :fiat_currency)
-    |> cast_exchange_rate(params)
-    |> validate_into_matching_pairs()
-    |> with_default_lazy(:required_confirmations, &BitPalConfig.required_confirmations/0)
-    |> validate_format(:email, ~r/^.+@.+$/, message: "Must be a valid email")
-    |> Repo.insert()
+    res =
+      %Invoice{store_id: store_id}
+      |> cast(params, [:required_confirmations, :description, :email, :pos_data])
+      |> assoc_currency(params)
+      |> validate_currency(params, :fiat_currency)
+      |> cast_money(params, :amount, :currency_id)
+      |> cast_money(params, :fiat_amount, :fiat_currency)
+      |> cast_exchange_rate(params)
+      |> validate_into_matching_pairs()
+      |> validate_required_confirmations()
+      |> validate_format(:email, ~r/^.+@.+$/, message: "Must be a valid email")
+      |> Repo.insert()
+
+    case res do
+      {:ok, invoice} ->
+        StoreEvents.broadcast(
+          {{:store, :invoice_created}, %{id: invoice.store_id, invoice_id: invoice.id}}
+        )
+
+        {:ok, invoice}
+
+      err ->
+        err
+    end
   end
 
   @spec fetch(Invoice.id()) :: {:ok, Invoice.t()} | {:error, :not_found}
@@ -72,12 +88,12 @@ defmodule BitPal.Invoices do
       |> cast(params, [:required_confirmations, :description, :email, :pos_data])
       |> assoc_currency(params)
       |> validate_currency(params, :fiat_currency)
-      |> cast_money(params, :amount, :currency)
+      |> cast_money(params, :amount, :currency_id)
       |> cast_money(params, :fiat_amount, :fiat_currency)
       |> cast_exchange_rate(params)
       |> clear_pairs_for_update()
       |> validate_into_matching_pairs(nil_bad_params: true)
-      |> with_default_lazy(:required_confirmations, &BitPalConfig.required_confirmations/0)
+      |> validate_required_confirmations()
       |> validate_format(:email, ~r/^.+@.+$/, message: "Must be a valid email")
       |> Repo.update()
     end
@@ -88,7 +104,7 @@ defmodule BitPal.Invoices do
   def delete(invoice) do
     with false <- finalized?(invoice),
          {:ok, invoice} <- Repo.delete(invoice) do
-      InvoiceEvents.broadcast({:invoice_deleted, %{id: invoice.id, status: invoice.status}})
+      InvoiceEvents.broadcast({{:invoice, :deleted}, %{id: invoice.id, status: invoice.status}})
       {:ok, invoice}
     else
       true ->
@@ -114,7 +130,7 @@ defmodule BitPal.Invoices do
 
     case res do
       {:ok, invoice} ->
-        InvoiceEvents.broadcast({:invoice_finalized, invoice})
+        InvoiceEvents.broadcast({{:invoice, :finalized}, invoice})
         {:ok, invoice}
 
       err ->
@@ -126,7 +142,7 @@ defmodule BitPal.Invoices do
   def void(invoice) do
     case transition(invoice, :void) do
       {:ok, invoice} ->
-        InvoiceEvents.broadcast({:invoice_voided, %{id: invoice.id, status: invoice.status}})
+        InvoiceEvents.broadcast({{:invoice, :voided}, %{id: invoice.id, status: invoice.status}})
         {:ok, invoice}
 
       err ->
@@ -142,7 +158,7 @@ defmodule BitPal.Invoices do
     with {:ok, height} <- Blocks.fetch_block_height(invoice.currency_id),
          invoice <- update_info_from_txs(invoice, height),
          {:ok, invoice} <- transition(invoice, :paid) do
-      InvoiceEvents.broadcast({:invoice_paid, %{id: invoice.id, status: invoice.status}})
+      InvoiceEvents.broadcast({{:invoice, :paid}, %{id: invoice.id, status: invoice.status}})
       {:ok, invoice}
     else
       :error ->
@@ -160,6 +176,18 @@ defmodule BitPal.Invoices do
     else
       {:error, :invalid_status}
     end
+  end
+
+  # Settings
+
+  @spec address_key(Invoice.t()) :: {:ok, AddressKey.t()} | {:error, :not_found}
+  def address_key(invoice) do
+    StoreSettings.fetch_address_key(invoice.store_id, invoice.currency_id)
+  end
+
+  @spec double_spend_timeout(Invoice.t()) :: non_neg_integer
+  def double_spend_timeout(invoice) do
+    StoreSettings.get_double_spend_timeout(invoice.store_id, invoice.currency_id)
   end
 
   # Fetching
@@ -271,7 +299,7 @@ defmodule BitPal.Invoices do
       FSM.transition_changeset(invoice, :paid)
       |> Repo.update!()
 
-    InvoiceEvents.broadcast({:invoice_paid, %{id: invoice.id, status: invoice.status}})
+    InvoiceEvents.broadcast({{:invoice, :paid}, %{id: invoice.id, status: invoice.status}})
     invoice
   end
 
@@ -280,7 +308,7 @@ defmodule BitPal.Invoices do
     {:ok, invoice} = transition(invoice, :uncollectible, reason)
 
     InvoiceEvents.broadcast(
-      {:invoice_uncollectible, %{id: invoice.id, status: invoice.status, reason: reason}}
+      {{:invoice, :uncollectible}, %{id: invoice.id, status: invoice.status, reason: reason}}
     )
 
     invoice
@@ -312,20 +340,20 @@ defmodule BitPal.Invoices do
     |> Repo.update()
   end
 
-  @spec ensure_address(Invoice.t(), (Addresses.address_index() -> Address.id())) ::
-          {:ok, Invoice.t()} | {:error, Changeset.t()}
+  @spec ensure_address(Invoice.t(), Addresses.address_generator()) ::
+          {:ok, Invoice.t()} | {:error, Changeset.t()} | {:error, :address_key_not_assigned}
   def ensure_address(invoice = %{address_id: address_id}, _address_generator)
       when is_binary(address_id) do
     {:ok, invoice}
   end
 
   def ensure_address(invoice, address_generator) do
-    case Addresses.register_with(invoice.currency_id, address_generator) do
-      {:ok, address} ->
-        assign_address(invoice, address)
-
-      err ->
-        err
+    with {:ok, address_key} <- address_key(invoice),
+         {:ok, address} <- Addresses.generate_address(address_key, address_generator) do
+      assign_address(invoice, address)
+    else
+      {:error, :not_found} -> {:error, :address_key_not_assigned}
+      err -> err
     end
   end
 
@@ -345,6 +373,10 @@ defmodule BitPal.Invoices do
   end
 
   @spec target_amount_reached?(Invoice.t()) :: :ok | :underpaid | :overpaid
+  def target_amount_reached?(%Invoice{amount_paid: nil}) do
+    :underpaid
+  end
+
   def target_amount_reached?(invoice) do
     case Money.cmp(invoice.amount_paid, invoice.amount) do
       :lt -> :underpaid
@@ -367,6 +399,12 @@ defmodule BitPal.Invoices do
     max(invoice.required_confirmations - (curr_height - max_height) - 1, 0)
   rescue
     _ -> invoice.required_confirmations
+  end
+
+  @spec update_info_from_txs(Invoice.t()) :: Invoice.t()
+  def update_info_from_txs(invoice) do
+    curr_height = Blocks.fetch_block_height!(invoice.currency_id)
+    update_info_from_txs(invoice, curr_height)
   end
 
   @spec update_info_from_txs(Invoice.t(), non_neg_integer) :: Invoice.t()
@@ -418,7 +456,7 @@ defmodule BitPal.Invoices do
       end
 
     InvoiceEvents.broadcast(
-      {:invoice_processing,
+      {{:invoice, :processing},
        %{
          id: invoice.id,
          status: invoice.status,
@@ -431,7 +469,7 @@ defmodule BitPal.Invoices do
   @spec broadcast_underpaid(Invoice.t()) :: :ok | {:error, term}
   def broadcast_underpaid(invoice) do
     InvoiceEvents.broadcast(
-      {:invoice_underpaid,
+      {{:invoice, :underpaid},
        %{
          id: invoice.id,
          status: invoice.status,
@@ -444,7 +482,7 @@ defmodule BitPal.Invoices do
   @spec broadcast_overpaid(Invoice.t()) :: :ok | {:error, term}
   def broadcast_overpaid(invoice) do
     InvoiceEvents.broadcast(
-      {:invoice_overpaid,
+      {{:invoice, :overpaid},
        %{
          id: invoice.id,
          status: invoice.status,
@@ -501,17 +539,19 @@ defmodule BitPal.Invoices do
   end
 
   defp assoc_currency(changeset, params) do
-    currency = get_param(params, :currency) || get_field(changeset, :currency_id)
+    currency =
+      get_param(params, :currency_id) ||
+        get_field(changeset, :currency_id)
 
     if currency do
       changeset
       |> change(%{currency_id: Money.Currency.to_atom(currency)})
       |> assoc_constraint(:currency)
     else
-      add_error(changeset, :currency, "cannot be empty")
+      add_error(changeset, :currency_id, "cannot be empty")
     end
   rescue
-    _ -> add_error(changeset, :currency, "is invalid")
+    _ -> add_error(changeset, :currency_id, "is invalid")
   end
 
   defp cast_money(changeset, params, key, currency_key) do
@@ -555,7 +595,7 @@ defmodule BitPal.Invoices do
   end
 
   defp cast_exchange_rate(changeset, params) do
-    currency = get_currency(changeset, params, :amount, :currency)
+    currency = get_currency(changeset, params, :amount, :currency_id)
     fiat_currency = get_currency(changeset, params, :fiat_amount, :fiat_currency)
     exchange_rate = get_param(params, :exchange_rate)
 
@@ -667,12 +707,19 @@ defmodule BitPal.Invoices do
     end
   end
 
-  defp with_default_lazy(changeset, key, val) do
-    if get_change(changeset, key) do
-      changeset
-    else
-      changeset
-      |> change(%{key => val.()})
+  defp validate_required_confirmations(changeset) do
+    case get_change(changeset, :required_confirmations) do
+      nil ->
+        store_id = get_field(changeset, :store_id)
+        currency_id = get_field(changeset, :currency_id)
+        confs = StoreSettings.get_required_confirmations(store_id, currency_id)
+
+        changeset
+        |> change(required_confirmations: confs)
+
+      _ ->
+        changeset
+        |> validate_number(:required_confirmations, greater_than_or_equal_to: 0)
     end
   end
 end

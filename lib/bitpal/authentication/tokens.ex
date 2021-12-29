@@ -1,8 +1,10 @@
 defmodule BitPal.Authentication.Tokens do
+  import Ecto.Changeset
   import Ecto.Query
   alias BitPal.Repo
   alias BitPalSchemas.AccessToken
   alias BitPalSchemas.Store
+  alias Ecto.Changeset
 
   @secret_key_base Application.compile_env!(:bitpal, :secret_key_base)
   @salt "access tokens"
@@ -35,6 +37,19 @@ defmodule BitPal.Authentication.Tokens do
       {:error, :not_found}
   end
 
+  @spec create_token(Store.t(), map) :: {:ok, AccessToken.t()} | {:error, Changeset.t()}
+  def create_token(store = %Store{}, params) do
+    store
+    |> Ecto.build_assoc(:access_tokens,
+      data: params[:data] || create_token_data(store, signed_at: params[:signed_at])
+    )
+    |> cast(params, [:label])
+    |> validate_required(:label)
+    |> validate_length(:label, min: 1)
+    |> unique_constraint(:data, name: :access_tokens_data_index)
+    |> Repo.insert()
+  end
+
   @spec create_token!(Store.t()) :: AccessToken.t()
   def create_token!(store) do
     token_data = Phoenix.Token.sign(@secret_key_base, @salt, store.id)
@@ -51,5 +66,9 @@ defmodule BitPal.Authentication.Tokens do
   @spec delete_token!(AccessToken.t()) :: :ok
   def delete_token!(token) do
     Repo.delete!(token)
+  end
+
+  defp create_token_data(store, opts) do
+    Phoenix.Token.sign(@secret_key_base, @salt, store.id, opts)
   end
 end

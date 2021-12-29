@@ -57,11 +57,12 @@ defmodule BitPal.MixProject do
       {:typed_ecto_schema, "~> 0.2"},
       {:scribe, "~> 0.10"},
       {:con_cache, "~> 1.0"},
+      {:faker, "~> 0.16"},
 
       # Server docs
       {:nimble_publisher, git: "https://github.com/treeman/nimble_publisher.git"},
       {:makeup_elixir, ">= 0.0.0"},
-      {:floki, "~> 0.31.0"},
+      {:floki, "~> 0.32.0"},
 
       # Phoenix and web
       {:gettext, "~> 0.11"},
@@ -70,11 +71,13 @@ defmodule BitPal.MixProject do
       {:phoenix_ecto, "~> 4.4.0"},
       {:phoenix_html, "~> 3.0"},
       {:phoenix_inline_svg, "~> 1.4"},
-      {:phoenix_live_dashboard, "~> 0.5"},
+      {:phoenix_live_dashboard, "~> 0.6"},
       {:phoenix_live_reload, "~> 1.3", only: :dev},
-      {:phoenix_live_view, "~> 0.16.4"},
+      {:phoenix_live_view, "~> 0.17.5"},
       {:phoenix_pubsub, "~> 2.0"},
       {:plug_cowboy, "~> 2.5"},
+      {:argon2_elixir, "~> 2.0"},
+      {:swoosh, "~> 1.0"},
       {:dart_sass, "~> 0.2", runtime: Mix.env() == :dev},
       {:esbuild, "~> 0.2", runtime: Mix.env() == :dev},
       # Still some unresolved conflict with some libs requiring 0.4, but it's really fine...
@@ -99,11 +102,14 @@ defmodule BitPal.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      ci: ["bitpal.ci"],
-      setup: ["deps.get", "ecto.setup", "cmd npm install --prefix assets"],
+      ci: "bitpal.ci",
+      "phx.routes": "phx.routes BitPalWeb.Router",
+      setup: ["deps.get", "ecto.setup"],
+      "ecto.dev_reset": ["ecto.reset", "run priv/repo/dev_seeds.exs"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test --no-start"],
+      # test: ["ecto.create --quiet", "ecto.migrate --quiet", "test --no-start"],
+      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.deploy": [
         "sass default --no-source-map --style=compressed",
         "esbuild default --minify",

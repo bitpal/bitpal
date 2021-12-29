@@ -1,0 +1,69 @@
+@use "fonts.scss" as *;
+@use "colors.scss" as *;
+
+* {
+    // Predictable styling.
+    margin: 0;
+    padding: 0;
+    // Better box model, includes border in width calculations.
+    box-sizing: border-box;
+    // Flexbox overrides min-width which makes <pre> not overflow properly
+    // https://weblog.west-wind.com/posts/2016/Feb/15/Flexbox-Containers-PRE-tags-and-managing-Overflow
+    min-width: 0;
+}
+
+// Make footer extend to the very bottom of the page if there's space to do so
+// https://stackoverflow.com/questions/147528/how-do-i-force-a-div-block-to-extend-to-the-bottom-of-a-page-even-if-it-has-no-c
+html, body {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+body > * {
+  flex-shrink: 0;
+}
+footer {
+    flex-grow: 1;
+}
+.main-wrapper {
+    // Remove this if we want a footer
+    flex-grow: 1;
+}
+
+body {
+    font-size: 16px;
+    line-height: 1.45;
+    font-family: $sans-font-family;
+    text-rendering: optimizeLegibility;
+    background-color: $brown-50;
+    color: $brown-900;
+}
+
+a, a:link {
+    color: $brown-600;
+}
+a:hover {
+    color: $brown-800;
+}
+
+.invalid-link {
+    color: $red-400;
+    text-decoration: underline dotted $red-400;
+}
+
+.doc-body .main-content {
+    ul {
+        list-style: none;
+    }
+    ul li::before {
+        content: "•";
+        content: "⇝";
+
+        margin-left: -24px;
+        padding-right: 8px;
+        color: $brown-600;
+    }
+    ul li {
+        margin-left: 8px;
+    }
+}

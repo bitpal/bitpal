@@ -1,46 +1,39 @@
-defmodule HandlerSubscriberCollector do
+defmodule BitPal.HandlerSubscriberCollector do
   use GenServer
-  alias BitPal.Addresses
   alias BitPal.InvoiceEvents
   alias BitPal.InvoiceManager
   alias BitPal.Invoices
-  alias BitPal.Stores
-  alias BitPalSchemas.Invoice
+  alias BitPal.ProcessRegistry
+  alias BitPalFactory.InvoiceFactory
+  alias BitPalFactory.SettingsFactory
+  alias Ecto.Adapters.SQL.Sandbox
 
   # Client API
 
-  @spec create_invoice() :: {:ok, Invoice.t(), pid, pid}
-  def create_invoice do
-    create_invoice(%{})
-  end
+  def create_invoice(opts \\ %{}) do
+    opts = Enum.into(opts, %{})
 
-  @spec create_invoice(keyword | map) :: {:ok, Invoice.t(), pid, pid}
-  def create_invoice(params) when is_list(params) do
-    create_invoice(Enum.into(params, %{}))
-  end
+    # Create invoice outside of the server process to generate unique names from the invoice id.
+    invoice = InvoiceFactory.create_invoice(Map.put(opts, :status, :draft))
 
-  def create_invoice(params) do
-    {:ok, stub} = start_link(nil)
+    # Factories may have created an address_key, but it's not guaranteed.
+    # This is needed when finalizing, so generate one if needed.
+    case Invoices.address_key(invoice) do
+      {:ok, _} ->
+        nil
 
-    params =
-      Map.merge(
-        %{
-          amount: 1.3,
-          currency: :BCH,
-          exchange_rate: 2.0,
-          fiat_currency: :USD,
-          required_confirmations: 0
-        },
-        params
-      )
+      {:error, :not_found} ->
+        SettingsFactory.create_address_key(invoice)
+    end
 
-    {invoice, handler} = GenServer.call(stub, {:create_invoice, params})
+    {:ok, stub} = GenServer.start_link(__MODULE__, name: via_tuple(invoice.id), parent: self())
+    {invoice, handler} = GenServer.call(stub, {:track_and_finalize, invoice, opts})
 
     {:ok, invoice, stub, handler}
   end
 
-  def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts)
+  defp via_tuple(invoice_id) do
+    ProcessRegistry.via_tuple({__MODULE__, invoice_id})
   end
 
   def received(handler) do
@@ -50,7 +43,7 @@ defmodule HandlerSubscriberCollector do
 
   def await_msg(handler, id) do
     Task.async(__MODULE__, :sleep_until_msg, [handler, id])
-    |> Task.await(100)
+    |> Task.await(500)
 
     {:ok, received(handler)}
   end
@@ -72,32 +65,26 @@ defmodule HandlerSubscriberCollector do
     end)
   end
 
-  def is_paid?(handler) do
-    contains_id?(handler, :invoide_paid)
+  def paid?(handler) do
+    contains_id?(handler, {:invoice, :paid})
   end
 
   # Server API
 
   @impl true
-  def init(_init_args) do
-    {:ok, %{received: []}}
+  def init(args) do
+    parent = Keyword.fetch!(args, :parent)
+    Sandbox.allow(BitPal.Repo, parent, self())
+
+    {:ok, %{received: [], parent: parent}}
   end
 
   @impl true
-  def handle_call({:create_invoice, params = %{address: {address, id}}}, _, state) do
-    {store_id, state} = get_store_id(params, state)
-    # Address specified, force the address.
-    {:ok, invoice} = Invoices.register(store_id, Map.delete(params, :address))
-    {:ok, addr} = Addresses.register(invoice.currency_id, address, id)
-    Invoices.assign_address(invoice, addr)
-    track(invoice, state)
-  end
-
-  @impl true
-  def handle_call({:create_invoice, params}, _, state) do
-    {store_id, state} = get_store_id(params, state)
-    {:ok, invoice} = Invoices.register(store_id, params)
-    track(invoice, state)
+  def handle_call({:track_and_finalize, invoice, opts}, _, state) do
+    :ok = InvoiceEvents.subscribe(invoice)
+    invoice = ensure_tracked_and_finalized(invoice, opts, state)
+    {:ok, handler} = InvoiceManager.fetch_handler(invoice.id)
+    {:reply, {invoice, handler}, state}
   end
 
   @impl true
@@ -110,23 +97,19 @@ defmodule HandlerSubscriberCollector do
     {:noreply, %{state | received: [info | received]}}
   end
 
-  defp track(invoice, state) do
-    :ok = InvoiceEvents.subscribe(invoice)
-    {:ok, invoice} = InvoiceManager.finalize_invoice(invoice)
-    {:ok, handler} = InvoiceManager.get_handler(invoice.id)
-    {:reply, {invoice, handler}, state}
-  end
+  defp ensure_tracked_and_finalized(invoice, opts, state) do
+    manager_opts = %{
+      parent: state.parent,
+      double_spend_timeout: opts[:double_spend_timeout],
+      manager_name: opts[:manager_name] || BitPal.BackendManager
+    }
 
-  defp get_store_id(%{store_id: store_id}, state) do
-    {store_id, state}
-  end
-
-  defp get_store_id(_params, state = %{store_id: store_id}) do
-    {store_id, state}
-  end
-
-  defp get_store_id(_params, state) do
-    store = Stores.create!()
-    {store.id, Map.put(state, :store_id, store.id)}
+    if Invoices.finalized?(invoice) do
+      {:ok, _} = InvoiceManager.ensure_handler(invoice, manager_opts)
+      invoice
+    else
+      {:ok, invoice} = InvoiceManager.finalize_invoice(invoice, manager_opts)
+      invoice
+    end
   end
 end

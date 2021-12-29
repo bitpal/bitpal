@@ -23,6 +23,7 @@ defmodule BitPal.Backend.Flowee.Connection do
 
   use Bitwise
   alias BitPal.Backend.Flowee.Connection
+  require Logger
 
   # Struct for the connection itself. Create using "connect".
   defstruct client: nil, data: nil
@@ -306,9 +307,12 @@ defmodule BitPal.Backend.Flowee.Connection do
         <<v::little-float, rest::binary>> = data
         {rest, {key, v}}
 
-        # true ->
-        #   IO.inspect tag
-        #   IO.inspect data
+      true ->
+        Logger.warn("""
+        Unmatched tag in Flowee connection
+        tag: #{inspect(tag)}
+        data: #{inspect(data)}
+        """)
     end
   end
 

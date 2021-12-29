@@ -1,15 +1,9 @@
 defmodule BitPal.AccessTokensTest do
-  # NOTE would love to have this async, but the db interferes with the other tests...
-  use ExUnit.Case, async: false
-  import BitPal.CreationHelpers
+  use BitPal.DataCase, async: true
   alias BitPal.Authentication.Tokens
   alias BitPal.Repo
-  alias Ecto.Adapters.SQL.Sandbox
 
   setup do
-    start_supervised(BitPal.Repo)
-    :ok = Sandbox.checkout(BitPal.Repo)
-
     %{store: create_store()}
   end
 

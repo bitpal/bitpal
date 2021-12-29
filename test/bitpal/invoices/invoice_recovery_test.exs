@@ -1,16 +1,18 @@
 defmodule BitPal.InvoiceRecoveryTest do
-  use BitPal.IntegrationCase
+  use BitPal.IntegrationCase, async: true
   alias BitPal.InvoiceHandler
 
-  @tag backends: true
-  test "invoice recover status and continue" do
+  test "invoice recover status and continue", %{currency_id: currency_id} do
     {:ok, inv, stub, handler} =
-      HandlerSubscriberCollector.create_invoice(required_confirmations: 1)
+      HandlerSubscriberCollector.create_invoice(
+        required_confirmations: 1,
+        currency_id: currency_id
+      )
 
     assert inv.status == :open
 
     BackendMock.tx_seen(inv)
-    HandlerSubscriberCollector.await_msg(stub, :invoice_processing)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :processing})
 
     inv = Invoices.fetch!(inv.id)
     assert inv.status == :processing
@@ -20,58 +22,66 @@ defmodule BitPal.InvoiceRecoveryTest do
     # Then wait for it to be restarted
     handler = wait_for_handler(inv.id, handler)
 
-    inv = InvoiceHandler.get_invoice(handler)
+    inv = InvoiceHandler.fetch_invoice!(handler)
     assert inv.status == :processing
 
     BackendMock.confirmed_in_new_block(inv)
 
-    HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
   end
 
-  @tag backends: true, double_spend_timeout: 1, do: true
-  test "invoice recover missing tx seen" do
-    {:ok, inv, stub, _handler} =
-      HandlerSubscriberCollector.create_invoice(required_confirmations: 0)
+  test "invoice recover missing tx seen", %{currency_id: currency_id} do
+    {:ok, inv, stub, handler} =
+      HandlerSubscriberCollector.create_invoice(
+        required_confirmations: 0,
+        double_spend_timeout: 1,
+        currency_id: currency_id
+      )
 
     assert inv.status == :open
 
     # Terminate on the top level to prevent handler from being restarted before we've added
     # things that we want it to recover from.
-    InvoiceManager.terminate_children()
+    InvoiceManager.terminate_handler(handler)
 
     BackendMock.tx_seen(inv)
 
-    InvoiceManager.finalize_and_track(inv)
+    # Normally double_spend_timeout is kept after a restart, but
+    # as we're terminating it via the supervisor it's lost, so we
+    # have to repeat ourselves here.
+    InvoiceManager.finalize_invoice(inv, double_spend_timeout: 1)
 
-    HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
   end
 
-  @tag backends: true
-  test "invoice recover missing confirmation" do
-    {:ok, inv, stub, _handler} =
-      HandlerSubscriberCollector.create_invoice(required_confirmations: 1)
+  test "invoice recover missing confirmation", %{currency_id: currency_id} do
+    {:ok, inv, stub, handler} =
+      HandlerSubscriberCollector.create_invoice(
+        required_confirmations: 1,
+        currency_id: currency_id
+      )
 
     assert inv.status == :open
 
     BackendMock.tx_seen(inv)
-    HandlerSubscriberCollector.await_msg(stub, :invoice_processing)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :processing})
 
     inv = Invoices.fetch!(inv.id)
     assert inv.status == :processing
 
     # Terminate on the top level to prevent handler from being restarted before we've added
     # things that we want it to recover from.
-    InvoiceManager.terminate_children()
+    InvoiceManager.terminate_handler(handler)
 
     BackendMock.confirmed_in_new_block(inv)
 
-    InvoiceManager.finalize_and_track(inv)
+    InvoiceManager.finalize_invoice(inv)
 
-    HandlerSubscriberCollector.await_msg(stub, :invoice_paid)
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
   end
 
   defp wait_for_handler(invoice_id, prev_handler) do
-    case InvoiceManager.get_handler(invoice_id) do
+    case InvoiceManager.fetch_handler(invoice_id) do
       {:ok, ^prev_handler} ->
         Process.sleep(10)
         wait_for_handler(invoice_id, prev_handler)

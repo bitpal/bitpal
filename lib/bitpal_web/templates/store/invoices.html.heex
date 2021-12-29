@@ -1,0 +1,29 @@
+<%= render "_bar.html", assigns %>
+
+<section class="store-wrapper">
+  <%= if Enum.empty?(@store.invoices) do %>
+    <div class="no-invoices">
+      There are no invoices here yet
+    </div>
+  <% else %>
+    <div class="invoice-header">
+      <span class="link"></span>
+      <span class="status">Status</span>
+      <span class="date">Date</span>
+      <span class="crypto-amount">Amount</span>
+      <span class="fiat-amount"></span>
+      <span class="description">Description</span>
+    </div>
+    <%= for invoice <- @store.invoices do %>
+      <div class="invoice">
+        <span class="link"><%= live_invoice_link(@socket, id: invoice.id, label: "Invoice") %></span>
+        <span class="status"><%= format_status(invoice) %></span>
+        <span class="date"><%= NaiveDateTime.to_date(invoice.updated_at) %></span>
+        <span class="crypto-amount"><%= format_amount(invoice) %></span>
+        <span class="fiat-amount"><%= format_fiat_amount(invoice) %></span>
+        <span class="description"><%= invoice.description %></span>
+      </div>
+    <% end %>
+  <% end %>
+</section>
+

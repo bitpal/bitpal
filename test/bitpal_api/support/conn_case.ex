@@ -16,21 +16,20 @@ defmodule BitPalApi.ConnCase do
   """
 
   use ExUnit.CaseTemplate
+  use BitPalFactory
   import Plug.BasicAuth
   import Plug.Conn
   import Phoenix.ConnTest
-  alias BitPal.CreationHelpers
   alias BitPal.IntegrationCase
 
   using do
     quote do
-      # Import conveniences for testing with connections
+      use BitPalFactory
       import Plug.Conn
       import Phoenix.ConnTest
       import BitPalApi.ConnCase
       import BitPal.TestHelpers
-      import BitPal.CreationHelpers
-      import BitPalApi.TestHelpers
+      import BitPal.ConnTestHelpers
       alias BitPalApi.Router.Helpers, as: Routes
 
       # The default endpoint for testing
@@ -39,16 +38,13 @@ defmodule BitPalApi.ConnCase do
   end
 
   setup tags do
-    IntegrationCase.setup_integration(tags)
-
-    start_supervised!({Phoenix.PubSub, name: BitPalApi.PubSub}, id: BitPalApi.PubSub)
-    start_supervised!(BitPalApi.Endpoint)
+    res = IntegrationCase.setup_integration(tags)
 
     conn =
       build_conn()
       |> auth(tags)
 
-    {:ok, conn: conn}
+    {:ok, Map.put(res, :conn, conn)}
   end
 
   defp auth(conn, %{auth: false}), do: conn
@@ -58,7 +54,7 @@ defmodule BitPalApi.ConnCase do
   end
 
   defp auth(conn, _tags) do
-    %{store_id: _store_id, token: token} = CreationHelpers.create_auth()
+    %{store_id: _store_id, token: token} = create_auth()
     put_auth(conn, token)
   end
 

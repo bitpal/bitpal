@@ -1,33 +1,42 @@
 defmodule BitPalApi.CurrencyControllerTest do
-  use BitPalApi.ConnCase
+  use BitPalApi.ConnCase, async: true
 
   @backends [
-    {BitPal.BackendMock, name: Bitcoin.Backend, currency: :BCH},
-    {BitPal.BackendMock, name: Litecoin.Backend, currency: :LTC}
+    BitPal.BackendMock,
+    BitPal.BackendMock
   ]
 
   @tag backends: @backends
-  test "list available", %{conn: conn} do
+  test "list available", %{conn: conn, currencies: currencies} do
     conn = get(conn, "/v1/currencies")
+    gotten_currencies = Enum.into(json_response(conn, 200), MapSet.new())
 
-    assert ["BCH", "LTC"] = json_response(conn, 200)
+    # Note that we're testing this async, so there will be a lot more currency backends available
+    # as the async tests share the same manager.
+    # This just checks that the unique currencies for this particular test are shown.
+    for currency_id <- currencies do
+      assert !(currency_id in gotten_currencies),
+             "Did not list a currency #{currency_id}, got: #{inspect(gotten_currencies)}"
+    end
   end
 
   @tag backends: @backends
-  test "show", %{conn: conn} do
-    a = create_invoice(conn, address: :auto)
-    b = create_invoice(conn, address: :auto)
+  test "show", %{conn: conn, currencies: [c0, c1]} do
+    a = create_invoice(conn, address_id: :auto, currency_id: c0)
+    b = create_invoice(conn, address_id: :auto, currency_id: c0)
 
     # Should not show up
-    _ = create_invoice(address: :auto)
-    _ = create_invoice(currency: :LTC, address: :auto)
+    _ = create_invoice(address_id: :auto)
+    _ = create_invoice(currency_id: c1, address_id: :auto)
 
-    conn = get(conn, "/v1/currencies/BCH")
+    conn = get(conn, "/v1/currencies/#{c0}")
+
+    c0s = to_string(c0)
 
     assert %{
              "addresses" => addresses,
-             "code" => "BCH",
-             "name" => "Bitcoin Cash",
+             "code" => ^c0s,
+             "name" => "Testcrypto" <> _num,
              "invoices" => invoices,
              "status" => "ok"
            } = json_response(conn, 200)

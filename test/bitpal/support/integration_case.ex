@@ -6,28 +6,34 @@ defmodule BitPal.IntegrationCase do
   """
 
   use ExUnit.CaseTemplate
+  alias BitPal.Backend
+  alias BitPal.BackendManager
+  alias BitPal.BackendMock
+  alias BitPal.InvoiceManager
+  alias BitPal.Repo
   alias Ecto.Adapters.SQL.Sandbox
 
   using do
     quote do
+      use BitPal.CaseHelpers
       import Ecto
       import Ecto.Changeset
       import Ecto.Query
-      import BitPal.CreationHelpers
       import BitPal.IntegrationCase
-      import BitPal.TestHelpers
-      import BitPal.IntegrationCase, only: [setup_integration: 0, setup_integration: 1]
 
       alias BitPal.Addresses
-      alias BitPal.BackendManager
-      alias BitPal.BackendMock
       alias BitPal.Currencies
       alias BitPal.ExchangeRate
-      alias BitPal.InvoiceManager
       alias BitPal.Invoices
       alias BitPal.Repo
       alias BitPal.Stores
       alias BitPal.Transactions
+
+      alias BitPal.BackendManager
+      alias BitPal.BackendMock
+      alias BitPal.HandlerSubscriberCollector
+      alias BitPal.InvoiceManager
+
       alias BitPalSchemas.Invoice
     end
   end
@@ -37,52 +43,68 @@ defmodule BitPal.IntegrationCase do
   end
 
   def setup_integration(tags \\ []) do
-    start_supervised!({Phoenix.PubSub, name: BitPal.PubSub})
-    start_supervised!(BitPal.ProcessRegistry)
-    start_supervised!({Task.Supervisor, name: BitPal.TaskSupervisor})
-    start_supervised!({BitPal.Cache, name: BitPal.RuntimeStorage, ttl_check_interval: false})
+    repo_pid = Sandbox.start_owner!(Repo, shared: not tags[:async])
 
-    setup_db(tags)
+    res = setup_backends(tags[:backends] || [BackendMock])
 
-    BitPal.Currencies.register!([:XMR, :BCH, :DGC])
+    test_pid = self()
 
-    if tags[:backends] do
-      setup_backends(tags)
-    end
-
-    :ok
-  end
-
-  defp setup_db(tags) do
-    start_supervised(BitPal.Repo)
-    :ok = Sandbox.checkout(BitPal.Repo)
-
-    unless tags[:async] do
-      Sandbox.mode(BitPal.Repo, {:shared, self()})
-    end
-  end
-
-  defp setup_backends(tags) do
-    # Only start backend if explicitly told to
-    backend_manager =
-      if backends = backends(tags) do
-        if !Enum.empty?(backends) do
-          start_supervised!({BitPal.BackendManager, backends: backends})
-        end
+    on_exit(fn ->
+      if tags[:async] do
+        Sandbox.allow(Repo, test_pid, self())
       end
 
-    invoice_manager =
-      start_supervised!(
-        {BitPal.InvoiceManager, double_spend_timeout: Map.get(tags, :double_spend_timeout, 100)}
-      )
+      # Shut down in order to prevent race conditions
+      remove_invoice_handlers(res.currencies)
+      remove_backends(res.backends)
+      Sandbox.stop_owner(repo_pid)
+    end)
 
-    %{
-      backend_manager: backend_manager,
-      invoice_manager: invoice_manager
-    }
+    res
   end
 
-  defp backends(%{backends: true}), do: [BitPal.BackendMock]
-  defp backends(%{backends: backends}), do: backends
-  defp backends(_), do: nil
+  defp setup_backends(backends) when is_list(backends) do
+    backends =
+      Enum.map(backends, fn backend ->
+        backend
+        |> BackendManager.add_allow_parent_opt(parent: self())
+        |> BackendManager.start_backend()
+      end)
+
+    currencies = Enum.flat_map(backends, &Backend.supported_currencies/1)
+
+    %{
+      currencies: currencies,
+      backends: backends
+    }
+    # Convenient to refer to currency_id if there's only a single currency being tested.
+    |> then(fn opts ->
+      if Enum.count(currencies) == 1 do
+        Map.put(opts, :currency_id, hd(currencies))
+      else
+        opts
+      end
+    end)
+  end
+
+  def remove_invoice_handlers(currencies) do
+    currencies_to_remove = MapSet.new(currencies)
+
+    # Alternative way, to avoid db accesses.
+    for invoice <- InvoiceManager.tracked_invoices() do
+      if invoice.currency_id in currencies_to_remove do
+        case InvoiceManager.fetch_handler(invoice.id) do
+          {:ok, handler} ->
+            InvoiceManager.terminate_handler(handler)
+
+          _ ->
+            nil
+        end
+      end
+    end
+  end
+
+  defp remove_backends(backends) do
+    BackendManager.terminate_backends(backends)
+  end
 end

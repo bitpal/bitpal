@@ -178,8 +178,7 @@ defmodule BitPalDoc.MarkdownTransformation do
 
   def text(val) when is_list(val) do
     val
-    |> Enum.map(&text/1)
-    |> Enum.join("\n")
+    |> Enum.map_join("\n", &text/1)
   end
 
   def text({_elem, _attrs, children, _extra}) do

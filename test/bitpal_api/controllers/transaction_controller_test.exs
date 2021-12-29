@@ -1,27 +1,32 @@
 defmodule BitPalApi.TransactionControllerTest do
-  use BitPalApi.ConnCase
+  use BitPalApi.ConnCase, async: true
   alias BitPal.Stores
   alias BitPalApi.Authentication.BasicAuth
 
-  test "index", %{conn: conn} do
+  setup tags = %{conn: conn} do
     {:ok, store_id} = BasicAuth.parse(conn)
-    _ = txs(store_id, 3)
+    store = Stores.fetch!(store_id)
+    Map.put(tags, :store, store)
+  end
 
-    other_store = Stores.create!()
-    _ = txs(other_store.id, 1)
+  test "index", %{conn: conn, store: store, currency_id: currency_id} do
+    create_invoice(store, status: :open)
+    |> with_txs(tx_count: 2, currency_id: currency_id)
+
+    create_store()
+    |> with_invoices(txs: :auto, currency_id: currency_id)
 
     conn = get(conn, "/v1/transactions/")
     assert txs = json_response(conn, 200)
-    assert length(txs) == 3
+    assert length(txs) == 2
   end
 
-  @tag do: true
-  test "show", %{conn: conn} do
-    {:ok, store_id} = BasicAuth.parse(conn)
-    [txid] = txs(store_id, 1)
+  test "show", %{conn: conn, store: store, currency_id: currency_id} do
+    tx = create_tx(store, currency_id: currency_id)
+    txid = tx.txid
 
     conn = get(conn, "/v1/transactions/#{txid}")
-    assert %{"txid" => ^txid, "amount" => "1.00000000", "address" => _} = json_response(conn, 200)
+    assert %{"txid" => ^txid, "amount" => _, "address" => _} = json_response(conn, 200)
   end
 
   test "not found", %{conn: conn} do
@@ -38,9 +43,10 @@ defmodule BitPalApi.TransactionControllerTest do
            } = Jason.decode!(response)
   end
 
-  test "tx to other store not found", %{conn: conn} do
-    other_store = Stores.create!()
-    [txid] = txs(other_store.id, 1)
+  test "tx to other store not found", %{conn: conn, currency_id: currency_id} do
+    other_store = create_store()
+    tx = create_tx(other_store, currency_id: currency_id)
+    txid = tx.txid
 
     {_, _, response} =
       assert_error_sent(404, fn ->
@@ -53,11 +59,5 @@ defmodule BitPalApi.TransactionControllerTest do
              "param" => "txid",
              "message" => _
            } = Jason.decode!(response)
-  end
-
-  defp txs(store_id, count) do
-    Enum.map(1..count, fn amount ->
-      create_transaction(store_id: store_id, amount: amount)
-    end)
   end
 end

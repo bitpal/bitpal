@@ -9,6 +9,7 @@ defmodule BitPal.InvoiceHandler do
   alias BitPal.Transactions
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.TxOutput
+  alias Ecto.Adapters.SQL.Sandbox
   require Logger
 
   @type handler :: pid
@@ -29,29 +30,42 @@ defmodule BitPal.InvoiceHandler do
     }
   end
 
-  @spec get_invoice(handler) :: Invoice.t()
-  def get_invoice(handler) do
+  @spec fetch_invoice!(handler) :: Invoice.t()
+  def fetch_invoice!(handler) do
     GenServer.call(handler, :get_invoice)
+  end
+
+  @spec fetch_invoice(handler) :: {:ok, Invoice.t()} | {:error, :not_started}
+  def fetch_invoice(handler) do
+    try do
+      {:ok, GenServer.call(handler, :get_invoice)}
+    catch
+      # The GenServer shuts down when an invoice has been paid, which causes
+      # the caller to exit.
+      :exit, _reason ->
+        {:error, :not_started}
+    end
   end
 
   # Server API
 
   @impl true
   def init(opts) do
+    # Register process directly, to prevent race condition with manager calling the handler
+    # directly after start_link.
     invoice_id = Keyword.fetch!(opts, :invoice_id)
-    double_spend_timeout = Keyword.fetch!(opts, :double_spend_timeout)
-
     Registry.register(ProcessRegistry, via_tuple(invoice_id), invoice_id)
 
-    # Callback to initializer routine to not block start_link
-    send(self(), :init)
-
-    {:ok, %{double_spend_timeout: double_spend_timeout, invoice_id: invoice_id, block_height: 0}}
+    {:ok, %{invoice_id: invoice_id, opts: opts}, {:continue, :init}}
   end
 
   @impl true
-  def handle_info(:init, state = %{invoice_id: invoice_id}) do
+  def handle_continue(:init, %{invoice_id: invoice_id, opts: opts}) do
     Logger.debug("init handler: #{invoice_id}")
+
+    if parent = opts[:parent] do
+      Sandbox.allow(BitPal.Repo, parent, self())
+    end
 
     # Locate a new invoice for self-healing purpises.
     # If we're restarted we need to get the up-to-date invoice.
@@ -59,17 +73,75 @@ defmodule BitPal.InvoiceHandler do
     # should only be updated from this handler, so we can keep holding it.
     invoice = Invoices.fetch!(invoice_id)
 
+    state =
+      Keyword.take(opts, [:double_spend_timeout])
+      |> Enum.into(%{block_height: 0, invoice_id: invoice_id})
+      |> Map.put_new_lazy(:double_spend_timeout, fn -> Invoices.double_spend_timeout(invoice) end)
+      |> Map.put(:invoice, invoice)
+
     case invoice.status do
       :draft ->
-        finalize(invoice, state)
+        {:noreply, state, {:continue, :finalize}}
 
       _ ->
-        recover(invoice, state)
+        {:noreply, state, {:continue, :recover}}
     end
   end
 
   @impl true
-  def handle_info({:tx_seen, txid}, state) do
+  def handle_continue(:finalize, state = %{invoice: invoice}) do
+    case BackendManager.register(invoice) do
+      {:ok, invoice} ->
+        subscribe(invoice)
+        invoice = Invoices.finalize!(invoice)
+
+        state =
+          state
+          |> Map.delete(:invoice_id)
+          |> Map.put(:invoice, invoice)
+
+        {:noreply, state}
+
+      {:error, err} ->
+        Logger.error("""
+        Failed to register invoice with backend #{inspect(err)}
+        Wanted currency: #{invoice.currency_id}
+        Supported currencies by the backends: #{inspect(BackendManager.currency_list())}
+        """)
+
+        {:stop, {:shutdown, err}}
+    end
+  end
+
+  @impl true
+  def handle_continue(:recover, state = %{invoice: invoice}) do
+    subscribe(invoice)
+
+    # Should always have a block since we're trying to recover
+    block_height = Blocks.fetch_block_height!(invoice.currency_id)
+    invoice = Invoices.update_info_from_txs(invoice, block_height)
+
+    txs =
+      Enum.map(invoice.tx_outputs, fn tx ->
+        if tx.confirmed_height == nil do
+          send_double_spend_timeout(tx.txid, state)
+        end
+
+        {tx.txid, tx.confirmed_height}
+      end)
+      |> Enum.into(%{})
+
+    state
+    |> Map.put(:block_height, block_height)
+    |> Map.delete(:invoice_id)
+    |> Map.put(:invoice, invoice)
+    |> ensure_invoice_is_processing(txs)
+    |> clear_processed_txs(txs)
+    |> try_into_paid()
+  end
+
+  @impl true
+  def handle_info({{:tx, :seen}, %{id: txid}}, state) do
     block_height = state.block_height
     invoice = Invoices.update_info_from_txs(state.invoice, block_height)
     state = put_tx_to_process(state, txid, nil)
@@ -95,7 +167,7 @@ defmodule BitPal.InvoiceHandler do
   end
 
   @impl true
-  def handle_info({:tx_confirmed, txid, height}, state) do
+  def handle_info({{:tx, :confirmed}, %{id: txid, height: height}}, state) do
     block_height = state.block_height
     invoice = Invoices.update_info_from_txs(state.invoice, block_height)
     new_tx? = !processing_tx?(state, txid)
@@ -137,18 +209,19 @@ defmodule BitPal.InvoiceHandler do
   end
 
   @impl true
-  def handle_info({:tx_double_spent, _txid}, state) do
+  def handle_info({{:tx, :double_spent}, _txid}, state) do
     invoice = Invoices.double_spent!(state.invoice)
     {:noreply, %{state | invoice: invoice}}
   end
 
   @impl true
-  def handle_info({:tx_reversed, _tx}, _state) do
-    # Need to handle reversals
+  def handle_info({{:tx, :reversed}, _tx}, state) do
+    # NOTE Need to handle reversals
+    {:noreply, state}
   end
 
   @impl true
-  def handle_info({:new_block, _currency, height}, state = %{processing_txs: txs}) do
+  def handle_info({{:block, :new}, %{height: height}}, state = %{processing_txs: txs}) do
     state = Map.put(state, :block_height, height)
 
     if state.invoice.required_confirmations > 0 do
@@ -161,12 +234,12 @@ defmodule BitPal.InvoiceHandler do
     end
   end
 
-  def handle_info({:new_block, _currency, height}, state) do
+  def handle_info({{:block, :new}, %{height: height}}, state) do
     {:noreply, Map.put(state, :block_height, height)}
   end
 
   @impl true
-  def handle_info({:set_block_height, _currency, height}, state = %{processing_txs: txs}) do
+  def handle_info({{:block, :set_height}, %{height: height}}, state = %{processing_txs: txs}) do
     state = Map.put(state, :block_height, height)
 
     if state.invoice.required_confirmations > 0 do
@@ -178,7 +251,7 @@ defmodule BitPal.InvoiceHandler do
     end
   end
 
-  def handle_info({:set_block_height, _currency, _height}, state) do
+  def handle_info({{:block, :set_height}, _params}, state) do
     {:noreply, state}
   end
 
@@ -193,51 +266,9 @@ defmodule BitPal.InvoiceHandler do
     {:reply, state.invoice, state}
   end
 
-  defp finalize(invoice, state) do
-    case BackendManager.register(invoice) do
-      {:ok, invoice} ->
-        :ok = AddressEvents.subscribe(invoice.address_id)
-        :ok = BlockchainEvents.subscribe(invoice.currency_id)
-
-        invoice = Invoices.finalize!(invoice)
-
-        state =
-          state
-          |> Map.delete(:invoice_id)
-          |> Map.put(:invoice, invoice)
-
-        {:noreply, state}
-
-      {:error, err} ->
-        {:stop, {:shutdown, err}}
-    end
-  end
-
-  defp recover(invoice, state) do
+  defp subscribe(invoice) do
     :ok = AddressEvents.subscribe(invoice.address_id)
     :ok = BlockchainEvents.subscribe(invoice.currency_id)
-
-    # Should always have a block since we're trying to recover
-    block_height = Blocks.fetch_block_height!(invoice.currency_id)
-    invoice = Invoices.update_info_from_txs(invoice, block_height)
-
-    txs =
-      Enum.map(invoice.tx_outputs, fn tx ->
-        if tx.confirmed_height == nil do
-          send_double_spend_timeout(tx.txid, state)
-        end
-
-        {tx.txid, tx.confirmed_height}
-      end)
-      |> Enum.into(%{})
-
-    state
-    |> Map.put(:block_height, block_height)
-    |> Map.delete(:invoice_id)
-    |> Map.put(:invoice, invoice)
-    |> ensure_invoice_is_processing(txs)
-    |> clear_processed_txs(txs)
-    |> try_into_paid()
   end
 
   defp ensure_invoice_is_processing(state, txs) do
@@ -320,6 +351,7 @@ defmodule BitPal.InvoiceHandler do
 
     if done? do
       state = Map.put(state, :invoice, Invoices.pay!(invoice))
+
       {:stop, :normal, state}
     else
       {:noreply, state}

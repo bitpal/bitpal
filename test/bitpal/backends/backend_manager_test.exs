@@ -1,81 +1,123 @@
 defmodule BackendManagerTest do
-  use BitPal.IntegrationCase, db: true
-
-  alias BitPal.Backend
+  use BitPal.DataCase, async: true
   alias BitPal.BackendManager
   alias BitPal.BackendMock
 
-  test "initialize and restart" do
-    pid = start_supervised!({BackendManager, backends: [BackendMock]})
+  describe "init backends" do
+    test "initialize and restart" do
+      pid =
+        start_supervised!(
+          {BackendManager,
+           backends: [{BackendMock, currency_id: unique_currency_id(), parent: self()}],
+           name: unique_server_name(),
+           parent: self()}
+        )
 
-    %{active: 1} = DynamicSupervisor.count_children(pid)
+      %{active: 1} = DynamicSupervisor.count_children(pid)
 
-    [{_, child_pid, _, _}] = DynamicSupervisor.which_children(pid)
+      [{_, child_pid, _, _}] = DynamicSupervisor.which_children(pid)
 
-    assert_shutdown(child_pid)
+      assert_shutdown(child_pid)
 
-    [{_, new_child_pid, _, _}] = DynamicSupervisor.which_children(pid)
-    assert child_pid != new_child_pid
+      [{_, new_child_pid, _, _}] = DynamicSupervisor.which_children(pid)
+      assert child_pid != new_child_pid
+    end
+
+    test "setup and fetch" do
+      [c0, c1, c2] = unique_currency_ids(3)
+
+      start_supervised!(
+        {BackendManager,
+         backends: [
+           {BackendMock, currency_id: c0},
+           {BackendMock, currency_id: c1}
+         ],
+         parent: self(),
+         name: unique_server_name()}
+      )
+
+      assert {:ok, {_pid, BackendMock}} = BackendManager.fetch_backend(c0)
+      assert {:ok, {_pid, BackendMock}} = BackendManager.fetch_backend(c1)
+      assert {:error, :not_found} = BackendManager.fetch_backend(c2)
+    end
   end
 
-  test "backend currency support" do
-    assert Backend.supported_currency?(:BCH, [:BCH, :XMR])
-    assert !Backend.supported_currency?([:BCH, :XMR], [:BCH, :BTC])
+  describe "currency_list/0" do
+    test "list multiple" do
+      name = unique_server_name()
+      [c0, c1] = unique_currency_ids(2)
 
-    start_supervised!(
-      {BackendManager,
-       backends: [
-         {BitPal.BackendMock, name: BCH.Backend, currency: :BCH},
-         {BitPal.BackendMock, name: BTC.Backend, currency: :BTC},
-         {BitPal.BackendMock, name: Monero.Backend, currency: :XMR}
-       ]}
-    )
+      start_supervised!(
+        {BackendManager,
+         backends: [
+           {BackendMock, currency_id: c0},
+           {BackendMock, currency_id: c1}
+         ],
+         parent: self(),
+         name: name}
+      )
 
-    assert BackendManager.backend_status(BCH.Backend) == :ok
-    assert BackendManager.backend_status(Monero.Backend) == :ok
-    assert BackendManager.backend_status(XXX.Backend) == :not_found
-
-    assert BackendManager.currency_status(:BCH) == :ok
-    assert BackendManager.currency_status(:BCH) == :ok
-    assert BackendManager.currency_status(:bsv) == :not_found
-
-    assert {:ok, bit} = BackendManager.get_backend(BCH.Backend)
-    assert {:ok, ^bit} = BackendManager.get_currency_backend(:BCH)
-    assert {:ok, ^bit} = BackendManager.get_currency_backend(:BCH)
-    assert {:error, :not_found} = BackendManager.get_currency_backend(:BSV)
-
-    assert BackendManager.currency_list() === [:BCH, :BTC, :XMR]
+      assert Enum.sort(BackendManager.currency_list(name)) === Enum.sort([c0, c1])
+    end
   end
 
-  test "change config" do
-    start_supervised!(
-      {BackendManager,
-       backends: [
-         {BitPal.BackendMock, name: Bitcoin.Backend, currency: :BCH},
-         {BitPal.BackendMock, name: Litecoin.Backend, currency: :LTC}
-       ]}
-    )
+  describe "status/1" do
+    test "Finding status" do
+      currency_id = unique_currency_id()
 
-    assert {:ok, bit} = BackendManager.get_backend(Bitcoin.Backend)
-    assert {:ok, ^bit} = BackendManager.get_currency_backend(:BCH)
-    assert {:error, :not_found} = BackendManager.get_currency_backend(:BTC)
-    assert {:ok, ltc} = BackendManager.get_backend(Litecoin.Backend)
-    assert {:ok, ^ltc} = BackendManager.get_currency_backend(:LTC)
+      start_supervised!(
+        {BackendManager,
+         parent: self(),
+         backends: [{BackendMock, currency_id: currency_id}],
+         name: unique_server_name()}
+      )
 
-    BackendManager.configure(
-      backends: [
-        {BitPal.BackendMock, name: Bitcoin.Backend, currency: :BCH},
-        {BitPal.BackendMock, name: Monero.Backend, currency: :XMR}
-      ]
-    )
+      assert :ok == BackendManager.status(currency_id)
+    end
+  end
 
-    # Doesn't restart the existing backend
-    assert {:ok, ^bit} = BackendManager.get_currency_backend(:BCH)
-    # Removes a backend
-    assert {:error, :not_found} = BackendManager.get_currency_backend(:LTC)
-    # Adds a new backend
-    assert {:ok, xmr} = BackendManager.get_backend(Monero.Backend)
-    assert {:ok, ^xmr} = BackendManager.get_currency_backend(:XMR)
-    assert BackendManager.backends() |> Enum.count() == 2
+  describe "config_change/1" do
+    test "change config" do
+      name = unique_server_name()
+
+      [c0, c1, c2] = unique_currency_ids(3)
+
+      start_supervised!(
+        {BackendManager,
+         parent: self(),
+         backends: [
+           {BackendMock, currency_id: c0},
+           {BackendMock, currency_id: c1}
+         ],
+         name: name}
+      )
+
+      assert {:ok, pid0} = BackendManager.fetch_backend(c0)
+      assert {:ok, _} = BackendManager.fetch_backend(c1)
+      assert {:error, :not_found} = BackendManager.fetch_backend(c2)
+
+      BackendManager.config_change(
+        name,
+        backends: [
+          {BackendMock, currency_id: c0, parent: self()},
+          {BackendMock, currency_id: c2, parent: self()}
+        ]
+      )
+
+      # Doesn't restart the existing backend
+      assert {:ok, ^pid0} = BackendManager.fetch_backend(c0)
+
+      # Removes a backend
+      assert eventually(fn ->
+               {:error, :not_found} == BackendManager.fetch_backend(c1)
+             end)
+
+      # Adds a new backend
+      eventually(fn ->
+        assert {:ok, _} = BackendManager.fetch_backend(c2)
+      end)
+
+      assert BackendManager.backends(name) |> Enum.count() == 2
+    end
   end
 end
