@@ -320,7 +320,6 @@ defmodule BitPal.Backend.FloweeTest do
            ] = HandlerSubscriberCollector.received(stub1)
   end
 
-  # NOTE that this test sometimes times out
   @tag init_message: false
   test "wait for Flowee to become ready" do
     # Send it an incomplete startup message to get it going.
