@@ -2,6 +2,7 @@ defmodule BitPalWeb.StoreView do
   use BitPalWeb, :view
   alias BitPal.Currencies
   alias BitPal.Invoices
+  alias BitPalSchemas.AccessToken
   alias BitPalSchemas.Invoice
 
   def format_status(invoice = %Invoice{}) do
@@ -150,5 +151,29 @@ defmodule BitPalWeb.StoreView do
       <% end %>
     </span>
     """
+  end
+
+  def format_created_at(token = %AccessToken{}) do
+    Timex.format!(token.created_at, "{ISOdate}")
+  end
+
+  def format_last_accessed(token = %AccessToken{}) do
+    if token.last_accessed do
+      Timex.format!(token.last_accessed, "{relative}", :relative)
+    else
+      "Never"
+    end
+  end
+
+  def format_valid_until(token = %AccessToken{}, now = %NaiveDateTime{}) do
+    if token.valid_until do
+      if NaiveDateTime.compare(token.valid_until, now) == :lt do
+        Timex.format!(token.valid_until, "{relative}", :relative)
+      else
+        Timex.format!(token.valid_until, "{ISOdate}")
+      end
+    else
+      "Never"
+    end
   end
 end

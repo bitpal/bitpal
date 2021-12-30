@@ -55,11 +55,46 @@ defmodule BitPal.Authentication.Tokens do
     |> Ecto.build_assoc(:access_tokens,
       data: params[:data] || create_token_data(store, signed_at: params[:signed_at])
     )
-    |> cast(params, [:label, :valid_until])
+    |> cast(params, [:label])
+    |> cast_naive_datetime(params, :valid_until)
     |> validate_required(:label)
     |> validate_length(:label, min: 1)
     |> unique_constraint(:data, name: :access_tokens_data_index)
     |> Repo.insert()
+  end
+
+  defp cast_naive_datetime(changeset, params, key) do
+    val = params[key] || params[Atom.to_string(key)]
+
+    if val && val != "" do
+      case parse_naive_datetime(val) do
+        {:ok, naive} ->
+          force_change(changeset, key, naive)
+
+        {:error, error} ->
+          add_error(changeset, key, "bad date format: #{error}")
+      end
+    else
+      changeset
+    end
+  end
+
+  defp parse_naive_datetime(val) when is_binary(val) do
+    case Timex.parse(val, "%Y-%m-%d", :strftime) do
+      {:ok, datetime} ->
+        {:ok,
+         datetime
+         |> Timex.set(hour: 23, minute: 59, second: 59)
+         |> Timex.to_naive_datetime()
+         |> NaiveDateTime.truncate(:second)}
+
+      err ->
+        err
+    end
+  end
+
+  defp parse_naive_datetime(val = %NaiveDateTime{}) do
+    {:ok, val |> NaiveDateTime.truncate(:second)}
   end
 
   @spec delete_token!(AccessToken.t()) :: :ok

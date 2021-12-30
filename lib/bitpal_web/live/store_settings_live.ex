@@ -190,7 +190,7 @@ defmodule BitPalWeb.StoreSettingsLive do
 
   @impl true
   def handle_event("create_token", %{"access_token" => updates}, socket) do
-    case Tokens.create_token(socket.assigns.store, Map.take(updates, ["label"])) do
+    case Tokens.create_token(socket.assigns.store, Map.take(updates, ["label", "valid_until"])) do
       {:ok, token} ->
         {:noreply,
          assign(socket,

@@ -5,6 +5,7 @@ defmodule BitPalFactory.StoreFactory do
   """
 
   import BitPalFactory.FactoryHelpers
+  import Ecto.Changeset
   alias BitPal.Repo
   alias BitPal.Stores
   alias BitPalFactory.AuthFactory
@@ -61,7 +62,12 @@ defmodule BitPalFactory.StoreFactory do
 
   @spec with_token(Store.t(), map | keyword) :: Store.t()
   def with_token(store, attrs \\ %{}) do
-    AuthFactory.create_token(store, attrs)
+    token = AuthFactory.create_token(store, attrs)
+
+    if last_accessed = attrs[:last_accessed] do
+      change(token, last_accessed: last_accessed |> NaiveDateTime.truncate(:second))
+      |> Repo.update!()
+    end
 
     store
     |> Repo.preload(:access_tokens, force: true)

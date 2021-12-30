@@ -58,6 +58,7 @@ defmodule BitPal.MixProject do
       {:scribe, "~> 0.10"},
       {:con_cache, "~> 1.0"},
       {:faker, "~> 0.16"},
+      {:timex, "~> 3.0"},
 
       # Server docs
       {:nimble_publisher, git: "https://github.com/treeman/nimble_publisher.git"},

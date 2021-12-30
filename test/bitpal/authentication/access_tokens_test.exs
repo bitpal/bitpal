@@ -11,13 +11,47 @@ defmodule BitPal.AccessTokensTest do
   describe "create_token" do
     test "create and associate", %{store: store} do
       now = System.system_time(:second)
-      a = create_token(store, signed_at: now - 1)
-      b = create_token(store, signed_at: now)
+      {:ok, a} = Tokens.create_token(store, valid_token_attributes(signed_at: now - 1))
+      {:ok, b} = Tokens.create_token(store, valid_token_attributes(signed_at: now))
 
       store = store |> Repo.preload([:access_tokens], force: true)
       assert length(store.access_tokens)
       assert a in store.access_tokens
       assert b in store.access_tokens
+    end
+
+    test "must supply a label", %{store: store} do
+      assert {:error, changeset} = Tokens.create_token(store, %{})
+      assert "can't be blank" in errors_on(changeset).label
+    end
+
+    test "label can't be blank", %{store: store} do
+      assert {:error, changeset} = Tokens.create_token(store, %{label: ""})
+      assert "can't be blank" in errors_on(changeset).label
+    end
+
+    test "parse valid_until from string", %{store: store} do
+      assert {:ok, t} =
+               Tokens.create_token(store, valid_token_attributes(valid_until: "2021-01-01"))
+
+      # Always sets time to end of day
+      assert t.valid_until ==
+               NaiveDateTime.new!(2021, 1, 1, 23, 59, 59, 0) |> NaiveDateTime.truncate(:second)
+    end
+
+    test "parse error on valid_until", %{store: store} do
+      assert {:error, changeset} =
+               Tokens.create_token(store, valid_token_attributes(valid_until: "xx 01-01"))
+
+      assert "bad date format: Expected `4 digit year` at line 1, column 1." in errors_on(
+               changeset
+             ).valid_until
+    end
+
+    test "pass naive datetime to valid_until", %{store: store} do
+      date = NaiveDateTime.new!(2021, 1, 1, 0, 0, 0, 0)
+      assert {:ok, t} = Tokens.create_token(store, valid_token_attributes(valid_until: date))
+      assert t.valid_until == date |> NaiveDateTime.truncate(:second)
     end
   end
 
