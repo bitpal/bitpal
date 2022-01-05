@@ -166,8 +166,14 @@ defmodule BitPalWeb.StoreView do
   end
 
   def format_valid_until(token = %AccessToken{}, now = %NaiveDateTime{}) do
+    eod =
+      now
+      |> NaiveDateTime.to_date()
+      |> NaiveDateTime.new!(Time.new!(23, 59, 59, 0))
+      |> NaiveDateTime.truncate(:second)
+
     if token.valid_until do
-      if NaiveDateTime.compare(token.valid_until, now) == :lt do
+      if NaiveDateTime.compare(token.valid_until, eod) == :lt do
         Timex.format!(token.valid_until, "{relative}", :relative)
       else
         Timex.format!(token.valid_until, "{ISOdate}")

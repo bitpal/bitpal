@@ -1,7 +1,6 @@
 defmodule BitPalWeb.StoreAddressesLiveTest do
   use BitPalWeb.ConnCase, integration: true, async: true
   alias BitPal.BackendMock
-  alias Phoenix.HTML
 
   setup tags do
     tags
@@ -19,7 +18,7 @@ defmodule BitPalWeb.StoreAddressesLiveTest do
         )
 
       {:ok, _view, html} = live(conn, Routes.store_addresses_path(conn, :show, store.slug))
-      assert html =~ store.label |> HTML.html_escape() |> HTML.safe_to_string()
+      assert html =~ store.label |> html_string()
       assert html =~ invoice.address_id
     end
 
@@ -28,7 +27,7 @@ defmodule BitPalWeb.StoreAddressesLiveTest do
       address = create_address(address_key)
 
       {:ok, _view, html} = live(conn, Routes.store_addresses_path(conn, :show, store.slug))
-      assert html =~ store.label |> HTML.html_escape() |> HTML.safe_to_string()
+      assert html =~ store.label |> html_string()
       assert html =~ address.id
     end
   end

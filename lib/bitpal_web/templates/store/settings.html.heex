@@ -2,6 +2,14 @@
 <% now = NaiveDateTime.utc_now() %>
 
 <section class="settings">
+  <.form let={f} for={@edit_store} phx-submit="edit_store" id="edit_store">
+    <%= error_tag f, :label %>
+    <%= label f, :label, "Label" %>
+    <%= text_input f, :label %>
+
+    <%= submit "Update" %>
+  </.form>
+
   <%= if token = assigns[:created_token] do %>
     <section class="created-token">
       <div class="label"><%= token.label %></div>

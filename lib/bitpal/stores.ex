@@ -65,6 +65,27 @@ defmodule BitPal.Stores do
     |> Repo.insert()
   end
 
+  @spec update_changeset(Store.t(), map) :: Changeset.t()
+  def update_changeset(store, params \\ %{}) do
+    store
+    |> change()
+    |> cast(params, [:label])
+    |> validate_required([:label])
+    |> validate_length(:label, min: 1)
+  end
+
+  @spec update(Store.t(), map) :: {:ok, Store.t()} | {:error, Changeset.t()}
+  def update(store = %Store{}, params) do
+    update_changeset(store, params)
+    |> update()
+  end
+
+  @spec update(Changeset.t()) :: {:ok, Store.t()} | {:error, Changeset.t()}
+  def update(changeset) do
+    changeset
+    |> Repo.update()
+  end
+
   @spec all :: [Store.t()]
   def all do
     Repo.all(Store)

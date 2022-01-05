@@ -22,6 +22,7 @@ defmodule BitPalWeb.ConnCase do
   alias BitPal.DataCase
   alias BitPal.HandlerSubscriberCollector
   alias BitPal.IntegrationCase
+  alias Phoenix.HTML
 
   defmacro __using__(params) do
     quote do
@@ -111,5 +112,9 @@ defmodule BitPalWeb.ConnCase do
     eventually(fn ->
       view |> element(selector, text_filter) |> render() =~ match
     end)
+  end
+
+  def html_string(s) do
+    s |> HTML.html_escape() |> HTML.safe_to_string()
   end
 end

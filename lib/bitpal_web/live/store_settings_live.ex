@@ -82,6 +82,7 @@ defmodule BitPalWeb.StoreSettingsLive do
 
       assign(socket,
         store: store,
+        edit_store: Stores.update_changeset(store),
         currency_settings: initial_currency_settings(store),
         # Placeholder to examine styling.
         # created_token: %{
@@ -200,6 +201,19 @@ defmodule BitPalWeb.StoreSettingsLive do
 
       {:error, changeset} ->
         {:noreply, assign(socket, create_token: changeset)}
+    end
+  end
+
+  @impl true
+  def handle_event("edit_store", %{"store" => params}, socket) do
+    changeset = Stores.update_changeset(socket.assigns.store, params)
+
+    case Stores.update(changeset) do
+      {:ok, store} ->
+        {:noreply, assign(socket, store: store, edit_store: changeset)}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, edit_store: changeset)}
     end
   end
 
