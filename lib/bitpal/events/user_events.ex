@@ -4,9 +4,7 @@ defmodule BitPal.UserEvents do
   """
 
   alias BitPal.EventHelpers
-  alias BitPalSchemas.Address
-  alias BitPalSchemas.Currency
-  alias BitPalSchemas.Invoice
+  alias BitPalSchemas.Store
   alias BitPalSchemas.User
 
   @type msg :: {{:user, :store_created}, %{user_id: User.id(), store: Store.t()}}

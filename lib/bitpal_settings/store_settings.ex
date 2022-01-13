@@ -60,11 +60,8 @@ defmodule BitPalSettings.StoreSettings do
 
       # Key exists, but hasn't been used yet so we can just update it.
       true ->
-        change(address_key, data: key)
-        |> validate_address_key_data(:data, currency_id: settings.currency_id)
-        |> foreign_key_constraint(:currency_settings_id)
-        |> foreign_key_constraint(:currency_id)
-        |> unique_constraint(:data, name: :address_keys_data_index)
+        address_key
+        |> address_key_change(key, settings.currency_id)
         |> Repo.update()
     end
   end
@@ -78,13 +75,18 @@ defmodule BitPalSettings.StoreSettings do
     |> Repo.exists?()
   end
 
-  defp insert_address_key(settings_id, currency_id, key) when is_binary(key) do
-    %AddressKey{currency_settings_id: settings_id, currency_id: currency_id}
+  defp address_key_change(address_key, key, currency_id) do
+    address_key
     |> change(%{data: key})
     |> validate_address_key_data(:data, currency_id: currency_id)
     |> foreign_key_constraint(:currency_settings_id)
     |> foreign_key_constraint(:currency_id)
     |> unique_constraint(:data, name: :address_keys_data_index)
+  end
+
+  defp insert_address_key(settings_id, currency_id, key) when is_binary(key) do
+    %AddressKey{currency_settings_id: settings_id, currency_id: currency_id}
+    |> address_key_change(key, currency_id)
     |> Repo.insert()
   end
 

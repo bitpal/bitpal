@@ -5,9 +5,9 @@ defmodule BitPal.BackendMock do
   use GenServer
   import BitPalSettings.ConfigHelpers
   alias BitPal.Backend
+  alias BitPal.BackendEvents
   alias BitPal.BlockchainEvents
   alias BitPal.Blocks
-  alias BitPal.BackendEvents
   alias BitPal.Invoices
   alias BitPal.ProcessRegistry
   alias BitPal.Transactions

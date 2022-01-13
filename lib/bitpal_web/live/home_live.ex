@@ -1,9 +1,9 @@
 defmodule BitPalWeb.HomeLive do
   use BitPalWeb, :live_view
-  alias BitPal.Stores
-  alias BitPal.BackendManager
-  alias BitPal.UserEvents
   alias BitPal.BackendEvents
+  alias BitPal.BackendManager
+  alias BitPal.Stores
+  alias BitPal.UserEvents
 
   on_mount(BitPalWeb.UserLiveAuth)
 

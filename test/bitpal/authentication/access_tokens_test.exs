@@ -63,7 +63,7 @@ defmodule BitPal.AccessTokensTest do
 
     test "valid token within exparation date", %{store: store} do
       signed_at = System.system_time(:second)
-      valid_until = (signed_at + 2) |> DateTime.from_unix!() |> DateTime.to_naive()
+      valid_until = (signed_at + 20) |> DateTime.from_unix!() |> DateTime.to_naive()
 
       t = create_token(store, signed_at: signed_at, valid_until: valid_until)
       assert {:ok, store.id} == Tokens.authenticate_token(t.data)
