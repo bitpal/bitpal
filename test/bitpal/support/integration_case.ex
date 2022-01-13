@@ -71,7 +71,16 @@ defmodule BitPal.IntegrationCase do
         |> BackendManager.start_backend()
       end)
 
-    currencies = Enum.flat_map(backends, &Backend.supported_currencies/1)
+    currencies =
+      Enum.flat_map(backends, fn backend ->
+        case Backend.supported_currency(backend) do
+          {:ok, currency_id} ->
+            [currency_id]
+
+          {:error, :not_found} ->
+            []
+        end
+      end)
 
     %{
       currencies: currencies,
@@ -81,6 +90,14 @@ defmodule BitPal.IntegrationCase do
     |> then(fn opts ->
       if Enum.count(currencies) == 1 do
         Map.put(opts, :currency_id, hd(currencies))
+      else
+        opts
+      end
+    end)
+    # Convenient to refer to currency_id if there's only a single backend being tested.
+    |> then(fn opts ->
+      if Enum.count(backends) == 1 do
+        Map.put(opts, :backend, hd(backends))
       else
         opts
       end
