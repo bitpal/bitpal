@@ -2,6 +2,7 @@ defmodule BitPal.Stores do
   import Ecto.Changeset
   import Ecto.Query, only: [from: 2]
   alias BitPal.Repo
+  alias BitPal.UserEvents
   alias BitPalSchemas.AccessToken
   alias BitPalSchemas.Address
   alias BitPalSchemas.AddressKey
@@ -58,11 +59,26 @@ defmodule BitPal.Stores do
 
   @spec create(Store.t(), map) :: {:ok, Store.t()} | {:error, Changeset.t()}
   def create(store = %Store{}, params) do
-    store
-    |> cast(params, [:label])
-    |> validate_required([:label])
-    |> create_slug()
-    |> Repo.insert()
+    res =
+      store
+      |> cast(params, [:label])
+      |> validate_required([:label])
+      |> create_slug()
+      |> Repo.insert()
+
+    case res do
+      {:ok, store} ->
+        store = Repo.preload(store, :users)
+
+        for user <- store.users do
+          UserEvents.broadcast({{:user, :store_created}, %{user_id: user.id, store: store}})
+        end
+
+        {:ok, store}
+
+      err ->
+        err
+    end
   end
 
   @spec update_changeset(Store.t(), map) :: Changeset.t()
