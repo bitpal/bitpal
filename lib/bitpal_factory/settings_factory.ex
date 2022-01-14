@@ -57,6 +57,12 @@ defmodule BitPalFactory.SettingsFactory do
     address_key
   end
 
+  @spec with_address_key(Store.t()) :: Store.t()
+  def with_address_key(store, opts \\ %{}) do
+    _address_key = create_address_key(Enum.into(opts, %{store: store}))
+    store
+  end
+
   @spec ensure_address_key!(map | keyword) :: AddressKey.t()
   def ensure_address_key!(attrs) do
     attrs = Enum.into(attrs, %{})

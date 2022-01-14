@@ -1,5 +1,6 @@
 defmodule BitPalFactory.AddressFactory do
   alias BitPal.Addresses
+  alias BitPal.BCH.Cashaddress
   alias BitPalFactory.InvoiceFactory
   alias BitPalFactory.SettingsFactory
   alias BitPalSchemas.Address
@@ -57,12 +58,17 @@ defmodule BitPalFactory.AddressFactory do
       {:ok, address} = Addresses.register_next_address(address_key, address_id)
       address
     else
-      {:ok, address} =
-        Addresses.generate_address(address_key, fn _args ->
-          unique_address_id(address_key.currency_id)
-        end)
-
+      {:ok, address} = Addresses.generate_address(address_key, &generate_address/1)
       address
     end
+  end
+
+  @spec generate_address(Addresses.address_generator_args()) :: Address.id()
+  def generate_address(%{key: xpub, index: address_index, currency_id: :BCH}) do
+    Cashaddress.derive_address(xpub, address_index)
+  end
+
+  def generate_address(%{currency_id: currency_id}) do
+    unique_address_id(currency_id)
   end
 end
