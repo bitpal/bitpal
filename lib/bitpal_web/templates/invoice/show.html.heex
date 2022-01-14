@@ -37,7 +37,7 @@
 
     <div class="pos-data">
       <div class="header">POS data</div>
-      <div class="data"><%= inspect(@invoice.pos_data) %></div>
+      <div class="data"><%= StoreView.format_pos_data(@invoice.pos_data) %></div>
     </div>
 
     <div class="txs">

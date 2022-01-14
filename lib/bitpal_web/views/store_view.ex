@@ -5,6 +5,8 @@ defmodule BitPalWeb.StoreView do
   alias BitPalSchemas.AccessToken
   alias BitPalSchemas.Invoice
 
+  @dialyzer {:nowarn_function, format_pos_data: 1}
+
   def format_status(invoice = %Invoice{}) do
     assigns = %{
       status: readable_status(invoice.status),
@@ -180,6 +182,13 @@ defmodule BitPalWeb.StoreView do
       end
     else
       "Never"
+    end
+  end
+
+  def format_pos_data(data) do
+    case Poison.encode(data, pretty: true) do
+      {:ok, encoded} -> encoded
+      {:error, err} -> "Error displaying POS data: #{err}"
     end
   end
 end
