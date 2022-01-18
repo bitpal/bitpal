@@ -42,6 +42,25 @@ defmodule BackendManagerTest do
     end
   end
 
+  describe "currencies/0" do
+    test "list multiple" do
+      name = unique_server_name()
+      [c0, c1] = unique_currency_ids(2)
+
+      start_supervised!(
+        {BackendManager,
+         backends: [
+           {BackendMock, currency_id: c0},
+           {BackendMock, currency_id: c1}
+         ],
+         parent: self(),
+         name: name}
+      )
+
+      assert [{_, _}, {_, _}] = BackendManager.currencies(name)
+    end
+  end
+
   describe "currency_list/0" do
     test "list multiple" do
       name = unique_server_name()
@@ -61,18 +80,45 @@ defmodule BackendManagerTest do
     end
   end
 
-  describe "status/1" do
+  describe "status_list/1" do
     test "Finding status" do
-      currency_id = unique_currency_id()
+      name = unique_server_name()
+      [c0, c1] = unique_currency_ids(2)
 
       start_supervised!(
         {BackendManager,
          parent: self(),
-         backends: [{BackendMock, currency_id: currency_id}],
-         name: unique_server_name()}
+         backends: [
+           {BackendMock, currency_id: c0},
+           {BackendMock, currency_id: c1, status: :stopped}
+         ],
+         name: name}
       )
 
-      assert :ok == BackendManager.status(currency_id)
+      list = BackendManager.status_list(name)
+      assert {^c0, _, {:started, :ready}} = find_status(list, c0)
+      assert {^c1, _, :stopped} = find_status(list, c1)
+    end
+
+    defp find_status(list, currency_id) do
+      Enum.find(list, fn
+        {^currency_id, _, _} -> true
+        _ -> false
+      end)
+    end
+  end
+
+  describe "currency_status/1" do
+    test "Finding status" do
+      name = unique_server_name()
+      currency_id = unique_currency_id()
+
+      start_supervised!(
+        {BackendManager,
+         parent: self(), backends: [{BackendMock, currency_id: currency_id}], name: name}
+      )
+
+      assert {:started, :ready} == BackendManager.currency_status(currency_id)
     end
   end
 

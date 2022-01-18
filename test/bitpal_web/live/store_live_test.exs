@@ -1,7 +1,6 @@
 defmodule BitPalWeb.StoreLiveTest do
   use BitPalWeb.ConnCase, integration: true, async: true
   alias BitPal.BackendMock
-  alias Phoenix.HTML
 
   setup tags do
     tags
@@ -12,8 +11,7 @@ defmodule BitPalWeb.StoreLiveTest do
   describe "invoice updates" do
     test "show new invoice", %{conn: conn, store: store, currency_id: currency_id} do
       {:ok, view, html} = live(conn, Routes.store_path(conn, :show, store.slug))
-      assert html =~ store.label |> HTML.html_escape() |> HTML.safe_to_string()
-
+      assert html =~ store.label |> html_string()
       assert html =~ "There are no invoices here yet"
 
       _invoice =

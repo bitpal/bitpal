@@ -38,7 +38,7 @@ defmodule BitPalApi.CurrencyControllerTest do
              "code" => ^c0s,
              "name" => "Testcrypto" <> _num,
              "invoices" => invoices,
-             "status" => "ok"
+             "status" => "started"
            } = json_response(conn, 200)
 
     assert length(invoices) == 2

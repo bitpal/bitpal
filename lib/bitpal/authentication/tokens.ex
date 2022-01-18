@@ -1,6 +1,5 @@
 defmodule BitPal.Authentication.Tokens do
   import Ecto.Changeset
-  import Ecto.Query
   alias BitPal.Repo
   alias BitPalSchemas.AccessToken
   alias BitPalSchemas.Store
@@ -10,25 +9,38 @@ defmodule BitPal.Authentication.Tokens do
   @salt "access tokens"
 
   @spec authenticate_token(String.t()) ::
-          {:ok, Store.id()} | {:error, :not_found} | {:error, :invalid} | {:error, :expired}
+          {:ok, Store.id()} | {:error, :invalid} | {:error, :expired}
   def authenticate_token(token_data) do
-    with {:ok, store_id} <-
-           Phoenix.Token.verify(@secret_key_base, @salt, token_data, max_age: :infinity),
-         :ok <- valid_token?(store_id, token_data) do
-      {:ok, store_id}
+    with {:ok, token} <- get_token(token_data),
+         {:ok, store_id} <-
+           Phoenix.Token.verify(@secret_key_base, @salt, token_data, max_age: valid_age(token)) do
+      if token.store_id == store_id do
+        update_last_accessed(token)
+        {:ok, store_id}
+      else
+        {:error, :invalid}
+      end
     else
+      {:error, :not_found} -> {:error, :invalid}
       err -> err
     end
   end
 
-  @spec valid_token?(Store.id(), String.t()) :: :ok | {:error, :not_found}
-  def valid_token?(store_id, token_data) do
-    token =
-      from(t in AccessToken, where: t.store_id == ^store_id and t.data == ^token_data)
-      |> Repo.one()
+  @spec valid_age(AccessToken.t()) :: integer | :infinity
+  def valid_age(token) do
+    if token.valid_until do
+      NaiveDateTime.diff(token.valid_until, NaiveDateTime.utc_now())
+    else
+      :infinity
+    end
+  end
+
+  @spec get_token(String.t()) :: {:ok, AccessToken.t()} | {:error, :not_found}
+  def get_token(token_data) do
+    token = Repo.get_by(AccessToken, data: token_data)
 
     if token do
-      :ok
+      {:ok, token}
     else
       {:error, :not_found}
     end
@@ -44,23 +56,45 @@ defmodule BitPal.Authentication.Tokens do
       data: params[:data] || create_token_data(store, signed_at: params[:signed_at])
     )
     |> cast(params, [:label])
+    |> cast_naive_datetime(params, :valid_until)
     |> validate_required(:label)
     |> validate_length(:label, min: 1)
     |> unique_constraint(:data, name: :access_tokens_data_index)
     |> Repo.insert()
   end
 
-  @spec create_token!(Store.t()) :: AccessToken.t()
-  def create_token!(store) do
-    token_data = Phoenix.Token.sign(@secret_key_base, @salt, store.id)
-    insert_token!(store, token_data)
+  defp cast_naive_datetime(changeset, params, key) do
+    val = params[key] || params[Atom.to_string(key)]
+
+    if val && val != "" do
+      case parse_naive_datetime(val) do
+        {:ok, naive} ->
+          force_change(changeset, key, naive)
+
+        {:error, error} ->
+          add_error(changeset, key, "bad date format: #{error}")
+      end
+    else
+      changeset
+    end
   end
 
-  @spec insert_token!(Store.t(), String.t()) :: AccessToken.t()
-  def insert_token!(store, token_data) do
-    store
-    |> Ecto.build_assoc(:access_tokens, data: token_data)
-    |> Repo.insert!()
+  defp parse_naive_datetime(val) when is_binary(val) do
+    case Timex.parse(val, "%Y-%m-%d", :strftime) do
+      {:ok, datetime} ->
+        {:ok,
+         datetime
+         |> Timex.set(hour: 23, minute: 59, second: 59)
+         |> Timex.to_naive_datetime()
+         |> NaiveDateTime.truncate(:second)}
+
+      err ->
+        err
+    end
+  end
+
+  defp parse_naive_datetime(val = %NaiveDateTime{}) do
+    {:ok, val |> NaiveDateTime.truncate(:second)}
   end
 
   @spec delete_token!(AccessToken.t()) :: :ok
@@ -70,5 +104,10 @@ defmodule BitPal.Authentication.Tokens do
 
   defp create_token_data(store, opts) do
     Phoenix.Token.sign(@secret_key_base, @salt, store.id, opts)
+  end
+
+  defp update_last_accessed(token) do
+    change(token, last_accessed: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second))
+    |> Repo.update!()
   end
 end

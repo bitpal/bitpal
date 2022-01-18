@@ -2,7 +2,10 @@ defmodule BitPalWeb.StoreView do
   use BitPalWeb, :view
   alias BitPal.Currencies
   alias BitPal.Invoices
+  alias BitPalSchemas.AccessToken
   alias BitPalSchemas.Invoice
+
+  @dialyzer {:nowarn_function, format_pos_data: 1}
 
   def format_status(invoice = %Invoice{}) do
     assigns = %{
@@ -150,5 +153,42 @@ defmodule BitPalWeb.StoreView do
       <% end %>
     </span>
     """
+  end
+
+  def format_created_at(token = %AccessToken{}) do
+    Timex.format!(token.created_at, "{ISOdate}")
+  end
+
+  def format_last_accessed(token = %AccessToken{}) do
+    if token.last_accessed do
+      Timex.format!(token.last_accessed, "{relative}", :relative)
+    else
+      "Never"
+    end
+  end
+
+  def format_valid_until(token = %AccessToken{}, now = %NaiveDateTime{}) do
+    eod =
+      now
+      |> NaiveDateTime.to_date()
+      |> NaiveDateTime.new!(Time.new!(23, 59, 59, 0))
+      |> NaiveDateTime.truncate(:second)
+
+    if token.valid_until do
+      if NaiveDateTime.compare(token.valid_until, eod) == :lt do
+        Timex.format!(token.valid_until, "{relative}", :relative)
+      else
+        Timex.format!(token.valid_until, "{ISOdate}")
+      end
+    else
+      "Never"
+    end
+  end
+
+  def format_pos_data(data) do
+    case Poison.encode(data, pretty: true) do
+      {:ok, encoded} -> encoded
+      {:error, err} -> "Error displaying POS data: #{err}"
+    end
   end
 end

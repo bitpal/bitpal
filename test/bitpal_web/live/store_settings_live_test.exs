@@ -5,8 +5,8 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
   alias BitPal.Repo
   alias BitPalSchemas.AccessToken
   alias BitPalSchemas.AddressKey
+  alias BitPalSchemas.Store
   alias BitPalSettings.StoreSettings
-  alias Phoenix.HTML
 
   setup tags do
     tags
@@ -46,6 +46,35 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
                |> element(".currency", Atom.to_string(currency_id))
                |> render() =~ Money.Currency.name!(currency_id)
       end
+    end
+  end
+
+  describe "label" do
+    test "set", %{conn: conn, store: store} do
+      {:ok, view, _html} = live(conn, Routes.store_settings_path(conn, :show, store.slug))
+
+      rendered =
+        view
+        |> element("#edit_store")
+        |> render_submit(%{"store" => %{label: "new label"}})
+
+      assert rendered =~ "new label"
+      assert !(rendered =~ store.label)
+
+      store = Repo.get!(Store, store.id)
+      assert store.label == "new label"
+    end
+
+    test "errors on empty label", %{conn: conn, store: store} do
+      {:ok, view, _html} = live(conn, Routes.store_settings_path(conn, :show, store.slug))
+
+      rendered =
+        view
+        |> element("#edit_store")
+        |> render_submit(%{"store" => %{label: ""}})
+
+      assert rendered =~ html_string("can't be blank")
+      assert rendered =~ store.label
     end
   end
 
@@ -113,7 +142,7 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
       rendered =
         view
         |> element("#create_token")
-        |> render_submit(%{"access_token" => %{label: label}})
+        |> render_submit(%{"access_token" => %{"label" => label}})
 
       token =
         from(t in AccessToken, where: t.store_id == ^store.id)
@@ -129,9 +158,25 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
       rendered =
         view
         |> element("#create_token")
-        |> render_submit(%{"access_token" => %{label: ""}})
+        |> render_submit(%{"access_token" => %{"label" => ""}})
 
-      assert rendered =~ HTML.html_escape("can't be blank") |> HTML.safe_to_string()
+      assert rendered =~ html_string("can't be blank")
+    end
+
+    test "create with valid_until", %{conn: conn, store: store} do
+      {:ok, view, _html} = live(conn, Routes.store_settings_path(conn, :show, store.slug))
+
+      tomorrow =
+        NaiveDateTime.utc_now()
+        |> NaiveDateTime.add(60 * 60 * 24, :second)
+        |> Timex.format!("{ISOdate}")
+
+      rendered =
+        view
+        |> element("#create_token")
+        |> render_submit(%{"access_token" => valid_token_attributes(%{"valid_until" => tomorrow})})
+
+      assert rendered =~ tomorrow
     end
 
     test "revoke token", %{conn: conn, store: store} do

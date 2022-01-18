@@ -77,7 +77,12 @@ defmodule BitPal.Currencies do
 
   @spec set_height!(Currency.id(), height) :: :ok
   def set_height!(id, height) do
-    Repo.update!(Changeset.change(%Currency{id: id}, block_height: height))
+    case Repo.get(Currency, id) do
+      nil -> %Currency{id: id}
+      currency -> currency
+    end
+    |> Changeset.change(block_height: height)
+    |> Repo.insert_or_update!()
   end
 
   @spec fetch_height!(Currency.id()) :: height | nil

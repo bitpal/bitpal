@@ -47,42 +47,53 @@ defmodule BitPal.BackendManager do
     start_or_update_backend(name, backend)
   end
 
-  @spec status(Currency.id()) :: :ok | :not_found
-  def status(currency_id) do
+  @spec currency_status(Currency.id()) :: Backend.backend_status()
+  def currency_status(currency_id) do
     case fetch_backend(currency_id) do
-      {:ok, _} -> :ok
+      {:ok, ref} -> Backend.status(ref)
       _ -> :not_found
     end
   end
 
   # Supervised backends
 
-  @spec backends(server_name) :: [{backend_name(), Backend.backend_ref(), :ok, [Currency.id()]}]
+  @spec backends(server_name) :: [{backend_name(), Backend.backend_ref()}]
   def backends(name \\ __MODULE__) do
     Supervisor.which_children(name)
     |> Enum.map(fn {name, pid, _worker, [backend]} ->
       ref = {pid, backend}
-      {name, ref, :ok}
+      {name, ref}
     end)
   end
 
-  @spec currencies(server_name) :: [{Currency.id(), :ok, Backend.backend_ref()}]
+  @spec status_list(server_name) :: [
+          {Currency.id(), Backend.backend_ref(), Backend.backend_status()}
+        ]
+  def status_list(name \\ __MODULE__) do
+    backends(name)
+    |> Enum.flat_map(fn {_name, ref} ->
+      case Backend.supported_currency(ref) do
+        {:ok, currency_id} -> [{currency_id, ref, Backend.status(ref)}]
+        _ -> []
+      end
+    end)
+  end
+
+  @spec currencies(server_name) :: [{Currency.id(), Backend.backend_ref()}]
   def currencies(name \\ __MODULE__) do
     backends(name)
-    |> Enum.map(fn {_name, ref, status} ->
-      {ref, status, Backend.supported_currencies(ref)}
-    end)
-    |> Enum.reduce([], fn {ref, status, currencies}, acc ->
-      Enum.reduce(currencies, acc, fn currency, acc ->
-        [{currency, status, ref} | acc]
-      end)
+    |> Enum.flat_map(fn {_name, ref} ->
+      case Backend.supported_currency(ref) do
+        {:ok, currency_id} -> [{currency_id, ref}]
+        _ -> []
+      end
     end)
   end
 
   @spec currency_list(server_name) :: [Currency.id()]
   def currency_list(name \\ __MODULE__) do
     currencies(name)
-    |> Enum.reduce([], fn {currency, _, _}, acc -> [currency | acc] end)
+    |> Enum.reduce([], fn {currency, _}, acc -> [currency | acc] end)
     |> Enum.sort()
   end
 

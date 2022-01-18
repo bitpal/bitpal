@@ -1,6 +1,14 @@
 <%= render "_bar.html", assigns %>
+<% now = NaiveDateTime.utc_now() %>
 
 <section class="settings">
+  <.form let={f} for={@edit_store} phx-submit="edit_store" id="edit_store">
+    <%= error_tag f, :label %>
+    <%= label f, :label, "Label" %>
+    <%= text_input f, :label %>
+
+    <%= submit "Update" %>
+  </.form>
 
   <%= if token = assigns[:created_token] do %>
     <section class="created-token">
@@ -14,8 +22,8 @@
     <%= label f, :label, "Token name" %>
     <%= text_input f, :label %>
 
-    <%#= label f, :expire, "Expiration date" %>
-    <%#= date_input f, :expire %>
+    <%= label f, :valid_until, "Expiration date" %>
+    <%= date_input f, :valid_until %>
 
     <%= submit "Create store access token" %>
   </.form>
@@ -25,8 +33,8 @@
       <tr>
         <th>Token Name</th>
         <th>Created</th>
-        <%#<th>Last Used</th>%>
-        <%#<th>Expires</th>%>
+        <th>Last Used</th>
+        <th>Expires</th>
         <th></th>
       </tr>
     </thead>
@@ -34,9 +42,9 @@
       <%= for token <- @store.access_tokens do %>
         <tr>
           <td><%= token.label %></td>
-          <td>2021-01-01</td>
-          <%#<td>Never</td>%>
-          <%#<td>Never</td>%>
+          <td><%= format_created_at(token) %></td>
+          <td><%= format_last_accessed(token) %></td>
+          <td><%= format_valid_until(token, now) %></td>
           <td>
             <% modal = ~s{.revoke-token-modal[token-id="#{token.id}"]} %>
             <button class="revoke-token" phx-click={JS.show(to: modal, display: "inline")}>Revoke</button>

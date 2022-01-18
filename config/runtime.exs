@@ -32,7 +32,12 @@ case Config.config_env() do
 
   :dev ->
     config :bitpal,
-      backends: [{BitPal.BackendMock, auto: true, time_between_blocks: 60_000}]
+      backends: [
+        BitPal.Backend.Flowee,
+        {BitPal.BackendMock, auto: true, time_between_blocks: 60_000},
+        {BitPal.BackendMock,
+         auto: true, time_between_blocks: 60_000, status: :stopped, sync_time: 2_000}
+      ]
 
     config :bitpal, BitPal.ExchangeRate, backends: [BitPal.ExchangeRateMock]
 

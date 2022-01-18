@@ -1,3 +1,10 @@
+<nav class="breadcrumbs">
+  <%= live_redirect(
+    "stores",
+    to: Routes.home_path(@socket, :dashboard)) %>
+  / <%= @store.label %>
+</nav>
+
 <section class="title-bar">
   <h1><%= @store.label %></h1>
 </section>

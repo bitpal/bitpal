@@ -33,8 +33,8 @@ defmodule BitPal.Backend.Flowee do
   end
 
   @impl Backend
-  def supported_currencies(_backend) do
-    [@bch]
+  def supported_currency(_backend) do
+    @bch
   end
 
   @impl Backend
@@ -43,9 +43,13 @@ defmodule BitPal.Backend.Flowee do
   end
 
   @impl Backend
-  def ready?(backend) do
-    GenServer.call(backend, {:ready?})
-  end
+  def status(backend), do: GenServer.call(backend, :status)
+
+  @impl Backend
+  def start(_backend), do: :ok
+
+  @impl Backend
+  def stop(_backend), do: :ok
 
   # Address is a "bitcoincash:..." address.
   # Note: This is mainly intended for testing. Registering requests will automagically start watching addresses.
@@ -92,8 +96,15 @@ defmodule BitPal.Backend.Flowee do
   end
 
   @impl true
-  def handle_call({:ready?}, _from, state) do
-    r = Map.get(state, :backend_ready, false)
+  def handle_call(:status, _from, state) do
+    # Note: We need a proper sync status here
+    r =
+      if Map.get(state, :backend_ready, false) do
+        {:started, :ready}
+      else
+        {:started, {:syncing, 0.2}}
+      end
+
     {:reply, r, state}
   end
 

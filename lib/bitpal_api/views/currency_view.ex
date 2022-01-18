@@ -18,11 +18,16 @@ defmodule BitPalApi.CurrencyView do
         Enum.map(addresses, fn address ->
           address.id
         end),
-      status: Atom.to_string(status),
+      status: readable_status(status),
       invoices:
         Enum.map(invoices, fn invoice ->
           invoice.id
         end)
     }
   end
+
+  defp readable_status({:started, :ready}), do: "started"
+  defp readable_status({:started, {:syncing, _}}), do: "syncing"
+  defp readable_status(:stopped), do: "stopped"
+  defp readable_status(:not_found), do: "not_found"
 end

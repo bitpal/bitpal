@@ -1,5 +1,5 @@
 defmodule BitPalFactory.AddressFactoryTest do
-  use BitPal.DataCase, async: true
+  use BitPal.DataCase, async: false
   alias BitPal.Invoices
   alias BitPalSchemas.Address
   alias BitPalSettings.StoreSettings
@@ -57,6 +57,21 @@ defmodule BitPalFactory.AddressFactoryTest do
 
         MapSet.put(seen, address_id)
       end)
+    end
+  end
+
+  describe "generate valid xpub addresses" do
+    test "BCH" do
+      xpub =
+        "xpub6C23JpFE6ABbBudoQfwMU239R5Bm6QGoigtLq1BD3cz3cC6DUTg89H3A7kf95GDzfcTis1K1m7ypGuUPmXCaCvoxDKbeNv6wRBEGEnt1NV7"
+
+      address_key = create_address_key(data: xpub, currency_id: :BCH)
+
+      assert %{address_index: 0, id: "bitcoincash:qzhw8q9n8dqetkzx5mg3xh43uqhumx5rl549dlrs72"} =
+               create_address(address_key: address_key)
+
+      assert %{address_index: 1, id: "bitcoincash:qp5a3tww8w4lsff8txus74xl7tewg48zg5xcmzmc3a"} =
+               create_address(address_key: address_key)
     end
   end
 end
