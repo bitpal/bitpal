@@ -15,10 +15,6 @@ defmodule BitPalWeb.Router do
     plug(:fetch_current_user)
   end
 
-  pipeline :portal_layout do
-    plug(:put_root_layout, {BitPalWeb.LayoutView, :portal})
-  end
-
   pipeline :doc_layout do
     plug(:put_root_layout, {BitPalWeb.LayoutView, :doc})
   end
@@ -26,12 +22,19 @@ defmodule BitPalWeb.Router do
   pipeline :portal do
     plug(:browser)
     plug(:server_setup_redirect)
-    plug(:portal_layout)
+    plug(:put_root_layout, {BitPalWeb.LayoutView, :portal})
   end
 
   pipeline :authenticated_portal do
     plug(:portal)
     plug(:require_authenticated_user)
+  end
+
+  pipeline :setup_wizard do
+    plug(:browser)
+    plug(:server_setup_redirect)
+    plug(:redirect_if_setup_completed)
+    plug(:put_root_layout, {BitPalWeb.LayoutView, :wizard})
   end
 
   # Store management
@@ -40,6 +43,7 @@ defmodule BitPalWeb.Router do
     pipe_through([:authenticated_portal])
 
     live("/", HomeLive, :dashboard)
+    # Shoold be /stores/:slug/invoices, but we need a live redirect
     live("/stores/:slug", StoreLive, :show)
     live("/stores/:slug/addresses", StoreAddressesLive, :show)
     live("/stores/:slug/transactions", StoreTransactionsLive, :show)
@@ -53,6 +57,9 @@ defmodule BitPalWeb.Router do
   scope "/", BitPalWeb do
     pipe_through([:authenticated_portal])
 
+    live("/server/backends", ServerBackendsLive, :index)
+    live("/server/backends/:backend", ServerBackendLive, :show)
+
     live("/server/settings", ServerSettingsLive, :show)
     live_dashboard("/dashboard", metrics: BitPalWeb.Telemetry)
   end
@@ -60,7 +67,7 @@ defmodule BitPalWeb.Router do
   # Setup routes
 
   scope "/", BitPalWeb do
-    pipe_through([:portal, :redirect_if_setup_completed])
+    pipe_through([:setup_wizard])
 
     get("/server/setup/register_admin", ServerSetupController, :register_admin)
     post("/server/setup/register_admin", ServerSetupController, :create_admin)
