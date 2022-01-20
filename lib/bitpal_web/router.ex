@@ -2,6 +2,7 @@ defmodule BitPalWeb.Router do
   use BitPalWeb, :router
 
   import BitPalWeb.UserAuth
+  import BitPalWeb.ServerSetup
   import Phoenix.LiveDashboard.Router
 
   pipeline :browser do
@@ -14,27 +15,31 @@ defmodule BitPalWeb.Router do
     plug(:fetch_current_user)
   end
 
-  pipeline :store_layout do
-    plug(:put_root_layout, {BitPalWeb.LayoutView, :web})
+  pipeline :portal_layout do
+    plug(:put_root_layout, {BitPalWeb.LayoutView, :portal})
   end
 
   pipeline :doc_layout do
     plug(:put_root_layout, {BitPalWeb.LayoutView, :doc})
   end
 
-  # Dashboard
+  pipeline :portal do
+    plug(:browser)
+    plug(:server_setup_redirect)
+    plug(:portal_layout)
+  end
 
-  scope "/", BitPalWeb do
-    pipe_through([:browser, :store_layout, :require_authenticated_user])
-
-    live("/", HomeLive, :dashboard)
+  pipeline :authenticated_portal do
+    plug(:portal)
+    plug(:require_authenticated_user)
   end
 
   # Store management
 
   scope "/", BitPalWeb do
-    pipe_through([:browser, :store_layout, :require_authenticated_user])
+    pipe_through([:authenticated_portal])
 
+    live("/", HomeLive, :dashboard)
     live("/stores/:slug", StoreLive, :show)
     live("/stores/:slug/addresses", StoreAddressesLive, :show)
     live("/stores/:slug/transactions", StoreTransactionsLive, :show)
@@ -46,32 +51,28 @@ defmodule BitPalWeb.Router do
   # Admin and server management
 
   scope "/", BitPalWeb do
-    pipe_through([:browser, :store_layout, :require_authenticated_user])
+    pipe_through([:authenticated_portal])
 
     live("/server/settings", ServerSettingsLive, :show)
-  end
-
-  scope "/", BitPalWeb do
-    pipe_through([:browser, :require_authenticated_user])
-
     live_dashboard("/dashboard", metrics: BitPalWeb.Telemetry)
   end
 
-  # Documentation
-
-  scope "/doc", BitPalWeb do
-    pipe_through([:browser, :doc_layout])
-
-    get("/", DocController, :index)
-    get("/toc", DocController, :toc)
-    get("/:id", DocController, :show)
-  end
-
-  ## Authentication routes
+  # Setup routes
 
   scope "/", BitPalWeb do
-    pipe_through([:browser, :store_layout, :redirect_if_user_is_authenticated])
+    pipe_through([:portal, :redirect_if_setup_completed])
 
+    get("/server/setup/register_admin", ServerSetupController, :register_admin)
+    post("/server/setup/register_admin", ServerSetupController, :create_admin)
+    get("/server/setup/info", ServerSetupController, :info)
+  end
+
+  # Authentication routes
+
+  scope "/", BitPalWeb do
+    pipe_through([:portal, :redirect_if_user_is_authenticated])
+
+    # Add these back later when we can invite people
     get("/users/register", UserRegistrationController, :new)
     post("/users/register", UserRegistrationController, :create)
     get("/users/log_in", UserSessionController, :new)
@@ -83,7 +84,7 @@ defmodule BitPalWeb.Router do
   end
 
   scope "/", BitPalWeb do
-    pipe_through([:browser, :store_layout, :require_authenticated_user])
+    pipe_through([:authenticated_portal])
 
     get("/users/settings", UserSettingsController, :edit)
     put("/users/settings", UserSettingsController, :update)
@@ -98,5 +99,15 @@ defmodule BitPalWeb.Router do
     post("/users/confirm", UserConfirmationController, :create)
     get("/users/confirm/:token", UserConfirmationController, :edit)
     post("/users/confirm/:token", UserConfirmationController, :update)
+  end
+
+  # Documentation
+
+  scope "/doc", BitPalWeb do
+    pipe_through([:browser, :doc_layout])
+
+    get("/", DocController, :index)
+    get("/toc", DocController, :toc)
+    get("/:id", DocController, :show)
   end
 end
