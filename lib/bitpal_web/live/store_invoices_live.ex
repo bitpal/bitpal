@@ -6,9 +6,6 @@ defmodule BitPalWeb.StoreInvoicesLive do
   alias BitPal.StoreEvents
   require Logger
 
-  on_mount(BitPalWeb.UserLiveAuth)
-  on_mount(BitPalWeb.StoreLiveAuth)
-
   @impl true
   def mount(%{"slug" => _slug}, _session, socket) do
     store = socket.assigns.store |> Repo.preload(:invoices)

@@ -64,9 +64,6 @@ defmodule BitPalWeb.StoreSettingsLive do
     end
   end
 
-  on_mount(BitPalWeb.UserLiveAuth)
-  on_mount(BitPalWeb.StoreLiveAuth)
-
   @impl true
   def mount(_params, _session, socket) do
     {:ok, init_assigns(socket)}

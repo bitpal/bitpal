@@ -2,23 +2,46 @@ defmodule BitPalWeb.ServerSetup do
   import BitPal.ServerSetup
   import Phoenix.Controller
   import Plug.Conn
+  alias BitPal.Accounts
   alias BitPalWeb.Router.Helpers, as: Routes
 
   @doc """
   Redirects to server setup pages unless setup has been completed.
   """
-  def server_setup_redirect(conn, _opts) do
-    redirect_lazy(conn, setup_path(conn))
+  def redirect_unless_server_setup(conn, _opts) do
+    case setup_state() do
+      :completed ->
+        conn
+
+      :create_server_admin ->
+        redirect_lazy(conn, Routes.server_setup_admin_path(conn, :show))
+
+      _ ->
+        if conn.assigns[:current_user] do
+          # Only redirect to wizard if we're logged in.
+          redirect_lazy(conn, Routes.server_setup_path(conn, :wizard))
+        else
+          redirect_lazy(conn, Routes.user_session_path(conn, :new))
+        end
+    end
   end
 
   @doc """
-  Redirects away from server setup pages once setup has been completed.
+  Redirects to setup wizard if server admin has been created.
   """
-  def redirect_if_setup_completed(conn, _opts) do
-    if setup_completed?() do
-      redirect_lazy(conn, Routes.server_setup_path(conn, :info))
-    else
-      conn
+  def redirect_if_server_admin_created(conn, _opts) do
+    cond do
+      # If we're logged in we can continue with the setup wizard.
+      conn.assigns[:current_user] ->
+        redirect_lazy(conn, Routes.server_setup_path(conn, :wizard))
+
+      # If there's an admin created, we need to login first.
+      Accounts.any_user() ->
+        redirect_lazy(conn, Routes.user_session_path(conn, :new))
+
+      # Otherwise continue as is.
+      true ->
+        conn
     end
   end
 
@@ -32,13 +55,6 @@ defmodule BitPalWeb.ServerSetup do
       |> halt()
     else
       conn
-    end
-  end
-
-  defp setup_path(conn) do
-    case setup_stage() do
-      :none -> Routes.server_setup_path(conn, :register_admin)
-      :completed -> nil
     end
   end
 end

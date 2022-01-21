@@ -31,6 +31,8 @@ defmodule BitPal.DevSeeds do
       valid_until: NaiveDateTime.utc_now() |> NaiveDateTime.add(60 * 60 * 24 * 30, :second)
     )
     |> with_invoices(invoice_count: 12, currencies: [:XMR], txs: :auto)
+
+    server_setup_state(:completed)
   end
 end
 

@@ -1,6 +1,6 @@
-<h1>Register</h1>
+<h1>Create the server admin</h1>
 
-<.form let={f} for={@changeset} action={Routes.server_setup_path(@conn, :create_admin)}>
+<.form let={f} for={@changeset} action={Routes.server_setup_admin_path(@conn, :create)}>
   <%= if @changeset.action do %>
     <div class="alert alert-danger">
       <p>Oops, something went wrong! Please check the errors below.</p>
@@ -16,7 +16,7 @@
   <%= error_tag f, :password %>
 
   <div>
-    <%= submit "Register" %>
+    <%= submit "Create" %>
   </div>
 </.form>
 

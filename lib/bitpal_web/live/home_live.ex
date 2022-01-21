@@ -5,8 +5,6 @@ defmodule BitPalWeb.HomeLive do
   alias BitPal.Stores
   alias BitPal.UserEvents
 
-  on_mount(BitPalWeb.UserLiveAuth)
-
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do

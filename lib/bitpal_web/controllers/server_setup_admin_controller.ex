@@ -1,17 +1,18 @@
-defmodule BitPalWeb.ServerSetupController do
+defmodule BitPalWeb.ServerSetupAdminController do
   use BitPalWeb, :controller
 
   alias BitPal.Accounts
   alias BitPalSchemas.User
   alias BitPalWeb.UserAuth
   alias BitPalWeb.Router.Helpers, as: Routes
+  alias BitPal.ServerSetup
 
-  def register_admin(conn, _params) do
+  def show(conn, _params) do
     changeset = Accounts.change_user_registration(%User{})
-    render(conn, "register_admin.html", changeset: changeset)
+    render(conn, "new.html", changeset: changeset)
   end
 
-  def create_admin(conn, %{"user" => user_params}) do
+  def create(conn, %{"user" => user_params}) do
     case Accounts.register_user(user_params) do
       {:ok, user} ->
         {:ok, _} =
@@ -20,17 +21,14 @@ defmodule BitPalWeb.ServerSetupController do
             &Routes.user_confirmation_url(conn, :edit, &1)
           )
 
+        ServerSetup.next_state()
+
         conn
-        |> put_flash(:info, "Admin created successfully.")
-        |> Plug.Conn.put_session(:user_return_to, Routes.server_setup_path(conn, :info))
+        |> Plug.Conn.put_session(:user_return_to, Routes.server_setup_path(conn, :wizard))
         |> UserAuth.log_in_user(user)
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        render(conn, "register_admin.html", changeset: changeset)
+        render(conn, "new.html", changeset: changeset)
     end
-  end
-
-  def info(conn, _params) do
-    render(conn, "info.html")
   end
 end
