@@ -4,8 +4,8 @@ defmodule BitPalWeb.Router do
   import BitPalWeb.UserAuth
   import BitPalWeb.ServerSetup
   import Phoenix.LiveDashboard.Router
-  alias BitPalWeb.StoreLiveAuth
   alias BitPalWeb.InvoiceLiveAuth
+  alias BitPalWeb.StoreLiveAuth
   alias BitPalWeb.UserLiveAuth
 
   pipeline :browser do

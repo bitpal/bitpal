@@ -1,9 +1,9 @@
 defmodule BitPalFactory.SetupFactory do
+  alias BitPal.Repo
   alias BitPal.ServerSetup
   alias BitPalFactory.AccountFactory
   alias BitPalSchemas.SetupState
   alias BitPalSchemas.User
-  alias BitPal.Repo
 
   @spec complete_server_setup :: User.t()
   def complete_server_setup do

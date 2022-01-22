@@ -1,7 +1,5 @@
 defmodule BitPalWeb.ServerSetupTest do
   use BitPalWeb.ConnCase, async: false
-  import BitPalWeb.ServerSetup
-  alias BitPalWeb.UserAuth
 
   setup tags = %{conn: conn} do
     if state = tags[:state] do
