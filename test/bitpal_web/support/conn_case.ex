@@ -44,16 +44,44 @@ defmodule BitPalWeb.ConnCase do
 
       setup tags do
         res =
-          if @integration do
-            IntegrationCase.setup_integration(tags)
-          else
-            DataCase.setup_db(tags)
-            %{}
-          end
+          tags
+          |> setup_integration()
           |> Map.put(:conn, Phoenix.ConnTest.build_conn())
+          |> init_test_server_setup()
 
         {:ok, res}
       end
+
+      defp setup_integration(tags) do
+        if @integration do
+          IntegrationCase.setup_integration(tags)
+        else
+          DataCase.setup_db(tags)
+          tags
+        end
+      end
+
+      defp init_test_server_setup(tags = %{conn: conn, server_setup_state: state}) do
+        name = unique_server_name()
+
+        start_supervised!({
+          BitPal.ServerSetup,
+          # state: tags[:server_setup_state] || :completed,
+          name: name, id: sequence_int(:server_setup), state: state, parent: self()
+        })
+
+        conn =
+          conn
+          |> assign(:test_server_setup, name)
+          |> init_test_session(test_server_setup: name)
+
+        Map.merge(tags, %{
+          conn: conn,
+          test_server_setup: name
+        })
+      end
+
+      defp init_test_server_setup(tags), do: tags
     end
   end
 

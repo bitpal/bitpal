@@ -1,15 +1,14 @@
 defmodule BitPalWeb.ServerSetup do
-  import BitPal.ServerSetup
   import Phoenix.Controller
-  import Plug.Conn
-  alias BitPal.Accounts
+  alias Plug.Conn
+  alias BitPal.ServerSetup
   alias BitPalWeb.Router.Helpers, as: Routes
 
   @doc """
   Redirects to server setup pages unless setup has been completed.
   """
   def redirect_unless_server_setup(conn, _opts) do
-    case setup_state() do
+    case ServerSetup.current_state(server_setup_name(conn)) do
       :completed ->
         conn
 
@@ -36,7 +35,7 @@ defmodule BitPalWeb.ServerSetup do
         redirect_lazy(conn, Routes.server_setup_path(conn, :wizard))
 
       # If there's an admin created, we need to login first.
-      Accounts.any_user() ->
+      ServerSetup.server_admin_created?(server_setup_name(conn)) ->
         redirect_lazy(conn, Routes.user_session_path(conn, :new))
 
       # Otherwise continue as is.
@@ -52,9 +51,19 @@ defmodule BitPalWeb.ServerSetup do
     if path && path != conn.request_path do
       conn
       |> redirect(to: path)
-      |> halt()
+      |> Conn.halt()
     else
       conn
     end
   end
+
+  def server_setup_name(%Conn{assigns: %{test_server_setup: name}}) do
+    name
+  end
+
+  def server_setup_name(%{"test_server_setup" => name}) do
+    name
+  end
+
+  def server_setup_name(_), do: BitPal.ServerSetup
 end

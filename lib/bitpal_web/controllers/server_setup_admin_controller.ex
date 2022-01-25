@@ -1,6 +1,7 @@
 defmodule BitPalWeb.ServerSetupAdminController do
   use BitPalWeb, :controller
 
+  import BitPalWeb.ServerSetup, only: [server_setup_name: 1]
   alias BitPal.Accounts
   alias BitPalSchemas.User
   alias BitPalWeb.UserAuth
@@ -21,7 +22,7 @@ defmodule BitPalWeb.ServerSetupAdminController do
             &Routes.user_confirmation_url(conn, :edit, &1)
           )
 
-        ServerSetup.next_state()
+        ServerSetup.set_next(server_setup_name(conn))
 
         conn
         |> Plug.Conn.put_session(:user_return_to, Routes.server_setup_path(conn, :wizard))

@@ -1,6 +1,7 @@
 defmodule BitPal.DevSeeds do
   use BitPalFactory
   alias BitPal.Currencies
+  alias BitPal.ServerSetup
 
   def seed do
     currencies = [:BCH, :XMR]
@@ -32,7 +33,7 @@ defmodule BitPal.DevSeeds do
     )
     |> with_invoices(invoice_count: 12, currencies: [:XMR], txs: :auto)
 
-    server_setup_state(:completed)
+    ServerSetup.set_state(:completed)
   end
 end
 

@@ -1,30 +1,31 @@
 defmodule BitPalWeb.ServerSetupLiveTest do
   use BitPalWeb.ConnCase, async: true
-  import BitPal.ServerSetup
   alias BitPal.Repo
+  alias BitPal.ServerSetup
+  alias BitPalFactory.AccountFactory
   alias BitPalFactory.StoreFactory
 
-  setup tags = %{conn: conn, state: state} do
-    admin = server_setup_state(state)
+  setup tags = %{conn: conn} do
+    admin = AccountFactory.create_user()
     Map.merge(tags, %{conn: log_in_user(conn, admin), admin: admin})
   end
 
   describe "renders html" do
-    @tag state: :enable_backends
+    @tag server_setup_state: :enable_backends
     test "backends", %{conn: conn} do
       {:ok, _view, html} = live(conn, Routes.server_setup_path(conn, :wizard))
 
       assert html =~ "Setup backends"
     end
 
-    @tag state: :create_store
+    @tag server_setup_state: :create_store
     test "create store", %{conn: conn} do
       {:ok, _view, html} = live(conn, Routes.server_setup_path(conn, :wizard))
 
       assert html =~ "Create a store"
     end
 
-    @tag state: :completed
+    @tag server_setup_state: :completed
     test "completed", %{conn: conn} do
       {:ok, _view, html} = live(conn, Routes.server_setup_path(conn, :wizard))
 
@@ -33,29 +34,33 @@ defmodule BitPalWeb.ServerSetupLiveTest do
   end
 
   describe "skip stages" do
-    @tag state: :enable_backends
-    test "skip all", %{conn: conn} do
+    @tag server_setup_state: :enable_backends
+    test "skip all", %{conn: conn, test_server_setup: server_name} do
       {:ok, view, _html} = live(conn, Routes.server_setup_path(conn, :wizard))
 
       view
       |> element(~s{.skip[phx-click="skip"})
       |> render_click()
 
-      assert setup_state() == :create_store
+      assert ServerSetup.current_state(server_name) == :create_store
 
       rendered =
         view
         |> element(~s{.skip[phx-click="skip"})
         |> render_click()
 
-      assert setup_state() == :completed
+      assert ServerSetup.current_state(server_name) == :completed
       assert rendered =~ "Setup completed"
     end
   end
 
   describe "store creation" do
-    @tag state: :create_store
-    test "creates a store and continues to next state", %{conn: conn, admin: admin} do
+    @tag server_setup_state: :create_store
+    test "creates a store and continues to next state", %{
+      conn: conn,
+      admin: admin,
+      test_server_setup: server_name
+    } do
       {:ok, view, _html} = live(conn, Routes.server_setup_path(conn, :wizard))
 
       label = StoreFactory.unique_store_label()
@@ -65,7 +70,7 @@ defmodule BitPalWeb.ServerSetupLiveTest do
         |> element("form")
         |> render_submit(%{"store" => %{label: label}})
 
-      assert setup_state() == :completed
+      assert ServerSetup.current_state(server_name) == :completed
       assert rendered =~ "Setup completed"
 
       admin = admin |> Repo.preload(:stores)
@@ -73,8 +78,8 @@ defmodule BitPalWeb.ServerSetupLiveTest do
       assert hd(admin.stores).label == label
     end
 
-    @tag state: :create_store
-    test "renders errors if invalid", %{conn: conn} do
+    @tag server_setup_state: :create_store
+    test "renders errors if invalid", %{conn: conn, test_server_setup: server_name} do
       {:ok, view, _html} = live(conn, Routes.server_setup_path(conn, :wizard))
 
       rendered =
@@ -82,7 +87,7 @@ defmodule BitPalWeb.ServerSetupLiveTest do
         |> element("form")
         |> render_submit(%{"store" => %{label: ""}})
 
-      assert setup_state() == :create_store
+      assert ServerSetup.current_state(server_name) == :create_store
 
       assert rendered =~ html_string("can't be blank")
     end

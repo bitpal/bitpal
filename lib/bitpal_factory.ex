@@ -19,9 +19,9 @@ defmodule BitPalFactory do
       import BitPalFactory.AddressFactory
       import BitPalFactory.AuthFactory
       import BitPalFactory.CurrencyFactory
+      import BitPalFactory.FactoryHelpers
       import BitPalFactory.InvoiceFactory
       import BitPalFactory.SettingsFactory
-      import BitPalFactory.SetupFactory
       import BitPalFactory.StoreFactory
       import BitPalFactory.TransactionFactory
       import BitPalFactory.UtilFactory

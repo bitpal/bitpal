@@ -1,11 +1,19 @@
 defmodule BitPalWeb.ServerSetupLive do
   use BitPalWeb, :live_view
+  import BitPalWeb.ServerSetup, only: [server_setup_name: 1]
   alias BitPal.ServerSetup
   alias BitPal.Stores
 
   @impl true
-  def mount(_params, _session, socket) do
-    {:ok, set_state(socket, ServerSetup.setup_state())}
+  def mount(_params, session, socket) do
+    server_name = server_setup_name(session)
+
+    socket =
+      socket
+      |> assign(server_setup_name: server_name)
+      |> set_state(ServerSetup.current_state(server_name))
+
+    {:ok, socket}
   end
 
   @impl true
@@ -16,7 +24,7 @@ defmodule BitPalWeb.ServerSetupLive do
 
   @impl true
   def handle_event("skip", _params, socket) do
-    {:noreply, set_state(socket, ServerSetup.next_state())}
+    {:noreply, set_next(socket)}
   end
 
   @impl true
@@ -25,11 +33,16 @@ defmodule BitPalWeb.ServerSetupLive do
 
     case Stores.create(changeset) do
       {:ok, _store} ->
-        {:noreply, set_state(socket, ServerSetup.next_state())}
+        {:noreply, set_next(socket)}
 
       {:error, changeset} ->
         {:noreply, assign(socket, store_changeset: changeset)}
     end
+  end
+
+  defp set_next(socket) do
+    state = ServerSetup.set_next(socket.assigns.server_setup_name)
+    set_state(socket, state)
   end
 
   defp set_state(socket, state) do

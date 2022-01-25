@@ -1,24 +1,17 @@
 defmodule BitPalWeb.ServerSetupTest do
-  use BitPalWeb.ConnCase, async: false
+  use BitPalWeb.ConnCase, async: true
 
   setup tags = %{conn: conn} do
-    if state = tags[:state] do
-      admin = server_setup_state(state)
-
-      tags =
-        if tags[:login] do
-          %{tags | conn: log_in_user(conn, admin)}
-        else
-          tags
-        end
-
-      Map.put(tags, :admin, admin)
+    if tags[:login] do
+      admin = create_user()
+      Map.merge(tags, %{admin: admin, conn: log_in_user(conn, admin)})
     else
       tags
     end
   end
 
   describe "routing setup nothing done" do
+    @tag server_setup_state: :create_server_admin
     test "protected routes", %{conn: conn} do
       protected_routes = [
         "/",
@@ -33,6 +26,7 @@ defmodule BitPalWeb.ServerSetupTest do
       end
     end
 
+    @tag server_setup_state: :create_server_admin
     test "allowed routes", %{conn: conn} do
       allowed_routes = [
         "/doc",
@@ -47,7 +41,7 @@ defmodule BitPalWeb.ServerSetupTest do
   end
 
   describe "routing server admin created but setup not completed" do
-    @tag state: :enable_backends
+    @tag server_setup_state: :enable_backends
     test "protected routes when not logged in", %{conn: conn} do
       protected_routes = [
         "/",
@@ -63,7 +57,7 @@ defmodule BitPalWeb.ServerSetupTest do
       end
     end
 
-    @tag state: :enable_backends
+    @tag server_setup_state: :enable_backends
     test "allowed routes when not logged in", %{conn: conn} do
       allowed_routes = [
         "/users/log_in",
@@ -76,7 +70,7 @@ defmodule BitPalWeb.ServerSetupTest do
       end
     end
 
-    @tag state: :enable_backends, login: true
+    @tag server_setup_state: :enable_backends, login: true
     test "protected routes when logged in", %{conn: conn} do
       protected_routes = [
         "/",
@@ -92,7 +86,7 @@ defmodule BitPalWeb.ServerSetupTest do
       end
     end
 
-    @tag state: :enable_backends, login: true
+    @tag server_setup_state: :enable_backends, login: true
     test "allowed routes when logged in", %{conn: conn} do
       allowed_routes = [
         "/doc",
@@ -107,7 +101,7 @@ defmodule BitPalWeb.ServerSetupTest do
   end
 
   describe "routing setup completed" do
-    @tag state: :completed
+    @tag server_setup_state: :completed
     test "protected routes when not logged in", %{conn: conn} do
       protected_routes = [
         "/",
@@ -122,7 +116,7 @@ defmodule BitPalWeb.ServerSetupTest do
       end
     end
 
-    @tag state: :completed
+    @tag server_setup_state: :completed
     test "allowed routes when not logged in", %{conn: conn} do
       allowed_routes = [
         "/users/log_in",
@@ -135,7 +129,7 @@ defmodule BitPalWeb.ServerSetupTest do
       end
     end
 
-    @tag state: :completed, login: true
+    @tag server_setup_state: :completed, login: true
     test "protected routes when logged in", %{conn: conn} do
       protected_routes = [
         "/server/setup/server_admin"
@@ -147,7 +141,7 @@ defmodule BitPalWeb.ServerSetupTest do
       end
     end
 
-    @tag state: :completed, login: true
+    @tag server_setup_state: :completed, login: true
     test "allowed routes when logged in", %{conn: conn} do
       allowed_routes = [
         "/",
