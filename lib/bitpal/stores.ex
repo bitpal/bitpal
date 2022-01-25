@@ -45,28 +45,29 @@ defmodule BitPal.Stores do
     end
   end
 
-  @spec create(map) :: {:ok, Store.t()} | {:error, Changeset.t()}
-  def create(params) do
+  @spec create_changeset(map) :: Changeset.t()
+  def create_changeset(params \\ %{}) do
     %Store{}
-    |> create(params)
+    |> change()
+    |> cast(params, [:label])
+    |> validate_required([:label])
+    |> validate_length(:label, min: 1)
+    |> create_slug()
   end
 
-  @spec create(User.t(), map) :: {:ok, Store.t()} | {:error, Changeset.t()}
-  def create(user = %User{}, params) do
+  @spec create_changeset(User.t(), map) :: Changeset.t()
+  def create_changeset(user = %User{}, params) do
     %Store{users: [user]}
-    |> create(params)
+    |> change()
+    |> cast(params, [:label])
+    |> validate_required([:label])
+    |> validate_length(:label, min: 1)
+    |> create_slug()
   end
 
-  @spec create(Store.t(), map) :: {:ok, Store.t()} | {:error, Changeset.t()}
-  def create(store = %Store{}, params) do
-    res =
-      store
-      |> cast(params, [:label])
-      |> validate_required([:label])
-      |> create_slug()
-      |> Repo.insert()
-
-    case res do
+  @spec create(map | Changeset.t()) :: {:ok, Store.t()} | {:error, Changeset.t()}
+  def create(changeset = %Changeset{}) do
+    case Repo.insert(changeset) do
       {:ok, store} ->
         store = Repo.preload(store, :users)
 
@@ -79,6 +80,17 @@ defmodule BitPal.Stores do
       err ->
         err
     end
+  end
+
+  def create(params) do
+    create_changeset(params)
+    |> create()
+  end
+
+  @spec create(User.t(), map) :: {:ok, Store.t()} | {:error, Changeset.t()}
+  def create(user = %User{}, params) do
+    create_changeset(user, params)
+    |> create()
   end
 
   @spec update_changeset(Store.t(), map) :: Changeset.t()

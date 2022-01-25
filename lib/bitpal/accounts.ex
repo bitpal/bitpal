@@ -64,6 +64,10 @@ defmodule BitPal.Accounts do
   """
   def get_user!(id), do: Repo.get!(User, id)
 
+  def any_user do
+    Repo.aggregate(User, :count) > 0
+  end
+
   ## User registration
 
   @doc """

@@ -17,4 +17,9 @@ defmodule BitPalFactory.FactoryHelpers do
       count -> "#{name} #{count}"
     end)
   end
+
+  @spec sequence_int(atom) :: integer
+  def sequence_int(name) when is_atom(name) do
+    Sequencer.next(name, & &1)
+  end
 end

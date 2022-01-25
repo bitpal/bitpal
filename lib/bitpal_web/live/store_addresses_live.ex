@@ -7,9 +7,6 @@ defmodule BitPalWeb.StoreAddressesLive do
   alias BitPal.Stores
   require Logger
 
-  on_mount(BitPalWeb.UserLiveAuth)
-  on_mount(BitPalWeb.StoreLiveAuth)
-
   @impl true
   def mount(%{"slug" => _slug}, _session, socket) do
     store = socket.assigns.store

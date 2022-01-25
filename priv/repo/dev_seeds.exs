@@ -1,6 +1,7 @@
 defmodule BitPal.DevSeeds do
   use BitPalFactory
   alias BitPal.Currencies
+  alias BitPal.ServerSetup
 
   def seed do
     currencies = [:BCH, :XMR]
@@ -31,6 +32,8 @@ defmodule BitPal.DevSeeds do
       valid_until: NaiveDateTime.utc_now() |> NaiveDateTime.add(60 * 60 * 24 * 30, :second)
     )
     |> with_invoices(invoice_count: 12, currencies: [:XMR], txs: :auto)
+
+    ServerSetup.set_state(:completed)
   end
 end
 
