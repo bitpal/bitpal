@@ -3,10 +3,10 @@ defmodule BitPalWeb.ServerSetupAdminController do
 
   import BitPalWeb.ServerSetup, only: [server_setup_name: 1]
   alias BitPal.Accounts
-  alias BitPalSchemas.User
-  alias BitPalWeb.UserAuth
-  alias BitPalWeb.Router.Helpers, as: Routes
   alias BitPal.ServerSetup
+  alias BitPalSchemas.User
+  alias BitPalWeb.Router.Helpers, as: Routes
+  alias BitPalWeb.UserAuth
 
   def show(conn, _params) do
     changeset = Accounts.change_user_registration(%User{})

@@ -1,8 +1,8 @@
 defmodule BitPalWeb.ServerSetup do
   import Phoenix.Controller
-  alias Plug.Conn
   alias BitPal.ServerSetup
   alias BitPalWeb.Router.Helpers, as: Routes
+  alias Plug.Conn
 
   @doc """
   Redirects to server setup pages unless setup has been completed.
