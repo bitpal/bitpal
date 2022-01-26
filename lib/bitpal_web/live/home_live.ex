@@ -31,7 +31,8 @@ defmodule BitPalWeb.HomeLive do
       {:ok,
        assign(socket,
          stores: stores,
-         backend_status: backends
+         backend_status: backends,
+         store_changeset: Stores.create_changeset()
        )}
     end
   end
@@ -39,6 +40,23 @@ defmodule BitPalWeb.HomeLive do
   @impl true
   def render(assigns) do
     render(BitPalWeb.HomeView, "dashboard.html", assigns)
+  end
+
+  @impl true
+  def handle_event("create_store", %{"store" => params}, socket) do
+    changeset = Stores.create_changeset(socket.assigns.current_user, params)
+
+    case Stores.create(changeset) do
+      {:ok, store} ->
+        {:noreply,
+         assign(socket,
+           stores: Map.put(socket.assigns.stores, store.id, store),
+           store_changeset: Stores.create_changeset()
+         )}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, store_changeset: changeset)}
+    end
   end
 
   @impl true

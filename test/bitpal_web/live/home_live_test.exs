@@ -3,6 +3,8 @@ defmodule BitPalWeb.HomeLiveTest do
   alias BitPal.Backend
   alias BitPal.BackendMock
   alias BitPal.Stores
+  alias BitPal.Repo
+  alias BitPalFactory.StoreFactory
 
   setup tags do
     tags
@@ -23,11 +25,38 @@ defmodule BitPalWeb.HomeLiveTest do
       {:ok, view, _html} = live(conn, Routes.home_path(conn, :dashboard))
 
       {:ok, store} = Stores.create(user, valid_store_attributes())
-      assert render_eventually(view, store.label)
+      assert render_eventually(view, html_string(store.label))
     end
   end
 
   describe "create store" do
+    test "creates a store and lists it", %{conn: conn, user: user} do
+      {:ok, view, _html} = live(conn, Routes.home_path(conn, :dashboard))
+
+      label = StoreFactory.unique_store_label()
+
+      rendered =
+        view
+        |> element("form")
+        |> render_submit(%{"store" => %{label: label}})
+
+      assert rendered =~ html_string(label)
+
+      user = user |> Repo.preload(:stores)
+      assert length(user.stores) == 1
+      assert hd(user.stores).label == label
+    end
+
+    test "renders errors if invalid", %{conn: conn, user: user} do
+      {:ok, view, _html} = live(conn, Routes.home_path(conn, :dashboard))
+
+      rendered =
+        view
+        |> element("form")
+        |> render_submit(%{"store" => %{label: ""}})
+
+      assert rendered =~ html_string("can't be blank")
+    end
   end
 
   describe "backends" do
