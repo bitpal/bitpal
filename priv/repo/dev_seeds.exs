@@ -33,7 +33,7 @@ defmodule BitPal.DevSeeds do
     )
     |> with_invoices(invoice_count: 12, currencies: [:XMR], txs: :auto)
 
-    ServerSetup.set_state(:completed)
+    ServerSetup.store_state(0, :completed)
   end
 end
 

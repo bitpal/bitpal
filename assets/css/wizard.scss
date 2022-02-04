@@ -1,0 +1,182 @@
+@use "general.scss";
+@use "fonts.scss" as *;
+@use "colors.scss" as *;
+
+.container {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+header {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  padding: 24px;
+  margin-top: 60px;
+  color: $brown-800;
+}
+
+.setup {
+  background-color: $brown-100;
+  box-shadow: 0px 1px 0px $brown-500;
+}
+
+.setup .description {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.setup h2 {
+  font-size: 20px;
+  color: $brown-800;
+}
+
+.setup input {
+  border: 1px solid $warm-grey-200;
+  border-radius: 4px;
+  padding: 12px 16px;
+  margin-bottom: 32px;
+}
+
+.setup button,
+.button-link {
+  border: 0;
+  border-radius: 4px;
+  font-size: 16px;
+  padding: 12px 16px;
+  background-color: $brown-400;
+  // color: $cool-grey-050;
+  cursor: pointer;
+}
+.setup button:not(:first-child) {
+  margin-top: 32px;
+}
+.setup button.skip {
+  background-color: $warm-grey-200;
+}
+.setup button:hover,
+.button-link:hover {
+  background-color: $brown-500;
+  // background-color: $light-blue-800;
+}
+.button-link {
+  text-align: center;
+  display: block;
+}
+
+.button-link:link,
+.button-link:visited {
+  text-decoration: none;
+  color: $brown-900;
+}
+
+.setup .alert {
+  padding: 16px;
+  margin-bottom: 32px;
+  border: 1px solid #272822;
+}
+.setup .alert-danger {
+  background-color: $red-200;
+  border-color: $red-300;
+}
+.setup .invalid-feedback {
+  color: $pink-600;
+  padding: 2px;
+}
+
+@media (min-width: 540px) {
+  .setup {
+    width: 500px;
+    padding: 64px;
+  }
+  .setup input,
+  .setup button,
+  .button-link {
+    width: 100%;
+  }
+  .setup form {
+    width: 100%;
+  }
+}
+
+.floating-footer {
+  width: 100%;
+  text-align: center;
+  margin-top: 12px;
+
+  a,
+  a:link,
+  a:visited {
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+}
+
+// @media (min-width: 540px) {
+//   .main-wrapper section {
+//     // width: 800px;
+//     width: 500px;
+//     padding: 64px;
+//   }
+//   .setup input,
+//   .setup button {
+//     // flex: 1 1 auto;
+//     width: 100%;
+//   }
+//   .setup form {
+//     width: 100%;
+//   }
+// }
+//
+// @media (max-width: 539px) {
+//   .setup form {
+//     width: 100%;
+//     text-align: center;
+//   }
+//   .fiat {
+//     margin: 0 auto;
+//   }
+//   .fiat,
+//   .email,
+//   .crypto {
+//     display: flex;
+//     justify-content: center;
+//     flex-wrap: wrap;
+//   }
+//   .fiat,
+//   .email,
+//   .crypto,
+//   button {
+//     width: 100%;
+//   }
+//   .setup input,
+//   .setup button,
+//   .fiat {
+//     flex: 1 1 auto;
+//     max-width: 372px;
+//   }
+//   .main-wrapper,
+//   .setup {
+//     width: 100%;
+//     display: flex;
+//     justify-content: center;
+//     flex-wrap: wrap;
+//   }
+//
+//   .phx-connected {
+//     width: 100%;
+//   }
+//
+//   .setup {
+//     width: 100%;
+//   }
+//   .email,
+//   .amount {
+//     text-align: center;
+//   }
+// }

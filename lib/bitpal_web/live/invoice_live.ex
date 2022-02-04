@@ -4,7 +4,10 @@ defmodule BitPalWeb.InvoiceLive do
   alias BitPal.InvoiceManager
   alias BitPal.Invoices
   alias BitPal.Repo
+  alias BitPalWeb.InvoiceLiveAuth
   require Logger
+
+  on_mount InvoiceLiveAuth
 
   @impl true
   def mount(_params, _session, socket) do
@@ -19,7 +22,13 @@ defmodule BitPalWeb.InvoiceLive do
   @impl true
   def handle_params(%{"id" => invoice_id}, uri, socket) do
     InvoiceEvents.subscribe(invoice_id)
-    update_invoice(invoice_id, assign(socket, uri: uri))
+
+    socket =
+      socket
+      |> update_invoice(invoice_id)
+      |> assign(uri: uri, breadcrumbs: Breadcrumbs.invoice(socket, uri, invoice_id))
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -28,14 +37,14 @@ defmodule BitPalWeb.InvoiceLive do
     # depending on the messages we receive. It's a bit more cumbersome,
     # but it would us allow to combine distributed data easily.
     # For now we'll just reload from the database for simplicity.
-    update_invoice(socket)
+    {:noreply, update_invoice(socket)}
   end
 
   defp update_invoice(socket = %{assigns: %{invoice: invoice}}) do
-    update_invoice(invoice.id, socket)
+    update_invoice(socket, invoice.id)
   end
 
-  defp update_invoice(invoice_id, socket) do
+  defp update_invoice(socket, invoice_id) do
     case InvoiceManager.fetch_or_load_invoice(invoice_id) do
       {:ok, invoice} ->
         invoice =
@@ -43,11 +52,11 @@ defmodule BitPalWeb.InvoiceLive do
           |> Repo.preload([:tx_outputs])
           |> Invoices.update_info_from_txs()
 
-        {:noreply, assign(socket, invoice: invoice)}
+        assign(socket, invoice: invoice)
 
       _ ->
         Logger.error("Failed to update invoice: #{invoice_id}")
-        {:noreply, socket}
+        socket
     end
   end
 end

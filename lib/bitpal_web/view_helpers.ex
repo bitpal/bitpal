@@ -1,4 +1,5 @@
 defmodule BitPalWeb.ViewHelpers do
+  import Phoenix.LiveView.Helpers
   alias Phoenix.HTML.Link
   require Logger
 
@@ -17,4 +18,29 @@ defmodule BitPalWeb.ViewHelpers do
 
   @version Mix.Project.config()[:version]
   def version, do: @version
+
+  @doc """
+  Creates a live redirect that adds the "active" class if :match == :from.
+  If :match doesn't exist, it defaults to :to.
+  """
+  def active_live_link(opts) do
+    to = Keyword.fetch!(opts, :to)
+    match = Keyword.get(opts, :match, to)
+    from = Keyword.fetch!(opts, :from)
+    label = Keyword.fetch!(opts, :label)
+    patch = Keyword.get(opts, :patch)
+
+    class =
+      if String.starts_with?(URI.parse(from).path, URI.parse(match).path) do
+        "active"
+      else
+        nil
+      end
+
+    if patch do
+      live_patch(label, to: to, class: class)
+    else
+      live_redirect(label, to: to, class: class)
+    end
+  end
 end

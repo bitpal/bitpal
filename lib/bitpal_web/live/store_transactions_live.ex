@@ -1,14 +1,15 @@
 defmodule BitPalWeb.StoreTransactionsLive do
   use BitPalWeb, :live_view
   alias BitPal.AddressEvents
-  alias BitPal.Repo
   alias BitPal.StoreEvents
   alias BitPal.Stores
   alias BitPalSchemas.TxOutput
-  require Logger
+  alias BitPalWeb.StoreLiveAuth
+
+  on_mount StoreLiveAuth
 
   @impl true
-  def mount(%{"slug" => _slug}, _session, socket) do
+  def mount(_params, _session, socket) do
     store = socket.assigns.store
 
     addresses =
@@ -38,7 +39,11 @@ defmodule BitPalWeb.StoreTransactionsLive do
 
   @impl true
   def handle_params(_params, uri, socket) do
-    {:noreply, assign(socket, uri: uri)}
+    {:noreply,
+     assign(socket,
+       uri: uri,
+       breadcrumbs: Breadcrumbs.store(socket, uri, "transactions")
+     )}
   end
 
   @impl true
@@ -63,7 +68,7 @@ defmodule BitPalWeb.StoreTransactionsLive do
   end
 
   @impl true
-  def handle_info({{:tx, _}, %{id: txid}}, socket) do
+  def handle_info({{:tx, _status}, %{id: txid}}, socket) do
     if tx = Repo.get_by(TxOutput, txid: txid) do
       tx = Repo.preload(tx, address: :invoice)
       {:noreply, update_tx(tx, socket)}

@@ -1,4 +1,4 @@
-defmodule BitPalWeb.HomeLive do
+defmodule BitPalWeb.DashboardLive do
   use BitPalWeb, :live_view
   alias BitPal.BackendEvents
   alias BitPal.BackendManager
@@ -17,7 +17,7 @@ defmodule BitPalWeb.HomeLive do
       stores =
         socket.assigns.current_user
         |> Stores.user_stores()
-        |> Enum.map(fn store -> {store.id, store} end)
+        |> Enum.map(fn store -> {store.id, Repo.preload(store, :invoices)} end)
         |> Map.new()
 
       backends =
@@ -31,19 +31,23 @@ defmodule BitPalWeb.HomeLive do
       {:ok,
        assign(socket,
          stores: stores,
-         backend_status: backends
+         backend_status: backends,
+         store_changeset: Stores.create_changeset()
        )}
     end
   end
 
   @impl true
   def render(assigns) do
-    render(BitPalWeb.HomeView, "dashboard.html", assigns)
+    render(BitPalWeb.DashboardView, "dashboard.html", assigns)
   end
 
   @impl true
   def handle_info({{:user, :store_created}, %{store: store}}, socket) do
-    {:noreply, assign(socket, stores: Map.put(socket.assigns.stores, store.id, store))}
+    {:noreply,
+     assign(socket,
+       stores: Map.put(socket.assigns.stores, store.id, Repo.preload(store, :invoices))
+     )}
   end
 
   @impl true

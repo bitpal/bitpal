@@ -1,4 +1,8 @@
-Setup completed!
+<.layout>
+  <:header>
+    Setup completed!
+  </:header>
 
-<%= link "Read the documentation", to: Routes.doc_path(@socket, :index) %>
-<%= link "Dashboard", to: Routes.home_path(@socket, :dashboard) %>
+  <%= link "Continue to the dashboard", to: Routes.dashboard_path(@socket, :show), class: "button-link" %>
+
+</.layout>

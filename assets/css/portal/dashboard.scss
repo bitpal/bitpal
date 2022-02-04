@@ -1,0 +1,43 @@
+@use "../sizes.scss" as *;
+@use "../colors.scss" as *;
+
+table.flex-table {
+  display: grid;
+
+  th,
+  td {
+    padding: $spc-4;
+  }
+
+  th {
+    text-align: left;
+  }
+  thead,
+  tbody,
+  tr {
+    display: contents;
+  }
+}
+
+table.stores-table {
+  max-width: 400px;
+  grid-template-columns: repeat(2, 1fr);
+  margin-top: $spc-16;
+  margin-bottom: $spc-8;
+
+  th {
+    background-color: $dark-purple-200;
+  }
+
+  tr:hover td {
+    background-color: $purple-100;
+  }
+  tr > td,
+  tr > th {
+    border-bottom: 1px solid $brown-100;
+  }
+}
+
+.backend-status {
+  margin-top: $spc-32;
+}

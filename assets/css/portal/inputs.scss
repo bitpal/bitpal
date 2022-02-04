@@ -1,0 +1,46 @@
+@use "../sizes.scss" as *;
+@use "../colors.scss" as *;
+
+input,
+button,
+textarea {
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+a.button {
+  border-radius: 4px;
+  padding: 3px 5px;
+}
+
+input,
+textarea {
+  border: 1px solid $warm-grey-200;
+}
+
+button,
+a.button {
+  background-color: $warm-grey-200;
+  border: 1px solid $warm-grey-300;
+  cursor: pointer;
+}
+button:hover,
+a:hover.button {
+  background-color: $purple-200;
+  border: 1px solid $purple-300;
+  cursor: pointer;
+}
+
+a.button {
+  text-decoration: none;
+  color: $brown-900;
+  display: inline-block;
+}
+
+button.danger {
+  background-color: $pink-200;
+  border: 1px solid $pink-300;
+}
+button.danger:hover {
+  background-color: $pink-300;
+  border: 1px solid $pink-400;
+}

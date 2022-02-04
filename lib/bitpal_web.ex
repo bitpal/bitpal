@@ -38,6 +38,8 @@ defmodule BitPalWeb do
 
       # Include shared imports and aliases for views
       unquote(view_helpers())
+
+      import BitPalWeb.PortalComponent
     end
   end
 
@@ -45,6 +47,18 @@ defmodule BitPalWeb do
     quote do
       use Phoenix.LiveView,
         layout: {BitPalWeb.LayoutView, "live.html"}
+
+      unquote(view_helpers())
+
+      alias BitPal.Repo
+      alias BitPalWeb.Breadcrumbs
+      require Logger
+    end
+  end
+
+  def component do
+    quote do
+      use Phoenix.Component
 
       unquote(view_helpers())
     end

@@ -4,8 +4,6 @@ defmodule BitPalWeb.Router do
   import BitPalWeb.UserAuth
   import BitPalWeb.ServerSetup
   import Phoenix.LiveDashboard.Router
-  alias BitPalWeb.InvoiceLiveAuth
-  alias BitPalWeb.StoreLiveAuth
   alias BitPalWeb.UserLiveAuth
 
   pipeline :browser do
@@ -39,37 +37,31 @@ defmodule BitPalWeb.Router do
 
   # Main portal
 
-  live_session :dashboard, on_mount: UserLiveAuth do
+  live_session :portal, on_mount: UserLiveAuth do
     scope "/", BitPalWeb do
       pipe_through([:authenticated_portal])
 
-      live("/", HomeLive, :dashboard)
-    end
-  end
-
-  live_session :invoices, on_mount: [UserLiveAuth, InvoiceLiveAuth] do
-    scope "/", BitPalWeb do
-      pipe_through([:authenticated_portal])
+      live("/", DashboardLive, :show)
 
       live("/invoices/:id", InvoiceLive, :show)
+
+      live("/stores", CreateStoreLive, :show)
+
+      live("/stores/:store", StoreInvoicesLive, :redirect)
+      live("/stores/:store/invoices", StoreInvoicesLive, :show)
+      live("/stores/:store/addresses", StoreAddressesLive, :show)
+      live("/stores/:store/transactions", StoreTransactionsLive, :show)
+
+      live("/stores/:store/settings", StoreSettingsLive, :redirect)
+      live("/stores/:store/settings/general", StoreSettingsLive, :general)
+      live("/stores/:store/settings/crypto/:crypto", StoreSettingsLive, :crypto)
+      live("/stores/:store/settings/exchange_rates", StoreSettingsLive, :exchange_rates)
+      live("/stores/:store/settings/invoices", StoreSettingsLive, :invoices)
+      live("/stores/:store/settings/access_tokens", StoreSettingsLive, :access_tokens)
     end
   end
 
-  live_session :stores, on_mount: [UserLiveAuth, StoreLiveAuth] do
-    scope "/", BitPalWeb do
-      pipe_through([:authenticated_portal])
-
-      # Shoold be /stores/:slug/invoices, but we need a live redirect
-      live("/stores/:slug", StoreLive, :show)
-      live("/stores/:slug/addresses", StoreAddressesLive, :show)
-      live("/stores/:slug/transactions", StoreTransactionsLive, :show)
-      live("/stores/:slug/settings", StoreSettingsLive, :show)
-    end
-  end
-
-  # Admin and server management
-
-  live_session :server, on_mount: UserLiveAuth do
+  live_session :admin_portal, on_mount: UserLiveAuth do
     scope "/", BitPalWeb do
       pipe_through([:authenticated_portal])
 
@@ -78,15 +70,14 @@ defmodule BitPalWeb.Router do
 
       live("/server/settings", ServerSettingsLive, :show)
     end
+
+    scope "/", BitPalWeb do
+      pipe_through([:setup_wizard, :redirect_unless_server_setup, :require_authenticated_user])
+
+      live("/server/setup/wizard", ServerSetupLive, :wizard)
+    end
   end
 
-  scope "/", BitPalWeb do
-    pipe_through([:authenticated_portal])
-
-    live_dashboard("/server/dashboard", metrics: BitPalWeb.Telemetry)
-  end
-
-  # Setup routes
   scope "/", BitPalWeb do
     pipe_through([:setup_wizard, :redirect_if_server_admin_created])
 
@@ -94,13 +85,10 @@ defmodule BitPalWeb.Router do
     post("/server/setup/server_admin", ServerSetupAdminController, :create)
   end
 
-  live_session :setup, on_mount: UserLiveAuth do
-    scope "/", BitPalWeb do
-      # NOTE: This should only allow server admin when that concept has been created
-      pipe_through([:setup_wizard, :redirect_unless_server_setup, :require_authenticated_user])
+  scope "/", BitPalWeb do
+    pipe_through([:authenticated_portal])
 
-      live("/server/setup/wizard", ServerSetupLive, :wizard)
-    end
+    live_dashboard("/server/dashboard", metrics: BitPalWeb.Telemetry)
   end
 
   # Authentication routes

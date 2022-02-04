@@ -6,7 +6,7 @@ defmodule BitPalWeb.ServerSetupAdminControllerTest do
     test "renders registration page", %{conn: conn} do
       conn = get(conn, Routes.server_setup_admin_path(conn, :show))
       response = html_response(conn, 200)
-      assert response =~ "Create the server admin"
+      assert response =~ "Create server admin"
     end
   end
 
@@ -32,7 +32,7 @@ defmodule BitPalWeb.ServerSetupAdminControllerTest do
         })
 
       response = html_response(conn, 200)
-      assert response =~ "Create the server admin"
+      assert response =~ "Create server admin"
       assert response =~ "must have the @ sign and no spaces"
       assert response =~ "should be at least 12 character"
     end

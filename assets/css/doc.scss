@@ -1,184 +1,190 @@
+@use "general.scss";
 @use "./monokai.scss";
 @use "fonts.scss" as *;
 @use "colors.scss" as *;
 
 .doc-body {
-// Site layout
+  // Site layout
 
-.main-wrapper {
+  .main-wrapper {
     display: flex;
     justify-content: center;
-}
+  }
 
-.main-wrapper > .left-sidebar {
+  .main-wrapper > .left-sidebar {
     max-width: 240px;
     flex: 1;
-}
+  }
 
-.main-wrapper > .main-content {
+  .main-wrapper > .main-content {
     flex: 1;
     max-width: 800px;
-}
+  }
 
-.main-wrapper > .right-sidebar {
+  .main-wrapper > .right-sidebar {
     width: 540px;
-}
+  }
 
-footer {
+  footer {
     display: flex;
     justify-content: center;
-}
+  }
 
-p ~ aside, aside ~ aside, p ~ pre {
+  p ~ aside,
+  aside ~ aside,
+  p ~ pre {
     margin-top: 16px;
-}
+  }
 
-aside.notice, aside.success, aside.warning, aside.security {
+  aside.notice,
+  aside.success,
+  aside.warning,
+  aside.security {
     padding: 16px;
     border: 1px solid #272822;
-}
-aside svg {
+  }
+  aside svg {
     height: 1.1em;
     position: relative;
     top: 4px;
     display: inline-block;
-}
-aside.notice {
-  background-color: $brown-200;
-  border-color: $brown-300;
+  }
+  aside.notice {
+    background-color: $brown-200;
+    border-color: $brown-300;
 
-  .header {
+    .header {
       color: $brown-800;
       font-weight: bold;
+    }
   }
-}
-aside.success {
+  aside.success {
     background-color: $green-200;
     border-color: $green-300;
 
     .header {
-        color: $green-800;
-        font-weight: bold;
+      color: $green-800;
+      font-weight: bold;
     }
-}
-aside.warning {
+  }
+  aside.warning {
     background-color: $red-200;
     border-color: $red-300;
 
     .header {
-        color: $red-800;
-        font-weight: bold;
+      color: $red-800;
+      font-weight: bold;
     }
-}
-aside.security {
+  }
+  aside.security {
     background-color: $dark-purple-200;
     border-color: $dark-purple-300;
 
     .header {
-        color: $dark-purple-800;
-        font-weight: bold;
+      color: $dark-purple-800;
+      font-weight: bold;
     }
-}
+  }
 
-.icon-important {
+  .icon-important {
     .primary {
-        fill: $red-500;
+      fill: $red-500;
     }
     .secondary {
-        fill: $red-200;
+      fill: $red-200;
     }
-}
+  }
 
-// .mybutton {
-//     width: 100px;
-//     height: 30px;
-//     margin: 20px;
-//     padding: 5px;
-//     text-align: center;
-//     border-radius: 5px;
-//     display: inline-block;
-//
-//     background-color: $brown-400;
-//     border-color: #ddd8c0;
-// }
+  // .mybutton {
+  //     width: 100px;
+  //     height: 30px;
+  //     margin: 20px;
+  //     padding: 5px;
+  //     text-align: center;
+  //     border-radius: 5px;
+  //     display: inline-block;
+  //
+  //     background-color: $brown-400;
+  //     border-color: #ddd8c0;
+  // }
 
-
-.left-sidebar {
+  .left-sidebar {
     padding: 18px 18px 18px 28px;
     background-color: $brown-100;
 
     p {
-        margin-top: 16px;
+      margin-top: 16px;
     }
 
-    ul, ol {
-        margin-top: 12px;
-        padding-left: 16px;
+    ul,
+    ol {
+      margin-top: 12px;
+      padding-left: 16px;
     }
 
     h1 {
-        font-size: 18px;
+      font-size: 18px;
     }
     h2 {
-        font-size: 16px;
+      font-size: 16px;
     }
-}
+  }
 
-.left-sidebar .header {
+  .left-sidebar .header {
     .title {
-        font-size: 30px;
-        font-weight: bold;
+      font-size: 30px;
+      font-weight: bold;
     }
     .title a {
-        color: $brown-900;
-        text-decoration: none;
+      color: $brown-900;
+      text-decoration: none;
     }
     .title a:hover {
-        text-decoration: underline;
+      text-decoration: underline;
     }
 
     .version {
-        margin-top: -8px;
-        padding-left: 4px;
-        font-size: 14px;
+      margin-top: -8px;
+      padding-left: 4px;
+      font-size: 14px;
     }
     .version > .semver {
-        color: $brown-700;
-        margin-right: 8px;
+      color: $brown-700;
+      margin-right: 8px;
     }
     .version > .commit {
-        // margin-left: 4px;
+      // margin-left: 4px;
     }
     a.commit {
-        font-size: 10px;
-        color: $brown-500;
-        text-decoration: none;
+      font-size: 10px;
+      color: $brown-500;
+      text-decoration: none;
     }
     a.commit:hover {
-        text-decoration: underline;
+      text-decoration: underline;
     }
-}
+  }
 
-.left-sidebar .wrapper {
+  .left-sidebar .wrapper {
     margin-top: 32px;
-}
+  }
 
-.left-sidebar .wrapper .help-entry {
+  .left-sidebar .wrapper .help-entry {
     margin-top: 16px;
 
     h2 {
-        font-size: 16px;
-        font-weight: bold;
+      font-size: 16px;
+      font-weight: bold;
     }
 
     p {
-        margin-top: 0;
+      margin-top: 0;
     }
-}
+  }
 
-// Main
+  // Main
 
-.main-content {
+  .main-content {
     margin: 32px 64px 64px 64px;
     // padding-left: 64px;
     // padding-right: 64px;
@@ -186,115 +192,116 @@ aside.security {
     // border-bottom: 4px solid $brown-400;
 
     h1 {
-        font-size: 48px;
-        // border-bottom: 4px solid $brown-400;
-        // margin-bottom: 32px;
+      font-size: 48px;
+      // border-bottom: 4px solid $brown-400;
+      // margin-bottom: 32px;
     }
     h2 {
-        font-size: 32px;
-        margin-top: 48px;
-        padding-top: 32px;
-        // margin-top: 32px;
-        padding-top: 48px;
-        border-top: 1px solid $brown-300;
+      font-size: 32px;
+      margin-top: 48px;
+      padding-top: 32px;
+      // margin-top: 32px;
+      padding-top: 48px;
+      border-top: 1px solid $brown-300;
     }
     h3 {
-        font-size: 24px;
-        margin-top: 24px;
+      font-size: 24px;
+      margin-top: 24px;
     }
     h4 {
-        font-size: 18px;
+      font-size: 18px;
     }
 
     p {
-        margin-top: 16px;
+      margin-top: 16px;
     }
 
-    ul, ol {
-        margin-top: 16px;
-        padding-left: 16px;
+    ul,
+    ol {
+      margin-top: 16px;
+      padding-left: 16px;
     }
-}
+  }
 
-
-p.alert {
+  p.alert {
     display: none;
     margin: 0;
     padding: 0;
-}
+  }
 
-// Things on right sidebar
+  // Things on right sidebar
 
-.right-sidebar {
+  .right-sidebar {
     // background-color: $brown-100;
-}
-.right-sidebar > nav {
+  }
+  .right-sidebar > nav {
     display: flex;
     justify-content: flex-end;
     padding: 18px;
-}
+  }
 
-blockquote, aside {
+  blockquote,
+  aside {
     float: right;
     clear: right;
     margin-right: -590px;
     width: 510px;
     position: relative;
     display: inline-block;
-}
+  }
 
-blockquote > p {
+  blockquote > p {
     padding: 12px;
     background-color: $brown-200;
     font-family: $code-font-family;
     font-size: 14px;
-}
+  }
 
-aside > .header {
+  aside > .header {
     padding: 12px;
     background-color: $brown-200;
     font-family: $code-font-family;
     font-size: 14px;
-}
+  }
 
-.endpoints {
+  .endpoints {
     // color: #f8f8f2;
     background-color: $warm-grey-100;
     font-family: $code-font-family;
     font-size: 14px;
 
     a {
-        // color: #f8f8f2;
-        // text-decoration: none;
+      // color: #f8f8f2;
+      // text-decoration: none;
     }
 
     ul {
-        list-style: none;
+      list-style: none;
     }
     ul li::before {
-        content: "";
+      content: "";
     }
-}
+  }
 
-.http-status-code {
+  .http-status-code {
     background-color: $warm-grey-100;
     font-family: $code-font-family;
     font-size: 14px;
 
     .row {
-        // display: flex;
-        .code {
-            font-weight: bold;
-            // width: 15em;
-            // background-color: $warm-grey-500;
-        }
+      // display: flex;
+      .code {
+        font-weight: bold;
+        // width: 15em;
+        // background-color: $warm-grey-500;
+      }
     }
-}
+  }
 
-// Code
+  // Code
 
-pre {
-    color: #f8f8f2; 
+  pre {
+    color: #f8f8f2;
     background-color: #272822;
     // background-color: #f6f0e4;
 
@@ -305,69 +312,68 @@ pre {
 
     // margin-top: 8px;
     margin-bottom: 16px;
-}
+  }
 
-code {
+  code {
     font-family: $code-font-family;
     font-size: 14px;
     // max-width: 380px;
-}
+  }
 
-// Footer
+  // Footer
 
-footer {
+  footer {
     // margin-top: 64px;
     // border-top: 64px solid $brown-100;
     background-color: $brown-200;
     // border-top: 4px solid $brown-400;
-}
-footer > .footer-wrapper {
+  }
+  footer > .footer-wrapper {
     display: flex;
     justify-content: space-around;
     flex: 1;
     max-width: 800px;
-}
+  }
 
-footer > .footer-wrapper > .column {
+  footer > .footer-wrapper > .column {
     margin-top: 24px;
     margin-bottom: 24px;
     padding: 12px;
 
     h1 {
-        font-size: 18px;
+      font-size: 18px;
     }
 
-    ul, ol {
-        margin-top: 16px;
-        padding-left: 2px;
-        list-style: none;
+    ul,
+    ol {
+      margin-top: 16px;
+      padding-left: 2px;
+      list-style: none;
     }
     li {
-        margin-top: 6px;
+      margin-top: 6px;
     }
 
     a {
-        color: $brown-700;
-        text-decoration: none;
+      color: $brown-700;
+      text-decoration: none;
     }
     a:hover {
-        text-decoration: underline;
+      text-decoration: underline;
     }
-}
+  }
 
-
-// Colorize is fun!
-// .left-sidebar {
-//     background-color: salmon;
-// }
-// .main-content {
-//     // background-color: aqua;
-// }
-// .right-sidebar {
-//     background-color: yellow;
-// }
-// footer {
-//     background-color: green;
-// }
-
+  // Colorize is fun!
+  // .left-sidebar {
+  //     background-color: salmon;
+  // }
+  // .main-content {
+  //     // background-color: aqua;
+  // }
+  // .right-sidebar {
+  //     background-color: yellow;
+  // }
+  // footer {
+  //     background-color: green;
+  // }
 }
