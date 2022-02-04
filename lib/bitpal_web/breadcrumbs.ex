@@ -2,6 +2,10 @@ defmodule BitPalWeb.Breadcrumbs do
   import Phoenix.LiveView.Helpers
   alias BitPalWeb.Router.Helpers, as: Routes
 
+  # The breadcrumbs are so short that the performance hit is negligible
+  # and appending is more readable.
+  # credo:disable-for-this-file Credo.Check.Refactor.AppendSingleItem
+
   def store(socket) do
     [
       live_redirect(

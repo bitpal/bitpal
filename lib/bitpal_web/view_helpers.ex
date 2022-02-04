@@ -1,6 +1,6 @@
 defmodule BitPalWeb.ViewHelpers do
-  alias Phoenix.HTML.Link
   import Phoenix.LiveView.Helpers
+  alias Phoenix.HTML.Link
   require Logger
 
   # credo:disable-for-next-line
