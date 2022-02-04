@@ -2,12 +2,13 @@ defmodule BitPalWeb.StoreInvoicesLive do
   use BitPalWeb, :live_view
   alias BitPal.InvoiceEvents
   alias BitPal.InvoiceManager
-  alias BitPal.Repo
   alias BitPal.StoreEvents
-  require Logger
+  alias BitPalWeb.StoreLiveAuth
+
+  on_mount StoreLiveAuth
 
   @impl true
-  def mount(%{"slug" => _slug}, _session, socket) do
+  def mount(_params, _session, socket) do
     store = socket.assigns.store |> Repo.preload(:invoices)
 
     if connected?(socket) do
@@ -33,6 +34,11 @@ defmodule BitPalWeb.StoreInvoicesLive do
   end
 
   @impl true
+  def handle_info({{:store, :address_created}, _}, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_info({{:invoice, _}, %{id: invoice_id}}, socket) do
     # A better solution is a CRDT, where we rebuild the invoice status
     # depending on the messages we receive. It's a bit more cumbersome,
@@ -42,8 +48,21 @@ defmodule BitPalWeb.StoreInvoicesLive do
   end
 
   @impl true
-  def handle_params(_params, uri, socket) do
-    {:noreply, assign(socket, uri: uri)}
+  def handle_params(%{"store" => store_slug}, uri, socket) do
+    if socket.assigns[:live_action] == :redirect do
+      {:noreply,
+       push_patch(
+         socket,
+         to: Routes.store_invoices_path(socket, :show, store_slug),
+         replace: true
+       )}
+    else
+      {:noreply,
+       assign(socket,
+         uri: uri,
+         breadcrumbs: Breadcrumbs.store(socket, uri, "invoices")
+       )}
+    end
   end
 
   defp update_invoice(invoice_id, socket) do

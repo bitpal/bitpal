@@ -3,8 +3,6 @@ defmodule BitPalWeb.HomeLiveTest do
   alias BitPal.Backend
   alias BitPal.BackendMock
   alias BitPal.Stores
-  alias BitPal.Repo
-  alias BitPalFactory.StoreFactory
 
   setup tags do
     tags
@@ -16,53 +14,23 @@ defmodule BitPalWeb.HomeLiveTest do
       s0 = create_store(user)
       s1 = create_store(user)
 
-      {:ok, _view, html} = live(conn, Routes.home_path(conn, :dashboard))
+      {:ok, _view, html} = live(conn, Routes.dashboard_path(conn, :show))
       assert html =~ s0.label |> html_string()
       assert html =~ s1.label |> html_string()
     end
 
     test "live add created store", %{conn: conn, user: user} do
-      {:ok, view, _html} = live(conn, Routes.home_path(conn, :dashboard))
+      {:ok, view, _html} = live(conn, Routes.dashboard_path(conn, :show))
 
       {:ok, store} = Stores.create(user, valid_store_attributes())
       assert render_eventually(view, html_string(store.label))
     end
   end
 
-  describe "create store" do
-    test "creates a store and lists it", %{conn: conn, user: user} do
-      {:ok, view, _html} = live(conn, Routes.home_path(conn, :dashboard))
-
-      label = StoreFactory.unique_store_label()
-
-      rendered =
-        view
-        |> element("form")
-        |> render_submit(%{"store" => %{label: label}})
-
-      assert rendered =~ html_string(label)
-
-      user = user |> Repo.preload(:stores)
-      assert length(user.stores) == 1
-      assert hd(user.stores).label == label
-    end
-
-    test "renders errors if invalid", %{conn: conn, user: user} do
-      {:ok, view, _html} = live(conn, Routes.home_path(conn, :dashboard))
-
-      rendered =
-        view
-        |> element("form")
-        |> render_submit(%{"store" => %{label: ""}})
-
-      assert rendered =~ html_string("can't be blank")
-    end
-  end
-
   describe "backends" do
     @tag backends: [BackendMock, BackendMock, BackendMock]
     test "list backends", %{conn: conn, backends: backends} do
-      {:ok, _view, html} = live(conn, Routes.home_path(conn, :dashboard))
+      {:ok, _view, html} = live(conn, Routes.dashboard_path(conn, :show))
 
       for backend <- backends do
         {:ok, currency_id} = Backend.supported_currency(backend)
@@ -72,7 +40,7 @@ defmodule BitPalWeb.HomeLiveTest do
 
     @tag backends: [{BackendMock, status: :stopped, sync_time: 50}]
     test "start and stop backend", %{conn: conn, backend: backend} do
-      {:ok, view, _html} = live(conn, Routes.home_path(conn, :dashboard))
+      {:ok, view, _html} = live(conn, Routes.dashboard_path(conn, :show))
 
       assert view |> element(".status") |> render() =~ "Stopped"
 
@@ -91,7 +59,7 @@ defmodule BitPalWeb.HomeLiveTest do
         create_user()
         |> create_store()
 
-      {:ok, _view, html} = live(conn, Routes.home_path(conn, :dashboard))
+      {:ok, _view, html} = live(conn, Routes.dashboard_path(conn, :show))
       assert !(html =~ other_store.label |> html_string())
     end
   end

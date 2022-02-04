@@ -2,13 +2,14 @@ defmodule BitPalWeb.StoreAddressesLive do
   use BitPalWeb, :live_view
   alias BitPal.Addresses
   alias BitPal.AddressEvents
-  alias BitPal.Repo
   alias BitPal.StoreEvents
   alias BitPal.Stores
-  require Logger
+  alias BitPalWeb.StoreLiveAuth
+
+  on_mount StoreLiveAuth
 
   @impl true
-  def mount(%{"slug" => _slug}, _session, socket) do
+  def mount(_params, _session, socket) do
     store = socket.assigns.store
 
     addresses =
@@ -85,6 +86,10 @@ defmodule BitPalWeb.StoreAddressesLive do
 
   @impl true
   def handle_params(_params, uri, socket) do
-    {:noreply, assign(socket, uri: uri)}
+    {:noreply,
+     assign(socket,
+       uri: uri,
+       breadcrumbs: Breadcrumbs.store(socket, uri, "addresses")
+     )}
   end
 end

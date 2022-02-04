@@ -2,7 +2,7 @@ defmodule BitPalWeb.StoreLiveAuth do
   import Phoenix.LiveView
   alias BitPal.Accounts.Users
 
-  def on_mount(:default, %{"slug" => store_slug}, _session, socket) do
+  def on_mount(:default, %{"store" => store_slug}, _session, socket) do
     if socket.assigns[:store] do
       {:cont, socket}
     else

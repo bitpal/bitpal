@@ -1,0 +1,70 @@
+<% now = NaiveDateTime.utc_now() %>
+
+<.layout {assigns}>
+  <:header>
+    Access Tokens
+  </:header>
+
+  <%= if token = assigns[:created_token] do %>
+    <section class="created-token">
+      <div class="label"><%= token.label %></div>
+      <div class="data"><%= token.data %></div>
+    </section>
+  <% end %>
+
+  <.form let={f} for={@create_token} phx-submit="create_token" class="create-token">
+    <h2>Add a store access token</h2>
+
+    <div class="label">
+      <%= error_tag f, :label %>
+      <%= label f, :label, "Token name" %>
+      <%= text_input f, :label, required: true %>
+    </div>
+
+    <div class="date">
+      <%= label f, :valid_until, "Expiration date" %>
+      <%= date_input f, :valid_until %>
+    </div>
+
+    <div class="submit">
+      <%= submit "Create store access token" %>
+    </div>
+  </.form>
+
+  <section class="tokens">
+    <h2>Active access tokens</h2>
+
+    <table class="access-tokens">
+      <thead>
+        <tr>
+          <th>Token Name</th>
+          <th>Created</th>
+          <th>Last Used</th>
+          <th>Expires</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <%= for token <- @store.access_tokens do %>
+          <tr>
+            <td><%= token.label %></td>
+            <td><%= format_created_at(token) %></td>
+            <td><%= format_last_accessed(token) %></td>
+            <td><%= format_valid_until(token, now) %></td>
+            <td>
+              <button
+                class="danger"
+                data-confirm="Are you sure you want to remove this store access token?
+This action cannot be undone."
+                phx-click={JS.push("revoke_token")}
+                phx-value-id={token.id}
+              >
+                Revoke
+              </button>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </section>
+</.layout>

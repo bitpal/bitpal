@@ -1,9 +1,9 @@
-<.layout>
-  <:header>
-    Create a store
-  </:header>
+<.dashboard_breadcrumbs {assigns} />
 
-  <.form let={f} for={@store_changeset} phx-submit="create_store">
+<section class="create-store">
+  <h2>Create store</h2>
+
+  <.form let={f} for={@store_changeset} phx-submit="create_store" id="create_store">
     <%= if @store_changeset.action do %>
       <div class="alert alert-danger">
         <p>Oops, something went wrong! Please check the errors below.</p>
@@ -17,6 +17,5 @@
       <%= submit "Create" %>
     </div>
   </.form>
+</section>
 
-  <button phx-click="skip" class="skip">Skip</button>
-</.layout>

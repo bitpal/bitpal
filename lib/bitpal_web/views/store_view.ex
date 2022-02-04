@@ -118,21 +118,6 @@ defmodule BitPalWeb.StoreView do
     end
   end
 
-  def live_store_link(opts) do
-    to = Keyword.fetch!(opts, :to)
-    from = Keyword.fetch!(opts, :from)
-    label = Keyword.fetch!(opts, :label)
-
-    to_path = URI.parse(to).path
-    from_path = URI.parse(from).path
-
-    if to_path == from_path do
-      live_redirect(label, to: to, class: "active")
-    else
-      live_redirect(label, to: to)
-    end
-  end
-
   def live_invoice_link(socket, opts) do
     id = Keyword.fetch!(opts, :id)
     label = Keyword.fetch!(opts, :label)
@@ -142,14 +127,19 @@ defmodule BitPalWeb.StoreView do
 
   def tx_status(assigns) do
     ~H"""
-    <span class="status">
+    <span class="tx-status">
       <%= cond do %>
         <% @tx.confirmed_height -> %>
-          <span class="confirmed">Confirmed in block <%= @tx.confirmed_height %></span>
+          <span class="confirmed">Confirmed</span>
         <% @tx.double_spent -> %>
           <span class="double-spent">Double spent</span>
         <% true -> %>
           <span class="unconfirmed">Unconfirmed</span>
+      <% end %>
+      <%= if @tx.confirmed_height do %>
+        <span class="block-height">
+          Block <%= @tx.confirmed_height %>
+        </span>
       <% end %>
     </span>
     """

@@ -147,14 +147,20 @@ defmodule BitPalSettings.StoreSettings do
     update_simple(store_id, currency_id, double_spend_timeout: timeout)
   end
 
+  @spec get_or_create_currency_settings(Store.id(), Currency.id()) :: CurrencySettings.t() | nil
+  def get_or_create_currency_settings(store_id, currency_id) do
+    get_currency_settings(store_id, currency_id) ||
+      create_default_currency_settings(store_id, currency_id)
+  end
+
   @spec get_currency_settings(Store.id(), Currency.id()) :: CurrencySettings.t() | nil
   def get_currency_settings(store_id, currency_id) do
     currency_settings_query(store_id, currency_id)
     |> Repo.one()
   end
 
-  @spec create_default_settings(Store.id(), Currency.id()) :: CurrencySettings.t()
-  def create_default_settings(store_id, currency_id) do
+  @spec create_default_currency_settings(Store.id(), Currency.id()) :: CurrencySettings.t()
+  def create_default_currency_settings(store_id, currency_id) do
     %CurrencySettings{
       store_id: store_id,
       currency_id: currency_id,
@@ -189,16 +195,6 @@ defmodule BitPalSettings.StoreSettings do
       select: field(x, ^key)
     )
     |> Repo.one()
-  end
-
-  defp get_or_create_currency_settings(store_id, currency_id) do
-    case get_currency_settings(store_id, currency_id) do
-      nil ->
-        create_default_settings(store_id, currency_id)
-
-      settings ->
-        settings
-    end
   end
 
   @spec update_simple(Store.id(), Currency.id(), map | keyword) ::

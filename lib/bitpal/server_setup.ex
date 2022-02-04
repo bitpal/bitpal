@@ -76,7 +76,7 @@ defmodule BitPal.ServerSetup do
     end
   end
 
-  defp store_state(id, state) do
+  def store_state(id, state) do
     case Repo.get(SetupState, id) do
       nil -> %SetupState{id: id}
       state -> state

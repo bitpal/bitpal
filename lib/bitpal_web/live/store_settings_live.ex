@@ -10,179 +10,148 @@ defmodule BitPalWeb.StoreSettingsLive do
   alias BitPalSchemas.AddressKey
   alias BitPalSchemas.CurrencySettings
   alias BitPalSettings.StoreSettings
-  alias Ecto.Changeset
+  alias BitPalWeb.StoreLiveAuth
   require Logger
 
-  defmodule DisplayedSettings do
-    defstruct [:settings, :settings_changeset, :address_key_changeset]
-
-    def new(settings) do
-      %DisplayedSettings{
-        settings: settings,
-        settings_changeset: change(settings),
-        address_key_changeset: address_key_changeset(settings)
-      }
-    end
-
-    defp address_key_changeset(settings) do
-      data = if settings.address_key, do: settings.address_key.data, else: nil
-
-      %AddressKey{}
-      |> change(data: data)
-    end
-
-    def with_address_key_change(settings = %DisplayedSettings{}, address_key = %AddressKey{}) do
-      currency_settings = %{settings.settings | address_key: address_key}
-
-      %DisplayedSettings{
-        settings: currency_settings,
-        settings_changeset: change(currency_settings),
-        address_key_changeset: %{address_key_changeset(currency_settings) | action: :success}
-      }
-    end
-
-    def with_address_key_change(
-          settings = %DisplayedSettings{},
-          address_key_changeset = %Changeset{}
-        ) do
-      %{settings | address_key_changeset: %{address_key_changeset | action: :fail}}
-    end
-
-    def with_settings_change(
-          settings = %DisplayedSettings{},
-          currency_settings = %CurrencySettings{}
-        ) do
-      %{
-        settings
-        | settings: currency_settings,
-          settings_changeset: %{change(currency_settings) | action: :success}
-      }
-    end
-
-    def with_settings_change(settings = %DisplayedSettings{}, changeset = %Changeset{}) do
-      %{settings | settings_changeset: %{changeset | action: :fail}}
-    end
-  end
+  on_mount StoreLiveAuth
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, init_assigns(socket)}
-  end
-
-  defp init_assigns(socket) do
-    if socket.assigns[:currency_settings] do
-      socket
-    else
-      store =
-        socket.assigns.store
-        |> Repo.preload([:access_tokens, currency_settings: :address_key])
-
-      assign(socket,
-        store: store,
-        edit_store: Stores.update_changeset(store),
-        currency_settings: initial_currency_settings(store),
-        # Placeholder to examine styling.
-        # created_token: %{
-        #   label: "My awesome token",
-        #   data: "SFMyNTY.g2gDYQFuBgAZBNaYfQFiAAFRgA.TZIBKkOxMKsU16yT_Xqo5RxxtonNM5hX5YZcl9FtU6Q"
-        # },
-        create_token: tokens_changeset()
-      )
-    end
-  end
-
-  defp initial_currency_settings(store) do
-    # Some settings may not have been created, so we need to fill up the settings list
-    # with defaults.
-    existing_settings =
-      store.currency_settings
-      |> Stream.map(fn settings ->
-        {settings.currency_id, settings}
-      end)
-      |> Enum.into(%{})
-
-    uninitialized_settings =
-      BackendManager.currency_list()
-      |> Stream.filter(&(!Map.has_key?(existing_settings, &1)))
-      |> Stream.map(fn currency_id ->
-        {currency_id, StoreSettings.create_default_settings(store.id, currency_id)}
-      end)
-
-    Stream.concat(existing_settings, uninitialized_settings)
-    |> Stream.map(fn {currency_id, settings} ->
-      {currency_id, DisplayedSettings.new(settings)}
-    end)
-    |> Enum.into(%{})
+    {:ok, socket}
   end
 
   @impl true
   def render(assigns) do
-    render(BitPalWeb.StoreView, "settings.html", assigns)
+    template = Atom.to_string(assigns.live_action) <> ".html"
+    render_existing(BitPalWeb.StoreSettingsView, template, assigns)
   end
 
   @impl true
-  def handle_params(_params, uri, socket) do
-    {:noreply, assign(socket, uri: uri)}
-  end
+  def handle_params(%{"crypto" => crypto, "store" => store_slug}, uri, socket) do
+    case Currencies.cast(crypto) do
+      {:ok, currency_id} ->
+        socket =
+          socket
+          |> assign(currency_id: currency_id)
+          |> init_assigns(uri)
 
-  @impl true
-  def handle_event("address_key", params, socket) do
-    case extract_currency_updates(params) do
-      {currency_id, updates} ->
-        settings = socket.assigns.currency_settings[currency_id]
-        data = Map.fetch!(updates, "data")
-
-        case StoreSettings.set_address_key(settings.settings, data) do
-          {:ok, address_key} ->
-            {:noreply,
-             assign_currency_setting(
-               socket,
-               currency_id,
-               DisplayedSettings.with_address_key_change(settings, address_key)
-             )}
-
-          {:error, changeset} ->
-            {:noreply,
-             assign_currency_setting(
-               socket,
-               currency_id,
-               DisplayedSettings.with_address_key_change(settings, changeset)
-             )}
-        end
-
-      nil ->
-        Logger.warn("Unknown currency in address_key update: #{inspect(Map.keys(params))}")
         {:noreply, socket}
+
+      :error ->
+        {:noreply, redirect_to_general(socket, store_slug)}
     end
   end
 
   @impl true
-  def handle_event("settings", params, socket) do
-    case extract_currency_updates(params) do
-      {currency_id, updates} ->
-        settings = socket.assigns.currency_settings[currency_id]
+  def handle_params(%{"store" => store_slug}, uri, socket) do
+    if socket.assigns[:live_action] == :redirect do
+      {:noreply,
+       push_patch(
+         socket,
+         to: Routes.store_settings_path(socket, :general, store_slug),
+         replace: true
+       )}
+    else
+      {:noreply, init_assigns(socket, uri)}
+    end
+  end
 
-        case StoreSettings.update_simple(socket.assigns.store.id, currency_id, updates) do
-          {:ok, currency_settings} ->
-            {:noreply,
-             assign_currency_setting(
-               socket,
-               currency_id,
-               DisplayedSettings.with_settings_change(settings, currency_settings)
-             )}
+  defp init_assigns(socket, uri) do
+    socket
+    |> assign(uri: uri)
+    |> assign_breadcrumbs()
+    |> assign_currency_ids()
+    |> assign_live_action(socket.assigns.live_action)
+  end
 
-          {:error, changeset} ->
-            {:noreply,
-             assign_currency_setting(
-               socket,
-               currency_id,
-               DisplayedSettings.with_settings_change(settings, changeset)
-             )}
-        end
+  defp assign_breadcrumbs(socket) do
+    socket
+    |> assign(breadcrumbs: Breadcrumbs.store_settings(socket, socket.assigns.uri))
+  end
 
-      nil ->
-        Logger.warn("Unknown currency in settings update: #{inspect(Map.keys(params))}")
+  defp assign_currency_ids(socket) do
+    if socket.assigns[:currency_ids] do
+      socket
+    else
+      store =
+        socket.assigns.store
+        |> Repo.preload([:currency_settings])
+
+      currency_ids =
+        (Enum.map(store.currency_settings, fn settings -> settings.currency_id end) ++
+           BackendManager.currency_list())
+        |> Enum.sort()
+        |> Enum.dedup()
+
+      assign(socket, store: store, currency_ids: currency_ids)
+    end
+  end
+
+  defp assign_live_action(socket, :general) do
+    assign(
+      socket,
+      edit_store: Stores.update_changeset(socket.assigns.store)
+    )
+  end
+
+  defp assign_live_action(socket, :access_tokens) do
+    store =
+      socket.assigns.store
+      |> Repo.preload([:access_tokens])
+
+    assign(
+      socket,
+      store: store,
+      create_token: tokens_changeset()
+    )
+  end
+
+  defp assign_live_action(socket, :crypto) do
+    currency_id = socket.assigns.currency_id
+    store = socket.assigns.store
+
+    settings =
+      StoreSettings.get_or_create_currency_settings(store.id, currency_id)
+      |> Repo.preload(:address_key)
+
+    assign(
+      socket,
+      currency_changeset: change(settings),
+      address_key_changeset: address_key_changeset(settings)
+    )
+  end
+
+  defp assign_live_action(socket, _) do
+    socket
+  end
+
+  defp address_key_changeset(settings = %CurrencySettings{}) do
+    data = if settings.address_key, do: settings.address_key.data, else: nil
+    address_key_changeset(data)
+  end
+
+  defp address_key_changeset(data) do
+    %AddressKey{}
+    |> change(data: data)
+  end
+
+  @impl true
+  def handle_event("edit_store", %{"store" => params}, socket) do
+    changeset = Stores.update_changeset(socket.assigns.store, params)
+
+    case Stores.update(changeset) do
+      {:ok, store} ->
+        socket =
+          assign(socket,
+            store: store,
+            edit_store: changeset
+          )
+          |> assign_breadcrumbs()
+
         {:noreply, socket}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, edit_store: changeset)}
     end
   end
 
@@ -202,19 +171,6 @@ defmodule BitPalWeb.StoreSettingsLive do
   end
 
   @impl true
-  def handle_event("edit_store", %{"store" => params}, socket) do
-    changeset = Stores.update_changeset(socket.assigns.store, params)
-
-    case Stores.update(changeset) do
-      {:ok, store} ->
-        {:noreply, assign(socket, store: store, edit_store: changeset)}
-
-      {:error, changeset} ->
-        {:noreply, assign(socket, edit_store: changeset)}
-    end
-  end
-
-  @impl true
   def handle_event("revoke_token", %{"id" => id}, socket) do
     with {id, ""} <- Integer.parse(id),
          {:ok, token} <- Stores.find_token(socket.assigns.store, id) do
@@ -229,33 +185,41 @@ defmodule BitPalWeb.StoreSettingsLive do
     end
   end
 
+  @impl true
+  def handle_event("address_key", %{"address_key" => %{"data" => data}}, socket) do
+    case StoreSettings.set_address_key(socket.assigns.store.id, socket.assigns.currency_id, data) do
+      {:ok, address_key} ->
+        {:noreply,
+         assign(socket, address_key_changeset: %{change(address_key) | action: :success})}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, address_key_changeset: %{changeset | action: :fail})}
+    end
+  end
+
+  @impl true
+  def handle_event("currency_settings", %{"currency_settings" => updates}, socket) do
+    case StoreSettings.update_simple(socket.assigns.store.id, socket.assigns.currency_id, updates) do
+      {:ok, currency_settings} ->
+        {:noreply,
+         assign(socket, currency_changeset: %{change(currency_settings) | action: :success})}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, currency_changeset: %{changeset | action: :fail})}
+    end
+  end
+
   defp tokens_changeset(params \\ %{}) do
     %AccessToken{}
     |> change()
     |> cast(params, [:label])
   end
 
-  defp extract_currency_updates(params) do
-    Enum.find_value(params, fn {key, val} ->
-      case Currencies.cast(key) do
-        {:ok, currency_id} ->
-          {currency_id, val}
-
-        :error ->
-          nil
-      end
-    end)
-  end
-
-  defp assign_currency_setting(socket, currency_id, displayed_settings) do
-    assign(
+  defp redirect_to_general(socket, store_slug) do
+    push_patch(
       socket,
-      currency_settings:
-        Map.put(
-          socket.assigns.currency_settings,
-          currency_id,
-          displayed_settings
-        )
+      to: Routes.store_settings_path(socket, :general, store_slug),
+      replace: true
     )
   end
 end

@@ -1,4 +1,4 @@
-defmodule BitPalWeb.HomeView do
+defmodule BitPalWeb.DashboardView do
   use BitPalWeb, :view
 
   def format_status({currency_id, status}) do

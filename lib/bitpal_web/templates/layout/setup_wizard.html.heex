@@ -6,14 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <%= csrf_meta_tag() %>
     <%= live_title_tag assigns[:page_title] || "BitPal" %>
-    <link phx-track-static rel="stylesheet" href={Routes.static_path(@conn, "/css/app.css")}/>
+    <link phx-track-static rel="stylesheet" href={Routes.static_path(@conn, "/css/wizard.css")}/>
     <script defer phx-track-static type="text/javascript" src={Routes.static_path(@conn, "/js/app.js")}></script>
   </head>
   <body class="wizard-body">
-    <div class="main-wrapper">
-      <section class="main-content" role="main">
-        <%= @inner_content %>
-      </section>
-    </div>
+    <%= @inner_content %>
   </body>
 </html>

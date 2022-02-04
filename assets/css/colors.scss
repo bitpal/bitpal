@@ -10,15 +10,14 @@
 //      Green: ok/
 //      Yellow: notices
 
-
 // Tailwind color refs:
 // https://tailwindcolor.com/
 // https://tailwindcss-v0.netlify.app/docs/colors/
 // https://tailwindcss.com/docs/customizing-colors
 
 // Primary
-$brown-50:  #fbfaf6;
-$brown-100: #f8efd2; // A bit too much yellow
+$brown-050: #fbfaf6;
+//$brown-100: #f8efd2; // A bit too much yellw
 $brown-100: #f9ecdc;
 $brown-200: #f1d9a5;
 $brown-300: #ddb371;
@@ -32,7 +31,7 @@ $brown-900: #31190c;
 // Neutral
 
 // Accents
-$green-50:  #f5f7f5;
+$green-050: #f5f7f5;
 $green-100: #e8efeb; // Too light?
 $green-200: #cce0d4;
 $green-300: #9cc1ab;
@@ -43,7 +42,7 @@ $green-700: #304e33;
 $green-800: #223527;
 $green-900: #16211b;
 //
-$aqua-50:  #f3f7f6;
+$aqua-050: #f3f7f6;
 $aqua-100: #dfeff3;
 $aqua-200: #b9e1e5;
 $aqua-300: #85c3c7;
@@ -54,7 +53,7 @@ $aqua-700: #26504f;
 $aqua-800: #1c373a;
 $aqua-900: #122328;
 // This is fine
-$blue-50:  #f5f8f8;
+$blue-050: #f5f8f8;
 $blue-100: #e2eff6;
 $blue-200: #c1deed;
 $blue-300: #92bfd6;
@@ -65,7 +64,7 @@ $blue-700: #2f4866;
 $blue-800: #223248;
 $blue-900: #151f30;
 // Very nice
-$purple-50:  #f8f9fa;
+$purple-050: #f8f9fa;
 $purple-100: #eceff9;
 $purple-200: #d7d8f2;
 $purple-300: #b3b4e1;
@@ -76,7 +75,7 @@ $purple-700: #4a3a7c;
 $purple-800: #332856;
 $purple-900: #1e1a35;
 // Also very nice
-$dark-purple-50:  #f9fafa;
+$dark-purple-050: #f9fafa;
 $dark-purple-100: #f0eff7;
 $dark-purple-200: #e0d7ef;
 $dark-purple-300: #c1b2da;
@@ -87,7 +86,7 @@ $dark-purple-700: #56376c;
 $dark-purple-800: #3b264a;
 $dark-purple-900: #23182c;
 // Very nice
-$pink-50:  #fbfaf9;
+$pink-050: #fbfaf9;
 $pink-100: #f6efef;
 $pink-200: #edd5df;
 $pink-300: #d8aebd;
@@ -98,7 +97,7 @@ $pink-700: #6f3442;
 $pink-800: #4d242d;
 $pink-900: #2f171b;
 // Nice
-$red-50:  #fbfaf8;
+$red-050: #fbfaf8;
 $red-100: #f8efe3;
 $red-200: #f1d6c6;
 $red-300: #dfae98;
@@ -109,27 +108,26 @@ $red-700: #763427;
 $red-800: #52241c;
 $red-900: #341712;
 
-
 // grey
-$grey-050: #F7F7F7;
-$grey-100: #E1E1E1;
-$grey-200: #CFCFCF;
-$grey-300: #B1B1B1;
-$grey-400: #9E9E9E;
-$grey-500: #7E7E7E;
+$grey-050: #f7f7f7;
+$grey-100: #e1e1e1;
+$grey-200: #cfcfcf;
+$grey-300: #b1b1b1;
+$grey-400: #9e9e9e;
+$grey-500: #7e7e7e;
 $grey-600: #626262;
 $grey-700: #515151;
-$grey-800: #3B3B3B;
+$grey-800: #3b3b3b;
 $grey-900: #222222;
 
 // warm grey
-$warm-grey-050: #FAF9F7;
-$warm-grey-100: #E8E6E1;
-$warm-grey-200: #D3CEC4;
-$warm-grey-300: #B8B2A7;
-$warm-grey-400: #A39E93;
-$warm-grey-500: #857F72;
-$warm-grey-600: #625D52;
-$warm-grey-700: #504A40;
-$warm-grey-800: #423D33;
-$warm-grey-900: #27241D;
+$warm-grey-050: #faf9f7;
+$warm-grey-100: #e8e6e1;
+$warm-grey-200: #d3cec4;
+$warm-grey-300: #b8b2a7;
+$warm-grey-400: #a39e93;
+$warm-grey-500: #857f72;
+$warm-grey-600: #625d52;
+$warm-grey-700: #504a40;
+$warm-grey-800: #423d33;
+$warm-grey-900: #27241d;

@@ -64,10 +64,15 @@ defmodule BitPalWeb.StoreTransacionsLiveTest do
       BackendMock.tx_seen(invoice)
 
       {:ok, view, _html} = live(conn, Routes.store_transactions_path(conn, :show, store.slug))
-      render_eventually(view, "Unconfirmed", ".status .unconfirmed")
+      render_eventually(view, "Unconfirmed", ".tx-status .unconfirmed")
 
       BackendMock.confirmed_in_new_block(invoice)
-      render_eventually(view, "block #{Integer.to_string(height + 1)}", ".status .confirmed")
+
+      render_eventually(
+        view,
+        "Block #{Integer.to_string(height + 1)}",
+        ".tx-status .block-height"
+      )
     end
   end
 
