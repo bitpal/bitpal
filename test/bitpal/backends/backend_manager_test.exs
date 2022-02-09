@@ -96,7 +96,7 @@ defmodule BackendManagerTest do
       )
 
       list = BackendManager.status_list(name)
-      assert {^c0, _, {:started, :ready}} = find_status(list, c0)
+      assert {^c0, _, :ready} = find_status(list, c0)
       assert {^c1, _, :stopped} = find_status(list, c1)
     end
 
@@ -118,7 +118,7 @@ defmodule BackendManagerTest do
          parent: self(), backends: [{BackendMock, currency_id: currency_id}], name: name}
       )
 
-      assert {:started, :ready} == BackendManager.currency_status(currency_id)
+      assert :ready == BackendManager.currency_status(currency_id)
     end
   end
 

@@ -22,7 +22,7 @@ defmodule BitPal.BackendStatusManagerTest do
   end
 
   test "status changes", %{name: name} do
-    assert BackendStatusManager.status(name) == :initiailizing
+    assert BackendStatusManager.status(name) == :initializing
 
     BackendStatusManager.recovering(name, 1, 10)
     assert BackendStatusManager.status(name) == {:recovering, 1, 10}

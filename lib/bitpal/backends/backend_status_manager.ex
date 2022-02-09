@@ -51,7 +51,7 @@ defmodule BitPal.BackendStatusManager do
 
     {:ok,
      %{
-       status: opts[:status] || :initiailizing,
+       status: opts[:status] || :initializing,
        currency_id: Keyword.fetch!(opts, :currency_id),
        rate_limit: opts[:rate_limit] || 1_000
      }}

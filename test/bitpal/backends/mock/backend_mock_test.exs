@@ -44,7 +44,7 @@ defmodule BackendMockTest do
   describe "control status" do
     @tag backends: [BitPal.BackendMock]
     test "started by default", %{backend: backend} do
-      assert Backend.status(backend) == {:started, :ready}
+      assert Backend.status(backend) == :ready
     end
 
     @tag backends: [
@@ -54,7 +54,7 @@ defmodule BackendMockTest do
       assert Backend.status(backend) == :stopped
 
       assert Backend.start(backend) == :ok
-      assert Backend.status(backend) == {:started, :ready}
+      assert Backend.status(backend) == :ready
     end
 
     @tag backends: [
@@ -64,10 +64,10 @@ defmodule BackendMockTest do
       assert Backend.status(backend) == :stopped
 
       assert Backend.start(backend) == :ok
-      assert {:started, {:syncing, _}} = Backend.status(backend)
+      assert {:syncing, _} = Backend.status(backend)
 
       assert eventually(fn ->
-               Backend.status(backend) == {:started, :ready}
+               Backend.status(backend) == :ready
              end)
     end
 

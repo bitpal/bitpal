@@ -1,6 +1,10 @@
 defmodule BitPal.Backend.FloweeFixtures do
   # Outgoing messages
 
+  def get_version do
+    <<7, 0, 8, 0, 16, 0, 4>>
+  end
+
   def get_blockchain_info do
     <<7, 0, 8, 1, 16, 0, 4>>
   end
@@ -42,6 +46,19 @@ defmodule BitPal.Backend.FloweeFixtures do
 
   def block_subscribe do
     <<7, 0, 8, 18, 16, 0, 4>>
+  end
+
+  def address_subscribe_1 do
+    # bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa
+    <<41, 0, 8, 17, 16, 0, 4, 75, 32, 155, 134, 125, 18, 44, 85, 192, 201, 165, 210, 104, 235,
+      218, 84, 114, 130, 85, 57, 225, 101, 84, 87, 239, 252, 200, 122, 185, 53, 18, 128, 157,
+      185>>
+  end
+
+  def address_subscribe_2 do
+    # bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc
+    <<41, 0, 8, 17, 16, 0, 4, 75, 32, 74, 68, 61, 59, 35, 8, 83, 181, 175, 68, 97, 96, 214, 136,
+      211, 35, 0, 33, 218, 212, 156, 151, 129, 121, 140, 251, 126, 6, 23, 125, 222, 45>>
   end
 
   def ping do

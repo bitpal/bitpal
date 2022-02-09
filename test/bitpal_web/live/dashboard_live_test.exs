@@ -46,7 +46,7 @@ defmodule BitPalWeb.HomeLiveTest do
 
       assert Backend.start(backend) == :ok
       assert render_eventually(view, "Syncing", ".status")
-      assert render_eventually(view, "Started", ".status")
+      assert render_eventually(view, "Ready", ".status")
 
       assert Backend.stop(backend) == :ok
       assert render_eventually(view, "Stopped", ".status")

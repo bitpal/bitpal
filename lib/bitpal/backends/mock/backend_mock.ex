@@ -295,7 +295,7 @@ defmodule BitPal.BackendMock do
   end
 
   defp is_started(state) do
-    state.status == {:started, :ready}
+    state.status == :ready
   end
 
   defp setup_auto_invoice(invoice, state) do

@@ -339,7 +339,13 @@ defmodule BitPal.Backend.FloweeTest do
 
   @tag init_message: false
   test "make sure recovery works", %{store: store} do
-    # Simulate the state stored in the DB:
+    # During startup it will ask for blockchain info.
+    # (Also for the version, but we ignore it here.)
+    assert eventually(fn ->
+             MockTCPClient.last_sent(@client) == FloweeFixtures.get_blockchain_info()
+           end)
+
+    # When an invoice is created, Flowee should subscribe to the addresses.
     {:ok, _invoice, stub1, _invoice_handler} =
       test_invoice(
         store: store,
@@ -347,6 +353,10 @@ defmodule BitPal.Backend.FloweeTest do
         amount: 0.000_15,
         address_id: "bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa"
       )
+
+    assert eventually(fn ->
+             FloweeFixtures.address_subscribe_1() == MockTCPClient.last_sent(@client)
+           end)
 
     {:ok, _invoice, stub2, _invoice_handler} =
       test_invoice(
@@ -356,15 +366,13 @@ defmodule BitPal.Backend.FloweeTest do
         address_id: "bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc"
       )
 
+    assert eventually(fn ->
+             FloweeFixtures.address_subscribe_2() == MockTCPClient.last_sent(@client)
+           end)
+
+    # Simulate the state stored in the DB:
     # We are now at height 690933, but we have only registered up to 690_931
     Blocks.set_block_height(@currency, 690_931)
-
-    # During startup it will ask for blockchain info.
-    assert eventually(fn ->
-             # It will also subscribe to both of the above address, but we ignore
-             # those messages here.
-             MockTCPClient.first_sent(@client) == FloweeFixtures.get_blockchain_info()
-           end)
 
     # Now, we tell Flowee the current block height. It will try to recover
     # and ask for the missing blocks.
@@ -400,7 +408,7 @@ defmodule BitPal.Backend.FloweeTest do
     # It will ask for block info again, so that it can properly capture if Flowee managed to find
     # another block while it updated the last block. At this point, it should be happy.
     assert eventually(fn ->
-             MockTCPClient.first_sent(@client) == FloweeFixtures.get_blockchain_info()
+             MockTCPClient.last_sent(@client) == FloweeFixtures.get_blockchain_info()
            end)
 
     MockTCPClient.response(@client, FloweeFixtures.blockchain_info_690933_reply())
@@ -410,7 +418,9 @@ defmodule BitPal.Backend.FloweeTest do
     HandlerSubscriberCollector.await_msg(stub2, {:invoice, :paid})
 
     # It should also be ready now.
-    assert Flowee.status(BitPal.Backend.Flowee) == :ready
+    assert eventually(fn ->
+             Flowee.status(BitPal.Backend.Flowee) == :ready
+           end)
   end
 
   # Things we need to test:
