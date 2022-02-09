@@ -9,7 +9,7 @@ defmodule BitPalWeb.Breadcrumbs do
   def store(socket) do
     [
       live_redirect(
-        "stores",
+        "dashboard",
         to: Routes.dashboard_path(socket, :show)
       ),
       live_redirect(
@@ -65,5 +65,25 @@ defmodule BitPalWeb.Breadcrumbs do
         ),
         live_redirect(invoice_id, to: uri)
       ]
+  end
+
+  def server_settings(socket, uri) do
+    label =
+      socket.assigns.live_action
+      |> Atom.to_string()
+      |> String.downcase()
+      |> String.replace("_", " ")
+
+    [
+      live_redirect(
+        "dashboard",
+        to: Routes.dashboard_path(socket, :show)
+      ),
+      live_redirect(
+        "server settings",
+        to: Routes.server_settings_path(socket, :backends)
+      ),
+      live_redirect(label, to: uri)
+    ]
   end
 end
