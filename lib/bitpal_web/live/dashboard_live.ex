@@ -63,7 +63,7 @@ defmodule BitPalWeb.DashboardLive do
   # FIXME should update height too
 
   @impl true
-  def handle_info({{:backend, status}, currency_id}, socket) do
+  def handle_info({{:backend, :status}, %{status: status, currency_id: currency_id}}, socket) do
     socket =
       assign(socket,
         backend_status: put_in(socket.assigns.backend_status, [currency_id, :status], status)

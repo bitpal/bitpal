@@ -27,7 +27,7 @@
   <.flex_table rows={@backend_status} class="backends-table">
     <:col let={{currency_id, _}} label="Backend">
       <span class="currency">
-        <%= currency_id %>
+        <%= live_redirect(currency_id, to: Routes.backend_path(@socket, :show, currency_id)) %>
       </span>
     </:col>
 

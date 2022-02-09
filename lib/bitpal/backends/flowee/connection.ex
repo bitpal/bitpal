@@ -40,8 +40,8 @@ defmodule BitPal.Backend.Flowee.Connection do
 
     defstruct data: <<>>
 
-    def to_string(binary) do
-      binary[:data]
+    def to_hex(%Binary{data: data}) do
+      BitPal.BCH.Cashaddress.binary_to_hex(data)
     end
 
     def to_binary(data) do

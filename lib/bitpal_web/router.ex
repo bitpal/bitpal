@@ -58,6 +58,8 @@ defmodule BitPalWeb.Router do
       live("/stores/:store/settings/exchange_rates", StoreSettingsLive, :exchange_rates)
       live("/stores/:store/settings/invoices", StoreSettingsLive, :invoices)
       live("/stores/:store/settings/access_tokens", StoreSettingsLive, :access_tokens)
+
+      live("/backends/:crypto", BackendLive, :show)
     end
   end
 

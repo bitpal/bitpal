@@ -2,6 +2,7 @@
 @use "portal/inputs.scss";
 @use "portal/dashboard.scss";
 @use "portal/side_nav.scss";
+@use "portal/backend.scss";
 @use "sizes.scss" as *;
 @use "colors.scss" as *;
 
@@ -410,5 +411,23 @@ ul {
 
   table tbody tr {
     border: 1px solid $brown-400;
+  }
+}
+
+table.flex-table {
+  display: grid;
+
+  th,
+  td {
+    padding: $spc-4;
+  }
+
+  th {
+    text-align: left;
+  }
+  thead,
+  tbody,
+  tr {
+    display: contents;
   }
 }

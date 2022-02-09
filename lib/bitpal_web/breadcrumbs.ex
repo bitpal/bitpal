@@ -86,4 +86,17 @@ defmodule BitPalWeb.Breadcrumbs do
       live_redirect(label, to: uri)
     ]
   end
+
+  def backend(socket, uri, currency_id) do
+    [
+      live_redirect(
+        "dashboard",
+        to: Routes.dashboard_path(socket, :show)
+      ),
+      live_redirect(
+        currency_id,
+        to: uri
+      )
+    ]
+  end
 end

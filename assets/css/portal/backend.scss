@@ -1,0 +1,9 @@
+@use "../sizes.scss" as *;
+@use "../colors.scss" as *;
+
+table.info-table {
+  max-width: 600px;
+  grid-template-columns: repeat(2, 1fr);
+  margin-top: $spc-16;
+  margin-bottom: $spc-8;
+}

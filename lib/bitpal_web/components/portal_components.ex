@@ -21,17 +21,22 @@ defmodule BitPalWeb.PortalComponent do
   end
 
   def flex_table(assigns) do
-    assigns = Map.put(assigns, :extra_class, Map.get(assigns, :class, ""))
+    assigns =
+      assigns
+      |> Map.put(:extra_class, Map.get(assigns, :class, ""))
+      |> Map.put_new(:header, true)
 
     ~H"""
       <table class={"flex-table #{@extra_class}"}>
-        <thead>
-          <tr>
-            <%= for col <- @col do %>
-              <th><%= col.label %></th>
-            <% end %>
-          </tr>
-        </thead>
+        <%= if @header do %>
+          <thead>
+            <tr>
+              <%= for col <- @col do %>
+                <th><%= col.label %></th>
+              <% end %>
+            </tr>
+          </thead>
+        <% end %>
         <tbody>
           <%= for row <- @rows do %>
             <tr>
