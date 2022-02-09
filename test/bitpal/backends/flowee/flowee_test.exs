@@ -24,7 +24,7 @@ defmodule BitPal.Backend.FloweeTest do
   setup tags do
     # Some tests don't want to have the initialization automatically enabled.
     if Map.get(tags, :init_message, true) do
-      MockTCPClient.response(@client, FloweeFixtures.blockchain_info())
+      MockTCPClient.response(@client, FloweeFixtures.blockchain_info_reply())
     end
 
     manager_name = unique_server_name()
@@ -70,6 +70,7 @@ defmodule BitPal.Backend.FloweeTest do
     assert eventually(fn -> MockTCPClient.last_sent(@client) == FloweeFixtures.ping() end)
   end
 
+  @tag do: true
   test "new block" do
     assert eventually(fn ->
              Blocks.fetch_block_height(@currency) == {:ok, 690_637}
@@ -323,17 +324,17 @@ defmodule BitPal.Backend.FloweeTest do
   @tag init_message: false
   test "wait for Flowee to become ready" do
     # Send it an incomplete startup message to get it going.
-    MockTCPClient.response(@client, FloweeFixtures.blockchain_verifying_info())
+    MockTCPClient.response(@client, FloweeFixtures.blockchain_verifying_info_reply())
 
     # Wait a bit to let it act.
     :timer.sleep(10)
 
     # It should not be ready yet, Flowee is still preparing.
-    assert {:started, {:syncing, _}} = Flowee.status(BitPal.Backend.Flowee)
+    assert {:syncing, _} = Flowee.status(BitPal.Backend.Flowee)
 
     # Give it a new message, now it should be done!
-    MockTCPClient.response(@client, FloweeFixtures.blockchain_info())
-    assert eventually(fn -> Flowee.status(BitPal.Backend.Flowee) == {:started, :ready} end)
+    MockTCPClient.response(@client, FloweeFixtures.blockchain_info_reply())
+    assert eventually(fn -> Flowee.status(BitPal.Backend.Flowee) == :ready end)
   end
 
   @tag init_message: false
@@ -355,34 +356,61 @@ defmodule BitPal.Backend.FloweeTest do
         address_id: "bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc"
       )
 
-    # We are now at height 690933:
-    Blocks.set_block_height(@currency, 690_932)
+    # We are now at height 690933, but we have only registered up to 690_931
+    Blocks.set_block_height(@currency, 690_931)
 
-    # Now, we tell Flowee the current block height. It will try to recover, and ask for the missing
-    # block.
-    MockTCPClient.response(@client, FloweeFixtures.blockchain_info_690933())
+    # During startup it will ask for blockchain info.
+    assert eventually(fn ->
+             # It will also subscribe to both of the above address, but we ignore
+             # those messages here.
+             MockTCPClient.first_sent(@client) == FloweeFixtures.get_blockchain_info()
+           end)
 
+    # Now, we tell Flowee the current block height. It will try to recover
+    # and ask for the missing blocks.
+    MockTCPClient.response(@client, FloweeFixtures.blockchain_info_690933_reply())
+
+    # First it asks for the next block with the hashes of the two above addresses.
     # Note: The addresses may be in any order, so we check for both of them.
     assert eventually(fn ->
-             MockTCPClient.last_sent(@client) in FloweeFixtures.block_info_query_690933_alts()
+             last = MockTCPClient.last_sent(@client)
+
+             last == FloweeFixtures.get_block_690932_1() ||
+               last == FloweeFixtures.get_block_690932_2()
            end)
 
     # At this point, Flowee should not report being ready.
-    assert {:started, {:syncing, _}} = Flowee.status(BitPal.Backend.Flowee)
+    assert {:recovering, 690_931, 690_933} = Flowee.status(BitPal.Backend.Flowee)
 
-    # Tell it what happened:
-    MockTCPClient.response(@client, FloweeFixtures.block_info_690933())
+    # Give them an empty block 690932
+    MockTCPClient.response(@client, FloweeFixtures.block_info_690932_reply())
+
+    # Then Flowee should ask for block 690933.
+    # It should not reuse the existing address hashes but send a special reuse directive.
+    assert eventually(fn ->
+             MockTCPClient.last_sent(@client) ==
+               FloweeFixtures.get_block_690933_reused_hashes()
+           end)
+
+    assert {:recovering, 690_932, 690_933} = Flowee.status(BitPal.Backend.Flowee)
+
+    # Give them the block 690933 with transactions.
+    MockTCPClient.response(@client, FloweeFixtures.block_info_690933_reply())
 
     # It will ask for block info again, so that it can properly capture if Flowee managed to find
     # another block while it updated the last block. At this point, it should be happy.
-    MockTCPClient.response(@client, FloweeFixtures.blockchain_info_690933())
+    assert eventually(fn ->
+             MockTCPClient.first_sent(@client) == FloweeFixtures.get_blockchain_info()
+           end)
+
+    MockTCPClient.response(@client, FloweeFixtures.blockchain_info_690933_reply())
 
     # Both should be paid by now.
     HandlerSubscriberCollector.await_msg(stub1, {:invoice, :paid})
     HandlerSubscriberCollector.await_msg(stub2, {:invoice, :paid})
 
     # It should also be ready now.
-    assert Flowee.status(BitPal.Backend.Flowee) == {:started, :ready}
+    assert Flowee.status(BitPal.Backend.Flowee) == :ready
   end
 
   # Things we need to test:

@@ -7,9 +7,13 @@ defmodule BitPal.BackendEvents do
   alias BitPalSchemas.Currency
 
   @type status_event ::
-          {:started, :ready}
-          | {:started, {:syncing, float}}
+          :initializing
+          | {:recovering, Blocks.height(), Blocks.height()}
+          | {:syncing, float}
+          | {:error, term}
+          | :ready
           | :stopped
+
   @type msg :: {{:backend, status_event}, Currency.id()}
 
   @spec subscribe(Currency.id()) :: :ok | {:error, term}

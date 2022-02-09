@@ -1,12 +1,16 @@
 defmodule BitPal.Backend do
+  alias BitPal.Blocks
   alias BitPal.ProcessRegistry
   alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
 
   @type backend_ref() :: {pid(), module()}
   @type backend_status ::
-          {:started, :ready}
-          | {:started, {:syncing, float}}
+          :initializing
+          | {:recovering, Blocks.height(), Blocks.height()}
+          | {:syncing, float}
+          | {:error, term}
+          | :ready
           | :stopped
           | :not_found
 

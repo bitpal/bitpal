@@ -31,9 +31,14 @@ defmodule BitPal.MockTCPClient do
     GenServer.call(c, :sent)
   end
 
+  def first_sent(c) do
+    List.last(sent(c))
+  end
+
   def last_sent(c) do
     List.first(sent(c))
   end
+
 
   # Internal API
 
@@ -120,7 +125,7 @@ defmodule BitPal.MockTCPClient do
         }
       ) do
     assert byte_size(response) == size,
-           "mismatched size of response, got #{inspect(response)} expected #{size}"
+           "mismatched size of response, got #{inspect(response)} (size: #{byte_size(response)}) expected #{size}"
 
     GenServer.reply(pid, response)
     {:noreply, %{state | waiting: rest_waiting, responses: rest_responses}}

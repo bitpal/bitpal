@@ -28,6 +28,11 @@ defmodule BitPal.Backend.Flowee.Connection do
   # Struct for the connection itself. Create using "connect".
   defstruct client: nil, data: nil
 
+  @type t :: %__MODULE__{
+          client: term,
+          data: term
+        }
+
   defmodule Binary do
     @moduledoc """
     Binary value used to distinguish strings from binary values in Elixir.
@@ -57,6 +62,16 @@ defmodule BitPal.Backend.Flowee.Connection do
               seq_start: nil,
               last: nil,
               data: []
+
+    @type t :: %RawMsg{
+            service: term,
+            message: term,
+            ping: boolean,
+            pong: boolean,
+            seq_start: term,
+            last: term,
+            data: [term]
+          }
   end
 
   # Tags used in the header
@@ -73,10 +88,17 @@ defmodule BitPal.Backend.Flowee.Connection do
 
   Returns a connection object that can be passed to send and recv in here.
   """
+  @spec connect(module, :inet.socket_address() | :inet.hostname(), :inet.port_number()) ::
+          {:ok, Connection.t()} | {:error, term}
   def connect(tcp_client, host \\ {127, 0, 0, 1}, port \\ 1235) do
     # Would be nice if we could get a packet in little endian mode. Now, we need to handle that ourselves...
-    {:ok, c} = tcp_client.connect(host, port, [:binary, {:packet, 0}, {:active, false}])
-    %Connection{client: tcp_client, data: c}
+    case tcp_client.connect(host, port, [:binary, {:packet, 0}, {:active, false}]) do
+      {:ok, c} ->
+        {:ok, %Connection{client: tcp_client, data: c}}
+
+      err ->
+        err
+    end
   end
 
   @doc """
@@ -98,22 +120,22 @@ defmodule BitPal.Backend.Flowee.Connection do
   Receive a high-level message. We will parse the header here since we need to merge long messages, etc.
   Returns a RawMsg with the appropriate fields set.
   """
-  def recv(connection) do
-    data = recv_packet(connection)
+  def recv!(connection) do
+    data = recv_packet!(connection)
     # IO.puts("received: #{inspect(data, limit: :infinity)}")
     {header, rem} = parse_header(data)
-    recv(connection, header, rem)
+    recv!(connection, header, rem)
   end
 
   # Internal helper for receiving messages.
-  defp recv(connection, header, data) do
+  defp recv!(connection, header, data) do
     if header.last == false do
       # More data... Ignore the next header mostly.
-      {new_header, more_data} = parse_header(recv_packet(connection))
+      {new_header, more_data} = parse_header(recv_packet!(connection))
       # Note: It might be important to check the header here since there might be other messages
       # that are interleaved with chained messages. The docs does not state if this is a
       # possibility, but from a quick glance at the code, I don't think so.
-      recv(connection, %{header | last: new_header.last}, data <> more_data)
+      recv!(connection, %{header | last: new_header.last}, data <> more_data)
     else
       # Last packet! Either header.last == true or header.last == nil
       %{header | data: deserialize(data)}
@@ -128,16 +150,11 @@ defmodule BitPal.Backend.Flowee.Connection do
   end
 
   # Receive a packet.
-  defp recv_packet(connection) do
-    case connection.client.recv(connection.data, 2) do
-      {:ok, <<size_low, size_high>>} ->
-        size = size_high * 256 + size_low
-        {:ok, data} = connection.client.recv(connection.data, size - 2)
-        data
-
-      {:error, msg} ->
-        msg
-    end
+  defp recv_packet!(connection) do
+    {:ok, <<size_low, size_high>>} = connection.client.recv(connection.data, 2)
+    size = size_high * 256 + size_low
+    {:ok, data} = connection.client.recv(connection.data, size - 2)
+    data
   end
 
   # Low-level serialization/deserialization.

@@ -115,7 +115,7 @@ defmodule BitPal.BackendMock do
         height: block_height(currency_id),
         auto: false,
         tx_index: 0,
-        status: {:started, :ready}
+        status: :ready
       })
 
     # Should send status event here too
@@ -167,7 +167,7 @@ defmodule BitPal.BackendMock do
 
     if sync_time do
       :timer.send_after(sync_time, :sync_complete)
-      {:reply, :ok, change_status(state, {:started, {:syncing, 0.12}})}
+      {:reply, :ok, change_status(state, {:syncing, 0.12})}
     else
       {:reply, :ok, sync_complete(state)}
     end
@@ -248,7 +248,7 @@ defmodule BitPal.BackendMock do
       setup_auto_blocks(state)
     end
 
-    change_status(state, {:started, :ready})
+    change_status(state, :ready)
   end
 
   defp change_status(state, new_status) do
