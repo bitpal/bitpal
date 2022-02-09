@@ -1,6 +1,7 @@
 @use "general.scss";
 @use "portal/inputs.scss";
 @use "portal/dashboard.scss";
+@use "portal/side_nav.scss";
 @use "sizes.scss" as *;
 @use "colors.scss" as *;
 
@@ -315,71 +316,6 @@ ul {
     margin-left: 2px;
     font-size: $fnt-14;
   }
-}
-
-.store-settings-wrapper {
-  display: flex;
-  justify-content: left;
-}
-
-.side-settings {
-  width: 200px;
-  // background-color: tomato;
-}
-
-.store-settings-wrapper .settings-wrapper {
-  // background-color: deepskyblue;
-  padding: $spc-16;
-  margin-left: $spc-16;
-}
-
-.side-settings li {
-  display: block;
-}
-.side-settings a:link {
-  text-decoration: none;
-}
-.side-settings a:hover {
-  text-decoration: underline;
-}
-.side-settings li,
-.side-settings .title {
-  margin: $spc-8 0;
-}
-
-.side-settings > div {
-  padding: $spc-8;
-}
-.side-settings > div:not(:first-child) {
-  border-top: 1px solid $brown-200;
-}
-.side-settings .title {
-  font-size: $fnt-14;
-}
-.side-settings a {
-  padding: 4px 8px;
-  width: 100%;
-  display: block;
-  border-radius: 4px;
-  border: 1px solid $brown-050;
-  text-decoration: none;
-}
-.side-settings a.active,
-.side-settings a:link.active,
-.side-settings a:visited.active {
-  background-color: $dark-purple-100;
-  border: 1px solid $dark-purple-200;
-  color: $dark-purple-700;
-}
-.side-settings a:hover {
-  background-color: $purple-100;
-  border: 1px solid $purple-200;
-  color: $purple-800;
-  text-decoration: none;
-}
-
-.settings-wrapper h1 {
-  margin-bottom: 8px;
 }
 
 #edit-store {

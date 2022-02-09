@@ -44,4 +44,40 @@ defmodule BitPalWeb.PortalComponent do
       </table>
     """
   end
+
+  def side_nav(assigns) do
+    ~H"""
+      <div class="side-nav-wrapper">
+        <nav class="side-nav">
+          <%= for group <- @group do %>
+            <div class="group">
+              <%= if label = group[:label] do %>
+                <div class="label">
+                  <%= label %>
+                </div>
+              <% end %>
+
+              <ul>
+                <%= for {label, to} <- group.links do %>
+                  <li>
+                    <%= active_live_link(
+                      to: to,
+                      from: @uri,
+                      label: label,
+                      patch: true
+                    ) %>
+                  </li>
+                <% end %>
+              </ul>
+            </div>
+          <% end %>
+
+        </nav>
+
+        <div class="side-content">
+          <%= render_slot(@inner_block) %>
+        </div>
+      </div>
+    """
+  end
 end

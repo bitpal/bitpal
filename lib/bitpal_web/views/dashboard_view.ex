@@ -1,29 +1,37 @@
 defmodule BitPalWeb.DashboardView do
   use BitPalWeb, :view
 
-  def format_status({currency_id, status}) do
-    view_status(%{currency_id: currency_id, status: status})
-  end
-
-  def view_status(assigns) do
+  def format_status(assigns) do
     ~H"""
-    <div class="backend-row">
-      <span class="currency">
-        <%= @currency_id %>
-      </span>
       <span class="status">
         <%= case @status do %>
-          <% {:started, :ready} -> %>
-            <span class="started">
-              Started
+          <% :initializing -> %>
+            <span class="initializing">
+              Initializing
             </span>
-          <% {:started, {:syncing, state}} -> %>
+          <% {:recovering, current, target} -> %>
+            <span class="recovering">
+              Recovering <%= current %> / <%= target %>
+            </span>
+          <% {:syncing, progress} -> %>
             <span class="syncing">
-              Syncing <%= state %>
+              Syncing <%= Float.round(progress * 100, 1) %>%
+            </span>
+          <% :ready -> %>
+            <span class="ready">
+              Ready
             </span>
           <% :stopped -> %>
             <span class="stopped">
               Stopped
+            </span>
+          <% {:error, :econnrefused} -> %>
+            <span class="error">
+              Connection refused
+            </span>
+          <% {:error, error} -> %>
+            <span class="error">
+              Unknown error <%= inspect(error) %>
             </span>
           <% :not_found -> %>
             <span class="not-found">
@@ -31,7 +39,6 @@ defmodule BitPalWeb.DashboardView do
             </span>
         <% end %>
       </span>
-    </div>
     """
   end
 end

@@ -2,6 +2,7 @@ defmodule BitPalWeb.DashboardLive do
   use BitPalWeb, :live_view
   alias BitPal.BackendEvents
   alias BitPal.BackendManager
+  alias BitPal.Blocks
   alias BitPal.Stores
   alias BitPal.UserEvents
 
@@ -24,7 +25,16 @@ defmodule BitPalWeb.DashboardLive do
         BackendManager.status_list()
         |> Enum.map(fn {currency_id, _ref, status} ->
           BackendEvents.subscribe(currency_id)
-          {currency_id, status}
+
+          {currency_id,
+           %{
+             status: status,
+             height:
+               case Blocks.fetch_block_height(currency_id) do
+                 {:ok, height} -> height
+                 :error -> :not_found
+               end
+           }}
         end)
         |> Map.new()
 
@@ -50,9 +60,15 @@ defmodule BitPalWeb.DashboardLive do
      )}
   end
 
+  # FIXME should update height too
+
   @impl true
   def handle_info({{:backend, status}, currency_id}, socket) do
-    {:noreply,
-     assign(socket, backend_status: Map.put(socket.assigns.backend_status, currency_id, status))}
+    socket =
+      assign(socket,
+        backend_status: put_in(socket.assigns.backend_status, [currency_id, :status], status)
+      )
+
+    {:noreply, socket}
   end
 end

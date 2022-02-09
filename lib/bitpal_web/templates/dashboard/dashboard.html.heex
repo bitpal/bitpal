@@ -24,8 +24,22 @@
 <section class="backend-status">
   <h2>Backend status</h2>
 
-  <%= for status <- @backend_status do %>
-    <%= format_status(status) %>
-  <% end %>
+  <.flex_table rows={@backend_status} class="backends-table">
+    <:col let={{currency_id, _}} label="Backend">
+      <span class="currency">
+        <%= currency_id %>
+      </span>
+    </:col>
+
+    <:col let={{_, params}} label="Status">
+      <%= format_status(params) %>
+    </:col>
+    <:col let={{_, %{height: height}}} label="Height">
+      <%= case height do %>
+        <% :not_found -> %> -
+        <% height -> %> <%= height %>
+      <% end %>
+    </:col>
+  </.flex_table>
 </section>
 
