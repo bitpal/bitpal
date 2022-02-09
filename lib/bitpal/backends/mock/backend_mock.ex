@@ -39,6 +39,14 @@ defmodule BitPal.BackendMock do
   end
 
   @impl Backend
+  def info(backend) do
+    GenServer.call(backend, :info)
+  end
+
+  @impl Backend
+  def poll_info(_backend), do: :ok
+
+  @impl Backend
   def start(backend) do
     GenServer.call(backend, :start)
   end
@@ -162,6 +170,11 @@ defmodule BitPal.BackendMock do
   end
 
   @impl true
+  def handle_call(:info, _, state) do
+    {:reply, %{}, state}
+  end
+
+  @impl true
   def handle_call(:start, _, state) do
     sync_time = state[:sync_time]
 
@@ -257,7 +270,7 @@ defmodule BitPal.BackendMock do
   end
 
   defp send_status_event(state = %{status: status, currency_id: currency_id}) do
-    BackendEvents.broadcast({{:backend, status}, currency_id})
+    BackendEvents.broadcast({{:backend, :status}, %{status: status, currency_id: currency_id}})
     state
   end
 

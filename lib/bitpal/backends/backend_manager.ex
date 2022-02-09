@@ -55,6 +55,22 @@ defmodule BitPal.BackendManager do
     end
   end
 
+  @spec currency_info(Currency.id()) :: Backend.backend_info() | :not_found
+  def currency_info(currency_id) do
+    case fetch_backend(currency_id) do
+      {:ok, ref} -> Backend.info(ref)
+      _ -> :not_found
+    end
+  end
+
+  @spec poll_currency_info(Currency.id()) :: :ok | {:error, term}
+  def poll_currency_info(currency_id) do
+    case fetch_backend(currency_id) do
+      {:ok, ref} -> Backend.poll_info(ref)
+      _ -> {:error, :not_found}
+    end
+  end
+
   # Supervised backends
 
   @spec backends(server_name) :: [{backend_name(), Backend.backend_ref()}]

@@ -3,6 +3,7 @@ defmodule BitPal.Backend.Flowee do
   use GenServer
   alias BitPal.Addresses
   alias BitPal.Backend
+  alias BitPal.BackendEvents
   alias BitPal.BackendStatusManager
   alias BitPal.Backend.Flowee.Connection
   alias BitPal.Backend.Flowee.Connection.Binary
@@ -52,6 +53,12 @@ defmodule BitPal.Backend.Flowee do
   def status(_backend), do: BackendStatusManager.status(@status_manager)
 
   @impl Backend
+  def info(backend), do: GenServer.call(backend, :info)
+
+  @impl Backend
+  def poll_info(backend), do: GenServer.call(backend, :poll_info)
+
+  @impl Backend
   def start(_backend), do: :ok
 
   @impl Backend
@@ -61,7 +68,7 @@ defmodule BitPal.Backend.Flowee do
 
   @impl true
   def init(opts) do
-    Logger.info("Starting Flowee")
+    Logger.debug("Starting Flowee")
 
     state =
       Enum.into(opts, %{})
@@ -100,6 +107,22 @@ defmodule BitPal.Backend.Flowee do
   @impl true
   def handle_call({:watch, address}, _, state) do
     {:noreply, watch_address(address, state)}
+  end
+
+  @impl true
+  def handle_call(:info, _from, state) do
+    {:reply, create_info(state), state}
+  end
+
+  @impl true
+  def handle_call(:poll_info, _from, state = %{hub_connection: c}) do
+    Protocol.send_blockchain_info(c)
+    {:reply, :ok, state}
+  end
+
+  @impl true
+  def handle_call(:poll_info, _from, state) do
+    {:reply, {:error, :not_connected}, state}
   end
 
   @impl true
@@ -181,6 +204,9 @@ defmodule BitPal.Backend.Flowee do
       subscribe_addr(c, address)
     end)
 
+    # So we can track the Flowee version we're running.
+    Protocol.send_version(c)
+
     # Query the current status of the blockchain. This is so that we can update the current height
     # of the blockchain and to look for confirmations for transactions we might have missed.
     # Note: We don't want to subscribe for block notifications before this, since it might cause
@@ -197,6 +223,7 @@ defmodule BitPal.Backend.Flowee do
     |> Map.put(:blockchain_info, info)
     |> recover_blocks_if_needed()
     |> delayed_send_get_info_if_needed()
+    |> broadcast_info()
   end
 
   defp handle_message(:get_block_reply, %{height: height, transactions: transactions}, state) do
@@ -215,8 +242,8 @@ defmodule BitPal.Backend.Flowee do
   end
 
   defp handle_message(:version_reply, %{version: ver}, state) do
-    Logger.info("Running Flowee server version: " <> ver)
-    state
+    Logger.info("Running Flowee version: " <> ver)
+    Map.put(state, :version, ver)
   end
 
   defp handle_message(:subscribe_reply, _data, state) do
@@ -420,6 +447,16 @@ defmodule BitPal.Backend.Flowee do
   defp enqueue_ping(state) do
     timeout = Map.get(state, :ping_timeout, :timer.minutes(1))
     :timer.send_after(timeout, self(), :send_ping)
+  end
+
+  defp create_info(state) do
+    Map.get(state, :blockchain_info, %{})
+    |> Map.put(:version, state[:version])
+  end
+
+  defp broadcast_info(state) do
+    BackendEvents.broadcast({{:backend, :info}, %{info: create_info(state), currency_id: @bch}})
+    state
   end
 
   # Receive messages. Executed in another process, so it is OK to block here.

@@ -130,7 +130,7 @@ defmodule BitPal.BackendStatusManager do
   end
 
   defp broadcast(state = %{status: status, currency_id: currency_id}) do
-    BackendEvents.broadcast({{:backend, status}, currency_id})
+    BackendEvents.broadcast({{:backend, :status}, %{status: status, currency_id: currency_id}})
     state
   end
 

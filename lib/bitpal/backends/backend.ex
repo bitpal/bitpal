@@ -13,10 +13,13 @@ defmodule BitPal.Backend do
           | :ready
           | :stopped
           | :not_found
+  @type backend_info :: map()
 
   @callback register(pid(), Invoice.t()) :: Invoice.t()
   @callback supported_currency(pid()) :: Currency.id()
   @callback status(pid()) :: backend_status()
+  @callback info(pid()) :: backend_info()
+  @callback poll_info(pid()) :: backend_info()
   @callback start(pid()) :: :ok
   @callback stop(pid()) :: :ok
   @callback configure(pid(), map()) :: :ok
@@ -43,6 +46,24 @@ defmodule BitPal.Backend do
   def status({pid, backend}) do
     try do
       backend.status(pid)
+    catch
+      :exit, _reason -> :not_found
+    end
+  end
+
+  @spec info(backend_ref()) :: backend_status()
+  def info({pid, backend}) do
+    try do
+      backend.info(pid)
+    catch
+      :exit, _reason -> :not_found
+    end
+  end
+
+  @spec poll_info(backend_ref()) :: :ok | :not_found
+  def poll_info({pid, backend}) do
+    try do
+      backend.poll_info(pid)
     catch
       :exit, _reason -> :not_found
     end

@@ -4,23 +4,18 @@ defmodule BitPal.BackendEvents do
   """
 
   alias BitPal.EventHelpers
+  alias BitPal.Backend
   alias BitPalSchemas.Currency
 
-  @type status_event ::
-          :initializing
-          | {:recovering, Blocks.height(), Blocks.height()}
-          | {:syncing, float}
-          | {:error, term}
-          | :ready
-          | :stopped
-
-  @type msg :: {{:backend, status_event}, Currency.id()}
+  @type msg ::
+          {{:backend, :status}, %{status: Backend.backend_status(), currency_id: Currency.id()}}
+          | {{:backend, :info}, %{info: Backend.backend_info(), currency_id: Currency.id()}}
 
   @spec subscribe(Currency.id()) :: :ok | {:error, term}
   def subscribe(id), do: EventHelpers.subscribe(topic(id))
 
   @spec broadcast(msg) :: :ok | {:error, term}
-  def broadcast(msg = {_, id}) do
+  def broadcast(msg = {_, %{currency_id: id}}) do
     EventHelpers.broadcast(topic(id), msg)
   end
 

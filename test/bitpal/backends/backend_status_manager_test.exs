@@ -44,10 +44,10 @@ defmodule BitPal.BackendStatusManagerTest do
     BackendEvents.subscribe(id)
 
     BackendStatusManager.recovering(name, 1, 10)
-    assert_receive {{:backend, {:recovering, 1, 10}}, ^id}
+    assert_receive {{:backend, :status}, %{status: {:recovering, 1, 10}, currency_id: ^id}}
 
     BackendStatusManager.ready(name)
-    assert_receive {{:backend, :ready}, ^id}
+    assert_receive {{:backend, :status}, %{status: :ready, currency_id: ^id}}
   end
 
   @tag rate_limit: 20
@@ -59,14 +59,14 @@ defmodule BitPal.BackendStatusManagerTest do
     end)
 
     # We recieve the first instantly.
-    assert_receive {{:backend, {:recovering, 0, 10}}, ^id}
+    assert_receive {{:backend, :status}, %{status: {:recovering, 0, 10}, currency_id: ^id}}
 
     # Then we'll get another one delayed.
-    assert_receive {{:backend, {:recovering, 10, 10}}, ^id}
+    assert_receive {{:backend, :status}, %{status: {:recovering, 10, 10}, currency_id: ^id}}
 
     # The other ones shouldn't be sent.
     Enum.each(1..9, fn i ->
-      refute_received {{:backend, {:recovering, ^i, 10}}, ^id}
+      refute_received {{:backend, :status}, %{status: {:recovering, ^i, 10}, currency_id: ^id}}
     end)
   end
 
@@ -77,6 +77,6 @@ defmodule BitPal.BackendStatusManagerTest do
     BackendStatusManager.stopped(name)
     BackendStatusManager.stopped(name)
 
-    refute_receive {{:backend, :stopped}, ^id}
+    refute_receive {{:backend, :status}, %{status: :stopped, currency_id: ^id}}
   end
 end
