@@ -238,6 +238,7 @@ defmodule BitPal.Backend.Flowee do
     # if we abort Flowee in the middle.
     Blocks.set_block_height(@bch, height)
 
+    # FIXME if any tx is found, we should recheck open invoices.
     continue_block_recovery(state, height)
   end
 
@@ -368,14 +369,13 @@ defmodule BitPal.Backend.Flowee do
        ) do
     if progress < 0.9999 do
       # No, we need to wait for it... Poll it for updates.
-      Process.send_after(self(), :blockchain_info, state[:sync_check_interval])
+      Process.send_after(self(), :send_blockchain_info, state[:sync_check_interval])
 
       BackendStatusManager.syncing(@status_manager, progress)
     else
-      # Mark ready here for recovering as well to avoid a
-      #   :recovering -> :ready -> :syncing
-      # loop.
-      BackendStatusManager.ready_if_syncing_or_recovering(@status_manager)
+      if !state[:recover_target] do
+        BackendStatusManager.sync_done(@status_manager)
+      end
     end
 
     state

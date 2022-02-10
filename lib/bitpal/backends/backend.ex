@@ -15,14 +15,15 @@ defmodule BitPal.Backend do
           | :not_found
   @type backend_info :: map()
 
+  # FIXME these should all return :ok or :error tuples
   @callback register(pid(), Invoice.t()) :: Invoice.t()
   @callback supported_currency(pid()) :: Currency.id()
   @callback status(pid()) :: backend_status()
   @callback info(pid()) :: backend_info()
-  @callback poll_info(pid()) :: backend_info()
-  @callback start(pid()) :: :ok
-  @callback stop(pid()) :: :ok
-  @callback configure(pid(), map()) :: :ok
+  @callback poll_info(pid()) :: :ok | {:error, term}
+  @callback start(pid()) :: :ok | {:error, term}
+  @callback stop(pid()) :: :ok | {:error, term}
+  @callback configure(pid(), map()) :: :ok | {:error, term}
 
   @spec register(backend_ref(), Invoice.t()) :: {:ok, Invoice.t()} | {:error, :not_found}
   def register({pid, backend}, invoice) do
@@ -60,12 +61,12 @@ defmodule BitPal.Backend do
     end
   end
 
-  @spec poll_info(backend_ref()) :: :ok | :not_found
+  @spec poll_info(backend_ref()) :: :ok | {:error, term}
   def poll_info({pid, backend}) do
     try do
       backend.poll_info(pid)
     catch
-      :exit, _reason -> :not_found
+      :exit, _reason -> {:error, :not_found}
     end
   end
 

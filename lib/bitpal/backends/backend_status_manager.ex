@@ -18,8 +18,8 @@ defmodule BitPal.BackendStatusManager do
     change(server, :ready)
   end
 
-  def ready_if_syncing_or_recovering(server) do
-    GenServer.call(server, :ready_if_syncing_or_recovering)
+  def sync_done(server) do
+    GenServer.call(server, :sync_done)
   end
 
   def recovering(server, processed_height, target_height) do
@@ -91,9 +91,12 @@ defmodule BitPal.BackendStatusManager do
   end
 
   @impl true
-  def handle_call(:ready_if_syncing_or_recovering, _, state) do
+  def handle_call(:sync_done, _, state) do
     state =
       case state.status do
+        :initializing ->
+          change_status(state, :ready)
+
         {:syncing, _} ->
           change_status(state, :ready)
 
