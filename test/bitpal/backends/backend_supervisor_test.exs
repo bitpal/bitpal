@@ -1,13 +1,13 @@
-defmodule BackendManagerTest do
+defmodule BackendSupervisorTest do
   use BitPal.DataCase, async: true
-  alias BitPal.BackendManager
+  alias BitPal.BackendSupervisor
   alias BitPal.BackendMock
 
   describe "init backends" do
     test "initialize and restart" do
       pid =
         start_supervised!(
-          {BackendManager,
+          {BackendSupervisor,
            backends: [{BackendMock, currency_id: unique_currency_id(), parent: self()}],
            name: unique_server_name(),
            parent: self()}
@@ -27,7 +27,7 @@ defmodule BackendManagerTest do
       [c0, c1, c2] = unique_currency_ids(3)
 
       start_supervised!(
-        {BackendManager,
+        {BackendSupervisor,
          backends: [
            {BackendMock, currency_id: c0},
            {BackendMock, currency_id: c1}
@@ -36,9 +36,9 @@ defmodule BackendManagerTest do
          name: unique_server_name()}
       )
 
-      assert {:ok, {_pid, BackendMock}} = BackendManager.fetch_backend(c0)
-      assert {:ok, {_pid, BackendMock}} = BackendManager.fetch_backend(c1)
-      assert {:error, :not_found} = BackendManager.fetch_backend(c2)
+      assert {:ok, {_pid, BackendMock}} = BackendSupervisor.fetch_backend(c0)
+      assert {:ok, {_pid, BackendMock}} = BackendSupervisor.fetch_backend(c1)
+      assert {:error, :not_found} = BackendSupervisor.fetch_backend(c2)
     end
   end
 
@@ -48,7 +48,7 @@ defmodule BackendManagerTest do
       [c0, c1] = unique_currency_ids(2)
 
       start_supervised!(
-        {BackendManager,
+        {BackendSupervisor,
          backends: [
            {BackendMock, currency_id: c0},
            {BackendMock, currency_id: c1}
@@ -57,7 +57,7 @@ defmodule BackendManagerTest do
          name: name}
       )
 
-      assert [{_, _}, {_, _}] = BackendManager.currencies(name)
+      assert [{_, _}, {_, _}] = BackendSupervisor.currencies(name)
     end
   end
 
@@ -67,7 +67,7 @@ defmodule BackendManagerTest do
       [c0, c1] = unique_currency_ids(2)
 
       start_supervised!(
-        {BackendManager,
+        {BackendSupervisor,
          backends: [
            {BackendMock, currency_id: c0},
            {BackendMock, currency_id: c1}
@@ -76,7 +76,7 @@ defmodule BackendManagerTest do
          name: name}
       )
 
-      assert Enum.sort(BackendManager.currency_list(name)) === Enum.sort([c0, c1])
+      assert Enum.sort(BackendSupervisor.currency_list(name)) === Enum.sort([c0, c1])
     end
   end
 
@@ -86,7 +86,7 @@ defmodule BackendManagerTest do
       [c0, c1] = unique_currency_ids(2)
 
       start_supervised!(
-        {BackendManager,
+        {BackendSupervisor,
          parent: self(),
          backends: [
            {BackendMock, currency_id: c0},
@@ -95,7 +95,7 @@ defmodule BackendManagerTest do
          name: name}
       )
 
-      list = BackendManager.status_list(name)
+      list = BackendSupervisor.status_list(name)
       assert {^c0, _, :ready} = find_status(list, c0)
       assert {^c1, _, :stopped} = find_status(list, c1)
     end
@@ -114,11 +114,11 @@ defmodule BackendManagerTest do
       currency_id = unique_currency_id()
 
       start_supervised!(
-        {BackendManager,
+        {BackendSupervisor,
          parent: self(), backends: [{BackendMock, currency_id: currency_id}], name: name}
       )
 
-      assert :ready == BackendManager.currency_status(currency_id)
+      assert :ready == BackendSupervisor.currency_status(currency_id)
     end
   end
 
@@ -129,7 +129,7 @@ defmodule BackendManagerTest do
       [c0, c1, c2] = unique_currency_ids(3)
 
       start_supervised!(
-        {BackendManager,
+        {BackendSupervisor,
          parent: self(),
          backends: [
            {BackendMock, currency_id: c0},
@@ -138,11 +138,11 @@ defmodule BackendManagerTest do
          name: name}
       )
 
-      assert {:ok, pid0} = BackendManager.fetch_backend(c0)
-      assert {:ok, _} = BackendManager.fetch_backend(c1)
-      assert {:error, :not_found} = BackendManager.fetch_backend(c2)
+      assert {:ok, pid0} = BackendSupervisor.fetch_backend(c0)
+      assert {:ok, _} = BackendSupervisor.fetch_backend(c1)
+      assert {:error, :not_found} = BackendSupervisor.fetch_backend(c2)
 
-      BackendManager.config_change(
+      BackendSupervisor.config_change(
         name,
         backends: [
           {BackendMock, currency_id: c0, parent: self()},
@@ -151,19 +151,19 @@ defmodule BackendManagerTest do
       )
 
       # Doesn't restart the existing backend
-      assert {:ok, ^pid0} = BackendManager.fetch_backend(c0)
+      assert {:ok, ^pid0} = BackendSupervisor.fetch_backend(c0)
 
       # Removes a backend
       assert eventually(fn ->
-               {:error, :not_found} == BackendManager.fetch_backend(c1)
+               {:error, :not_found} == BackendSupervisor.fetch_backend(c1)
              end)
 
       # Adds a new backend
       eventually(fn ->
-        assert {:ok, _} = BackendManager.fetch_backend(c2)
+        assert {:ok, _} = BackendSupervisor.fetch_backend(c2)
       end)
 
-      assert BackendManager.backends(name) |> Enum.count() == 2
+      assert BackendSupervisor.backends(name) |> Enum.count() == 2
     end
   end
 end

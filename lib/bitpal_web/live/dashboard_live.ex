@@ -1,7 +1,7 @@
 defmodule BitPalWeb.DashboardLive do
   use BitPalWeb, :live_view
   alias BitPal.BackendEvents
-  alias BitPal.BackendManager
+  alias BitPal.BackendSupervisor
   alias BitPal.Blocks
   alias BitPal.Stores
   alias BitPal.UserEvents
@@ -22,7 +22,7 @@ defmodule BitPalWeb.DashboardLive do
         |> Map.new()
 
       backends =
-        BackendManager.status_list()
+        BackendSupervisor.status_list()
         |> Enum.map(fn {currency_id, _ref, status} ->
           BackendEvents.subscribe(currency_id)
 

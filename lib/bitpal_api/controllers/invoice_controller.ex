@@ -1,6 +1,6 @@
 defmodule BitPalApi.InvoiceController do
   use BitPalApi, :controller
-  alias BitPal.InvoiceManager
+  alias BitPal.InvoiceSupervisor
   alias BitPal.Invoices
   alias BitPal.Repo
   alias BitPal.Stores
@@ -27,7 +27,7 @@ defmodule BitPalApi.InvoiceController do
 
   defp finalize_if(invoice, params) do
     if params["finalize"] do
-      InvoiceManager.finalize_invoice(invoice)
+      InvoiceSupervisor.finalize_invoice(invoice)
     else
       {:ok, invoice}
     end
@@ -81,7 +81,7 @@ defmodule BitPalApi.InvoiceController do
 
   def finalize(conn, %{"id" => id}, current_store) do
     with {:ok, invoice} <- Invoices.fetch(id, current_store),
-         {:ok, invoice} <- InvoiceManager.finalize_invoice(invoice) do
+         {:ok, invoice} <- InvoiceSupervisor.finalize_invoice(invoice) do
       render(conn, "show.json", invoice: invoice)
     else
       {:error, :not_found} ->

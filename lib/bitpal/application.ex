@@ -30,8 +30,8 @@ defmodule BitPal.Application do
           BitPalWeb.Telemetry,
           BitPalWeb.Endpoint,
           BitPal.ExchangeRateSupervisor,
-          BitPal.InvoiceManager,
-          BitPal.BackendManager,
+          BitPal.InvoiceSupervisor,
+          BitPal.BackendSupervisor,
           BitPal.ServerSetup
         ]
 

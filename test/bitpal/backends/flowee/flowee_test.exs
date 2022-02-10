@@ -27,14 +27,14 @@ defmodule BitPal.Backend.FloweeTest do
       MockTCPClient.response(@client, FloweeFixtures.blockchain_info_reply())
     end
 
-    manager_name = unique_server_name()
+    supervisor_name = unique_server_name()
 
     backends = [
       {BitPal.Backend.Flowee,
        tcp_client: @client, ping_timeout: tags[:ping_timeout] || :timer.minutes(1)}
     ]
 
-    start_supervised!({BitPal.BackendManager, backends: backends, name: manager_name})
+    start_supervised!({BitPal.BackendSupervisor, backends: backends, name: supervisor_name})
 
     test_pid = self()
 
@@ -48,7 +48,7 @@ defmodule BitPal.Backend.FloweeTest do
     end)
 
     Map.merge(tags, %{
-      manager_name: manager_name
+      supervisor_name: supervisor_name
     })
   end
 
@@ -83,14 +83,14 @@ defmodule BitPal.Backend.FloweeTest do
            end)
   end
 
-  test "transaction 0-conf acceptance", %{store: store, manager_name: manager_name} do
+  test "transaction 0-conf acceptance", %{store: store, supervisor_name: supervisor_name} do
     {:ok, _inv, stub, _invoice_handler} =
       test_invoice(
         store: store,
         required_confirmations: 0,
         amount: 0.000_01,
         double_spend_timeout: 1,
-        manager_name: manager_name
+        supervisor_name: supervisor_name
       )
 
     MockTCPClient.response(@client, FloweeFixtures.tx_seen())

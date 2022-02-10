@@ -7,9 +7,9 @@ defmodule BitPal.IntegrationCase do
 
   use ExUnit.CaseTemplate
   alias BitPal.Backend
-  alias BitPal.BackendManager
+  alias BitPal.BackendSupervisor
   alias BitPal.BackendMock
-  alias BitPal.InvoiceManager
+  alias BitPal.InvoiceSupervisor
   alias BitPal.Repo
   alias Ecto.Adapters.SQL.Sandbox
 
@@ -29,10 +29,10 @@ defmodule BitPal.IntegrationCase do
       alias BitPal.Stores
       alias BitPal.Transactions
 
-      alias BitPal.BackendManager
+      alias BitPal.BackendSupervisor
       alias BitPal.BackendMock
       alias BitPal.HandlerSubscriberCollector
-      alias BitPal.InvoiceManager
+      alias BitPal.InvoiceSupervisor
 
       alias BitPalSchemas.Invoice
     end
@@ -67,8 +67,8 @@ defmodule BitPal.IntegrationCase do
     backends =
       Enum.map(backends, fn backend ->
         backend
-        |> BackendManager.add_allow_parent_opt(parent: self())
-        |> BackendManager.start_backend()
+        |> BackendSupervisor.add_allow_parent_opt(parent: self())
+        |> BackendSupervisor.start_backend()
       end)
 
     currencies =
@@ -108,11 +108,11 @@ defmodule BitPal.IntegrationCase do
     currencies_to_remove = MapSet.new(currencies)
 
     # Alternative way, to avoid db accesses.
-    for invoice <- InvoiceManager.tracked_invoices() do
+    for invoice <- InvoiceSupervisor.tracked_invoices() do
       if invoice.currency_id in currencies_to_remove do
-        case InvoiceManager.fetch_handler(invoice.id) do
+        case InvoiceSupervisor.fetch_handler(invoice.id) do
           {:ok, handler} ->
-            InvoiceManager.terminate_handler(handler)
+            InvoiceSupervisor.terminate_handler(handler)
 
           _ ->
             nil
@@ -122,6 +122,6 @@ defmodule BitPal.IntegrationCase do
   end
 
   defp remove_backends(backends) do
-    BackendManager.terminate_backends(backends)
+    BackendSupervisor.terminate_backends(backends)
   end
 end

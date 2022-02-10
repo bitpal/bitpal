@@ -1,7 +1,7 @@
 defmodule BitPalWeb.StoreInvoicesLive do
   use BitPalWeb, :live_view
   alias BitPal.InvoiceEvents
-  alias BitPal.InvoiceManager
+  alias BitPal.InvoiceSupervisor
   alias BitPal.StoreEvents
   alias BitPalWeb.StoreLiveAuth
 
@@ -66,7 +66,7 @@ defmodule BitPalWeb.StoreInvoicesLive do
   end
 
   defp update_invoice(invoice_id, socket) do
-    case InvoiceManager.fetch_or_load_invoice(invoice_id) do
+    case InvoiceSupervisor.fetch_or_load_invoice(invoice_id) do
       {:ok, invoice} ->
         store = socket.assigns.store
 

@@ -6,7 +6,7 @@ defmodule BitPalFactory.InvoiceFactory do
   import BitPalFactory.UtilFactory
   import Ecto.Changeset
   alias BitPal.Addresses
-  alias BitPal.InvoiceManager
+  alias BitPal.InvoiceSupervisor
   alias BitPal.Invoices
   alias BitPal.Repo
   alias BitPalApi.Authentication.BasicAuth
@@ -117,7 +117,7 @@ defmodule BitPalFactory.InvoiceFactory do
 
   @spec finalize_and_track(Invoice.t()) :: Invoice.t()
   def finalize_and_track(invoice = %Invoice{}) do
-    {:ok, invoice} = InvoiceManager.finalize_invoice(invoice)
+    {:ok, invoice} = InvoiceSupervisor.finalize_invoice(invoice)
     invoice
   end
 

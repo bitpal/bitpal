@@ -1,4 +1,4 @@
-defmodule BitPal.BackendManager do
+defmodule BitPal.BackendSupervisor do
   use Supervisor
   alias BitPal.Backend
   alias BitPal.ProcessRegistry
@@ -45,6 +45,16 @@ defmodule BitPal.BackendManager do
   @spec start_backend(server_name, backend_spec) :: Backend.backend_ref()
   def start_backend(name \\ __MODULE__, backend) do
     start_or_update_backend(name, backend)
+  end
+
+  @spec stop_backend(Currency.id()) :: :ok | {:error, term}
+  def stop_backend(currency_id) do
+    :ok
+  end
+
+  @spec restart_backend(Currency.id()) :: :ok | {:error, term}
+  def restart_backend(currency_id) do
+    :ok
   end
 
   @spec currency_status(Currency.id()) :: Backend.backend_status()

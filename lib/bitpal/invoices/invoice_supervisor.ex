@@ -1,4 +1,4 @@
-defmodule BitPal.InvoiceManager do
+defmodule BitPal.InvoiceSupervisor do
   use DynamicSupervisor
   alias BitPal.InvoiceHandler
   alias BitPal.Invoices
@@ -49,7 +49,7 @@ defmodule BitPal.InvoiceManager do
       name,
       {
         InvoiceHandler,
-        manager_name: opts[:manager_name],
+        supervisor_name: opts[:supervisor_name],
         parent: opts[:parent],
         invoice_id: invoice.id,
         double_spend_timeout:

@@ -1,7 +1,7 @@
 defmodule BitPal.InvoiceHandler do
   use GenServer
   alias BitPal.AddressEvents
-  alias BitPal.BackendManager
+  alias BitPal.BackendSupervisor
   alias BitPal.BlockchainEvents
   alias BitPal.Blocks
   alias BitPal.Invoices
@@ -90,7 +90,7 @@ defmodule BitPal.InvoiceHandler do
 
   @impl true
   def handle_continue(:finalize, state = %{invoice: invoice}) do
-    case BackendManager.register(invoice) do
+    case BackendSupervisor.register(invoice) do
       {:ok, invoice} ->
         subscribe(invoice)
         invoice = Invoices.finalize!(invoice)
@@ -106,7 +106,7 @@ defmodule BitPal.InvoiceHandler do
         Logger.error("""
         Failed to register invoice with backend #{inspect(err)}
         Wanted currency: #{invoice.currency_id}
-        Supported currencies by the backends: #{inspect(BackendManager.currency_list())}
+        Supported currencies by the backends: #{inspect(BackendSupervisor.currency_list())}
         """)
 
         {:stop, {:shutdown, err}}

@@ -42,14 +42,14 @@ defmodule BitPal.InvoiceRecoveryTest do
 
     # Terminate on the top level to prevent handler from being restarted before we've added
     # things that we want it to recover from.
-    InvoiceManager.terminate_handler(handler)
+    InvoiceSupervisor.terminate_handler(handler)
 
     BackendMock.tx_seen(inv)
 
     # Normally double_spend_timeout is kept after a restart, but
     # as we're terminating it via the supervisor it's lost, so we
     # have to repeat ourselves here.
-    InvoiceManager.finalize_invoice(inv, double_spend_timeout: 1)
+    InvoiceSupervisor.finalize_invoice(inv, double_spend_timeout: 1)
 
     HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
   end
@@ -71,17 +71,17 @@ defmodule BitPal.InvoiceRecoveryTest do
 
     # Terminate on the top level to prevent handler from being restarted before we've added
     # things that we want it to recover from.
-    InvoiceManager.terminate_handler(handler)
+    InvoiceSupervisor.terminate_handler(handler)
 
     BackendMock.confirmed_in_new_block(inv)
 
-    InvoiceManager.finalize_invoice(inv)
+    InvoiceSupervisor.finalize_invoice(inv)
 
     HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
   end
 
   defp wait_for_handler(invoice_id, prev_handler) do
-    case InvoiceManager.fetch_handler(invoice_id) do
+    case InvoiceSupervisor.fetch_handler(invoice_id) do
       {:ok, ^prev_handler} ->
         Process.sleep(10)
         wait_for_handler(invoice_id, prev_handler)

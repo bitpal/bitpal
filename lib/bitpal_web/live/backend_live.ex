@@ -2,7 +2,7 @@ defmodule BitPalWeb.BackendLive do
   use BitPalWeb, :live_view
   alias BitPal.Backend
   alias BitPal.BackendEvents
-  alias BitPal.BackendManager
+  alias BitPal.BackendSupervisor
   alias BitPal.Currencies
 
   @impl true
@@ -20,7 +20,7 @@ defmodule BitPalWeb.BackendLive do
             currency_id: currency_id,
             breadcrumbs: Breadcrumbs.backend(socket, uri, currency_id)
           )
-          |> assign_info(BackendManager.fetch_backend(currency_id))
+          |> assign_info(BackendSupervisor.fetch_backend(currency_id))
 
         if connected?(socket) do
           BackendEvents.subscribe(currency_id)
@@ -54,9 +54,9 @@ defmodule BitPalWeb.BackendLive do
   @impl true
   def handle_info(:poll, socket) do
     # FIXME Should also update info + status (and plugin if we don't have that)
-    BackendManager.poll_currency_info(socket.assigns.currency_id)
+    BackendSupervisor.poll_currency_info(socket.assigns.currency_id)
     Process.send_after(self(), :poll, 3_000)
-    {:noreply, assign_info(socket, BackendManager.fetch_backend(socket.assigns.currency_id))}
+    {:noreply, assign_info(socket, BackendSupervisor.fetch_backend(socket.assigns.currency_id))}
   end
 
   def handle_info({{:backend, :status}, %{status: status}}, socket) do
