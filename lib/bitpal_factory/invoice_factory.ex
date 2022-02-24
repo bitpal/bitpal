@@ -6,8 +6,8 @@ defmodule BitPalFactory.InvoiceFactory do
   import BitPalFactory.UtilFactory
   import Ecto.Changeset
   alias BitPal.Addresses
-  alias BitPal.InvoiceSupervisor
   alias BitPal.Invoices
+  alias BitPal.InvoiceSupervisor
   alias BitPal.Repo
   alias BitPalApi.Authentication.BasicAuth
   alias BitPalFactory.AddressFactory

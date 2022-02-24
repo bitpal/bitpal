@@ -316,7 +316,7 @@ defmodule BitPal.Backend.Flowee.Protocol do
   end
 
   defp recv_msg(%RawMsg{service: service, message: message, data: body}) do
-    # FIXME rename them to match Flowee docs
+    # NOTE we should rename them to match Flowee docs
     case {service, message} do
       {@service_api, 1} ->
         # Version message

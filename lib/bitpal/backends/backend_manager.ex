@@ -292,7 +292,7 @@ defmodule BitPal.BackendManager do
     if is_enabled(currency_id, state) do
       case Supervisor.restart_child(state.backend_supervisor, currency_id) do
         {:ok, pid} ->
-          monitor(pid, currency_id, state)
+          {:noreply, monitor(pid, currency_id, state)}
 
         _ ->
           {:noreply, state}

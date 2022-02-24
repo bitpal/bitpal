@@ -1,8 +1,8 @@
 defmodule BitPal.HandlerSubscriberCollector do
   use GenServer
   alias BitPal.InvoiceEvents
-  alias BitPal.InvoiceSupervisor
   alias BitPal.Invoices
+  alias BitPal.InvoiceSupervisor
   alias BitPal.ProcessRegistry
   alias BitPalFactory.InvoiceFactory
   alias BitPalFactory.SettingsFactory

@@ -1,8 +1,8 @@
 defmodule BitPal.BackendManagerStatusTest do
   use BitPal.DataCase, async: true
   use BitPal.CaseHelpers
-  alias BitPal.BackendStatusSupervisor
   alias BitPal.BackendEvents
+  alias BitPal.BackendStatusSupervisor
 
   setup _tags do
     currency_id = unique_currency_id()

@@ -270,7 +270,7 @@ defmodule BitPal.Backend.FloweeFixtures do
       # Message breakdown:
       # Service 1, tag 4
       # <<8, 1, 16,
-      # {7, 960933} Block height 
+      # {7, 960933} Block height
       # 5, 4, 56, 169, 148, 117,
       #
       # {5, hash } Block hash

@@ -1,7 +1,7 @@
 defmodule BitPal.Backend.FloweeTest do
   use ExUnit.Case, async: false
-  import Mox
   use BitPal.CaseHelpers
+  import Mox
   import BitPal.MockTCPClient
   alias BitPal.Backend.FloweeFixtures
   alias BitPal.BackendEvents

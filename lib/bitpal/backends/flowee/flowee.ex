@@ -3,12 +3,12 @@ defmodule BitPal.Backend.Flowee do
   use GenServer
   alias BitPal.Addresses
   alias BitPal.Backend
-  alias BitPal.BackendEvents
-  alias BitPal.BackendStatusSupervisor
   alias BitPal.Backend.Flowee.Connection
   alias BitPal.Backend.Flowee.Connection.Binary
   alias BitPal.Backend.Flowee.Protocol
   alias BitPal.Backend.Flowee.Protocol.Message
+  alias BitPal.BackendEvents
+  alias BitPal.BackendStatusSupervisor
   alias BitPal.BCH.Cashaddress
   alias BitPal.Blocks
   alias BitPal.Cache

@@ -1,7 +1,7 @@
 defmodule BitPalApi.InvoiceController do
   use BitPalApi, :controller
-  alias BitPal.InvoiceSupervisor
   alias BitPal.Invoices
+  alias BitPal.InvoiceSupervisor
   alias BitPal.Repo
   alias BitPal.Stores
   alias Ecto.Changeset

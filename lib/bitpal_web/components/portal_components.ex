@@ -27,62 +27,61 @@ defmodule BitPalWeb.PortalComponent do
       |> Map.put_new(:header, true)
 
     ~H"""
-      <table class={"flex-table #{@extra_class}"}>
-        <%= if @header do %>
-          <thead>
-            <tr>
-              <%= for col <- @col do %>
-                <th><%= col.label %></th>
-              <% end %>
-            </tr>
-          </thead>
+    <table class={"flex-table #{@extra_class}"}>
+      <%= if @header do %>
+        <thead>
+          <tr>
+            <%= for col <- @col do %>
+              <th><%= col.label %></th>
+            <% end %>
+          </tr>
+        </thead>
+      <% end %>
+      <tbody>
+        <%= for row <- @rows do %>
+          <tr>
+            <%= for col <- @col do %>
+              <td><%= render_slot(col, row) %></td>
+            <% end %>
+          </tr>
         <% end %>
-        <tbody>
-          <%= for row <- @rows do %>
-            <tr>
-              <%= for col <- @col do %>
-                <td><%= render_slot(col, row) %></td>
-              <% end %>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
+      </tbody>
+    </table>
     """
   end
 
   def side_nav(assigns) do
     ~H"""
-      <div class="side-nav-wrapper">
-        <nav class="side-nav">
-          <%= for group <- @group do %>
-            <div class="group">
-              <%= if label = group[:label] do %>
-                <div class="label">
-                  <%= label %>
-                </div>
+    <div class="side-nav-wrapper">
+      <nav class="side-nav">
+        <%= for group <- @group do %>
+          <div class="group">
+            <%= if label = group[:label] do %>
+              <div class="label">
+                <%= label %>
+              </div>
+            <% end %>
+
+            <ul>
+              <%= for {label, to} <- group.links do %>
+                <li>
+                  <%= active_live_link(
+                    to: to,
+                    from: @uri,
+                    label: label,
+                    patch: true
+                  ) %>
+                </li>
               <% end %>
+            </ul>
+          </div>
+        <% end %>
+      </nav>
 
-              <ul>
-                <%= for {label, to} <- group.links do %>
-                  <li>
-                    <%= active_live_link(
-                      to: to,
-                      from: @uri,
-                      label: label,
-                      patch: true
-                    ) %>
-                  </li>
-                <% end %>
-              </ul>
-            </div>
-          <% end %>
-
-        </nav>
-
-        <div class="side-content">
-          <%= render_slot(@inner_block) %>
-        </div>
+      <div class="side-content">
+        <%= render_slot(@inner_block) %>
       </div>
+    </div>
     """
   end
 end

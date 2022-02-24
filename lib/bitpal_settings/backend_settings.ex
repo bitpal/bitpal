@@ -1,8 +1,9 @@
 defmodule BitPalSettings.BackendSettings do
   import Ecto.Query
-  alias Ecto.Changeset
   alias BitPal.Repo
   alias BitPalSchemas.BackendSettings
+  alias BitPalSchemas.Currency
+  alias Ecto.Changeset
 
   @spec is_enabled(Currency.id()) :: boolean
   def is_enabled(currency_id) do

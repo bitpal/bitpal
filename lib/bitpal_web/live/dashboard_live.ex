@@ -2,9 +2,9 @@ defmodule BitPalWeb.DashboardLive do
   use BitPalWeb, :live_view
   alias BitPal.BackendEvents
   alias BitPal.BackendManager
+  alias BitPal.Currencies
   alias BitPal.Stores
   alias BitPal.UserEvents
-  alias BitPal.Currencies
 
   @impl true
   def mount(_params, _session, socket) do

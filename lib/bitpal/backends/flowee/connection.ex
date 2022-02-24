@@ -23,6 +23,7 @@ defmodule BitPal.Backend.Flowee.Connection do
 
   use Bitwise
   alias BitPal.Backend.Flowee.Connection
+  alias BitPal.BCH.Cashaddress
   require Logger
 
   # Struct for the connection itself. Create using "connect".
@@ -41,7 +42,7 @@ defmodule BitPal.Backend.Flowee.Connection do
     defstruct data: <<>>
 
     def to_hex(%Binary{data: data}) do
-      BitPal.BCH.Cashaddress.binary_to_hex(data)
+      Cashaddress.binary_to_hex(data)
     end
 
     def to_binary(data) do

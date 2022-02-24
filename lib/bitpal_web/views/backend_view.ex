@@ -50,54 +50,54 @@ defmodule BitPalWeb.BackendView do
 
   def format_status(assigns) do
     ~H"""
-      <span class="status">
-        <%= case @status do %>
-          <% :starting -> %>
-            <span class="starting">
-              Starting
-            </span>
-          <% {:recovering, current, target} -> %>
-            <span class="recovering">
-              Recovering <%= current %> / <%= target %>
-            </span>
-          <% {:syncing, progress} -> %>
-            <span class="syncing">
-              Syncing <%= Float.round(progress * 100, 1) %>%
-            </span>
-          <% :ready -> %>
-            <span class="ready">
-              Ready
-            </span>
-          <% {:stopped, :shutdown} -> %>
-            <span class="stopped">
-              Stopped
-            </span>
-          <% {:stopped, {:shutdown, reason}} -> %>
-            <span class="stopped">
-              Stopped <%= inspect(reason) %>
-            </span>
-          <% {:stopped, {:error, :econnrefused}} -> %>
-            <span class="error">
-              Connection refused
-            </span>
-          <% {:stopped, {:error, error}} -> %>
-            <span class="error">
-              Unknown error <%= inspect(error) %>
-            </span>
-          <% :plugin_not_found -> %>
-            <span class="not-found">
-              Plugin not found
-            </span>
-          <% :unknown -> %>
-            <span class="unknown">
-              Unknown error
-            </span>
-          <% status -> %>
-            <span class="unknown">
-              <%= inspect(status) %>
-            </span>
-        <% end %>
-      </span>
+    <span class="status">
+      <%= case @status do %>
+        <% :starting -> %>
+          <span class="starting">
+            Starting
+          </span>
+        <% {:recovering, current, target} -> %>
+          <span class="recovering">
+            Recovering<%= current %>/<%= target %>
+          </span>
+        <% {:syncing, progress} -> %>
+          <span class="syncing">
+            Syncing<%= Float.round(progress * 100, 1) %>%
+          </span>
+        <% :ready -> %>
+          <span class="ready">
+            Ready
+          </span>
+        <% {:stopped, :shutdown} -> %>
+          <span class="stopped">
+            Stopped
+          </span>
+        <% {:stopped, {:shutdown, reason}} -> %>
+          <span class="stopped">
+            Stopped<%= inspect(reason) %>
+          </span>
+        <% {:stopped, {:error, :econnrefused}} -> %>
+          <span class="error">
+            Connection refused
+          </span>
+        <% {:stopped, {:error, error}} -> %>
+          <span class="error">
+            Unknown error<%= inspect(error) %>
+          </span>
+        <% :plugin_not_found -> %>
+          <span class="not-found">
+            Plugin not found
+          </span>
+        <% :unknown -> %>
+          <span class="unknown">
+            Unknown error
+          </span>
+        <% status -> %>
+          <span class="unknown">
+            <%= inspect(status) %>
+          </span>
+      <% end %>
+    </span>
     """
   end
 end

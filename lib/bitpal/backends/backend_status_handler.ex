@@ -2,6 +2,7 @@ defmodule BitPal.BackendStatusHandler do
   use GenServer
   alias BitPal.BackendEvents
   alias BitPal.ProcessRegistry
+  alias BitPalSchemas.Currency
   alias BitPalSettings.BackendSettings
   alias Ecto.Adapters.SQL.Sandbox
 

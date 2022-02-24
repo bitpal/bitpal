@@ -1,8 +1,8 @@
 defmodule BackendManagerTest do
   use BitPal.IntegrationCase, async: true
-  alias BitPal.BackendStatusSupervisor
   alias BitPal.BackendManager
   alias BitPal.BackendMock
+  alias BitPal.BackendStatusSupervisor
   alias BitPalSettings.BackendSettings
 
   # Note that a local manager should be used if we use a crashing backend,

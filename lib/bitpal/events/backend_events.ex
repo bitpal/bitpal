@@ -3,8 +3,8 @@ defmodule BitPal.BackendEvents do
   Invoice update events.
   """
 
-  alias BitPal.EventHelpers
   alias BitPal.Backend
+  alias BitPal.EventHelpers
   alias BitPalSchemas.Currency
 
   @type msg ::
