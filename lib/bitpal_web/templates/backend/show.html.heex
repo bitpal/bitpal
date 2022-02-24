@@ -6,10 +6,10 @@
   {:difficulty, "Difficulty"},
   {:verification_progress, "Verification progress"},
   {:chain, "Chain"},
-  {:best_block_hash, "Chain tip block hash"},
+  {:best_block_hash, "Chain tip block hash"}
 ] %>
 
-<h1><%= Money.Currency.name!(@currency_id)%> (<%=@currency_id%>)</h1>
+<h1><%= Money.Currency.name!(@currency_id) %>(<%= @currency_id %>)</h1>
 
 <% rows = collect_rows(info_to_display, assigns) %>
 
@@ -17,7 +17,6 @@
   <:col let={{name, _}}>
     <%= name %>
   </:col>
-
   <:col let={{_, val}}>
     <%= val %>
   </:col>

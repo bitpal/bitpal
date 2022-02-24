@@ -11,28 +11,31 @@
         <%= active_live_link(
           label: "Invoices",
           to: Routes.store_invoices_path(@socket, :show, @store),
-          from: @uri) %>
+          from: @uri
+        ) %>
       </li>
       <li>
         <%= active_live_link(
           label: "Addresses",
           to: Routes.store_addresses_path(@socket, :show, @store),
-          from: @uri) %>
+          from: @uri
+        ) %>
       </li>
       <li>
         <%= active_live_link(
           label: "Transactions",
           to: Routes.store_transactions_path(@socket, :show, @store),
-          from: @uri) %>
+          from: @uri
+        ) %>
       </li>
       <li>
         <%= active_live_link(
           label: "Settings",
           to: Routes.store_settings_path(@socket, :general, @store),
           match: Routes.store_settings_path(@socket, :redirect, @store),
-          from: @uri) %>
+          from: @uri
+        ) %>
       </li>
     </ul>
   </nav>
 </section>
-
