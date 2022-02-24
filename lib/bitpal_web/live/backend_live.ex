@@ -2,7 +2,7 @@ defmodule BitPalWeb.BackendLive do
   use BitPalWeb, :live_view
   alias BitPal.Backend
   alias BitPal.BackendEvents
-  alias BitPal.BackendSupervisor
+  alias BitPal.BackendManager
   alias BitPal.Currencies
 
   @impl true
@@ -20,7 +20,8 @@ defmodule BitPalWeb.BackendLive do
             currency_id: currency_id,
             breadcrumbs: Breadcrumbs.backend(socket, uri, currency_id)
           )
-          |> assign_info(BackendSupervisor.fetch_backend(currency_id))
+          |> assign_status()
+          |> assign_info()
 
         if connected?(socket) do
           BackendEvents.subscribe(currency_id)
@@ -34,14 +35,21 @@ defmodule BitPalWeb.BackendLive do
     end
   end
 
-  defp assign_info(socket, {:error, :not_found}) do
-    assign(socket, status: :not_found)
+  defp assign_status(socket) do
+    assign(socket, status: BackendManager.status(socket.assigns.currency_id))
   end
 
-  defp assign_info(socket, {:ok, ref = {_pid, module}}) do
+  defp assign_info(socket) do
+    update_info(socket, BackendManager.fetch_backend(socket.assigns.currency_id))
+  end
+
+  defp update_info(socket, {:error, _}) do
+    assign(socket, info: nil)
+  end
+
+  defp update_info(socket, {:ok, ref = {_pid, module}}) do
     assign(socket,
       plugin: module,
-      status: Backend.status(ref),
       info: Backend.info(ref)
     )
   end
@@ -53,10 +61,24 @@ defmodule BitPalWeb.BackendLive do
 
   @impl true
   def handle_info(:poll, socket) do
-    # FIXME Should also update info + status (and plugin if we don't have that)
-    BackendSupervisor.poll_currency_info(socket.assigns.currency_id)
+    ref = BackendManager.fetch_backend(socket.assigns.currency_id)
+
+    socket =
+      socket
+      |> assign_status()
+      |> update_info(ref)
+
+    case ref do
+      {:ok, {pid, module}} ->
+        module.poll_info(pid)
+
+      _ ->
+        nil
+    end
+
     Process.send_after(self(), :poll, 3_000)
-    {:noreply, assign_info(socket, BackendSupervisor.fetch_backend(socket.assigns.currency_id))}
+
+    {:noreply, socket}
   end
 
   def handle_info({{:backend, :status}, %{status: status}}, socket) do
@@ -66,7 +88,4 @@ defmodule BitPalWeb.BackendLive do
   def handle_info({{:backend, :info}, %{info: info}}, socket) do
     {:noreply, assign(socket, info: info)}
   end
-
-  # FIXME
-  # 2. Should be able to manually restart it (or it's done automatically)
 end

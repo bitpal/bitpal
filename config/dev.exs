@@ -50,6 +50,7 @@ config :phoenix, :plug_init_mode, :runtime
 config :bitpal, BitPal.Mailer, adapter: Swoosh.Adapters.Local
 
 config :bitpal, BitPalFactory, init: true
+config :bitpal, BitPal.BackendManager, reconnect_timeout: 3_000
 
 config :swoosh, serve_mailbox: true, preview_port: 4011
 

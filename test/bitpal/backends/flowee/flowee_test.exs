@@ -1,14 +1,15 @@
 defmodule BitPal.Backend.FloweeTest do
-  use BitPal.DataCase, async: false
+  use ExUnit.Case, async: false
   import Mox
+  use BitPal.CaseHelpers
   import BitPal.MockTCPClient
-  alias BitPal.Backend.Flowee
   alias BitPal.Backend.FloweeFixtures
+  alias BitPal.BackendEvents
+  alias BitPal.BackendManager
   alias BitPal.Blocks
   alias BitPal.HandlerSubscriberCollector
   alias BitPal.IntegrationCase
   alias BitPal.MockTCPClient
-  alias Ecto.Adapters.SQL.Sandbox
 
   @currency :BCH
   @xpub Application.compile_env!(:bitpal, [:BCH, :xpub])
@@ -16,40 +17,21 @@ defmodule BitPal.Backend.FloweeTest do
 
   setup :set_mox_from_context
 
-  setup do
-    init_mock(@client)
-    %{store: create_store()}
-  end
-
   setup tags do
+    init_mock(@client)
+
     # Some tests don't want to have the initialization automatically enabled.
     if Map.get(tags, :init_message, true) do
       MockTCPClient.response(@client, FloweeFixtures.blockchain_info_reply())
     end
-
-    supervisor_name = unique_server_name()
 
     backends = [
       {BitPal.Backend.Flowee,
        tcp_client: @client, ping_timeout: tags[:ping_timeout] || :timer.minutes(1)}
     ]
 
-    start_supervised!({BitPal.BackendSupervisor, backends: backends, name: supervisor_name})
-
-    test_pid = self()
-
-    on_exit(fn ->
-      if tags[:async] do
-        Sandbox.allow(Repo, test_pid, self())
-      end
-
-      IntegrationCase.remove_invoice_handlers([@currency])
-      # We don't need to remove backends as we start_supervised! will shut it down for us.
-    end)
-
-    Map.merge(tags, %{
-      supervisor_name: supervisor_name
-    })
+    IntegrationCase.setup_integration(local_manager: true, backends: backends, async: false)
+    |> Map.put(:store, create_store())
   end
 
   defp test_invoice(params) do
@@ -70,7 +52,6 @@ defmodule BitPal.Backend.FloweeTest do
     assert eventually(fn -> MockTCPClient.last_sent(@client) == FloweeFixtures.ping() end)
   end
 
-  @tag do: true
   test "new block" do
     assert eventually(fn ->
              Blocks.fetch_block_height(@currency) == {:ok, 690_637}
@@ -83,14 +64,14 @@ defmodule BitPal.Backend.FloweeTest do
            end)
   end
 
-  test "transaction 0-conf acceptance", %{store: store, supervisor_name: supervisor_name} do
+  test "transaction 0-conf acceptance", %{store: store, manager: manager} do
     {:ok, _inv, stub, _invoice_handler} =
       test_invoice(
         store: store,
         required_confirmations: 0,
         amount: 0.000_01,
         double_spend_timeout: 1,
-        supervisor_name: supervisor_name
+        manager: manager
       )
 
     MockTCPClient.response(@client, FloweeFixtures.tx_seen())
@@ -330,11 +311,11 @@ defmodule BitPal.Backend.FloweeTest do
     :timer.sleep(10)
 
     # It should not be ready yet, Flowee is still preparing.
-    assert {:syncing, _} = Flowee.status(BitPal.Backend.Flowee)
+    assert {:syncing, _} = BackendManager.status(@currency)
 
     # Give it a new message, now it should be done!
     MockTCPClient.response(@client, FloweeFixtures.blockchain_info_reply())
-    assert eventually(fn -> Flowee.status(BitPal.Backend.Flowee) == :ready end)
+    assert eventually(fn -> BackendManager.status(@currency) == :ready end)
   end
 
   @tag init_message: false
@@ -388,7 +369,7 @@ defmodule BitPal.Backend.FloweeTest do
            end)
 
     # At this point, Flowee should not report being ready.
-    assert {:recovering, 690_931, 690_933} = Flowee.status(BitPal.Backend.Flowee)
+    assert {:recovering, 690_931, 690_933} = BackendManager.status(@currency)
 
     # Give them an empty block 690932
     MockTCPClient.response(@client, FloweeFixtures.block_info_690932_reply())
@@ -400,7 +381,7 @@ defmodule BitPal.Backend.FloweeTest do
                FloweeFixtures.get_block_690933_reused_hashes()
            end)
 
-    assert {:recovering, 690_932, 690_933} = Flowee.status(BitPal.Backend.Flowee)
+    assert {:recovering, 690_932, 690_933} = BackendManager.status(@currency)
 
     # Give them the block 690933 with transactions.
     MockTCPClient.response(@client, FloweeFixtures.block_info_690933_reply())
@@ -419,8 +400,26 @@ defmodule BitPal.Backend.FloweeTest do
 
     # It should also be ready now.
     assert eventually(fn ->
-             Flowee.status(BitPal.Backend.Flowee) == :ready
+             BackendManager.status(@currency) == :ready
            end)
+  end
+
+  test "restart after closed connection" do
+    # Wait for Flowee to be ready
+    assert eventually(fn -> BackendManager.status(@currency) == :ready end)
+
+    BackendEvents.subscribe(@currency)
+
+    MockTCPClient.error(@client, :econnerror)
+    Process.sleep(10)
+
+    assert_receive {{:backend, :status},
+                    %{
+                      status: {:stopped, {:shutdown, {:connection, :econnerror}}},
+                      currency_id: @currency
+                    }}
+
+    assert_receive {{:backend, :status}, %{status: :starting, currency_id: @currency}}
   end
 
   # Things we need to test:

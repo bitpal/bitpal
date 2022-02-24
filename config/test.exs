@@ -33,5 +33,9 @@ config :bitpal, :BCH,
 
 config :bitpal, BitPalFactory, init: true
 
-# Print only warnings and errors during test
-config :logger, level: :warn
+config :bitpal, BitPal.BackendManager, reconnect_timeout: 10
+
+config :logger, level: :warning
+# Can use this to hide GenServer shutdown errors, generated from our backend tests
+# when the backends are made to crash or killed after a local test.
+config :logger, level: :critical

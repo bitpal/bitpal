@@ -7,11 +7,17 @@ defmodule BitPal.TestHelpers do
   end
 
   defp _eventually(func) do
-    if func.() do
-      true
-    else
-      Process.sleep(10)
-      _eventually(func)
+    try do
+      if func.() do
+        true
+      else
+        Process.sleep(10)
+        _eventually(func)
+      end
+    rescue
+      _ ->
+        Process.sleep(10)
+        _eventually(func)
     end
   end
 

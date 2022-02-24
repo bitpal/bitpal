@@ -1,5 +1,5 @@
 defmodule BitPalSettings do
-  alias BitPal.BackendSupervisor
+  alias BitPal.BackendManager
 
   # Transaction processing
 
@@ -46,7 +46,7 @@ defmodule BitPalSettings do
 
   @spec config_change(keyword, keyword, keyword) :: :ok
   def config_change(changed, new, removed) do
-    BackendSupervisor.config_change(changed, new, removed)
+    BackendManager.config_change(changed, new, removed)
   end
 
   def fetch_env!(app, key, subkey) do

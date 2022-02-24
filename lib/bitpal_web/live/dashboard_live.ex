@@ -1,10 +1,10 @@
 defmodule BitPalWeb.DashboardLive do
   use BitPalWeb, :live_view
   alias BitPal.BackendEvents
-  alias BitPal.BackendSupervisor
-  alias BitPal.Blocks
+  alias BitPal.BackendManager
   alias BitPal.Stores
   alias BitPal.UserEvents
+  alias BitPal.Currencies
 
   @impl true
   def mount(_params, _session, socket) do
@@ -22,19 +22,11 @@ defmodule BitPalWeb.DashboardLive do
         |> Map.new()
 
       backends =
-        BackendSupervisor.status_list()
+        BackendManager.status_list()
         |> Enum.map(fn {currency_id, _ref, status} ->
           BackendEvents.subscribe(currency_id)
 
-          {currency_id,
-           %{
-             status: status,
-             height:
-               case Blocks.fetch_block_height(currency_id) do
-                 {:ok, height} -> height
-                 :error -> :not_found
-               end
-           }}
+          {currency_id, %{status: status}}
         end)
         |> Map.new()
 
@@ -60,8 +52,6 @@ defmodule BitPalWeb.DashboardLive do
      )}
   end
 
-  # FIXME should update height too
-
   @impl true
   def handle_info({{:backend, :status}, %{status: status, currency_id: currency_id}}, socket) do
     socket =
@@ -70,5 +60,36 @@ defmodule BitPalWeb.DashboardLive do
       )
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info(_, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("stop", %{"id" => crypto}, socket) do
+    case Currencies.cast(crypto) do
+      {:ok, currency_id} ->
+        BackendManager.stop_backend(currency_id)
+        {:noreply, socket}
+
+      :error ->
+        Logger.error("Invalid crypto: #{inspect(crypto)}")
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("start", %{"id" => crypto}, socket) do
+    case Currencies.cast(crypto) do
+      {:ok, currency_id} ->
+        BackendManager.restart_backend(currency_id)
+        {:noreply, socket}
+
+      :error ->
+        Logger.error("Invalid crypto: #{inspect(crypto)}")
+        {:noreply, socket}
+    end
   end
 end

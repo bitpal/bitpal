@@ -31,7 +31,8 @@ defmodule BitPal.Application do
           BitPalWeb.Endpoint,
           BitPal.ExchangeRateSupervisor,
           BitPal.InvoiceSupervisor,
-          BitPal.BackendSupervisor,
+          BitPal.BackendStatusSupervisor,
+          BitPal.BackendManager,
           BitPal.ServerSetup
         ]
 

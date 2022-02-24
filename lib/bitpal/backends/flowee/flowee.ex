@@ -4,7 +4,7 @@ defmodule BitPal.Backend.Flowee do
   alias BitPal.Addresses
   alias BitPal.Backend
   alias BitPal.BackendEvents
-  alias BitPal.BackendStatusManager
+  alias BitPal.BackendStatusSupervisor
   alias BitPal.Backend.Flowee.Connection
   alias BitPal.Backend.Flowee.Connection.Binary
   alias BitPal.Backend.Flowee.Protocol
@@ -17,8 +17,6 @@ defmodule BitPal.Backend.Flowee do
   alias BitPal.Transactions
   require Logger
 
-  @supervisor BitPal.Backend.Flowee.TaskSupervisor
-  @status_manager BitPal.Backend.Flowee.StatusManager
   @cache BitPal.RuntimeStorage
   @bch :BCH
 
@@ -26,6 +24,14 @@ defmodule BitPal.Backend.Flowee do
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  end
+
+  def child_spec(opts) do
+    %{
+      id: @bch,
+      start: {__MODULE__, :start_link, [opts]},
+      restart: :transient
+    }
   end
 
   @doc """
@@ -50,42 +56,69 @@ defmodule BitPal.Backend.Flowee do
   def configure(_backend, _opts), do: :ok
 
   @impl Backend
-  def status(_backend), do: BackendStatusManager.status(@status_manager)
-
-  @impl Backend
   def info(backend), do: GenServer.call(backend, :info)
 
   @impl Backend
   def poll_info(backend), do: GenServer.call(backend, :poll_info)
 
-  @impl Backend
-  def start(_backend), do: :ok
-
-  @impl Backend
-  def stop(_backend), do: :ok
-
   # Sever API
 
   @impl true
   def init(opts) do
-    Logger.debug("Starting Flowee")
-
-    state =
-      Enum.into(opts, %{})
-      |> Map.put_new(:tcp_client, BitPal.TCPClient)
-      |> Map.put_new(:sync_check_interval, 1_000)
-
     Registry.register(
       ProcessRegistry,
       Backend.via_tuple(@bch),
       __MODULE__
     )
 
-    Task.Supervisor.start_link(name: @supervisor)
+    {:ok, opts, {:continue, :init}}
+  end
 
-    state = start_hub(state)
+  @impl true
+  def handle_continue(:init, opts) do
+    BackendStatusSupervisor.set_starting(@bch)
 
-    {:ok, state}
+    state =
+      Enum.into(opts, %{})
+      |> Map.put_new(:tcp_client, BitPal.TCPClient)
+      |> Map.put_new(:sync_check_interval, 1_000)
+
+    {:noreply, state, {:continue, :connect}}
+  end
+
+  @impl true
+  def handle_continue(:connect, state) do
+    case Connection.connect(state.tcp_client) do
+      {:ok, c} ->
+        {:noreply, Map.merge(state, %{hub_connection: c}), {:continue, :listen}}
+
+      {:error, error} ->
+        {:stop, {:shutdown, error}, state}
+    end
+  end
+
+  @impl true
+  def handle_continue(:listen, state = %{hub_connection: c}) do
+    Task.start_link(__MODULE__, :receive_messages, [c])
+
+    # Start sending pings
+    enqueue_ping(state)
+
+    # Supscribe to invoices we should be tracking
+    Enum.each(Addresses.all_active(@bch), fn address ->
+      subscribe_addr(c, address)
+    end)
+
+    # So we can track the Flowee version we're running.
+    Protocol.send_version(c)
+
+    # Query the current status of the blockchain. This is so that we can update the current height
+    # of the blockchain and to look for confirmations for transactions we might have missed.
+    # Note: We don't want to subscribe for block notifications before this, since it might cause
+    # us to update the block height "too early".
+    Protocol.send_blockchain_info(c)
+
+    {:noreply, state}
   end
 
   @impl true
@@ -126,6 +159,11 @@ defmodule BitPal.Backend.Flowee do
   end
 
   @impl true
+  def handle_call({:connection_error, error}, _from, state) do
+    {:stop, {:shutdown, {:connection, error}}, state}
+  end
+
+  @impl true
   def handle_cast({:message, %Message{type: type, data: data}}, state) do
     {:noreply, handle_message(type, data, state)}
   end
@@ -143,77 +181,10 @@ defmodule BitPal.Backend.Flowee do
     {:noreply, state}
   end
 
-  # Handle restarts of the Flowee process.
-  @impl true
-  def handle_info({:DOWN, _monitor, :process, pid, _reason}, state) do
-    if pid == state[:recieve_pid] do
-      # The Flowee process died. Close our connection and restart it!
-      Connection.close(state[:hub_connection])
-      {:noreply, start_hub(state)}
-    else
-      {:noreply, state}
-    end
-  end
-
   @impl true
   def handle_info(:send_blockchain_info, state = %{hub_connection: c}) do
     Protocol.send_blockchain_info(c)
     {:noreply, state}
-  end
-
-  # Startup and recovery
-
-  defp start_hub(state) do
-    BackendStatusManager.start_link(
-      name: @status_manager,
-      currency_id: @bch,
-      rate_limit: state[:sync_check_interval]
-    )
-
-    case Connection.connect(state.tcp_client) do
-      {:ok, c} ->
-        start_hub(state, c)
-
-      {:error, error} ->
-        Logger.debug("Error connecting to flowee: #{inspect(error)}")
-        BackendStatusManager.error(@status_manager, error)
-        state
-    end
-  end
-
-  defp start_hub(state, c) do
-    # FIXME should get version as well
-
-    # Start listening to messages from the hub.
-    {:ok, recieve_pid} =
-      Task.Supervisor.start_child(
-        @supervisor,
-        __MODULE__,
-        :receive_messages,
-        [c]
-      )
-
-    # Monitor it for crashes.
-    Process.monitor(recieve_pid)
-
-    # Start sending pings
-    enqueue_ping(state)
-
-    # Supscribe to invoices we should be tracking
-    Enum.each(Addresses.all_active(@bch), fn address ->
-      subscribe_addr(c, address)
-    end)
-
-    # So we can track the Flowee version we're running.
-    Protocol.send_version(c)
-
-    # Query the current status of the blockchain. This is so that we can update the current height
-    # of the blockchain and to look for confirmations for transactions we might have missed.
-    # Note: We don't want to subscribe for block notifications before this, since it might cause
-    # us to update the block height "too early".
-    Protocol.send_blockchain_info(c)
-
-    Map.merge(state, %{hub_connection: c, recieve_pid: recieve_pid})
   end
 
   # Messages from Flowee
@@ -238,7 +209,7 @@ defmodule BitPal.Backend.Flowee do
     # if we abort Flowee in the middle.
     Blocks.set_block_height(@bch, height)
 
-    # FIXME if any tx is found, we should recheck open invoices.
+    # NOTE if any tx is found, we should recheck open invoices.
     continue_block_recovery(state, height)
   end
 
@@ -315,7 +286,7 @@ defmodule BitPal.Backend.Flowee do
     if Enum.empty?(active) do
       # No addresses so nothing to recover.
       Blocks.set_block_height(@bch, target_height)
-      BackendStatusManager.ready(@status_manager)
+      BackendStatusSupervisor.set_ready(@bch)
       state
     else
       # We have addresses, send a request and see if we missed something.
@@ -330,7 +301,7 @@ defmodule BitPal.Backend.Flowee do
         hashes
       )
 
-      BackendStatusManager.recovering(@status_manager, processed_height, target_height)
+      BackendStatusSupervisor.set_recovering(@bch, processed_height, target_height)
 
       state
       |> Map.put(:recover_target, target_height)
@@ -346,7 +317,7 @@ defmodule BitPal.Backend.Flowee do
       state
       |> Map.delete(:recover_target)
     else
-      BackendStatusManager.recovering(@status_manager, current_height, target_height)
+      BackendStatusSupervisor.set_recovering(@bch, current_height, target_height)
 
       Protocol.send_get_block(
         state.hub_connection,
@@ -371,10 +342,10 @@ defmodule BitPal.Backend.Flowee do
       # No, we need to wait for it... Poll it for updates.
       Process.send_after(self(), :send_blockchain_info, state[:sync_check_interval])
 
-      BackendStatusManager.syncing(@status_manager, progress)
+      BackendStatusSupervisor.set_syncing(@bch, progress)
     else
       if !state[:recover_target] do
-        BackendStatusManager.sync_done(@status_manager)
+        BackendStatusSupervisor.sync_done(@bch)
       end
     end
 
@@ -461,10 +432,18 @@ defmodule BitPal.Backend.Flowee do
 
   # Receive messages. Executed in another process, so it is OK to block here.
   def receive_messages(c) do
-    msg = Protocol.recv!(c)
-    GenServer.cast(__MODULE__, {:message, msg})
+    case Protocol.recv(c) do
+      {:ok, msg} ->
+        GenServer.cast(__MODULE__, {:message, msg})
+        receive_messages(c)
 
-    # Keep on working!
-    receive_messages(c)
+      {:error, {:unknown_msg, unknown}} ->
+        Logger.warn("Unknown message received from Flowee #{inspect(unknown)}")
+        receive_messages(c)
+
+      {:error, error} ->
+        Logger.error("Fatal error from Flowee #{inspect(error)}")
+        GenServer.call(__MODULE__, {:connection_error, error})
+    end
   end
 end

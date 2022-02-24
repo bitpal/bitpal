@@ -120,25 +120,38 @@ defmodule BitPal.Backend.Flowee.Connection do
   Receive a high-level message. We will parse the header here since we need to merge long messages, etc.
   Returns a RawMsg with the appropriate fields set.
   """
-  def recv!(connection) do
-    data = recv_packet!(connection)
-    # IO.puts("received: #{inspect(data, limit: :infinity)}")
-    {header, rem} = parse_header(data)
-    recv!(connection, header, rem)
+  @spec recv(Connection.t()) :: {:ok, RawMsg.t()} | {:error, term}
+  def recv(connection) do
+    case recv_packet(connection) do
+      {:ok, data} ->
+        {header, rem} = parse_header(data)
+        recv(connection, header, rem)
+
+      error ->
+        error
+    end
   end
 
   # Internal helper for receiving messages.
-  defp recv!(connection, header, data) do
+  @spec recv(Connection.t(), map, term) :: {:ok, RawMsg.t()} | {:error, term}
+  defp recv(connection, header, data) do
     if header.last == false do
       # More data... Ignore the next header mostly.
-      {new_header, more_data} = parse_header(recv_packet!(connection))
-      # Note: It might be important to check the header here since there might be other messages
-      # that are interleaved with chained messages. The docs does not state if this is a
-      # possibility, but from a quick glance at the code, I don't think so.
-      recv!(connection, %{header | last: new_header.last}, data <> more_data)
+      case recv_packet(connection) do
+        {:ok, packet} ->
+          {new_header, more_data} = parse_header(packet)
+
+          # Note: It might be important to check the header here since there might be other messages
+          # that are interleaved with chained messages. The docs does not state if this is a
+          # possibility, but from a quick glance at the code, I don't think so.
+          recv(connection, %RawMsg{header | last: new_header.last}, data <> more_data)
+
+        error ->
+          error
+      end
     else
-      # Last packet! Either header.last == true or header.last == nil
-      %{header | data: deserialize(data)}
+      # Last packet!
+      {:ok, %RawMsg{header | data: deserialize(data)}}
     end
   end
 
@@ -150,11 +163,13 @@ defmodule BitPal.Backend.Flowee.Connection do
   end
 
   # Receive a packet.
-  defp recv_packet!(connection) do
-    {:ok, <<size_low, size_high>>} = connection.client.recv(connection.data, 2)
-    size = size_high * 256 + size_low
-    {:ok, data} = connection.client.recv(connection.data, size - 2)
-    data
+  defp recv_packet(connection) do
+    with {:ok, <<size_low, size_high>>} <- connection.client.recv(connection.data, 2),
+         {:ok, data} <- connection.client.recv(connection.data, size_high * 256 + size_low - 2) do
+      {:ok, data}
+    else
+      error -> error
+    end
   end
 
   # Low-level serialization/deserialization.

@@ -2,7 +2,7 @@ defmodule BitPalWeb.StoreSettingsLive do
   use BitPalWeb, :live_view
   import Ecto.Changeset
   alias BitPal.Authentication.Tokens
-  alias BitPal.BackendSupervisor
+  alias BitPal.BackendManager
   alias BitPal.Currencies
   alias BitPal.Repo
   alias BitPal.Stores
@@ -79,7 +79,7 @@ defmodule BitPalWeb.StoreSettingsLive do
 
       currency_ids =
         (Enum.map(store.currency_settings, fn settings -> settings.currency_id end) ++
-           BackendSupervisor.currency_list())
+           BackendManager.currency_list())
         |> Enum.sort()
         |> Enum.dedup()
 

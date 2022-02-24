@@ -52,9 +52,9 @@ defmodule BitPalWeb.BackendView do
     ~H"""
       <span class="status">
         <%= case @status do %>
-          <% :initializing -> %>
-            <span class="initializing">
-              Initializing
+          <% :starting -> %>
+            <span class="starting">
+              Starting
             </span>
           <% {:recovering, current, target} -> %>
             <span class="recovering">
@@ -68,21 +68,33 @@ defmodule BitPalWeb.BackendView do
             <span class="ready">
               Ready
             </span>
-          <% :stopped -> %>
+          <% {:stopped, :shutdown} -> %>
             <span class="stopped">
               Stopped
             </span>
-          <% {:error, :econnrefused} -> %>
+          <% {:stopped, {:shutdown, reason}} -> %>
+            <span class="stopped">
+              Stopped <%= inspect(reason) %>
+            </span>
+          <% {:stopped, {:error, :econnrefused}} -> %>
             <span class="error">
               Connection refused
             </span>
-          <% {:error, error} -> %>
+          <% {:stopped, {:error, error}} -> %>
             <span class="error">
               Unknown error <%= inspect(error) %>
             </span>
-          <% :not_found -> %>
+          <% :plugin_not_found -> %>
             <span class="not-found">
-              Not found
+              Plugin not found
+            </span>
+          <% :unknown -> %>
+            <span class="unknown">
+              Unknown error
+            </span>
+          <% status -> %>
+            <span class="unknown">
+              <%= inspect(status) %>
             </span>
         <% end %>
       </span>

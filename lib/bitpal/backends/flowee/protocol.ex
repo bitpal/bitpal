@@ -305,76 +305,85 @@ defmodule BitPal.Backend.Flowee.Protocol do
   @doc """
   Receive some message (blocking). Returns a high-level message.
   """
-  def recv!(c) do
-    %RawMsg{service: service, message: message, data: body} = Connection.recv!(c)
+  def recv(c) do
+    case Connection.recv(c) do
+      {:ok, msg} ->
+        recv_msg(msg)
 
+      error ->
+        error
+    end
+  end
+
+  defp recv_msg(%RawMsg{service: service, message: message, data: body}) do
     # FIXME rename them to match Flowee docs
     case {service, message} do
       {@service_api, 1} ->
         # Version message
-        make_msg(:version_reply, [version: 1], body)
+        {:ok, make_msg(:version_reply, [version: 1], body)}
 
       {@service_blockchain, 1} ->
         # Reply from "blockchain info"
-        make_msg(
-          :get_blockchain_info_reply,
-          [
-            difficulty: 64,
-            median_time: 65,
-            chain_work: 66,
-            chain: 67,
-            blocks: 68,
-            headers: 69,
-            best_block_hash: 70,
-            verification_progress: 71
-          ],
-          body
-        )
+        {:ok,
+         make_msg(
+           :get_blockchain_info_reply,
+           [
+             difficulty: 64,
+             median_time: 65,
+             chain_work: 66,
+             chain: 67,
+             blocks: 68,
+             headers: 69,
+             best_block_hash: 70,
+             verification_progress: 71
+           ],
+           body
+         )}
 
       {@service_blockchain, 5} ->
         # Answer to "get block". This requires more intricate parsing...
-        %Message{type: :get_block_reply, data: parse_get_block(body)}
+        {:ok, %Message{type: :get_block_reply, data: parse_get_block(body)}}
 
       {@service_blocknotification, 4} ->
         # Notified of a block
-        make_msg(:new_block_on_chain, [hash: 5, height: 7], body)
+        {:ok, make_msg(:new_block_on_chain, [hash: 5, height: 7], body)}
 
       {@service_blocknotification, 6} ->
         # Notified of a reorg
-        make_msg(:blocks_removed, [hash: 5, height: 7], body)
+        {:ok, make_msg(:blocks_removed, [hash: 5, height: 7], body)}
 
       {@service_addressmonitor, 1} ->
         # Reply for subscriptions. Note: The documentation is incorrect with the IDs here.
-        make_msg_opt(:subscribe_reply, [result: 21, error: 20], body)
+        {:ok, make_msg_opt(:subscribe_reply, [result: 21, error: 20], body)}
 
       {@service_addressmonitor, 3} ->
         # Sent when an address we monitor is involved in a transaction. Offset is only present when
         # the transaction is accepted in a block.
-        %Message{type: :transaction_found, data: parse_on_transaction(body)}
+        {:ok, %Message{type: :transaction_found, data: parse_on_transaction(body)}}
 
       {@service_addressmonitor, 4} ->
         # Sent when a double-spend is found.
-        %Message{type: :double_spend_found, data: parse_on_transaction(body)}
+        {:ok, %Message{type: :double_spend_found, data: parse_on_transaction(body)}}
 
       {@service_indexer, 1} ->
         # Indexer reply to what it is indexing.
-        make_msg_opt(
-          :get_available_indexers_reply,
-          [address: 21, transaction: 22, spentOutput: 23],
-          body
-        )
+        {:ok,
+         make_msg_opt(
+           :get_available_indexers_reply,
+           [address: 21, transaction: 22, spentOutput: 23],
+           body
+         )}
 
       {@service_indexer, 3} ->
         # Indexer reply to "find transaction"
-        make_msg(:find_transaction_reply, [height: 7, offsetInBlock: 8], body)
+        {:ok, make_msg(:find_transaction_reply, [height: 7, offsetInBlock: 8], body)}
 
       {@service_system, nil} ->
         # Probably a ping response. We don't need to be very fancy.
-        %Message{type: :pong}
+        {:ok, %Message{type: :pong}}
 
-      _ ->
-        # Unknown message!
-        raise("Unknown message: #{Kernel.inspect({service, message})} #{Kernel.inspect(body)}")
+      unknown ->
+        {:error, {:unknown_msg, unknown}}
     end
   end
 

@@ -34,11 +34,8 @@
     <:col let={{_, params}} label="Status">
       <%= format_status(params) %>
     </:col>
-    <:col let={{_, %{height: height}}} label="Height">
-      <%= case height do %>
-        <% :not_found -> %> -
-        <% height -> %> <%= height %>
-      <% end %>
+    <:col let={{currency_id, %{status: status}}} label="">
+      <%= control_buttons(currency_id, status) %>
     </:col>
   </.flex_table>
 </section>
