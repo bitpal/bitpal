@@ -9,6 +9,7 @@ defmodule BitPal.BackendEvents do
 
   @type msg ::
           {{:backend, :status}, %{status: Backend.backend_status(), currency_id: Currency.id()}}
+          | {{:backend, :set_enabled}, %{currency_id: Currency.id(), is_enabled: boolean}}
           | {{:backend, :info}, %{info: Backend.backend_info(), currency_id: Currency.id()}}
 
   @spec subscribe(Currency.id()) :: :ok | {:error, term}

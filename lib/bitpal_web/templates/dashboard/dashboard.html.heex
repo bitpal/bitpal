@@ -34,8 +34,8 @@
     <:col let={{_, params}} label="Status">
       <%= format_status(params) %>
     </:col>
-    <:col let={{currency_id, %{status: status}}} label="">
-      <%= control_buttons(currency_id, status) %>
+    <:col let={{currency_id, params}} label="">
+      <%= control_buttons(currency_id, params) %>
     </:col>
   </.flex_table>
 </section>

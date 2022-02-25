@@ -1,6 +1,7 @@
 defmodule BitPal.BackendManager do
   use GenServer
   alias BitPal.Backend
+  alias BitPal.BackendEvents
   alias BitPal.BackendStatusSupervisor
   alias BitPal.ProcessRegistry
   alias BitPalSchemas.Currency
@@ -86,12 +87,16 @@ defmodule BitPal.BackendManager do
   @spec disable_backend(server_name, Currency.id()) :: :ok | {:error, :not_found}
   def disable_backend(server \\ __MODULE__, currency_id) do
     BackendSettings.disable(currency_id)
-    set_enabled(currency_id, true)
+    set_enabled(currency_id, false)
     stop_backend(server, currency_id)
   end
 
-  defp set_enabled(server \\ __MODULE__, currency_id, enabled) do
-    GenServer.call(server, {:set_enabled, currency_id, enabled})
+  defp set_enabled(server \\ __MODULE__, currency_id, is_enabled) do
+    BackendEvents.broadcast(
+      {{:backend, :set_enabled}, %{currency_id: currency_id, is_enabled: is_enabled}}
+    )
+
+    GenServer.call(server, {:set_enabled, currency_id, is_enabled})
   end
 
   @spec add_or_update_backend(server_name, backend_spec | module, keyword) ::

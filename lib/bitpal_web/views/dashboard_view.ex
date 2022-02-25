@@ -2,12 +2,14 @@ defmodule BitPalWeb.DashboardView do
   use BitPalWeb, :view
   import BitPalWeb.BackendView, only: [format_status: 1]
 
-  def control_buttons(currency_id, status) do
-    if can_start(status) do
-      start_button(%{currency_id: currency_id})
+  def control_buttons(currency_id, %{status: _status, is_enabled: is_enabled}) do
+    if is_enabled do
+      disable_button(%{currency_id: currency_id})
     else
-      stop_button(%{currency_id: currency_id})
+      enable_button(%{currency_id: currency_id})
     end
+
+    # end
   end
 
   def can_start(:stopped), do: true
@@ -18,17 +20,21 @@ defmodule BitPalWeb.DashboardView do
   def can_start(:unknown), do: true
   def can_start(_), do: false
 
-  # def can_stop(:stopped), do: false
-  # def can_stop({:stopped, :nomal}), do: false
-  # def can_stop({:stopped, :shutdown}), do: false
-  # def can_stop({:stopped, {:shutdown, _}}), do: true
-  # def can_stop({:stopped, {:error, _}}), do: true
-  # def can_start(:unknown), do: false
+  def enable_button(assigns) do
+    ~H"""
+    <button phx-click="enable" phx-value-id={@currency_id}>
+      Enable
+    </button>
+    """
+  end
 
-  # def can_stop(:starting), do: true
-  # def can_stop({:recovering, _, _}), do: true
-  # def can_stop({:syncing, _}), do: true
-  # def can_stop(_), do: false
+  def disable_button(assigns) do
+    ~H"""
+    <button phx-click="disable" phx-value-id={@currency_id}>
+      Disable
+    </button>
+    """
+  end
 
   def start_button(assigns) do
     ~H"""
