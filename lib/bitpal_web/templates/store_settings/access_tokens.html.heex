@@ -4,7 +4,6 @@
   <:header>
     Access Tokens
   </:header>
-
   <%= if token = assigns[:created_token] do %>
     <section class="created-token">
       <div class="label"><%= token.label %></div>
@@ -16,18 +15,18 @@
     <h2>Add a store access token</h2>
 
     <div class="label">
-      <%= error_tag f, :label %>
-      <%= label f, :label, "Token name" %>
-      <%= text_input f, :label, required: true %>
+      <%= error_tag(f, :label) %>
+      <%= label(f, :label, "Token name") %>
+      <%= text_input(f, :label, required: true) %>
     </div>
 
     <div class="date">
-      <%= label f, :valid_until, "Expiration date" %>
-      <%= date_input f, :valid_until %>
+      <%= label(f, :valid_until, "Expiration date") %>
+      <%= date_input(f, :valid_until) %>
     </div>
 
     <div class="submit">
-      <%= submit "Create store access token" %>
+      <%= submit("Create store access token") %>
     </div>
   </.form>
 

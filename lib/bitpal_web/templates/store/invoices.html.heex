@@ -1,4 +1,4 @@
-<%= render "_bar.html", assigns %>
+<%= render("_bar.html", assigns) %>
 
 <section class="store-wrapper">
   <%= if Enum.empty?(@store.invoices) do %>
@@ -17,7 +17,9 @@
       </div>
       <%= for invoice <- @store.invoices do %>
         <div class="row">
-          <span class="link"><%= live_invoice_link(@socket, id: invoice.id, label: "Invoice") %></span>
+          <span class="link">
+            <%= live_invoice_link(@socket, id: invoice.id, label: "Invoice") %>
+          </span>
           <span class="status"><%= format_status(invoice) %></span>
           <span class="date"><%= NaiveDateTime.to_date(invoice.updated_at) %></span>
           <span class="crypto-amount"><%= format_amount(invoice) %></span>
@@ -28,4 +30,3 @@
     </div>
   <% end %>
 </section>
-

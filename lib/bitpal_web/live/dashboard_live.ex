@@ -2,8 +2,10 @@ defmodule BitPalWeb.DashboardLive do
   use BitPalWeb, :live_view
   alias BitPal.BackendEvents
   alias BitPal.BackendManager
+  alias BitPal.Currencies
   alias BitPal.Stores
   alias BitPal.UserEvents
+  alias BitPalSettings.BackendSettings
 
   @impl true
   def mount(_params, _session, socket) do
@@ -24,7 +26,8 @@ defmodule BitPalWeb.DashboardLive do
         BackendManager.status_list()
         |> Enum.map(fn {currency_id, _ref, status} ->
           BackendEvents.subscribe(currency_id)
-          {currency_id, status}
+
+          {currency_id, %{status: status, is_enabled: BackendSettings.is_enabled(currency_id)}}
         end)
         |> Map.new()
 
@@ -51,8 +54,57 @@ defmodule BitPalWeb.DashboardLive do
   end
 
   @impl true
-  def handle_info({{:backend, status}, currency_id}, socket) do
-    {:noreply,
-     assign(socket, backend_status: Map.put(socket.assigns.backend_status, currency_id, status))}
+  def handle_info({{:backend, :status}, %{status: status, currency_id: currency_id}}, socket) do
+    socket =
+      assign(socket,
+        backend_status: put_in(socket.assigns.backend_status, [currency_id, :status], status)
+      )
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info(
+        {{:backend, :set_enabled}, %{is_enabled: is_enabled, currency_id: currency_id}},
+        socket
+      ) do
+    socket =
+      assign(socket,
+        backend_status:
+          put_in(socket.assigns.backend_status, [currency_id, :is_enabled], is_enabled)
+      )
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info(_, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("enable", %{"id" => crypto}, socket) do
+    case Currencies.cast(crypto) do
+      {:ok, currency_id} ->
+        BackendManager.enable_backend(currency_id)
+        {:noreply, socket}
+
+      :error ->
+        Logger.error("Invalid crypto: #{inspect(crypto)}")
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("disable", %{"id" => crypto}, socket) do
+    case Currencies.cast(crypto) do
+      {:ok, currency_id} ->
+        BackendManager.disable_backend(currency_id)
+        {:noreply, socket}
+
+      :error ->
+        Logger.error("Invalid crypto: #{inspect(crypto)}")
+        {:noreply, socket}
+    end
   end
 end

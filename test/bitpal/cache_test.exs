@@ -8,8 +8,6 @@ defmodule BitPal.ExchangeRate.CacheTest do
   setup %{ttl: ttl} do
     name = Ecto.UUID.generate() |> String.to_atom()
 
-    Logger.disable(self())
-
     pid =
       start_supervised!(
         {Cache, name: name, ttl: ttl, ttl_check_interval: 10},
@@ -37,12 +35,11 @@ defmodule BitPal.ExchangeRate.CacheTest do
     assert eventually(fn -> Cache.fetch(name, :key1) == :error end)
   end
 
-  # Disable this test as it issues Logger errors that I can't figure out how to turn off
-  # @tag ttl: 60_000
-  # test "values are cleaned up on exit", %{name: name, pid: pid} do
-  #   assert :ok = Cache.put(name, :key1, :value1)
-  #   assert_shutdown(pid)
-  #   {:ok, _cache} = Cache.start_link(name: name)
-  #   assert Cache.fetch(name, :key1) == :error
-  # end
+  @tag ttl: 60_000
+  test "values are cleaned up on exit", %{name: name, pid: pid} do
+    assert :ok = Cache.put(name, :key1, :value1)
+    assert_shutdown(pid)
+    {:ok, _cache} = Cache.start_link(name: name, ttl: 60_000, ttl_check_interval: 10)
+    assert Cache.fetch(name, :key1) == :error
+  end
 end

@@ -1,4 +1,4 @@
-defmodule BitPal.InvoiceManager do
+defmodule BitPal.InvoiceSupervisor do
   use DynamicSupervisor
   alias BitPal.InvoiceHandler
   alias BitPal.Invoices

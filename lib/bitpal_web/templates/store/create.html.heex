@@ -10,12 +10,11 @@
       </div>
     <% end %>
 
-    <%= error_tag f, :label %>
-    <%= text_input f, :label, placeholder: "Store label", required: true %>
+    <%= error_tag(f, :label) %>
+    <%= text_input(f, :label, placeholder: "Store label", required: true) %>
 
     <div>
-      <%= submit "Create" %>
+      <%= submit("Create") %>
     </div>
   </.form>
 </section>
-

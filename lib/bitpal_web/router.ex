@@ -58,6 +58,8 @@ defmodule BitPalWeb.Router do
       live("/stores/:store/settings/exchange_rates", StoreSettingsLive, :exchange_rates)
       live("/stores/:store/settings/invoices", StoreSettingsLive, :invoices)
       live("/stores/:store/settings/access_tokens", StoreSettingsLive, :access_tokens)
+
+      live("/backends/:crypto", BackendLive, :show)
     end
   end
 
@@ -65,10 +67,12 @@ defmodule BitPalWeb.Router do
     scope "/", BitPalWeb do
       pipe_through([:authenticated_portal])
 
-      live("/server/backends", ServerBackendsLive, :index)
-      live("/server/backends/:backend", ServerBackendLive, :show)
+      # live("/server/backends", ServerBackendsLive, :index)
+      # live("/server/backends/:backend", ServerBackendLive, :show)
 
-      live("/server/settings", ServerSettingsLive, :show)
+      live("/server/settings", ServerSettingsLive, :redirect)
+      live("/server/settings/backends", ServerSettingsLive, :backends)
+      live("/server/settings/users", ServerSettingsLive, :users)
     end
 
     scope "/", BitPalWeb do

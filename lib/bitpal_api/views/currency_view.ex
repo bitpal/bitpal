@@ -26,8 +26,10 @@ defmodule BitPalApi.CurrencyView do
     }
   end
 
-  defp readable_status({:started, :ready}), do: "started"
-  defp readable_status({:started, {:syncing, _}}), do: "syncing"
+  defp readable_status(:starting), do: "initializing"
+  defp readable_status(:ready), do: "ready"
+  defp readable_status({:recovering, _, _}), do: "recovering"
+  defp readable_status({:syncing, _}), do: "syncing"
   defp readable_status(:stopped), do: "stopped"
   defp readable_status(:not_found), do: "not_found"
 end

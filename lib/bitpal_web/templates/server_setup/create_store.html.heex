@@ -2,7 +2,6 @@
   <:header>
     Create a store
   </:header>
-
   <.form let={f} for={@store_changeset} phx-submit="create_store">
     <%= if @store_changeset.action do %>
       <div class="alert alert-danger">
@@ -10,11 +9,11 @@
       </div>
     <% end %>
 
-    <%= error_tag f, :label %>
-    <%= text_input f, :label, placeholder: "Store label", required: true %>
+    <%= error_tag(f, :label) %>
+    <%= text_input(f, :label, placeholder: "Store label", required: true) %>
 
     <div>
-      <%= submit "Create" %>
+      <%= submit("Create") %>
     </div>
   </.form>
 

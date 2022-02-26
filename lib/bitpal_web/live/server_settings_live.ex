@@ -9,6 +9,37 @@ defmodule BitPalWeb.ServerSettingsLive do
 
   @impl true
   def render(assigns) do
-    render(BitPalWeb.ServerSettingsLive, "show.html", assigns)
+    template = Atom.to_string(assigns.live_action) <> ".html"
+    render(BitPalWeb.ServerSettingsView, template, assigns)
+  end
+
+  @impl true
+  def handle_params(_params, uri, socket) do
+    if socket.assigns[:live_action] == :redirect do
+      {:noreply,
+       push_patch(
+         socket,
+         to: Routes.server_settings_path(socket, :backends),
+         replace: true
+       )}
+    else
+      {:noreply, init_assigns(socket, uri)}
+    end
+  end
+
+  defp init_assigns(socket, uri) do
+    socket
+    |> assign(uri: uri)
+    |> assign_breadcrumbs()
+    |> assign_live_action(socket.assigns.live_action)
+  end
+
+  defp assign_breadcrumbs(socket) do
+    socket
+    |> assign(breadcrumbs: Breadcrumbs.server_settings(socket, socket.assigns.uri))
+  end
+
+  defp assign_live_action(socket, _) do
+    socket
   end
 end

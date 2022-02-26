@@ -1,14 +1,15 @@
 defmodule BitPal.Backend.FloweeTest do
-  use BitPal.DataCase, async: false
+  use ExUnit.Case, async: false
+  use BitPal.CaseHelpers
   import Mox
   import BitPal.MockTCPClient
-  alias BitPal.Backend.Flowee
   alias BitPal.Backend.FloweeFixtures
+  alias BitPal.BackendEvents
+  alias BitPal.BackendManager
   alias BitPal.Blocks
   alias BitPal.HandlerSubscriberCollector
   alias BitPal.IntegrationCase
   alias BitPal.MockTCPClient
-  alias Ecto.Adapters.SQL.Sandbox
 
   @currency :BCH
   @xpub Application.compile_env!(:bitpal, [:BCH, :xpub])
@@ -16,40 +17,21 @@ defmodule BitPal.Backend.FloweeTest do
 
   setup :set_mox_from_context
 
-  setup do
-    init_mock(@client)
-    %{store: create_store()}
-  end
-
   setup tags do
+    init_mock(@client)
+
     # Some tests don't want to have the initialization automatically enabled.
     if Map.get(tags, :init_message, true) do
-      MockTCPClient.response(@client, FloweeFixtures.blockchain_info())
+      MockTCPClient.response(@client, FloweeFixtures.blockchain_info_reply())
     end
-
-    manager_name = unique_server_name()
 
     backends = [
       {BitPal.Backend.Flowee,
        tcp_client: @client, ping_timeout: tags[:ping_timeout] || :timer.minutes(1)}
     ]
 
-    start_supervised!({BitPal.BackendManager, backends: backends, name: manager_name})
-
-    test_pid = self()
-
-    on_exit(fn ->
-      if tags[:async] do
-        Sandbox.allow(Repo, test_pid, self())
-      end
-
-      IntegrationCase.remove_invoice_handlers([@currency])
-      # We don't need to remove backends as we start_supervised! will shut it down for us.
-    end)
-
-    Map.merge(tags, %{
-      manager_name: manager_name
-    })
+    IntegrationCase.setup_integration(local_manager: true, backends: backends, async: false)
+    |> Map.put(:store, create_store())
   end
 
   defp test_invoice(params) do
@@ -82,14 +64,14 @@ defmodule BitPal.Backend.FloweeTest do
            end)
   end
 
-  test "transaction 0-conf acceptance", %{store: store, manager_name: manager_name} do
+  test "transaction 0-conf acceptance", %{store: store, manager: manager} do
     {:ok, _inv, stub, _invoice_handler} =
       test_invoice(
         store: store,
         required_confirmations: 0,
         amount: 0.000_01,
         double_spend_timeout: 1,
-        manager_name: manager_name
+        manager: manager
       )
 
     MockTCPClient.response(@client, FloweeFixtures.tx_seen())
@@ -323,22 +305,28 @@ defmodule BitPal.Backend.FloweeTest do
   @tag init_message: false
   test "wait for Flowee to become ready" do
     # Send it an incomplete startup message to get it going.
-    MockTCPClient.response(@client, FloweeFixtures.blockchain_verifying_info())
+    MockTCPClient.response(@client, FloweeFixtures.blockchain_verifying_info_reply())
 
     # Wait a bit to let it act.
     :timer.sleep(10)
 
     # It should not be ready yet, Flowee is still preparing.
-    assert {:started, {:syncing, _}} = Flowee.status(BitPal.Backend.Flowee)
+    assert {:syncing, _} = BackendManager.status(@currency)
 
     # Give it a new message, now it should be done!
-    MockTCPClient.response(@client, FloweeFixtures.blockchain_info())
-    assert eventually(fn -> Flowee.status(BitPal.Backend.Flowee) == {:started, :ready} end)
+    MockTCPClient.response(@client, FloweeFixtures.blockchain_info_reply())
+    assert eventually(fn -> BackendManager.status(@currency) == :ready end)
   end
 
   @tag init_message: false
   test "make sure recovery works", %{store: store} do
-    # Simulate the state stored in the DB:
+    # During startup it will ask for blockchain info.
+    # (Also for the version, but we ignore it here.)
+    assert eventually(fn ->
+             MockTCPClient.last_sent(@client) == FloweeFixtures.get_blockchain_info()
+           end)
+
+    # When an invoice is created, Flowee should subscribe to the addresses.
     {:ok, _invoice, stub1, _invoice_handler} =
       test_invoice(
         store: store,
@@ -346,6 +334,10 @@ defmodule BitPal.Backend.FloweeTest do
         amount: 0.000_15,
         address_id: "bitcoincash:qrwjyrzae2av8wxvt79e2ukwl9q58m3u6cwn8k2dpa"
       )
+
+    assert eventually(fn ->
+             FloweeFixtures.address_subscribe_1() == MockTCPClient.last_sent(@client)
+           end)
 
     {:ok, _invoice, stub2, _invoice_handler} =
       test_invoice(
@@ -355,38 +347,84 @@ defmodule BitPal.Backend.FloweeTest do
         address_id: "bitcoincash:qz96wvrhsrg9j3rnczg7jkh3dlgshtcxzu89qrrcgc"
       )
 
-    # We are now at height 690933:
-    Blocks.set_block_height(@currency, 690_932)
+    assert eventually(fn ->
+             FloweeFixtures.address_subscribe_2() == MockTCPClient.last_sent(@client)
+           end)
 
-    # Now, we tell Flowee the current block height. It will try to recover, and ask for the missing
-    # block.
-    MockTCPClient.response(@client, FloweeFixtures.blockchain_info_690933())
+    # Simulate the state stored in the DB:
+    # We are now at height 690933, but we have only registered up to 690_931
+    Blocks.set_block_height(@currency, 690_931)
 
+    # Now, we tell Flowee the current block height. It will try to recover
+    # and ask for the missing blocks.
+    MockTCPClient.response(@client, FloweeFixtures.blockchain_info_690933_reply())
+
+    # First it asks for the next block with the hashes of the two above addresses.
     # Note: The addresses may be in any order, so we check for both of them.
     assert eventually(fn ->
-             MockTCPClient.last_sent(@client) in FloweeFixtures.block_info_query_690933_alts()
+             last = MockTCPClient.last_sent(@client)
+
+             last == FloweeFixtures.get_block_690932_1() ||
+               last == FloweeFixtures.get_block_690932_2()
            end)
 
     # At this point, Flowee should not report being ready.
-    assert {:started, {:syncing, _}} = Flowee.status(BitPal.Backend.Flowee)
+    assert {:recovering, 690_931, 690_933} = BackendManager.status(@currency)
 
-    # Tell it what happened:
-    MockTCPClient.response(@client, FloweeFixtures.block_info_690933())
+    # Give them an empty block 690932
+    MockTCPClient.response(@client, FloweeFixtures.block_info_690932_reply())
+
+    # Then Flowee should ask for block 690933.
+    # It should not reuse the existing address hashes but send a special reuse directive.
+    assert eventually(fn ->
+             MockTCPClient.last_sent(@client) ==
+               FloweeFixtures.get_block_690933_reused_hashes()
+           end)
+
+    assert {:recovering, 690_932, 690_933} = BackendManager.status(@currency)
+
+    # Give them the block 690933 with transactions.
+    MockTCPClient.response(@client, FloweeFixtures.block_info_690933_reply())
 
     # It will ask for block info again, so that it can properly capture if Flowee managed to find
     # another block while it updated the last block. At this point, it should be happy.
-    MockTCPClient.response(@client, FloweeFixtures.blockchain_info_690933())
+    assert eventually(fn ->
+             MockTCPClient.last_sent(@client) == FloweeFixtures.get_blockchain_info()
+           end)
+
+    MockTCPClient.response(@client, FloweeFixtures.blockchain_info_690933_reply())
 
     # Both should be paid by now.
     HandlerSubscriberCollector.await_msg(stub1, {:invoice, :paid})
     HandlerSubscriberCollector.await_msg(stub2, {:invoice, :paid})
 
     # It should also be ready now.
-    assert Flowee.status(BitPal.Backend.Flowee) == {:started, :ready}
+    assert eventually(fn ->
+             BackendManager.status(@currency) == :ready
+           end)
+  end
+
+  test "restart after closed connection" do
+    # Wait for Flowee to be ready
+    assert eventually(fn -> BackendManager.status(@currency) == :ready end)
+
+    BackendEvents.subscribe(@currency)
+
+    MockTCPClient.error(@client, :econnerror)
+    Process.sleep(10)
+
+    assert_receive {{:backend, :status},
+                    %{
+                      status: {:stopped, {:shutdown, {:connection, :econnerror}}},
+                      currency_id: @currency
+                    }}
+
+    assert_receive {{:backend, :status}, %{status: :starting, currency_id: @currency}}
   end
 
   # Things we need to test:
   #
   # version
   # double spend
+  # reorg
 end

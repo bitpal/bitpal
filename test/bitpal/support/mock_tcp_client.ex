@@ -10,17 +10,21 @@ defmodule BitPal.MockTCPClient do
     name
     |> stub(:connect, fn _, _, _ -> {:ok, client} end)
     |> stub(:recv, fn id, size ->
-      {:ok, next_response(id, size)}
+      next_response(id, size)
     end)
     |> stub(:send, fn id, msg -> {:ok, log_send(id, msg)} end)
   end
 
   def response(c, msgs) when is_list(msgs) do
-    GenServer.call(c, {:response, msgs})
+    GenServer.call(c, {:response, Enum.map(msgs, fn msg -> {:ok, msg} end)})
   end
 
   def response(c, msg) when is_bitstring(msg) do
-    GenServer.call(c, {:response, msg})
+    GenServer.call(c, {:response, {:ok, msg}})
+  end
+
+  def error(c, error) do
+    GenServer.call(c, {:response, {:error, error}})
   end
 
   def verify!(c) do
@@ -31,15 +35,12 @@ defmodule BitPal.MockTCPClient do
     GenServer.call(c, :sent)
   end
 
-  def last_sent(c) do
-    List.first(sent(c))
+  def first_sent(c) do
+    List.last(sent(c))
   end
 
-  # Internal API
-
-  def start_link(opts) do
-    name = Keyword.get(opts, :name, __MODULE__)
-    GenServer.start_link(__MODULE__, opts, name: name)
+  def last_sent(c) do
+    List.first(sent(c))
   end
 
   def log_send(c, msg) do
@@ -50,8 +51,11 @@ defmodule BitPal.MockTCPClient do
     GenServer.call(c, {:next_response, size})
   end
 
-  def close(c) do
-    GenServer.call(c, :close)
+  # Internal API
+
+  def start_link(opts) do
+    name = Keyword.get(opts, :name, __MODULE__)
+    GenServer.start_link(__MODULE__, opts, name: name)
   end
 
   @impl GenServer
@@ -112,6 +116,16 @@ defmodule BitPal.MockTCPClient do
   end
 
   @impl GenServer
+  def handle_call(:send_ok, _, state) do
+    {:reply, :ok, Map.delete(state, :send_error)}
+  end
+
+  @impl GenServer
+  def handle_call(:send_error, _, state) do
+    {:reply, :ok, Map.put(state, :send_error, true)}
+  end
+
+  @impl GenServer
   def handle_info(
         :reply,
         state = %{
@@ -119,8 +133,14 @@ defmodule BitPal.MockTCPClient do
           responses: [response | rest_responses]
         }
       ) do
-    assert byte_size(response) == size,
-           "mismatched size of response, got #{inspect(response)} expected #{size}"
+    case response do
+      {:ok, msg} ->
+        assert byte_size(msg) == size,
+               "mismatched size of response, got #{inspect(msg)} (size: #{byte_size(msg)}) expected #{size}"
+
+      _ ->
+        nil
+    end
 
     GenServer.reply(pid, response)
     {:noreply, %{state | waiting: rest_waiting, responses: rest_responses}}

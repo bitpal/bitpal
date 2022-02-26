@@ -18,7 +18,7 @@ defmodule Mix.Tasks.Bitpal.Ci do
         Pipeline.parallel([
           mix("dialyzer --format short"),
           mix("test"),
-          mix("format --check-formatted"),
+          mix("format --check-formatted --dry-run"),
           mix("credo --all --strict")
         ])
       ]),

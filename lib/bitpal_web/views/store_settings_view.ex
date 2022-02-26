@@ -1,4 +1,4 @@
-defmodule BitPalWeb.SettingsLayoutComponent do
+defmodule BitPalWeb.StoreSettingsLayoutComponent do
   use BitPalWeb, :component
 
   def layout(assigns) do
@@ -12,25 +12,14 @@ defmodule BitPalWeb.StoreSettingsView do
   import BitPalWeb.StoreView,
     only: [format_created_at: 1, format_last_accessed: 1, format_valid_until: 2]
 
-  import BitPalWeb.SettingsLayoutComponent
+  import BitPalWeb.StoreSettingsLayoutComponent
 
-  def settings_link(action, label, assigns) do
-    active_live_link(
-      to: Routes.store_settings_path(assigns.socket, action, assigns.store),
-      from: assigns.uri,
-      label: label,
-      patch: true
-    )
+  def settings_nav_link(action, label, assigns) do
+    {label, Routes.store_settings_path(assigns.socket, action, assigns.store)}
   end
 
-  def crypto_link(currency_id, assigns) do
+  def crypto_nav_link(currency_id, assigns) do
     label = "#{Money.Currency.name!(currency_id)} (#{currency_id})"
-
-    active_live_link(
-      to: Routes.store_settings_path(assigns.socket, :crypto, assigns.store, currency_id),
-      from: assigns.uri,
-      label: label,
-      patch: true
-    )
+    {label, Routes.store_settings_path(assigns.socket, :crypto, assigns.store, currency_id)}
   end
 end

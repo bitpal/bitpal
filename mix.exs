@@ -5,7 +5,7 @@ defmodule BitPal.MixProject do
     [
       app: :bitpal,
       version: "0.1.0",
-      elixir: "~> 1.12",
+      elixir: "~> 1.13",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
@@ -85,6 +85,7 @@ defmodule BitPal.MixProject do
       {:telemetry, "~> 1.0", override: true},
       {:telemetry_metrics, "~> 0.6.1"},
       {:telemetry_poller, "~> 1.0.0"},
+      {:heex_formatter, github: "feliperenan/heex_formatter"},
 
       # CI and tests
       {:ci,

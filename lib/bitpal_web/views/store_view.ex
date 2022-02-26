@@ -138,7 +138,7 @@ defmodule BitPalWeb.StoreView do
       <% end %>
       <%= if @tx.confirmed_height do %>
         <span class="block-height">
-          Block <%= @tx.confirmed_height %>
+          <%= "Block #{@tx.confirmed_height}" %>
         </span>
       <% end %>
     </span>

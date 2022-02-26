@@ -1,11 +1,12 @@
 defmodule BackendMockTest do
   use BitPal.IntegrationCase, async: true
-  alias BitPal.Backend
+  alias BitPal.BackendManager
+  alias BitPal.BackendMock
   alias BitPal.Blocks
 
   describe "auto generate" do
     @tag backends: [
-           {BitPal.BackendMock, auto: true, time_until_tx_seen: 10, time_between_blocks: 5}
+           {BackendMock, auto: true, time_until_tx_seen: 10, time_between_blocks: 5}
          ]
     test "auto confirms", %{currency_id: currency_id} do
       {:ok, _inv1, stub1, _invoice_handler} =
@@ -42,46 +43,51 @@ defmodule BackendMockTest do
   end
 
   describe "control status" do
-    @tag backends: [BitPal.BackendMock]
-    test "started by default", %{backend: backend} do
-      assert Backend.status(backend) == {:started, :ready}
+    test "started by default", %{currency_id: currency_id} do
+      assert eventually(fn -> BackendManager.status(currency_id) == :ready end)
     end
 
-    @tag backends: [
-           {BitPal.BackendMock, status: :stopped}
-         ]
-    test "stopped", %{backend: backend} do
-      assert Backend.status(backend) == :stopped
-
-      assert Backend.start(backend) == :ok
-      assert Backend.status(backend) == {:started, :ready}
+    @tag backends: [{BackendMock, status: :starting}]
+    test "set status", %{currency_id: currency_id} do
+      assert eventually(fn -> BackendManager.status(currency_id) == :starting end)
     end
 
-    @tag backends: [
-           {BitPal.BackendMock, status: :stopped, sync_time: 50}
-         ]
-    test "delayed start", %{backend: backend} do
-      assert Backend.status(backend) == :stopped
+    test "stopped", %{currency_id: currency_id} do
+      BackendManager.stop_backend(currency_id)
+      assert eventually(fn -> BackendManager.status(currency_id) == :stopped end)
 
-      assert Backend.start(backend) == :ok
-      assert {:started, {:syncing, _}} = Backend.status(backend)
+      assert {:ok, _} = BackendManager.restart_backend(currency_id)
+      assert eventually(fn -> BackendManager.status(currency_id) == :ready end)
+    end
+
+    @tag backends: [{BitPal.BackendMock, sync_time: 50}]
+    test "delayed start", %{currency_id: currency_id} do
+      BackendManager.stop_backend(currency_id)
+      assert eventually(fn -> BackendManager.status(currency_id) == :stopped end)
+
+      assert {:ok, _} = BackendManager.restart_backend(currency_id)
+      assert eventually(fn -> {:syncing, _} = BackendManager.status(currency_id) end)
 
       assert eventually(fn ->
-               Backend.status(backend) == {:started, :ready}
+               BackendManager.status(currency_id) == :ready
              end)
     end
 
     @tag backends: [
            {BitPal.BackendMock, auto: true, time_until_tx_seen: 10, time_between_blocks: 5}
          ]
-    test "stop auto blocks", %{currency_id: currency_id, backend: backend} do
-      assert Backend.stop(backend) == :ok
+    test "stop auto blocks", %{currency_id: currency_id} do
+      assert eventually(fn -> BackendManager.status(currency_id) == :ready end)
+
+      assert BackendManager.stop_backend(currency_id) == :ok
+      assert eventually(fn -> BackendManager.status(currency_id) == :stopped end)
+
       height = Blocks.fetch_block_height!(currency_id)
 
       Process.sleep(21)
       assert Blocks.fetch_block_height!(currency_id) == height
 
-      assert Backend.start(backend) == :ok
+      assert {:ok, _} = BackendManager.restart_backend(currency_id)
 
       assert eventually(fn ->
                Blocks.fetch_block_height!(currency_id) > height

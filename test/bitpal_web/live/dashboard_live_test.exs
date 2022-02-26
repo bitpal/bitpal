@@ -1,6 +1,7 @@
 defmodule BitPalWeb.HomeLiveTest do
   use BitPalWeb.ConnCase, integration: true, async: false
   alias BitPal.Backend
+  alias BitPal.BackendManager
   alias BitPal.BackendMock
   alias BitPal.Stores
 
@@ -38,18 +39,18 @@ defmodule BitPalWeb.HomeLiveTest do
       end
     end
 
-    @tag backends: [{BackendMock, status: :stopped, sync_time: 50}]
-    test "start and stop backend", %{conn: conn, backend: backend} do
+    @tag backends: [{BackendMock, sync_time: 50}]
+    test "start and stop backend", %{conn: conn, currency_id: currency_id} do
       {:ok, view, _html} = live(conn, Routes.dashboard_path(conn, :show))
 
-      assert view |> element(".status") |> render() =~ "Stopped"
+      assert render_eventually(view, "Ready", ".status")
 
-      assert Backend.start(backend) == :ok
-      assert render_eventually(view, "Syncing", ".status")
-      assert render_eventually(view, "Started", ".status")
-
-      assert Backend.stop(backend) == :ok
+      assert BackendManager.stop_backend(currency_id) == :ok
       assert render_eventually(view, "Stopped", ".status")
+
+      assert {:ok, _} = BackendManager.restart_backend(currency_id)
+      assert render_eventually(view, "Syncing", ".status")
+      assert render_eventually(view, "Ready", ".status")
     end
   end
 

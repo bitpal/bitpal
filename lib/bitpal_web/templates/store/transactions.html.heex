@@ -1,4 +1,4 @@
-<%= render "_bar.html", assigns %>
+<%= render("_bar.html", assigns) %>
 
 <section class="store-wrapper">
   <%= if Enum.empty?(@txs) do %>
@@ -16,7 +16,9 @@
       </div>
       <%= for tx <- @txs do %>
         <div class="row">
-          <span class="link"><%= live_invoice_link(@socket, id: tx.address.invoice.id, label: "Invoice") %></span>
+          <span class="link">
+            <%= live_invoice_link(@socket, id: tx.address.invoice.id, label: "Invoice") %>
+          </span>
           <span class="txid"><%= tx.txid %></span>
           <span class="amount"><%= money_to_string(tx.amount) %></span>
           <span class="address-id"><%= tx.address_id %></span>
@@ -26,4 +28,3 @@
     </div>
   <% end %>
 </section>
-

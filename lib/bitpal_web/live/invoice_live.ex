@@ -1,8 +1,8 @@
 defmodule BitPalWeb.InvoiceLive do
   use BitPalWeb, :live_view
   alias BitPal.InvoiceEvents
-  alias BitPal.InvoiceManager
   alias BitPal.Invoices
+  alias BitPal.InvoiceSupervisor
   alias BitPal.Repo
   alias BitPalWeb.InvoiceLiveAuth
   require Logger
@@ -45,7 +45,7 @@ defmodule BitPalWeb.InvoiceLive do
   end
 
   defp update_invoice(socket, invoice_id) do
-    case InvoiceManager.fetch_or_load_invoice(invoice_id) do
+    case InvoiceSupervisor.fetch_or_load_invoice(invoice_id) do
       {:ok, invoice} ->
         invoice =
           invoice

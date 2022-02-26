@@ -1,8 +1,8 @@
 defmodule BitPal.HandlerSubscriberCollector do
   use GenServer
   alias BitPal.InvoiceEvents
-  alias BitPal.InvoiceManager
   alias BitPal.Invoices
+  alias BitPal.InvoiceSupervisor
   alias BitPal.ProcessRegistry
   alias BitPalFactory.InvoiceFactory
   alias BitPalFactory.SettingsFactory
@@ -83,7 +83,7 @@ defmodule BitPal.HandlerSubscriberCollector do
   def handle_call({:track_and_finalize, invoice, opts}, _, state) do
     :ok = InvoiceEvents.subscribe(invoice)
     invoice = ensure_tracked_and_finalized(invoice, opts, state)
-    {:ok, handler} = InvoiceManager.fetch_handler(invoice.id)
+    {:ok, handler} = InvoiceSupervisor.fetch_handler(invoice.id)
     {:reply, {invoice, handler}, state}
   end
 
@@ -105,10 +105,10 @@ defmodule BitPal.HandlerSubscriberCollector do
     }
 
     if Invoices.finalized?(invoice) do
-      {:ok, _} = InvoiceManager.ensure_handler(invoice, manager_opts)
+      {:ok, _} = InvoiceSupervisor.ensure_handler(invoice, manager_opts)
       invoice
     else
-      {:ok, invoice} = InvoiceManager.finalize_invoice(invoice, manager_opts)
+      {:ok, invoice} = InvoiceSupervisor.finalize_invoice(invoice, manager_opts)
       invoice
     end
   end

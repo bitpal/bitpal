@@ -5,9 +5,11 @@ defmodule BitPal.BackendMock do
   use GenServer
   import BitPalSettings.ConfigHelpers
   alias BitPal.Backend
-  alias BitPal.BackendEvents
+  alias BitPal.BackendManager
+  alias BitPal.BackendStatusSupervisor
   alias BitPal.BlockchainEvents
   alias BitPal.Blocks
+  alias BitPal.Cache
   alias BitPal.Invoices
   alias BitPal.ProcessRegistry
   alias BitPal.Transactions
@@ -24,6 +26,12 @@ defmodule BitPal.BackendMock do
   end
 
   @impl Backend
+  def supported_currency(pid) when is_pid(pid) do
+    # Avoid GenServer calls, which is relevant if the backend is shut down instantly.
+    # Only relevant for backends that have dynamically different currencies.
+    Cache.fetch!(BitPal.RuntimeStorage, pid)
+  end
+
   def supported_currency(backend) do
     GenServer.call(backend, :supported_currency)
   end
@@ -34,18 +42,19 @@ defmodule BitPal.BackendMock do
   end
 
   @impl Backend
-  def status(backend) do
-    GenServer.call(backend, :status)
+  def info(backend) do
+    GenServer.call(backend, :info)
   end
 
   @impl Backend
-  def start(backend) do
-    GenServer.call(backend, :start)
+  def poll_info(_backend), do: :ok
+
+  def stop_with_error(backend, error) do
+    GenServer.cast(backend, {:stop_with_error, error})
   end
 
-  @impl Backend
-  def stop(backend) do
-    GenServer.call(backend, :stop)
+  def crash(backend) do
+    GenServer.cast(backend, :crash)
   end
 
   # Client API
@@ -55,6 +64,10 @@ defmodule BitPal.BackendMock do
   end
 
   def child_spec(opts) do
+    if parent = opts[:parent] do
+      Sandbox.allow(BitPal.Repo, parent, self())
+    end
+
     opts =
       opts
       |> Keyword.put_new_lazy(:currency_id, &unique_currency_id/0)
@@ -63,7 +76,8 @@ defmodule BitPal.BackendMock do
 
     %{
       id: currency_id,
-      start: {__MODULE__, :start_link, [opts]}
+      start: {__MODULE__, :start_link, [opts]},
+      restart: :transient
     }
   end
 
@@ -104,21 +118,7 @@ defmodule BitPal.BackendMock do
 
   @impl true
   def init(opts) do
-    if parent = opts[:parent] do
-      Sandbox.allow(BitPal.Repo, parent, self())
-    end
-
-    currency_id = opts[:currency_id]
-
-    state =
-      Enum.into(opts, %{
-        height: block_height(currency_id),
-        auto: false,
-        tx_index: 0,
-        status: {:started, :ready}
-      })
-
-    # Should send status event here too
+    currency_id = Keyword.fetch!(opts, :currency_id)
 
     Registry.register(
       ProcessRegistry,
@@ -126,15 +126,61 @@ defmodule BitPal.BackendMock do
       __MODULE__
     )
 
+    Cache.put(BitPal.RuntimeStorage, self(), currency_id)
+
+    {:ok, opts, {:continue, :init}}
+  end
+
+  @impl true
+  def handle_continue(:init, opts) do
+    if parent = opts[:parent] do
+      Sandbox.allow(BitPal.Repo, parent, self())
+    end
+
+    currency_id = Keyword.fetch!(opts, :currency_id)
+    BackendStatusSupervisor.set_starting(currency_id)
+
+    cond do
+      # Add a small timeout when dying, to avoid a small possibility of getting a monitored
+      # {:error, :noproc} DOWN message instead of the message we expect in the test.
+      opts[:shutdown_init] ->
+        Process.sleep(10)
+        {:stop, {:shutdown, :shutdown_init}, opts}
+
+      opts[:fail_init] ->
+        Process.sleep(10)
+        {:stop, {:error, :fail_init}, opts}
+
+      true ->
+        {:noreply, opts, {:continue, :start}}
+    end
+  end
+
+  @impl true
+  def handle_continue(:start, opts) do
+    currency_id = Keyword.fetch!(opts, :currency_id)
+
+    state =
+      Enum.into(opts, %{
+        height: block_height(currency_id),
+        auto: false,
+        tx_index: 0
+      })
+
     BlockchainEvents.subscribe(currency_id)
 
     if state.auto do
       setup_auto_blocks(state)
     end
 
-    send_status_event(state)
+    if sync_time = opts[:sync_time] do
+      Process.send_after(self(), :sync_complete, sync_time)
+      BackendStatusSupervisor.set_syncing(currency_id, 0.5)
+    else
+      BackendStatusSupervisor.set_status(currency_id, opts[:status] || :ready)
+    end
 
-    {:ok, state}
+    {:noreply, state}
   end
 
   @impl true
@@ -157,25 +203,8 @@ defmodule BitPal.BackendMock do
   end
 
   @impl true
-  def handle_call(:status, _, state) do
-    {:reply, state.status, state}
-  end
-
-  @impl true
-  def handle_call(:start, _, state) do
-    sync_time = state[:sync_time]
-
-    if sync_time do
-      :timer.send_after(sync_time, :sync_complete)
-      {:reply, :ok, change_status(state, {:started, {:syncing, 0.12}})}
-    else
-      {:reply, :ok, sync_complete(state)}
-    end
-  end
-
-  @impl true
-  def handle_call(:stop, _, state) do
-    {:reply, :ok, change_status(state, :stopped)}
+  def handle_call(:info, _, state) do
+    {:reply, %{}, state}
   end
 
   @impl true
@@ -217,6 +246,21 @@ defmodule BitPal.BackendMock do
   end
 
   @impl true
+  def handle_cast({:stop_with_error, error}, state) do
+    {:stop, {:error, error}, state}
+  end
+
+  @impl true
+  def handle_cast(:crash, _state) do
+    raise("BOOM!")
+  end
+
+  @impl true
+  def handle_info(:stop, state) do
+    {:stop, :shutdown, state}
+  end
+
+  @impl true
   def handle_info({{:block, _}, %{height: height}}, state) do
     # Allows us to set block height in tests after initiolizing backend.
     {:noreply, %{state | height: height}}
@@ -230,7 +274,7 @@ defmodule BitPal.BackendMock do
 
   @impl true
   def handle_info({:issue_blocks, block_count, time_between_blocks}, state) do
-    if is_started(state) do
+    if BackendManager.is_ready(state.currency_id) do
       {:noreply, update_issue_blocks(block_count, time_between_blocks, state)}
     else
       schedule_issue_blocks(block_count, time_between_blocks)
@@ -248,16 +292,8 @@ defmodule BitPal.BackendMock do
       setup_auto_blocks(state)
     end
 
-    change_status(state, {:started, :ready})
-  end
+    BackendStatusSupervisor.set_ready(state.currency_id)
 
-  defp change_status(state, new_status) do
-    %{state | status: new_status}
-    |> send_status_event()
-  end
-
-  defp send_status_event(state = %{status: status, currency_id: currency_id}) do
-    BackendEvents.broadcast({{:backend, status}, currency_id})
     state
   end
 
@@ -292,10 +328,6 @@ defmodule BitPal.BackendMock do
 
   defp setup_auto_blocks(state) do
     schedule_issue_blocks(:inf, Map.get(state, :time_between_blocks, 5_000))
-  end
-
-  defp is_started(state) do
-    state.status == {:started, :ready}
   end
 
   defp setup_auto_invoice(invoice, state) do

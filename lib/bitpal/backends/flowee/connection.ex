@@ -23,10 +23,16 @@ defmodule BitPal.Backend.Flowee.Connection do
 
   use Bitwise
   alias BitPal.Backend.Flowee.Connection
+  alias BitPal.BCH.Cashaddress
   require Logger
 
   # Struct for the connection itself. Create using "connect".
   defstruct client: nil, data: nil
+
+  @type t :: %__MODULE__{
+          client: term,
+          data: term
+        }
 
   defmodule Binary do
     @moduledoc """
@@ -35,8 +41,8 @@ defmodule BitPal.Backend.Flowee.Connection do
 
     defstruct data: <<>>
 
-    def to_string(binary) do
-      binary[:data]
+    def to_hex(%Binary{data: data}) do
+      Cashaddress.binary_to_hex(data)
     end
 
     def to_binary(data) do
@@ -57,6 +63,16 @@ defmodule BitPal.Backend.Flowee.Connection do
               seq_start: nil,
               last: nil,
               data: []
+
+    @type t :: %RawMsg{
+            service: term,
+            message: term,
+            ping: boolean,
+            pong: boolean,
+            seq_start: term,
+            last: term,
+            data: [term]
+          }
   end
 
   # Tags used in the header
@@ -73,10 +89,17 @@ defmodule BitPal.Backend.Flowee.Connection do
 
   Returns a connection object that can be passed to send and recv in here.
   """
+  @spec connect(module, :inet.socket_address() | :inet.hostname(), :inet.port_number()) ::
+          {:ok, Connection.t()} | {:error, term}
   def connect(tcp_client, host \\ {127, 0, 0, 1}, port \\ 1235) do
     # Would be nice if we could get a packet in little endian mode. Now, we need to handle that ourselves...
-    {:ok, c} = tcp_client.connect(host, port, [:binary, {:packet, 0}, {:active, false}])
-    %Connection{client: tcp_client, data: c}
+    case tcp_client.connect(host, port, [:binary, {:packet, 0}, {:active, false}]) do
+      {:ok, c} ->
+        {:ok, %Connection{client: tcp_client, data: c}}
+
+      err ->
+        err
+    end
   end
 
   @doc """
@@ -98,25 +121,38 @@ defmodule BitPal.Backend.Flowee.Connection do
   Receive a high-level message. We will parse the header here since we need to merge long messages, etc.
   Returns a RawMsg with the appropriate fields set.
   """
+  @spec recv(Connection.t()) :: {:ok, RawMsg.t()} | {:error, term}
   def recv(connection) do
-    data = recv_packet(connection)
-    # IO.puts("received: #{inspect(data, limit: :infinity)}")
-    {header, rem} = parse_header(data)
-    recv(connection, header, rem)
+    case recv_packet(connection) do
+      {:ok, data} ->
+        {header, rem} = parse_header(data)
+        recv(connection, header, rem)
+
+      error ->
+        error
+    end
   end
 
   # Internal helper for receiving messages.
+  @spec recv(Connection.t(), map, term) :: {:ok, RawMsg.t()} | {:error, term}
   defp recv(connection, header, data) do
     if header.last == false do
       # More data... Ignore the next header mostly.
-      {new_header, more_data} = parse_header(recv_packet(connection))
-      # Note: It might be important to check the header here since there might be other messages
-      # that are interleaved with chained messages. The docs does not state if this is a
-      # possibility, but from a quick glance at the code, I don't think so.
-      recv(connection, %{header | last: new_header.last}, data <> more_data)
+      case recv_packet(connection) do
+        {:ok, packet} ->
+          {new_header, more_data} = parse_header(packet)
+
+          # Note: It might be important to check the header here since there might be other messages
+          # that are interleaved with chained messages. The docs does not state if this is a
+          # possibility, but from a quick glance at the code, I don't think so.
+          recv(connection, %RawMsg{header | last: new_header.last}, data <> more_data)
+
+        error ->
+          error
+      end
     else
-      # Last packet! Either header.last == true or header.last == nil
-      %{header | data: deserialize(data)}
+      # Last packet!
+      {:ok, %RawMsg{header | data: deserialize(data)}}
     end
   end
 
@@ -129,14 +165,11 @@ defmodule BitPal.Backend.Flowee.Connection do
 
   # Receive a packet.
   defp recv_packet(connection) do
-    case connection.client.recv(connection.data, 2) do
-      {:ok, <<size_low, size_high>>} ->
-        size = size_high * 256 + size_low
-        {:ok, data} = connection.client.recv(connection.data, size - 2)
-        data
-
-      {:error, msg} ->
-        msg
+    with {:ok, <<size_low, size_high>>} <- connection.client.recv(connection.data, 2),
+         {:ok, data} <- connection.client.recv(connection.data, size_high * 256 + size_low - 2) do
+      {:ok, data}
+    else
+      error -> error
     end
   end
 

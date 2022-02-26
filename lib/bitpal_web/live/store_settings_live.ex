@@ -23,7 +23,7 @@ defmodule BitPalWeb.StoreSettingsLive do
   @impl true
   def render(assigns) do
     template = Atom.to_string(assigns.live_action) <> ".html"
-    render_existing(BitPalWeb.StoreSettingsView, template, assigns)
+    render(BitPalWeb.StoreSettingsView, template, assigns)
   end
 
   @impl true

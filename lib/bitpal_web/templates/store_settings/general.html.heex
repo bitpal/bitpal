@@ -2,11 +2,10 @@
   <:header>
     General
   </:header>
-
   <.form let={f} for={@edit_store} phx-submit="edit_store" id="edit-store">
-    <%= error_tag f, :label %>
-    <%= text_input f, :label, placeholder: "Store label", required: true %>
+    <%= error_tag(f, :label) %>
+    <%= text_input(f, :label, placeholder: "Store label", required: true) %>
 
-    <%= submit "Update label" %>
+    <%= submit("Update label") %>
   </.form>
 </.layout>

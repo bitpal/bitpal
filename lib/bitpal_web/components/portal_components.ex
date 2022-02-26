@@ -21,10 +21,14 @@ defmodule BitPalWeb.PortalComponent do
   end
 
   def flex_table(assigns) do
-    assigns = Map.put(assigns, :extra_class, Map.get(assigns, :class, ""))
+    assigns =
+      assigns
+      |> Map.put(:extra_class, Map.get(assigns, :class, ""))
+      |> Map.put_new(:header, true)
 
     ~H"""
-      <table class={"flex-table #{@extra_class}"}>
+    <table class={"flex-table #{@extra_class}"}>
+      <%= if @header do %>
         <thead>
           <tr>
             <%= for col <- @col do %>
@@ -32,16 +36,52 @@ defmodule BitPalWeb.PortalComponent do
             <% end %>
           </tr>
         </thead>
-        <tbody>
-          <%= for row <- @rows do %>
-            <tr>
-              <%= for col <- @col do %>
-                <td><%= render_slot(col, row) %></td>
+      <% end %>
+      <tbody>
+        <%= for row <- @rows do %>
+          <tr>
+            <%= for col <- @col do %>
+              <td><%= render_slot(col, row) %></td>
+            <% end %>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+    """
+  end
+
+  def side_nav(assigns) do
+    ~H"""
+    <div class="side-nav-wrapper">
+      <nav class="side-nav">
+        <%= for group <- @group do %>
+          <div class="group">
+            <%= if label = group[:label] do %>
+              <div class="label">
+                <%= label %>
+              </div>
+            <% end %>
+
+            <ul>
+              <%= for {label, to} <- group.links do %>
+                <li>
+                  <%= active_live_link(
+                    to: to,
+                    from: @uri,
+                    label: label,
+                    patch: true
+                  ) %>
+                </li>
               <% end %>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
+            </ul>
+          </div>
+        <% end %>
+      </nav>
+
+      <div class="side-content">
+        <%= render_slot(@inner_block) %>
+      </div>
+    </div>
     """
   end
 end

@@ -20,8 +20,27 @@ table.flex-table {
 }
 
 table.stores-table {
-  max-width: 400px;
+  max-width: 600px;
   grid-template-columns: repeat(2, 1fr);
+  margin-top: $spc-16;
+  margin-bottom: $spc-8;
+
+  th {
+    background-color: $dark-purple-200;
+  }
+
+  tr:hover td {
+    background-color: $purple-100;
+  }
+  tr > td,
+  tr > th {
+    border-bottom: 1px solid $brown-100;
+  }
+}
+
+table.backends-table {
+  max-width: 600px;
+  grid-template-columns: repeat(3, 1fr);
   margin-top: $spc-16;
   margin-bottom: $spc-8;
 
