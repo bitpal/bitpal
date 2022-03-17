@@ -40,7 +40,7 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
         |> render_submit(%{"store" => %{label: ""}})
 
       assert rendered =~ html_string("can't be blank")
-      assert rendered =~ store.label
+      assert rendered =~ html_string(store.label)
     end
   end
 

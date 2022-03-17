@@ -173,12 +173,22 @@ defmodule BackendManagerTest do
       {:ok, {mock, _}} = BackendManager.fetch_backend(manager, currency_id)
       BackendMock.crash(mock)
 
-      assert_receive {{:backend, :status},
-                      %{status: {:stopped, {:error, :unknown}}, currency_id: ^currency_id}}
+      # Wait until the mock has been restarted, will happen immediately.
+      assert eventually(fn ->
+               {:ok, {mock2, _}} = BackendManager.fetch_backend(manager, currency_id)
+               mock != mock2
+             end)
+
+      # This forces the backend manager to handle the DOWN message first,
+      # making sure we have waited for the messages to have been sent.
+      _ = BackendManager.backend_supervisor(manager)
+
+      assert_received {{:backend, :status},
+                       %{status: {:stopped, {:error, :unknown}}, currency_id: ^currency_id}}
 
       # After a crash it should be restarted.
-      assert_receive {{:backend, :status}, %{status: :starting, currency_id: ^currency_id}}
-      assert_receive {{:backend, :status}, %{status: :ready, currency_id: ^currency_id}}
+      assert_received {{:backend, :status}, %{status: :starting, currency_id: ^currency_id}}
+      assert_received {{:backend, :status}, %{status: :ready, currency_id: ^currency_id}}
     end
 
     @tag local_manager: true, subscribe: true
@@ -187,6 +197,13 @@ defmodule BackendManagerTest do
 
       {:ok, {mock, _}} = BackendManager.fetch_backend(manager, currency_id)
       BackendMock.stop_with_error(mock, :econnerror)
+
+      # Wait until the mock has been restarted, will take some time as we'll
+      # wait for the DOWN message handling.
+      assert eventually(fn ->
+               {:ok, {mock2, _}} = BackendManager.fetch_backend(manager, currency_id)
+               mock != mock2
+             end)
 
       assert_receive {{:backend, :status},
                       %{status: {:stopped, {:error, :econnerror}}, currency_id: ^currency_id}}

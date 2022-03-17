@@ -18,6 +18,12 @@ defmodule BitPalFactory.UtilFactory do
   @spec rand_pos_float(float) :: float
   def rand_pos_float(max \\ 1.0), do: :rand.uniform() * max
 
+  @spec rand_decimal(float) :: Decimal.t()
+  def rand_decimal(max \\ 1_000.0) do
+    {:ok, dec} = Decimal.cast(rand_pos_float(max))
+    dec
+  end
+
   @spec split_money(Money.t(), non_neg_integer) :: [Money.t()]
   def split_money(_money = %Money{}, 0), do: []
   def split_money(money = %Money{}, 1), do: [money]
