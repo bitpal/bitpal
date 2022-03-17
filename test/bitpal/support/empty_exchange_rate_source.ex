@@ -1,20 +1,19 @@
-defmodule BitPal.ExchangeRate.Sources.Random do
+defmodule BitPal.ExchangeRate.Sources.Empty do
   @behaviour BitPal.ExchangeRate.Source
 
-  alias BitPalFactory.UtilFactory
   alias BitPalSettings.ExchangeRateSettings
 
   @impl true
   def rate_limit_settings do
     %{
-      timeframe: 10,
+      timeframe: 1_000,
       timeframe_max_requests: 10,
       timeframe_unit: :milliseconds
     }
   end
 
   @impl true
-  def name, do: "Random"
+  def name, do: "Empty"
 
   @impl true
   def supported do
@@ -29,18 +28,5 @@ defmodule BitPal.ExchangeRate.Sources.Random do
   def request_type, do: :multi
 
   @impl true
-  def rates(opts) do
-    from = Keyword.fetch!(opts, :from)
-    to = Keyword.fetch!(opts, :to)
-
-    Enum.reduce(from, %{}, fn crypto_id, acc ->
-      Map.put(
-        acc,
-        crypto_id,
-        Enum.reduce(to, %{}, fn fiat_id, acc ->
-          Map.put(acc, fiat_id, UtilFactory.rand_decimal())
-        end)
-      )
-    end)
-  end
+  def rates(_opts), do: %{}
 end

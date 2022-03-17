@@ -1,84 +1,84 @@
 defmodule BitPalApi.ExchangeRateChannel do
   use BitPalApi, :channel
+  alias BitPal.Currencies
   alias BitPal.ExchangeRate
-  alias BitPal.ExchangeRateSupervisor
+  alias BitPal.ExchangeRates
+  alias BitPal.ExchangeRateEvents
   alias BitPalApi.ExchangeRateView
   require Logger
 
   @impl true
-  def join("exchange_rate:" <> pair, payload, socket) do
-    with :authorized <- authorized?(payload),
-         {:ok, _pair} <- ExchangeRate.parse_pair(pair) do
-      {:ok, socket}
+  def join("exchange_rate", _payload, socket) do
+    ExchangeRateEvents.subscribe()
+    {:ok, socket}
+  end
+
+  @impl true
+  def handle_info({{:exchange_rate, :update}, rate}, socket) do
+    broadcast!(socket, "updated_exchange_rate", ExchangeRateView.render("show.json", rate: rate))
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_in(event, params, socket) do
+    handle_event(event, params, socket)
+  rescue
+    error -> {:reply, {:error, render_error(error)}, socket}
+  end
+
+  def handle_event("get", %{"base" => base, "quote" => xquote}, socket) do
+    with base <- cast_currency!(base, "base"),
+         xquote <- cast_currency!(xquote, "quote"),
+         {:ok, rate} <- ExchangeRates.fetch_exchange_rate({base, xquote}) do
+      {:reply, {:ok, ExchangeRateView.render("show.json", rate: rate)}, socket}
     else
-      :unauthorized ->
-        render_error(%UnauthorizedError{})
-
-      {:error, :bad_pair} ->
-        invalid_exchange_rate_error(pair)
-
       _ ->
-        render_error(%InternalServerError{})
+        raise NotFoundError,
+          param: "pair",
+          message:
+            "Exchange rate for pair `#{String.upcase(base)}-#{String.upcase(xquote)}` not found"
     end
   end
 
-  @impl true
-  def handle_in("rate", %{"from" => from, "to" => to}, socket) do
-    case ExchangeRate.parse_pair({from, to}) do
-      {:ok, pair} ->
-        handle_rate_request(pair, socket)
+  def handle_event("get", %{"base" => base}, socket) do
+    base = cast_currency!(base, "base")
+    rates = ExchangeRates.fetch_exchange_rates_with_base(base)
 
-      {:error, :bad_pair} ->
-        {:reply, invalid_exchange_rate_error(from, to), socket}
+    if Enum.any?(rates) do
+      {:reply, {:ok, ExchangeRateView.render("show.json", base: base, rates: rates)}, socket}
+    else
+      raise NotFoundError,
+        param: "base",
+        message: "Exchange rate for `#{base}` not found"
     end
   end
 
-  @impl true
-  def handle_in(event, _params, socket) do
+  def handle_event("get", _params, socket) do
+    rates =
+      ExchangeRates.all_exchange_rates()
+      |> Enum.group_by(
+        fn %ExchangeRate{pair: {base, _}} -> base end,
+        fn v -> v end
+      )
+
+    {:reply, {:ok, ExchangeRateView.render("index.json", rates: rates)}, socket}
+  end
+
+  def handle_event(event, _params, socket) do
     Logger.error("unhandled event #{event}")
     {:noreply, socket}
   end
 
-  defp handle_rate_request(pair, socket) do
-    case ExchangeRateSupervisor.request(pair) do
-      # We have a cached rate, we can reply directly
-      {:cached, rate} ->
-        {:reply, response(rate), socket}
+  defp cast_currency!(currency, param) do
+    case Currencies.cast(currency) do
+      {:ok, id} ->
+        id
 
-      # We need to update the exchange rate, reply in an async manner
-      :updating ->
-        Task.Supervisor.start_child(
-          BitPal.TaskSupervisor,
-          __MODULE__,
-          :reply_request,
-          [pair, socket_ref(socket)]
-        )
-
-        {:noreply, socket}
+      _ ->
+        raise RequestFailedError,
+          param: param,
+          message: "Currency `#{currency}` is invalid or not supported",
+          code: "invalid_currency"
     end
-  end
-
-  def reply_request(pair, ref) do
-    rate = ExchangeRateSupervisor.await_request!(pair)
-    reply(ref, response(rate))
-  end
-
-  defp response(rate) do
-    {:ok, ExchangeRateView.render("rate_response.json", %{rate: rate})}
-  end
-
-  defp invalid_exchange_rate_error(from, to) do
-    invalid_exchange_rate_error("#{from}-#{to}")
-  end
-
-  defp invalid_exchange_rate_error(pair) do
-    render_error(%BadRequestError{
-      code: "invalid_exchange_rate",
-      message: "Invalid exchange rate '#{pair}'"
-    })
-  end
-
-  defp authorized?(_payload) do
-    :authorized
   end
 end

@@ -10,10 +10,10 @@ defmodule BitPalApi.ExchangeRateView do
 
   def render("show.json", %{base: base, rates: rates}) do
     %{
-      base: base,
+      base: Atom.to_string(base),
       rates:
         Enum.reduce(rates, %{}, fn %ExchangeRate{rate: rate, pair: {^base, xquote}}, acc ->
-          Map.put(acc, xquote, rate)
+          Map.put(acc, Atom.to_string(xquote), rate)
         end)
     }
   end

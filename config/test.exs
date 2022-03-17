@@ -5,6 +5,8 @@ config :bitpal,
 
 config :bitpal, BitPal.ExchangeRate,
   sources: [
+    # Empty is only used for manual tests that require manual rates for a source.
+    {BitPal.ExchangeRate.Sources.Empty, prio: 1_000},
     {BitPal.ExchangeRate.Sources.Random, prio: 100}
   ],
   # These are overridden by tests when it matters, but they still need to exist.
@@ -61,4 +63,4 @@ config :ex_unit, assert_receive_timeout: 200
 config :logger, level: :warning
 # Can use this to hide GenServer shutdown errors, generated from our backend tests
 # when the backends are made to crash or killed after a local test.
-config :logger, level: :critical
+# config :logger, level: :critical
