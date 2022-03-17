@@ -1,5 +1,25 @@
 import Config
 
+config :bitpal,
+  backends: []
+
+config :bitpal, BitPal.ExchangeRate,
+  sources: [
+    {BitPal.ExchangeRate.Sources.Random, prio: 100}
+  ],
+  # These are overridden by tests when it matters, but they still need to exist.
+  rates_refresh_rate: 1_000 * 60 * 1,
+  supported_refresh_rate: 1_000 * 60 * 60 * 24,
+  request_timeout: 5_000,
+  retry_timeout: 5_000,
+  # These pairs are used by tests.
+  fiat_to_update: [
+    :EUR,
+    :SEK,
+    :USD
+  ],
+  extra_crypto_to_update: [:BTC, :BCH, :XMR, :DGC, :LTC]
+
 config :bitpal, BitPal.Repo,
   username: "postgres",
   password: "postgres",
@@ -34,6 +54,8 @@ config :bitpal, :BCH,
 config :bitpal, BitPalFactory, init: true
 
 config :bitpal, BitPal.BackendManager, reconnect_timeout: 10
+
+config :ex_unit, assert_receive_timeout: 200
 
 config :logger, level: :warning
 # Can use this to hide GenServer shutdown errors, generated from our backend tests
