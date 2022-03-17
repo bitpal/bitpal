@@ -2,37 +2,56 @@ defmodule BitPalApi.ExchangeRateController do
   use BitPalApi, :controller
   alias BitPal.Currencies
   alias BitPal.ExchangeRate
-  alias BitPal.ExchangeRateSupervisor
+  alias BitPal.ExchangeRates
 
-  def index(conn, %{"basecurrency" => from}) do
-    with {:ok, basecurrency} <- Currencies.cast(from),
-         {:ok, supported} <- ExchangeRateSupervisor.supported(basecurrency) do
-      # NOTE we need to request many rates, but then our backend might get hung up...
-      # For this to be efficient we should have a task that keeps it up to date instead of us polling
-      # Or combine rate requests into a single request
-      rates =
-        supported
-        |> Enum.map(fn currency ->
-          ExchangeRateSupervisor.request({basecurrency, currency})
-          currency
-        end)
-        |> Enum.flat_map(fn currency ->
-          [ExchangeRateSupervisor.await_request!({basecurrency, currency})]
-        end)
+  def index(conn, _) do
+    rates =
+      ExchangeRates.all_exchange_rates()
+      |> Enum.group_by(
+        fn %ExchangeRate{pair: {base, _}} -> base end,
+        fn v -> v end
+      )
 
-      render(conn, "index.json", rates: rates)
+    render(conn, "index.json", rates: rates)
+  end
+
+  def base(conn, %{"base" => base}) do
+    base = cast_currency!(base, "base")
+    rates = ExchangeRates.fetch_exchange_rates_with_base(base)
+
+    if Enum.any?(rates) do
+      render(conn, "show.json", base: base, rates: rates)
     else
-      _ ->
-        raise NotFoundError, param: "basecurrency"
+      raise NotFoundError,
+        param: "base",
+        message: "Exchange rate for `#{base}` not found"
     end
   end
 
-  def show(conn, %{"basecurrency" => from, "currency" => to}) do
-    with {:ok, pair} <- ExchangeRate.parse_pair({from, to}),
-         rate <- ExchangeRateSupervisor.fetch!(pair) do
+  def pair(conn, %{"base" => base, "quote" => xquote}) do
+    with base <- cast_currency!(base, "base"),
+         xquote <- cast_currency!(xquote, "quote"),
+         {:ok, rate} <- ExchangeRates.fetch_exchange_rate({base, xquote}) do
       render(conn, "show.json", rate: rate)
     else
-      _ -> raise NotFoundError, param: "basecurrency"
+      _ ->
+        raise NotFoundError,
+          param: "pair",
+          message:
+            "Exchange rate for pair `#{String.upcase(base)}-#{String.upcase(xquote)}` not found"
+    end
+  end
+
+  defp cast_currency!(currency, param) do
+    case Currencies.cast(currency) do
+      {:ok, id} ->
+        id
+
+      _ ->
+        raise RequestFailedError,
+          param: param,
+          message: "Currency `#{currency}` is invalid or not supported",
+          code: "invalid_currency"
     end
   end
 end

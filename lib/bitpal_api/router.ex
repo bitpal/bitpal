@@ -26,8 +26,9 @@ defmodule BitPalApi.Router do
     get("/transactions/:txid", TransactionController, :show)
     get("/transactions", TransactionController, :index)
 
-    get("/rates/:basecurrency", ExchangeRateController, :index)
-    get("/rates/:basecurrency/:currency", ExchangeRateController, :show)
+    get("/rates", ExchangeRateController, :index)
+    get("/rates/:base", ExchangeRateController, :base)
+    get("/rates/:base/:quote", ExchangeRateController, :pair)
 
     get("/currencies", CurrencyController, :index)
     get("/currencies/:id", CurrencyController, :show)

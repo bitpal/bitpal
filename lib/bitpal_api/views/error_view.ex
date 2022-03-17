@@ -29,12 +29,13 @@ defmodule BitPalApi.ErrorView do
     }
   end
 
-  def render_error(error = %RequestFailedError{code: code}) do
+  def render_error(error = %RequestFailedError{}) do
     %{
       type: "invalid_request_error",
       message: error.message
     }
-    |> put_unless_nil(:code, code)
+    |> put_unless_nil(:code, error.code)
+    |> put_unless_nil(:param, error.param)
   end
 
   def render_error(error = %NotFoundError{param: param}) when is_binary(param) do
