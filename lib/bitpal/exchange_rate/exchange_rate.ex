@@ -2,6 +2,7 @@ defmodule BitPal.ExchangeRate do
   alias BitPal.Currencies
   alias BitPalSchemas.Currency
 
+  # FIXME rename all base/quote
   @type pair :: {Currency.id(), Currency.id()}
   @type t :: %__MODULE__{
           rate: Decimal.t(),

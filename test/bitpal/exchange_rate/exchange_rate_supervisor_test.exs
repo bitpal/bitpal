@@ -1,162 +1,112 @@
 defmodule BitPal.ExchangeRateSupervisorTest do
-  # # NOTE these randomly fail!
-  #
-  # use ExUnit.Case, async: false
-  # import BitPal.TestHelpers
-  # alias BitPal.ExchangeRate
-  # alias BitPal.ExchangeRateSupervisor
-  # alias BitPal.ExchangeRateSupervisor.Result
-  #
-  # @bchusd {:BCH, :USD}
-  # def bchusd_rate do
-  #   ExchangeRate.new!(Decimal.from_float(815.27), @bchusd)
-  # end
-  #
-  # @bcheur {:BCH, :EUR}
-  # def bcheur_rate do
-  #   ExchangeRate.new!(Decimal.from_float(741.62), @bcheur)
-  # end
-  #
-  # defmodule TestBackend do
-  #   @behaviour BitPal.ExchangeRate.Backend
-  #
-  #   @impl true
-  #   def name, do: "test"
-  #
-  #   @impl true
-  #   def supported, do: %{BCH: [:USD, :EUR]}
-  #
-  #   @impl true
-  #   def compute(pair, opts) do
-  #     if timeout = opts[:test_timeout] do
-  #       Process.sleep(timeout)
-  #     end
-  #
-  #     if opts[:test_crash] do
-  #       raise "boom"
-  #     else
-  #       score = Keyword.get(opts, :test_score, 2.0)
-  #
-  #       {:ok,
-  #        %Result{
-  #          score: score,
-  #          backend: __MODULE__,
-  #          rate: ExchangeRate.new!(Decimal.from_float(score), pair)
-  #        }}
-  #     end
-  #   end
-  # end
-  #
-  # defmodule TestBackendCurrencies do
-  #   @behaviour BitPal.ExchangeRate.Backend
-  #
-  #   @impl true
-  #   def name, do: "test"
-  #
-  #   @impl true
-  #   def supported, do: %{BCH: [:USD, :YEN], XMR: [:USD, :EUR]}
-  #
-  #   @impl true
-  #   def compute(pair, opts) do
-  #     if timeout = opts[:test_timeout] do
-  #       Process.sleep(timeout)
-  #     end
-  #
-  #     if opts[:test_crash] do
-  #       raise "boom"
-  #     else
-  #       score = Keyword.get(opts, :test_score, 2.0)
-  #
-  #       {:ok,
-  #        %Result{
-  #          score: score,
-  #          backend: __MODULE__,
-  #          rate: ExchangeRate.new!(Decimal.from_float(score), pair)
-  #        }}
-  #     end
-  #   end
-  # end
-  #
-  # setup tags do
-  #   start_supervised!(
-  #     {ExchangeRateSupervisor, ttl: tags[:ttl], ttl_check_interval: tags[:ttl_check_interval]}
-  #   )
-  #
-  #   :ok
-  # end
-  #
-  # test "request await" do
-  #   assert :updating = ExchangeRateSupervisor.request(@bchusd)
-  #   assert bchusd_rate() == ExchangeRateSupervisor.await_request!(@bchusd)
-  # end
-  #
-  # test "cached request" do
-  #   assert :updating = ExchangeRateSupervisor.request(@bchusd)
-  #   assert bchusd_rate() == ExchangeRateSupervisor.await_request!(@bchusd)
-  #   assert {:cached, bchusd_rate()} == ExchangeRateSupervisor.request(@bchusd)
-  # end
-  #
-  # @tag ttl: 10, ttl_check_interval: 1
-  # test "cache cleared" do
-  #   assert :updating = ExchangeRateSupervisor.request(@bchusd)
-  #   assert bchusd_rate() == ExchangeRateSupervisor.await_request!(@bchusd)
-  #   assert eventually(fn -> :updating == ExchangeRateSupervisor.request(@bchusd) end)
-  # end
-  #
-  # test "multiple backends" do
-  #   assert :updating =
-  #            ExchangeRateSupervisor.request(@bchusd,
-  #              backends: [BitPal.ExchangeRate.Kraken, TestBackend]
-  #            )
-  #
-  #   assert bchusd_rate() == ExchangeRateSupervisor.await_request!(@bchusd)
-  # end
-  #
-  # test "multiple rates" do
-  #   assert :updating = ExchangeRateSupervisor.request(@bchusd)
-  #   assert :updating = ExchangeRateSupervisor.request(@bcheur)
-  #   assert bchusd_rate() == ExchangeRateSupervisor.await_request!(@bchusd)
-  #   assert bcheur_rate() == ExchangeRateSupervisor.await_request!(@bcheur)
-  # end
-  #
-  # test "crashing" do
-  #   assert :updating =
-  #            ExchangeRateSupervisor.request(@bchusd, backends: [TestBackend], test_crash: true)
-  #
-  #   try do
-  #     ExchangeRateSupervisor.await_request!(@bchusd)
-  #     assert false
-  #   rescue
-  #     _ -> assert true
-  #   end
-  # end
-  #
-  # test "timeout" do
-  #   assert :updating =
-  #            ExchangeRateSupervisor.request(@bchusd,
-  #              backends: [TestBackend],
-  #              test_timeout: :infinity,
-  #              request_timeout: 10
-  #            )
-  #
-  #   try do
-  #     ExchangeRateSupervisor.await_request!(@bchusd)
-  #     assert false
-  #   rescue
-  #     _ -> assert true
-  #   end
-  # end
-  #
-  # test "supported" do
-  #   backends = [TestBackend, TestBackendCurrencies]
-  #
-  #   assert %{BCH: [:USD, :EUR, :YEN], XMR: [:USD, :EUR]} ==
-  #            ExchangeRateSupervisor.all_supported(backends: backends)
-  #
-  #   assert {:ok, [:USD, :EUR, :YEN]} ==
-  #            ExchangeRateSupervisor.supported(:BCH, backends: backends)
-  #
-  #   assert {:error, :not_found} ==
-  #            ExchangeRateSupervisor.supported(:XXX, backends: backends)
-  # end
+  use ExUnit.Case, async: false
+  use BitPal.CaseHelpers
+  import Mox
+  alias BitPal.ExchangeRateCache
+  alias BitPal.ExchangeRateSupervisor
+
+  setup :set_mox_from_context
+  setup :verify_on_exit!
+
+  setup _tags do
+    setup_mock(BitPal.ExchangeRate.MockSource, 1)
+    setup_mock(BitPal.ExchangeRate.MockSource2, 2)
+
+    name = unique_server_name()
+
+    start_supervised!(
+      {ExchangeRateSupervisor,
+       name: name,
+       sources: [
+         {BitPal.ExchangeRate.MockSource, prio: 50},
+         {BitPal.ExchangeRate.MockSource2, prio: 100}
+       ]}
+    )
+
+    %{name: name, cache_name: ExchangeRateSupervisor.cache_name(name)}
+  end
+
+  defp setup_mock(name, 1) do
+    name
+    |> expect(:supported, fn ->
+      %{
+        BCH: MapSet.new([:EUR, :USD]),
+        XMR: MapSet.new([:EUR, :SEK])
+      }
+    end)
+
+    name
+    |> stub(:rate_limit_settings, fn ->
+      %{
+        timeframe: 10,
+        timeframe_max_requests: 10,
+        timeframe_unit: :milliseconds
+      }
+    end)
+
+    name
+    |> stub(:request_type, fn -> :multi end)
+
+    name
+    |> stub(:rates, fn _ ->
+      %{
+        BCH: %{EUR: Decimal.new("1.1"), USD: Decimal.new("1.4")},
+        XMR: %{EUR: Decimal.new("1.15"), SEK: Decimal.new("10")}
+      }
+    end)
+  end
+
+  defp setup_mock(name, 2) do
+    name
+    |> expect(:supported, fn ->
+      %{
+        XMR: MapSet.new([:EUR, :USD])
+      }
+    end)
+
+    name
+    |> stub(:rate_limit_settings, fn ->
+      %{
+        timeframe: 10,
+        timeframe_max_requests: 10,
+        timeframe_unit: :milliseconds
+      }
+    end)
+
+    name
+    |> stub(:request_type, fn -> :multi end)
+
+    name
+    |> stub(:rates, fn _ ->
+      %{
+        XMR: %{EUR: Decimal.new("2.1"), USD: Decimal.new("2.4")}
+      }
+    end)
+  end
+
+  test "updates cache", %{cache_name: cache_name} do
+    dec = Decimal.new("1.1")
+
+    assert eventually(fn ->
+             {:ok, %{rate: ^dec}} =
+               ExchangeRateCache.fetch_exchange_rate(cache_name, {:BCH, :EUR})
+           end)
+
+    dec = Decimal.new("2.1")
+
+    assert eventually(fn ->
+             {:ok, %{rate: ^dec}} =
+               ExchangeRateCache.fetch_exchange_rate(cache_name, {:XMR, :EUR})
+           end)
+  end
+
+  test "all supported", %{name: name} do
+    assert eventually(fn ->
+             ExchangeRateSupervisor.all_supported(name) ==
+               %{
+                 BCH: MapSet.new([:EUR, :USD]),
+                 XMR: MapSet.new([:EUR, :USD, :SEK])
+               }
+           end)
+  end
 end

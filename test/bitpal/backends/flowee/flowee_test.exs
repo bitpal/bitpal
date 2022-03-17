@@ -13,7 +13,7 @@ defmodule BitPal.Backend.FloweeTest do
 
   @currency :BCH
   @xpub Application.compile_env!(:bitpal, [:BCH, :xpub])
-  @client FloweeMock
+  @client BitPal.FloweeMock
 
   setup :set_mox_from_context
 

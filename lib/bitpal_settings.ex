@@ -8,33 +8,6 @@ defmodule BitPalSettings do
     Application.fetch_env!(:bitpal, :backends)
   end
 
-  # Exchange rates
-
-  @spec exchange_rate_backends :: [module]
-  def exchange_rate_backends do
-    fetch_env!(:bitpal, BitPal.ExchangeRate, :backends)
-  end
-
-  @spec exchange_rate_timeout :: non_neg_integer
-  def exchange_rate_timeout do
-    fetch_env!(:bitpal, BitPal.ExchangeRate, :request_timeout)
-  end
-
-  @spec exchange_rate_refresh_rate :: non_neg_integer
-  def exchange_rate_refresh_rate do
-    fetch_env!(:bitpal, BitPal.ExchangeRate, :refresh_rate)
-  end
-
-  @spec exchange_rate_ttl :: non_neg_integer
-  def exchange_rate_ttl do
-    fetch_env!(:bitpal, BitPal.ExchangeRate, :cache_ttl)
-  end
-
-  @spec exchange_rate_ttl_check_interval :: non_neg_integer
-  def exchange_rate_ttl_check_interval do
-    fetch_env!(:bitpal, BitPal.ExchangeRate, :cache_ttl_check_interval)
-  end
-
   # Tests
 
   @spec http_client :: module

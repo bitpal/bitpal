@@ -21,17 +21,22 @@ defmodule BitPal.Cache do
     }
   end
 
-  @spec put(atom, term, term) :: :ok
+  @spec put(term, term, term) :: :ok
   def put(name \\ __MODULE__, key, val) do
     ConCache.put(name, key, val)
   end
 
-  @spec get(atom, term) :: term | nil
+  @spec update(term, term, ConCache.update_fun()) :: :ok | {:error, any}
+  def update(name \\ __MODULE__, key, update_fun) do
+    ConCache.update(name, key, update_fun)
+  end
+
+  @spec get(term, term) :: term | nil
   def get(name \\ __MODULE__, key) do
     ConCache.get(name, key)
   end
 
-  @spec fetch(atom, term) :: {:ok, term} | :error
+  @spec fetch(term, term) :: {:ok, term} | :error
   def fetch(name \\ __MODULE__, key) do
     if val = ConCache.get(name, key) do
       {:ok, val}
@@ -40,13 +45,13 @@ defmodule BitPal.Cache do
     end
   end
 
-  @spec fetch!(atom, term) :: term
+  @spec fetch!(term, term) :: term
   def fetch!(name \\ __MODULE__, key) do
     {:ok, val} = fetch(name, key)
     val
   end
 
-  @spec get_or_put_lazy(atom, term, (() -> term)) :: term
+  @spec get_or_put_lazy(term, term, (() -> term)) :: term
   def get_or_put_lazy(name \\ __MODULE__, key, default) do
     case fetch(name, key) do
       {:ok, res} ->
@@ -57,5 +62,17 @@ defmodule BitPal.Cache do
         :ok = put(name, key, value)
         value
     end
+  end
+
+  @spec all(term) :: [term]
+  def all(name \\ __MODULE__) do
+    ConCache.ets(name)
+    |> :ets.tab2list()
+  end
+
+  @spec delete_all(term) :: true
+  def delete_all(name \\ __MODULE__) do
+    ConCache.ets(name)
+    |> :ets.delete_all_objects()
   end
 end

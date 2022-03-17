@@ -1,128 +1,226 @@
-defmodule BitPal.ExchangeRate.Worker do
-  alias BitPal.Cache
-  alias BitPal.ExchangeRate
-  alias BitPal.ExchangeRateSupervisor.Result
+defmodule BitPal.ExchangeRateWorker do
+  use GenServer
   alias BitPal.ProcessRegistry
+  alias BitPal.RateLimiter
+  alias BitPal.ExchangeRate
+  alias BitPal.ExchangeRateCache
+  alias BitPal.ExchangeRateCache.Rate
+  alias BitPalSettings.ExchangeRateSettings
 
-  @supervisor BitPal.TaskSupervisor
-  @cache BitPal.ExchangeRate.Cache
+  def supported(worker) do
+    GenServer.call(worker, :supported)
+  end
 
-  # Client API
+  def rates(worker) do
+    GenServer.call(worker, :rates)
+  end
 
-  @spec start_worker(ExchangeRate.pair(), keyword) :: {:ok, pid} | :error
-  def start_worker(pair, opts \\ []) do
-    case get_worker(pair) do
-      {:ok, pid} ->
-        {:ok, pid}
+  def info(worker) do
+    GenServer.call(worker, :info)
+  end
+
+  def set_supported(source, supported) do
+    case fetch_worker(source) do
+      {:ok, worker} ->
+        GenServer.call(worker, {:set_supported, supported})
 
       _ ->
-        case Task.Supervisor.start_child(
-               @supervisor,
-               __MODULE__,
-               :compute,
-               [pair, opts],
-               shutdown: :brutal_kill
-             ) do
-          {:ok, pid} -> {:ok, pid}
-          {:ok, pid, _info} -> {:ok, pid}
-          {:error, {:already_started, pid}} -> {:ok, pid}
-          _ -> :error
-        end
+        nil
     end
   end
 
-  @spec await_worker(ExchangeRate.pair() | pid) :: :ok | {:error, :timeout}
-  def await_worker(pid) when is_pid(pid) do
-    ref = Process.monitor(pid)
+  def update_rates(source, rates) do
+    case fetch_worker(source) do
+      {:ok, worker} ->
+        GenServer.call(worker, {:update_rates, rates})
 
-    receive do
-      {:DOWN, ^ref, _, _, _} -> :ok
-    after
-      5_000 -> {:error, :timeout}
+      _ ->
+        nil
     end
   end
 
-  def await_worker(pair) do
-    case get_worker(pair) do
-      {:ok, pid} -> await_worker(pid)
-      _ -> :ok
-    end
+  def start_link(opts) do
+    GenServer.start_link(__MODULE__, opts)
   end
 
-  # Server API
-
-  @spec compute(ExchangeRate.pair(), keyword) :: :ok
-  def compute(pair, opts \\ []) do
-    Registry.register(ProcessRegistry, via_tuple(pair), pair)
-
-    backends = opts[:backends] || BitPalSettings.exchange_rate_backends()
-    timeout = opts[:request_timeout] || BitPalSettings.exchange_rate_timeout()
-
-    {uncached_backends, cached_results} = fetch_cached_results(backends, pair, opts)
-
-    uncached_backends
-    |> Enum.map(&async_compute(&1, pair, opts))
-    |> Task.yield_many(timeout)
-    |> Enum.map(fn
-      {_, {:ok, res}} -> res
-      {task, _} -> Task.shutdown(task, :brutal_kill)
-    end)
-    |> Enum.flat_map(fn
-      {:ok, res} -> [res]
-      _ -> []
-    end)
-    |> write_results_to_cache(pair, opts)
-    |> Kernel.++(cached_results)
-    |> Enum.sort(&(&1.score >= &2.score))
-    |> List.first()
-    |> write_final_result(pair)
+  def child_spec(opts) do
+    %{
+      id: {__MODULE__, Keyword.fetch!(opts, :source)},
+      restart: :permanent,
+      start: {__MODULE__, :start_link, [opts]}
+    }
   end
 
-  # Internal
+  @impl true
+  def init(opts) do
+    source = Keyword.fetch!(opts, :source)
+    prio = Keyword.fetch!(opts, :prio)
+    cache_name = Keyword.fetch!(opts, :cache_name)
 
-  defp async_compute(backend, pair, opts) do
-    Task.Supervisor.async_nolink(
-      @supervisor,
-      BitPal.ExchangeRate.Backend,
-      :compute,
-      [backend, pair, opts],
-      shutdown: :brutal_kill
+    supported_refresh_rate =
+      Keyword.get(opts, :supported_refresh_rate, ExchangeRateSettings.supported_refresh_rate())
+
+    rates_refresh_rate =
+      Keyword.get(opts, :rates_refresh_rate, ExchangeRateSettings.rates_refresh_rate())
+
+    retry_timeout = Keyword.get(opts, :retry_timeout, ExchangeRateSettings.retry_timeout())
+
+    rate_limit_settings =
+      source.rate_limit_settings()
+      |> Map.put(:retry_timeout, retry_timeout)
+      |> Enum.into([])
+
+    {:ok, rate_limiter} = RateLimiter.start_link(rate_limit_settings)
+
+    send(self(), :fetch_supported)
+
+    Registry.register(
+      ProcessRegistry,
+      via_tuple(source),
+      __MODULE__
     )
+
+    state = %{
+      source: source,
+      prio: prio,
+      cache_name: cache_name,
+      rate_limiter: rate_limiter,
+      supported_refresh_rate: supported_refresh_rate,
+      rates_refresh_rate: rates_refresh_rate,
+      supported: %{},
+      rates: %{}
+    }
+
+    {:ok, state}
   end
 
-  defp fetch_cached_results(backends, pair, opts) do
-    {uncached_backends, results} =
-      Enum.reduce(
-        backends,
-        {[], []},
-        fn backend, {uncached_backends, acc_results} ->
-          case Cache.fetch(@cache, {backend.name(), pair, opts[:limit]}) do
-            {:ok, results} -> {uncached_backends, [results | acc_results]}
-            :error -> {[backend | uncached_backends], acc_results}
+  defp via_tuple(source) do
+    ProcessRegistry.via_tuple({__MODULE__, source})
+  end
+
+  @impl true
+  def handle_info(:update_rates, state) do
+    fiat_to_update = ExchangeRateSettings.fiat_to_update()
+    crypto_to_update = ExchangeRateSettings.crypto_to_update()
+
+    case state.source.request_type() do
+      :pair ->
+        for crypto_id <- crypto_to_update do
+          if supported = Map.get(state.supported, crypto_id) do
+            for fiat_id <- fiat_to_update do
+              if MapSet.member?(supported, fiat_id) do
+                send(self(), {:update, pair: {crypto_id, fiat_id}})
+              end
+            end
           end
         end
-      )
 
-    {uncached_backends, List.flatten(results)}
+      :from ->
+        for crypto_id <- crypto_to_update do
+          if Map.has_key?(state.supported, crypto_id) do
+            send(self(), {:update, from: crypto_id})
+          end
+        end
+
+      :multi ->
+        crypto = Enum.filter(crypto_to_update, fn id -> Map.has_key?(state.supported, id) end)
+
+        send(self(), {:update, from: crypto, to: fiat_to_update})
+    end
+
+    Process.send_after(self(), :update_rates, state.rates_refresh_rate)
+
+    {:noreply, state}
   end
 
-  defp write_results_to_cache(results, pair, opts) do
-    Enum.map(results, fn %Result{backend: backend} = result ->
-      :ok = Cache.put(@cache, {backend.name(), pair, opts[:limit]}, result)
-      result
-    end)
+  @impl true
+  def handle_info(:fetch_supported, state) do
+    RateLimiter.make_request(
+      state.rate_limiter,
+      {state.source, :supported, []},
+      {__MODULE__, :set_supported, [state.source]}
+    )
+
+    {:noreply, state}
   end
 
-  @spec write_final_result(Result.t(), ExchangeRate.pair()) :: :ok
-  defp write_final_result(nil, _pair), do: :ok
-  defp write_final_result(res, pair), do: Cache.put(@cache, pair, res.rate)
+  @impl true
+  def handle_info({:update, opts}, state) do
+    RateLimiter.make_request(
+      state.rate_limiter,
+      {state.source, :rates, [opts]},
+      {__MODULE__, :update_rates, [state.source]}
+    )
 
-  @spec get_worker(any) :: {:ok, pid} | {:error, :not_found}
-  def get_worker(pair) do
-    ProcessRegistry.get_process(via_tuple(pair))
+    {:noreply, state}
   end
 
-  defp via_tuple(pair) do
-    ProcessRegistry.via_tuple({__MODULE__, pair})
+  @impl true
+  def handle_call({:set_supported, supported}, _from, state) do
+    Process.send_after(self(), :fetch_supported, state.supported_refresh_rate)
+
+    # This is the first time, let's launch rate updates
+    if state.supported == %{} && !Enum.empty?(supported) do
+      send(self(), :update_rates)
+    end
+
+    state =
+      state
+      |> Map.put(:supported, supported)
+
+    {:reply, :ok, state}
+  end
+
+  @impl true
+  def handle_call({:update_rates, updated_rates}, _from, state) do
+    fiat_to_update =
+      ExchangeRateSettings.fiat_to_update()
+      |> Enum.into(MapSet.new())
+
+    for {crypto_id, pairs} <- updated_rates do
+      for {fiat_id, rate} <- pairs do
+        if MapSet.member?(fiat_to_update, fiat_id) do
+          cached_rate = %Rate{
+            prio: state.prio,
+            source: state.source,
+            rate: ExchangeRate.new!(rate, {crypto_id, fiat_id}),
+            updated: NaiveDateTime.utc_now()
+          }
+
+          ExchangeRateCache.update_exchange_rate(state.cache_name, cached_rate)
+        end
+      end
+    end
+
+    new_rates =
+      Map.merge(state.rates, updated_rates, fn _k, v1, v2 ->
+        Map.merge(v1, v2)
+      end)
+
+    state =
+      state
+      |> Map.put(:rates, new_rates)
+
+    {:reply, :ok, state}
+  end
+
+  @impl true
+  def handle_call(:supported, _from, state) do
+    {:reply, state.supported, state}
+  end
+
+  @impl true
+  def handle_call(:rates, _from, state) do
+    {:reply, state.rates, state}
+  end
+
+  @impl true
+  def handle_call(:info, _from, state) do
+    {:reply, %{prio: state.prio, name: state.source.name()}, state}
+  end
+
+  @spec fetch_worker(module) :: {:ok, pid} | {:error, :not_found}
+  def fetch_worker(source) do
+    ProcessRegistry.get_process(via_tuple(source))
   end
 end
