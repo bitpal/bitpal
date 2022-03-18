@@ -32,23 +32,27 @@ defmodule BitPal.ExchangeRateCacheTest do
       rate3 = cache_rate(prio: 30, pair: pair, source: :THREE)
 
       ExchangeRateEvents.subscribe()
+      ExchangeRateEvents.subscribe_raw()
 
       # First will be updated
       ExchangeRateCache.update_exchange_rate(name, rate2)
       assert ExchangeRateCache.fetch_raw_exchange_rate(name, pair) == {:ok, rate2}
       rate = rate2.rate
+      assert_received {{:exchange_rate, :raw_update}, ^pair}
       assert_received {{:exchange_rate, :update}, ^rate}
 
       # Lower prio will not override
       ExchangeRateCache.update_exchange_rate(name, rate1)
       assert ExchangeRateCache.fetch_raw_exchange_rate(name, pair) == {:ok, rate2}
       rate = rate1.rate
+      assert_received {{:exchange_rate, :raw_update}, ^pair}
       refute_received {{:exchange_rate, :update}, ^rate}
 
       # Higher prio will override
       ExchangeRateCache.update_exchange_rate(name, rate3)
       assert ExchangeRateCache.fetch_raw_exchange_rate(name, pair) == {:ok, rate3}
       rate = rate3.rate
+      assert_received {{:exchange_rate, :raw_update}, ^pair}
       assert_received {{:exchange_rate, :update}, ^rate}
 
       assert ExchangeRateCache.fetch_raw_exchange_rates(name, pair) ==
@@ -62,6 +66,7 @@ defmodule BitPal.ExchangeRateCacheTest do
       rate3 = cache_rate(prio: 30, pair: pair, source: :THREE)
 
       ExchangeRateEvents.subscribe()
+      ExchangeRateEvents.subscribe_raw()
 
       ExchangeRateCache.update_exchange_rate(name, rate1)
       ExchangeRateCache.update_exchange_rate(name, rate2)
@@ -74,14 +79,17 @@ defmodule BitPal.ExchangeRateCacheTest do
 
       ExchangeRateCache.update_exchange_rate(name, rate1_2)
       rate = rate1_2.rate
+      assert_received {{:exchange_rate, :raw_update}, ^pair}
       refute_received {{:exchange_rate, :update}, ^rate}
 
       ExchangeRateCache.update_exchange_rate(name, rate2_2)
       rate = rate2_2.rate
+      assert_received {{:exchange_rate, :raw_update}, ^pair}
       refute_received {{:exchange_rate, :update}, ^rate}
 
       ExchangeRateCache.update_exchange_rate(name, rate3_2)
       rate = rate3_2.rate
+      assert_received {{:exchange_rate, :raw_update}, ^pair}
       assert_received {{:exchange_rate, :update}, ^rate}
 
       assert ExchangeRateCache.fetch_raw_exchange_rates(name, pair) ==

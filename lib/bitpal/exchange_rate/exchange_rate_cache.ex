@@ -17,53 +17,57 @@ defmodule BitPal.ExchangeRateCache do
 
   @spec update_exchange_rate(module, Rate.t()) :: :ok
   def update_exchange_rate(cache \\ __MODULE__, rate) do
-    Cache.update(
-      cache,
-      rate.rate.pair,
-      fn
-        nil ->
-          # First rate we have, issue an updated event.
-          broadcast_exchange_rate(rate)
-
-          {:ok, [rate]}
-
-        existing ->
-          existing = filter_expired(existing)
-
-          # If it exists, we should replace it. Otherwise insert it sorted.
-          # Having it all be list based may seem inefficient, but the count will be low as
-          # I don't expect us to have a lot of exchange rate sources.
-          replace_i = Enum.find_index(existing, fn stored -> stored.source == rate.source end)
-
-          if replace_i do
-            if replace_i == 0 do
-              # This is the highest prio source, issue an updated event.
-              broadcast_exchange_rate(rate)
-            end
-
-            # An existing source is here, replace it.
-            {:ok, List.replace_at(existing, replace_i, rate)}
-          else
-            # First source, insert it sorted.
-            insert_i = Enum.find_index(existing, fn stored -> rate.prio > stored.prio end)
-
-            if insert_i == 0 do
-              # This is the highest prio source, issue an updated event.
-              broadcast_exchange_rate(rate)
-            end
-
-            if insert_i do
-              {:ok, List.insert_at(existing, insert_i, rate)}
-            else
-              {:ok, existing ++ [rate]}
-            end
-          end
-      end
-    )
+    Cache.update(cache, rate.rate.pair, fn existing ->
+      broadcast_raw_change(rate.rate.pair)
+      cache_update(existing, rate)
+    end)
   end
 
-  defp broadcast_exchange_rate(rate) do
+  defp cache_update(nil, rate) do
+    # First rate of this pair
+    broadcast_updated_rate(rate)
+    {:ok, [rate]}
+  end
+
+  defp cache_update(existing, rate) do
+    existing = filter_expired(existing)
+
+    # If the source exists, we should replace it, otherwise insert it sorted.
+    # Having it all be list based may seem inefficient, but the count will be low as
+    # I don't expect us to have a lot of sources.
+    replace_i = Enum.find_index(existing, fn stored -> stored.source == rate.source end)
+
+    if replace_i do
+      if replace_i == 0 do
+        # This is the highest prio source, issue an updated event.
+        broadcast_updated_rate(rate)
+      end
+
+      # An existing source is here, replace it.
+      {:ok, List.replace_at(existing, replace_i, rate)}
+    else
+      # First source, insert it sorted.
+      insert_i = Enum.find_index(existing, fn stored -> rate.prio > stored.prio end)
+
+      if insert_i == 0 do
+        # This is the highest prio source, issue an updated event.
+        broadcast_updated_rate(rate)
+      end
+
+      if insert_i do
+        {:ok, List.insert_at(existing, insert_i, rate)}
+      else
+        {:ok, existing ++ [rate]}
+      end
+    end
+  end
+
+  defp broadcast_updated_rate(rate) do
     ExchangeRateEvents.broadcast({{:exchange_rate, :update}, rate.rate})
+  end
+
+  defp broadcast_raw_change(pair) do
+    ExchangeRateEvents.broadcast_raw({{:exchange_rate, :raw_update}, pair})
   end
 
   @spec fetch_raw_exchange_rates(term, ExchangeRate.pair()) :: {:ok, [Rate.t()]} | :error
