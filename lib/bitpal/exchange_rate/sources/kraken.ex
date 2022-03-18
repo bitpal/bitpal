@@ -9,6 +9,13 @@ defmodule BitPal.ExchangeRate.Sources.Kraken do
 
   alias BitPal.Currencies
 
+  @id_translation %{
+    BTC: :XBT
+  }
+  @rev_id_translation Enum.reduce(@id_translation, %{}, fn {id, name}, acc ->
+                        Map.put(acc, Atom.to_string(name), Atom.to_string(id))
+                      end)
+
   @asset_pairs_url "https://api.kraken.com/0/public/AssetPairs"
   @ticker_url "https://api.kraken.com/0/public/Ticker?pair="
 
@@ -47,8 +54,8 @@ defmodule BitPal.ExchangeRate.Sources.Kraken do
 
   defp into_pair(%{"wsname" => names}) do
     with [from, to] <- String.split(names, "/"),
-         {:ok, from} <- Currencies.cast(from),
-         {:ok, to} <- Currencies.cast(to) do
+         {:ok, from} <- from |> rev_transform_id() |> Currencies.cast(),
+         {:ok, to} <- to |> rev_transform_id() |> Currencies.cast() do
       {:ok, {from, to}}
     else
       _ ->
@@ -82,6 +89,14 @@ defmodule BitPal.ExchangeRate.Sources.Kraken do
   end
 
   defp pair2str({from, to}) do
-    Atom.to_string(from) <> Atom.to_string(to)
+    Atom.to_string(transform_id(from)) <> Atom.to_string(transform_id(to))
+  end
+
+  defp transform_id(base) do
+    Map.get(@id_translation, base, base)
+  end
+
+  defp rev_transform_id(base) do
+    Map.get(@rev_id_translation, base, base)
   end
 end
