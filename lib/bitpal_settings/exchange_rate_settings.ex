@@ -4,6 +4,7 @@ defmodule BitPalSettings.ExchangeRateSettings do
   @fiat_to_update Application.compile_env!(:bitpal, [BitPal.ExchangeRate, :fiat_to_update])
   @retry_timeout Application.compile_env!(:bitpal, [BitPal.ExchangeRate, :retry_timeout])
   @rates_refresh_rate Application.compile_env!(:bitpal, [BitPal.ExchangeRate, :rates_refresh_rate])
+  @rates_ttl Application.compile_env!(:bitpal, [BitPal.ExchangeRate, :rates_ttl])
   @supported_refresh_rate Application.compile_env!(
                             :bitpal,
                             [BitPal.ExchangeRate, :supported_refresh_rate]
@@ -30,4 +31,7 @@ defmodule BitPalSettings.ExchangeRateSettings do
 
   @spec supported_refresh_rate :: non_neg_integer
   def supported_refresh_rate, do: @supported_refresh_rate
+
+  @spec rates_ttl :: non_neg_integer
+  def rates_ttl, do: @rates_ttl
 end

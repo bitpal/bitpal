@@ -8,10 +8,11 @@ config :bitpal, BitPal.ExchangeRate,
     {BitPal.ExchangeRate.Sources.Random, prio: 100}
   ],
   # These are overridden by tests when it matters, but they still need to exist.
-  rates_refresh_rate: 1_000 * 60 * 1,
+  rates_refresh_rate: 1_000 * 60,
   supported_refresh_rate: 1_000 * 60 * 60 * 24,
   request_timeout: 5_000,
   retry_timeout: 5_000,
+  rates_ttl: 15_000 * 60,
   # These pairs are used by tests.
   fiat_to_update: [
     :EUR,

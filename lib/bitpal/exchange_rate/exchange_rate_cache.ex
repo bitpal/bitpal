@@ -2,6 +2,7 @@ defmodule BitPal.ExchangeRateCache do
   alias BitPal.Cache
   alias BitPal.ExchangeRate
   alias BitPal.ExchangeRateEvents
+  alias BitPalSettings.ExchangeRateSettings
 
   defmodule Rate do
     @type t :: %__MODULE__{
@@ -27,6 +28,8 @@ defmodule BitPal.ExchangeRateCache do
           {:ok, [rate]}
 
         existing ->
+          existing = filter_expired(existing)
+
           # If it exists, we should replace it. Otherwise insert it sorted.
           # Having it all be list based may seem inefficient, but the count will be low as
           # I don't expect us to have a lot of exchange rate sources.
@@ -65,13 +68,18 @@ defmodule BitPal.ExchangeRateCache do
 
   @spec fetch_raw_exchange_rates(term, ExchangeRate.pair()) :: {:ok, [Rate.t()]} | :error
   def fetch_raw_exchange_rates(cache \\ __MODULE__, pair) do
-    Cache.fetch(cache, pair)
+    case Cache.fetch(cache, pair) do
+      {:ok, rates} ->
+        {:ok, filter_expired(rates)}
+
+      _ ->
+        :error
+    end
   end
 
   @spec fetch_raw_exchange_rate(term, ExchangeRate.pair()) :: {:ok, Rate.t()} | :error
   def fetch_raw_exchange_rate(cache \\ __MODULE__, pair) do
-    case Cache.fetch(cache, pair) do
-      # FIXME manual ttl check is needed per source, if we want it
+    case fetch_raw_exchange_rates(cache, pair) do
       {:ok, [rate | _rest]} ->
         {:ok, rate}
 
@@ -97,10 +105,11 @@ defmodule BitPal.ExchangeRateCache do
     end)
   end
 
-  @spec all_raw_exchange_rates(term) :: [ExchangeRate.t()]
+  @spec all_raw_exchange_rates(term) :: [Rate.t()]
   def all_raw_exchange_rates(cache \\ __MODULE__) do
     Cache.all(cache)
     |> Enum.flat_map(fn {_key, val} -> val end)
+    |> filter_expired()
   end
 
   @spec all_exchange_rates(term) :: [ExchangeRate.t()]
@@ -129,5 +138,21 @@ defmodule BitPal.ExchangeRateCache do
       id: Keyword.get(opts, :name, __MODULE__),
       start: {__MODULE__, :start_link, [opts]}
     }
+  end
+
+  @spec filter_expired([Rate.t()]) :: [Rate.t()]
+  def filter_expired(
+        rates,
+        now \\ NaiveDateTime.utc_now(),
+        ttl \\ ExchangeRateSettings.rates_ttl()
+      ) do
+    Enum.filter(rates, fn rate ->
+      not expired?(rate, now, ttl)
+    end)
+  end
+
+  @spec expired?(Rate.t(), NaiveDateTime.t()) :: boolean
+  def expired?(rate, now \\ NaiveDateTime.utc_now(), ttl \\ ExchangeRateSettings.rates_ttl()) do
+    NaiveDateTime.diff(now, rate.updated, :millisecond) > ttl
   end
 end
