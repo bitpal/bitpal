@@ -1,0 +1,24 @@
+@use "../sizes.scss" as *;
+@use "../colors.scss" as *;
+
+table.exchange-rates-table {
+  max-width: 1200px;
+  margin-top: $spc-16;
+  margin-bottom: $spc-8;
+
+  .fiat {
+    font-weight: bold;
+  }
+
+  th {
+    background-color: $dark-purple-200;
+  }
+
+  tr:hover td {
+    background-color: $purple-100;
+  }
+  tr > td,
+  tr > th {
+    border-bottom: 1px solid $brown-100;
+  }
+}

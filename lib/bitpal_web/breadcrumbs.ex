@@ -99,4 +99,17 @@ defmodule BitPalWeb.Breadcrumbs do
       )
     ]
   end
+
+  def exchange_rates(socket) do
+    [
+      live_redirect(
+        "dashboard",
+        to: Routes.dashboard_path(socket, :show)
+      ),
+      live_redirect(
+        "exchange rates",
+        to: Routes.exchange_rate_path(socket, :show)
+      )
+    ]
+  end
 end

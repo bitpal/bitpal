@@ -26,6 +26,11 @@ config :bitpal, BitPal.ExchangeRate,
   request_timeout: 5_000,
   # If the request failed, how long should we wait until we retry?
   retry_timeout: 5_000,
+  # How long are exchange rates valid for?
+  # Note that a lower refresh rate will update rates faster,
+  # this is just a maximal value in case the external service is down.
+  # 1 hour = 1_000 * 60 * 60
+  rates_ttl: 1_000 * 60 * 60,
   # What fiat pairs should we keep updated?
   # The reason for this is that some sources can support a -lot- of
   # pairs, so we need to set what we should keep up to date.
@@ -37,7 +42,7 @@ config :bitpal, BitPal.ExchangeRate,
   ],
   # What cryptocurrencies should we keep updated?
   # These will be in addition to the crypto supported by the backends.
-  extra_crypto_to_update: []
+  extra_crypto_to_update: [:BTC, :BCH, :XMR, :DGC, :LTC]
 
 config :bitpal, BitPal.Repo,
   username: "postgres",
