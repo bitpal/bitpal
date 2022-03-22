@@ -5,7 +5,6 @@ defmodule BitPal.Authentication.Tokens do
   alias BitPalSchemas.Store
   alias Ecto.Changeset
 
-  @secret_key_base Application.compile_env!(:bitpal, :secret_key_base)
   @salt "access tokens"
 
   @spec authenticate_token(String.t()) ::
@@ -13,7 +12,9 @@ defmodule BitPal.Authentication.Tokens do
   def authenticate_token(token_data) do
     with {:ok, token} <- get_token(token_data),
          {:ok, store_id} <-
-           Phoenix.Token.verify(@secret_key_base, @salt, token_data, max_age: valid_age(token)) do
+           Phoenix.Token.verify(Application.get_env(:bitpal, :secret_key_base), @salt, token_data,
+             max_age: valid_age(token)
+           ) do
       if token.store_id == store_id do
         update_last_accessed(token)
         {:ok, store_id}
@@ -103,7 +104,7 @@ defmodule BitPal.Authentication.Tokens do
   end
 
   defp create_token_data(store, opts) do
-    Phoenix.Token.sign(@secret_key_base, @salt, store.id, opts)
+    Phoenix.Token.sign(Application.get_env(:bitpal, :secret_key_base), @salt, store.id, opts)
   end
 
   defp update_last_accessed(token) do
