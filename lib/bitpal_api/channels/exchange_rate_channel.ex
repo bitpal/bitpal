@@ -2,8 +2,8 @@ defmodule BitPalApi.ExchangeRateChannel do
   use BitPalApi, :channel
   alias BitPal.Currencies
   alias BitPal.ExchangeRate
-  alias BitPal.ExchangeRates
   alias BitPal.ExchangeRateEvents
+  alias BitPal.ExchangeRates
   alias BitPalApi.ExchangeRateView
   require Logger
 

@@ -1,6 +1,8 @@
 defmodule BitPal.ExchangeRates do
+  alias BitPal.ExchangeRate
   alias BitPal.ExchangeRateCache
   alias BitPal.ExchangeRateSupervisor
+  alias BitPalSchemas.Currency
 
   @spec all_exchange_rates :: [ExchangeRate.t()]
   def all_exchange_rates do
@@ -27,7 +29,7 @@ defmodule BitPal.ExchangeRates do
   end
 
   @spec fetch_raw_exchange_rates(ExchangeRate.pair()) ::
-          {:ok, [ExchangeRateSupervisorn.Rate.t()]} | :error
+          {:ok, [ExchangeRateCache.Rate.t()]} | :error
   def fetch_raw_exchange_rates(pair) do
     ExchangeRateSupervisor.cache_name()
     |> ExchangeRateCache.fetch_raw_exchange_rates(pair)

@@ -140,7 +140,7 @@ defmodule BitPal.RateLimiter do
         {resp_module, resp_function, resp_args} = response_handler
 
         response = apply(req_module, req_function, req_args)
-        apply(resp_module, resp_function, resp_args ++ [response])
+        apply(resp_module, resp_function, Enum.reverse([response | resp_args]))
       end)
 
     Map.put(state, task.ref, {request_handler, response_handler})

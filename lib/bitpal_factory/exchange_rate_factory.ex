@@ -1,17 +1,10 @@
 defmodule BitPalFactory.ExchangeRateFactory do
   import BitPalFactory.UtilFactory
-  alias BitPalFactory.CurrencyFactory
   alias BitPal.ExchangeRate
   alias BitPal.ExchangeRateCache
 
-  # @spec unique_pair :: ExchangeRate.pair()
-  # def unique_pair do
-  #   {CurrencyFactory.unique_currency_id(), CurrencyFactory.fiat_currency_id()}
-  # end
-
   @spec pair(keyword) :: ExchangeRate.pair()
   def pair(opts \\ []) do
-    # FIXME should these be randomized too?
     {opts[:from] || :BCH, opts[:to] || :USD}
   end
 

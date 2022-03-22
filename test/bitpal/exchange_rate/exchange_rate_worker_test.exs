@@ -2,9 +2,9 @@ defmodule BitPal.ExchangeRateWorkerTest do
   use ExUnit.Case, async: false
   import Mox
   import BitPal.TestHelpers
+  alias BitPal.ExchangeRate.MockSource
   alias BitPal.ExchangeRateCache
   alias BitPal.ExchangeRateWorker
-  alias BitPal.ExchangeRate.MockSource
 
   setup :set_mox_from_context
   setup :verify_on_exit!

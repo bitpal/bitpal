@@ -1,10 +1,10 @@
 defmodule BitPal.ExchangeRateWorker do
   use GenServer
-  alias BitPal.ProcessRegistry
-  alias BitPal.RateLimiter
   alias BitPal.ExchangeRate
   alias BitPal.ExchangeRateCache
   alias BitPal.ExchangeRateCache.Rate
+  alias BitPal.ProcessRegistry
+  alias BitPal.RateLimiter
   alias BitPalSettings.ExchangeRateSettings
 
   def supported(worker) do

@@ -1,9 +1,9 @@
 defmodule BitPalWeb.ExchangeRateLiveTest do
   use BitPalWeb.ConnCase, integration: true, async: false
-  alias BitPal.ExchangeRateCache
-  alias BitPal.ExchangeRateSupervisor
   alias BitPal.ExchangeRate.Sources.Empty
   alias BitPal.ExchangeRate.Sources.Random
+  alias BitPal.ExchangeRateCache
+  alias BitPal.ExchangeRateSupervisor
 
   setup tags do
     tags
@@ -21,7 +21,7 @@ defmodule BitPalWeb.ExchangeRateLiveTest do
       rate1 = cache_rate(pair: pair, source: Empty, prio: 10)
       ExchangeRateCache.update_exchange_rate(name, rate1)
 
-      rate2 = cache_rate(pair: pair, source: Random, prio: 100)
+      rate2 = cache_rate(pair: pair, source: Random, prio: 1_000)
       ExchangeRateCache.update_exchange_rate(name, rate2)
 
       {:ok, view, html} = live(conn, Routes.exchange_rate_path(conn, :show))
@@ -34,7 +34,7 @@ defmodule BitPalWeb.ExchangeRateLiveTest do
 
       assert render_eventually(view, rate3.rate.rate |> Decimal.to_string(:normal))
 
-      rate4 = cache_rate(pair: pair, source: Random, prio: 100)
+      rate4 = cache_rate(pair: pair, source: Random, prio: 1_000)
       ExchangeRateCache.update_exchange_rate(name, rate4)
 
       assert render_eventually(view, rate4.rate.rate |> Decimal.to_string(:normal))

@@ -1,10 +1,8 @@
 defmodule BitPalApi.ExchangeRateChannelTest do
-  # This must be async: false, otherwise mailbox might be cleared by other tests.
-  # Maybe we could solve this somehow...
   use BitPalApi.ChannelCase, async: false
+  alias BitPal.ExchangeRate.Sources.Empty
   alias BitPal.ExchangeRateCache
   alias BitPal.ExchangeRateSupervisor
-  alias BitPal.ExchangeRate.Sources.Empty
 
   setup do
     {:ok, _, socket} =

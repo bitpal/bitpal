@@ -2,6 +2,7 @@ defmodule BitPal.ExchangeRateCache do
   alias BitPal.Cache
   alias BitPal.ExchangeRate
   alias BitPal.ExchangeRateEvents
+  alias BitPalSchemas.Currency
   alias BitPalSettings.ExchangeRateSettings
 
   defmodule Rate do
@@ -57,7 +58,7 @@ defmodule BitPal.ExchangeRateCache do
       if insert_i do
         {:ok, List.insert_at(existing, insert_i, rate)}
       else
-        {:ok, existing ++ [rate]}
+        {:ok, Enum.reverse([rate | existing])}
       end
     end
   end

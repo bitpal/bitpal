@@ -63,4 +63,4 @@ config :ex_unit, assert_receive_timeout: 200
 config :logger, level: :warning
 # Can use this to hide GenServer shutdown errors, generated from our backend tests
 # when the backends are made to crash or killed after a local test.
-# config :logger, level: :critical
+config :logger, level: :critical
