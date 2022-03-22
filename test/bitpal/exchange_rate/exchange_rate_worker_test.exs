@@ -84,15 +84,15 @@ defmodule BitPal.ExchangeRateWorkerTest do
   defp rates_response(request_type, opts) do
     case request_type do
       :pair ->
-        case {from, to} = Keyword.fetch!(opts, :pair) do
-          {:BCH, :EUR} -> %{from => %{to => Decimal.new("1.1")}}
-          {:BCH, :USD} -> %{from => %{to => Decimal.new("1.4")}}
-          {:XMR, :EUR} -> %{from => %{to => Decimal.new("2.1")}}
-          {:XMR, :USD} -> %{from => %{to => Decimal.new("2.4")}}
+        case {base, xquote} = Keyword.fetch!(opts, :pair) do
+          {:BCH, :EUR} -> %{base => %{xquote => Decimal.new("1.1")}}
+          {:BCH, :USD} -> %{base => %{xquote => Decimal.new("1.4")}}
+          {:XMR, :EUR} -> %{base => %{xquote => Decimal.new("2.1")}}
+          {:XMR, :USD} -> %{base => %{xquote => Decimal.new("2.4")}}
         end
 
-      :from ->
-        case Keyword.fetch!(opts, :from) do
+      :base ->
+        case Keyword.fetch!(opts, :base) do
           :BCH ->
             %{BCH: %{EUR: Decimal.new("1.1"), USD: Decimal.new("1.4")}}
 
@@ -101,8 +101,8 @@ defmodule BitPal.ExchangeRateWorkerTest do
         end
 
       :multi ->
-        _ = Keyword.fetch!(opts, :from)
-        _ = Keyword.fetch!(opts, :to)
+        _ = Keyword.fetch!(opts, :base)
+        _ = Keyword.fetch!(opts, :quote)
 
         %{
           BCH: %{EUR: Decimal.new("1.1"), USD: Decimal.new("1.4")},
@@ -158,7 +158,7 @@ defmodule BitPal.ExchangeRateWorkerTest do
              end)
     end
 
-    @tag request_type: :from, rates_count: 2
+    @tag request_type: :base, rates_count: 2
     test "updates from", %{worker: worker} do
       assert eventually(fn ->
                ExchangeRateWorker.rates(worker) ==

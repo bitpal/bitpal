@@ -39,10 +39,10 @@ defmodule BitPal.ExchangeRate.Sources.Kraken do
     |> Poison.decode!()
     |> Map.fetch!("result")
     |> Enum.reduce(%{}, fn {_, info}, acc ->
-      with {:ok, {from, to}} <- into_pair(info),
-           true <- Currencies.is_crypto(from) do
-        list = Map.get(acc, from, [])
-        Map.put(acc, from, [to | list])
+      with {:ok, {base, xquote}} <- into_pair(info),
+           true <- Currencies.is_crypto(base) do
+        list = Map.get(acc, base, [])
+        Map.put(acc, base, [xquote | list])
       else
         _ -> acc
       end
@@ -53,10 +53,10 @@ defmodule BitPal.ExchangeRate.Sources.Kraken do
   end
 
   defp into_pair(%{"wsname" => names}) do
-    with [from, to] <- String.split(names, "/"),
-         {:ok, from} <- from |> rev_transform_id() |> Currencies.cast(),
-         {:ok, to} <- to |> rev_transform_id() |> Currencies.cast() do
-      {:ok, {from, to}}
+    with [base, xquote] <- String.split(names, "/"),
+         {:ok, base} <- base |> rev_transform_id() |> Currencies.cast(),
+         {:ok, xquote} <- xquote |> rev_transform_id() |> Currencies.cast() do
+      {:ok, {base, xquote}}
     else
       _ ->
         :error
@@ -70,7 +70,7 @@ defmodule BitPal.ExchangeRate.Sources.Kraken do
 
   @impl true
   def rates(opts) do
-    pair = {from, to} = Keyword.fetch!(opts, :pair)
+    pair = {base, xquote} = Keyword.fetch!(opts, :pair)
     pair_s = pair2str(pair)
 
     {:ok, body} = BitPalSettings.http_client().request_body(@ticker_url <> pair_s)
@@ -85,11 +85,11 @@ defmodule BitPal.ExchangeRate.Sources.Kraken do
       |> List.first()
       |> Decimal.cast()
 
-    %{from => %{to => rate}}
+    %{base => %{xquote => rate}}
   end
 
-  defp pair2str({from, to}) do
-    Atom.to_string(transform_id(from)) <> Atom.to_string(transform_id(to))
+  defp pair2str({base, xquote}) do
+    Atom.to_string(transform_id(base)) <> Atom.to_string(transform_id(xquote))
   end
 
   defp transform_id(base) do

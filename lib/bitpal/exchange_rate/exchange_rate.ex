@@ -2,7 +2,6 @@ defmodule BitPal.ExchangeRate do
   alias BitPal.Currencies
   alias BitPalSchemas.Currency
 
-  # FIXME rename all base/quote
   @type pair :: {Currency.id(), Currency.id()}
   @type t :: %__MODULE__{
           rate: Decimal.t(),
@@ -125,18 +124,18 @@ defmodule BitPal.ExchangeRate do
           {:ok, pair} | {:error, :bad_pair}
   def parse_pair(pair) when is_binary(pair) do
     case String.split(pair, "-") do
-      [from, to] ->
-        parse_pair({from, to})
+      [base, xquote] ->
+        parse_pair({base, xquote})
 
       _ ->
         {:error, :bad_pair}
     end
   end
 
-  def parse_pair({from, to}) do
-    {:ok, from} = Currencies.cast(from)
-    {:ok, to} = Currencies.cast(to)
-    {:ok, {from, to}}
+  def parse_pair({base, xquote}) do
+    {:ok, base} = Currencies.cast(base)
+    {:ok, xquote} = Currencies.cast(xquote)
+    {:ok, {base, xquote}}
   rescue
     _ ->
       {:error, :bad_pair}

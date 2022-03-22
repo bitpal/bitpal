@@ -63,10 +63,10 @@ defmodule BitPal.ExchangeRate.Sources.Coingecko do
 
   @impl true
   def rates(opts) do
-    from = Keyword.fetch!(opts, :from)
-    to = Keyword.fetch!(opts, :to)
+    base = Keyword.fetch!(opts, :base)
+    xquote = Keyword.fetch!(opts, :quote)
 
-    {:ok, body} = BitPalSettings.http_client().request_body(price_url(from, to))
+    {:ok, body} = BitPalSettings.http_client().request_body(price_url(base, xquote))
 
     body
     |> Poison.decode!()

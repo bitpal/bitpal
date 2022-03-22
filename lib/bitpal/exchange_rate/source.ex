@@ -14,18 +14,10 @@ defmodule BitPal.ExchangeRate.Source do
   @callback supported() :: %{Currency.id() => MapSet.t(Currency.id())}
 
   # - :pair means that there's a separate request for each supported pair.
-  # - :from means that we only need to specify the cryptocurrency, and we'll get
+  # - :base means that we only need to specify the cryptocurrency, and we'll get
   #         all supported pairs in a single response.
   # - :multi means we can supply multiple to/from as lists.
-  @callback request_type() :: :pair | :from | :multi
+  @callback request_type() :: :pair | :base | :multi
 
   @callback rates(keyword) :: %{Currency.id() => %{Currency.id() => Decimal.t()}}
-
-  # defp supported?(map, {from, to}) do
-  #   if list = Map.get(map, from, nil) do
-  #     Enum.member?(list, to)
-  #   else
-  #     false
-  #   end
-  # end
 end

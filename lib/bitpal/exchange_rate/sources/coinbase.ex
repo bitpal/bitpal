@@ -51,12 +51,12 @@ defmodule BitPal.ExchangeRate.Sources.Coinbase do
   end
 
   @impl true
-  def request_type, do: :from
+  def request_type, do: :base
 
   @impl true
   def rates(opts) do
-    from = Keyword.fetch!(opts, :from)
-    data = fetch_exchange_rates(Atom.to_string(from))
+    base = Keyword.fetch!(opts, :base)
+    data = fetch_exchange_rates(Atom.to_string(base))
 
     rates =
       data["data"]["rates"]
@@ -70,7 +70,7 @@ defmodule BitPal.ExchangeRate.Sources.Coinbase do
         end
       end)
 
-    %{from => rates}
+    %{base => rates}
   end
 
   defp fetch_exchange_rates(currency) do

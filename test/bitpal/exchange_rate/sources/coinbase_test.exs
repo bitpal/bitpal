@@ -28,7 +28,7 @@ defmodule BitPal.ExchangeRate.CoinbaseTest do
       {:ok, @bch_response}
     end)
 
-    assert Coinbase.rates(from: :BCH) == %{
+    assert Coinbase.rates(base: :BCH) == %{
              BCH: %{
                CAD: Decimal.new("370.8517631"),
                EUR: Decimal.new("264.74"),

@@ -5,7 +5,7 @@ defmodule BitPalFactory.ExchangeRateFactory do
 
   @spec pair(keyword) :: ExchangeRate.pair()
   def pair(opts \\ []) do
-    {opts[:from] || :BCH, opts[:to] || :USD}
+    {opts[:base] || :BCH, opts[:quote] || :USD}
   end
 
   @spec exchange_rate(keyword) :: ExchangeRate.t()

@@ -115,17 +115,17 @@ defmodule BitPal.ExchangeRateWorker do
           end
         end
 
-      :from ->
+      :base ->
         for crypto_id <- crypto_to_update do
           if Map.has_key?(state.supported, crypto_id) do
-            send(self(), {:update, from: crypto_id})
+            send(self(), {:update, base: crypto_id})
           end
         end
 
       :multi ->
         crypto = Enum.filter(crypto_to_update, fn id -> Map.has_key?(state.supported, id) end)
 
-        send(self(), {:update, from: crypto, to: fiat_to_update})
+        send(self(), {:update, base: crypto, quote: fiat_to_update})
     end
 
     Process.send_after(self(), :update_rates, state.rates_refresh_rate)

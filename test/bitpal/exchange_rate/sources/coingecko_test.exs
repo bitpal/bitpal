@@ -30,7 +30,7 @@ defmodule BitPal.ExchangeRate.CoingeckoTest do
       {:ok, @simple_price}
     end)
 
-    assert Coingecko.rates(from: [:XMR, :BCH, :BTC], to: [:EUR, :USD, :SEK]) ==
+    assert Coingecko.rates(base: [:XMR, :BCH, :BTC], quote: [:EUR, :USD, :SEK]) ==
              %{
                BCH: %{
                  EUR: Decimal.new("260.27"),

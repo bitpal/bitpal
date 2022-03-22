@@ -30,14 +30,14 @@ defmodule BitPal.ExchangeRate.Sources.Random do
 
   @impl true
   def rates(opts) do
-    from = Keyword.fetch!(opts, :from)
-    to = Keyword.fetch!(opts, :to)
+    base = Keyword.fetch!(opts, :base)
+    xquote = Keyword.fetch!(opts, :quote)
 
-    Enum.reduce(from, %{}, fn crypto_id, acc ->
+    Enum.reduce(base, %{}, fn crypto_id, acc ->
       Map.put(
         acc,
         crypto_id,
-        Enum.reduce(to, %{}, fn fiat_id, acc ->
+        Enum.reduce(xquote, %{}, fn fiat_id, acc ->
           Map.put(acc, fiat_id, UtilFactory.rand_decimal())
         end)
       )
