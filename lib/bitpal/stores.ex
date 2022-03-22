@@ -45,6 +45,14 @@ defmodule BitPal.Stores do
     end
   end
 
+  @spec has_invoice?(Store.id(), Invoice.id()) :: boolean
+  def has_invoice?(store_id, invoice_id) do
+    from(i in Invoice,
+      where: i.id == ^invoice_id and i.store_id == ^store_id
+    )
+    |> Repo.exists?()
+  end
+
   @spec create_changeset(map) :: Changeset.t()
   def create_changeset(params \\ %{}) do
     %Store{}

@@ -1,12 +1,13 @@
 defmodule BitPalApi.InvoiceChannel do
   use BitPalApi, :channel
   alias BitPal.InvoiceEvents
+  alias BitPal.Stores
   alias BitPalApi.InvoiceView
   require Logger
 
   @impl true
-  def join("invoice:" <> invoice_id, payload, socket) do
-    with :authorized <- authorized?(payload),
+  def join("invoice:" <> invoice_id, _payload, socket) do
+    with :authorized <- authorized?(invoice_id, socket.assigns),
          :ok <- InvoiceEvents.subscribe(invoice_id) do
       {:ok, socket}
     else
@@ -24,8 +25,16 @@ defmodule BitPalApi.InvoiceChannel do
     {:noreply, socket}
   end
 
-  defp authorized?(_payload) do
-    :authorized
+  defp authorized?(invoice_id, %{store_id: store_id}) do
+    if Stores.has_invoice?(store_id, invoice_id) do
+      :authorized
+    else
+      :unauthorized
+    end
+  end
+
+  defp authorized?(_payload, _assigns) do
+    :unauthorized
   end
 
   defp broadcast_event({{:invoice, event}, data}, socket) do
