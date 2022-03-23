@@ -7,9 +7,10 @@ defmodule BitPal.Backend.Monero do
   alias BitPal.BackendEvents
   alias BitPal.BackendStatusSupervisor
   alias BitPal.Backend.Monero.{DaemonRPC, Wallet}
+  alias BitPal.ProcessRegistry
 
   @supervisor MoneroSupervisor
-  @xmr :BCH
+  @xmr :XMR
 
   # Client API
 
@@ -52,6 +53,8 @@ defmodule BitPal.Backend.Monero do
       __MODULE__
     )
 
+    IO.puts("starting...")
+
     {:ok, opts, {:continue, :init}}
   end
 
@@ -66,11 +69,16 @@ defmodule BitPal.Backend.Monero do
     ExtNotificationHandler.subscribe("monero:reorg-notify")
 
     children = [
-      DaemonRPC,
+      # DaemonRPC,
       Wallet
     ]
 
+    # IO.puts("starting...")
+
     Supervisor.start_link(children, strategy: :one_for_one, name: @supervisor)
+
+    # Get version info
+    # Get blockchain info
 
     {:noreply, %{}}
   end
@@ -83,6 +91,18 @@ defmodule BitPal.Backend.Monero do
     # invoice = Wallet.generate_subaddress(invoice)
 
     {:reply, {:ok, invoice}, state}
+  end
+
+  @impl true
+  def handle_call(:info, _from, state) do
+    {:reply, create_info(state), state}
+  end
+
+  @impl true
+  def handle_call(:poll_info, _from, state) do
+    DaemonRPC.get_info() |> IO.inspect()
+    DaemonRPC.get_version() |> IO.inspect()
+    {:reply, :ok, state}
   end
 
   @impl true
@@ -119,4 +139,8 @@ defmodule BitPal.Backend.Monero do
   end
 
   # Internal impl
+
+  defp create_info(state) do
+    %{}
+  end
 end

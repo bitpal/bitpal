@@ -76,6 +76,8 @@ defmodule BitPal.Backend.Flowee do
 
   @impl true
   def handle_continue(:init, opts) do
+    Logger.info("Starting Flowee backend")
+
     BackendStatusSupervisor.set_starting(@bch)
 
     state =

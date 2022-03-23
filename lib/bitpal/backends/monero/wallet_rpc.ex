@@ -99,6 +99,9 @@ defmodule BitPal.Backend.Monero.WalletRPC do
     call("get_transfer_by_txid", %{txid: txid, account_index: account_index})
   end
 
+  def validate_address() do
+  end
+
   defp call(method, params) do
     HTTP.call(@url, method, params)
   end

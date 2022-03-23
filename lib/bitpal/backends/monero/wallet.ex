@@ -45,8 +45,12 @@ defmodule BitPal.Backend.Monero.Wallet do
     Process.flag(:trap_exit, true)
 
     filename = Files.wallet_file(:monero)
-    address = Application.fetch_env!(:bitpal, :monero)[:address]
-    viewkey = Application.fetch_env!(:bitpal, :monero)[:viewkey]
+
+    # FIXME move to address key storage
+    address =
+      "496YrjKKenbYS6KCfPabsJ11pTkikW79ZDDrkPDTC79CSTdCoubgh3f5BrupzBvPLWXNjjNsY8smmFDYvgVRQDsmCT5FhCU"
+
+    viewkey = "805b4f767bdc7774a5c5ae2b3b8981c53646fff952f92de1ff749cf922e26d0f"
 
     port =
       if File.exists?(filename) do

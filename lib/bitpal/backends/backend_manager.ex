@@ -325,7 +325,7 @@ defmodule BitPal.BackendManager do
   def handle_info({:DOWN, ref, :process, _pid, reason = {:shutdown, _}}, state) do
     # Controlled shut down due to some error after init is successful, probably a connection error.
     # Because it's some connection error, we'll reconnect after a timeout.
-    {:noreply, handle_down(state, ref, reason, delayed_restart: true)}
+    {:noreply, handle_down(state, ref, reason, delayed_restart: true, log_error: true)}
   end
 
   @impl true
@@ -354,7 +354,6 @@ defmodule BitPal.BackendManager do
 
     if opts[:log_error] do
       Logger.error("Backend for #{currency_id} crashed with code #{inspect(reason)}")
-      Logger.error("ref: #{inspect(ref)} manager: #{inspect(self())}")
     end
 
     if currency_id != :unknown do
