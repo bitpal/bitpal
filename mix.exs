@@ -52,7 +52,7 @@ defmodule BitPal.MixProject do
       {:libsecp256k1, "~> 0.1.9"},
       {:money, "~> 1.8"},
       {:mox, "~> 1.0"},
-      {:poison, "~> 5.0"},
+      {:poison, "~> 5.0", override: true},
       {:postgrex, ">= 0.0.0"},
       {:typed_ecto_schema, "~> 0.2"},
       {:scribe, "~> 0.10"},
@@ -64,6 +64,9 @@ defmodule BitPal.MixProject do
       {:nimble_publisher, git: "https://github.com/treeman/nimble_publisher.git"},
       {:makeup_elixir, ">= 0.0.0"},
       {:floki, "~> 0.32.0"},
+      {:beam_notify, "~> 0.2.0"},
+      {:temp, "~> 0.4.7"},
+      {:jsonrpc2, "~> 2.0"},
 
       # Phoenix and web
       {:gettext, "~> 0.11"},
