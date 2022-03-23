@@ -19,7 +19,7 @@ defmodule BitPalApi.RequestFailedError do
   @moduledoc """
   402 - Request Failed, The parameters were valid but the request failed.
   """
-  defexception message: "Request Failed", plug_status: 402, changeset: nil, code: nil
+  defexception message: "Request Failed", plug_status: 402, changeset: nil, code: nil, param: nil
 end
 
 defmodule BitPalApi.ForbiddenError do

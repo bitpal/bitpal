@@ -1,89 +1,65 @@
 defmodule BitPal.ExchangeRateSupervisor do
   use Supervisor
-  alias BitPal.Cache
-  alias BitPal.ExchangeRate
-  alias BitPal.ExchangeRate.Worker
+  alias BitPal.ExchangeRateCache
+  alias BitPal.ExchangeRateWorker
+  alias BitPal.ProcessRegistry
   alias BitPalSchemas.Currency
   require Logger
 
-  @cache BitPal.ExchangeRate.Cache
+  @sources Application.compile_env!(:bitpal, [BitPal.ExchangeRate, :sources])
 
-  defmodule Result do
-    @type t :: %__MODULE__{
-            score: non_neg_integer(),
-            rate: ExchangeRate.t(),
-            backend: module()
-          }
-
-    defstruct score: 0, rate: nil, backend: nil
+  @spec sources(module) :: [%{source: module, prio: non_neg_integer}]
+  def sources(name \\ __MODULE__) do
+    all_workers(name)
+    |> Enum.map(fn {source, pid} -> Map.put(ExchangeRateWorker.info(pid), :source, source) end)
   end
 
-  # Supervision
-
-  def start_link(init_arg) do
-    Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
-  end
-
-  @impl true
-  def init(opts) do
-    children = [
-      {Cache,
-       name: @cache,
-       ttl_check_interval:
-         opts[:ttl_check_interval] || BitPalSettings.exchange_rate_ttl_check_interval(),
-       ttl: opts[:ttl] || BitPalSettings.exchange_rate_ttl()}
-    ]
-
-    Supervisor.init(children, strategy: :one_for_one)
-  end
-
-  # Client interface
-
-  @spec all_supported(keyword) :: %{atom => [Currency.id()]}
-  def all_supported(opts \\ []) do
-    backends = opts[:backends] || BitPalSettings.exchange_rate_backends()
-
-    Enum.reduce(backends, %{}, fn backend, acc ->
-      Map.merge(acc, backend.supported(), fn _key, a, b ->
-        Enum.uniq(a ++ b)
+  @spec all_supported(module) :: %{Currency.id() => MapSet.t(Currency.id())}
+  def all_supported(name \\ __MODULE__) do
+    all_workers(name)
+    |> Enum.map(fn {_source, pid} -> ExchangeRateWorker.supported(pid) end)
+    |> Enum.reduce(%{}, fn map, acc ->
+      Map.merge(map, acc, fn _k, v1, v2 ->
+        MapSet.union(v1, v2)
       end)
     end)
   end
 
-  @spec supported(Currency.id(), keyword) :: {:ok, list} | {:error, :not_found}
-  def supported(id, opts \\ []) do
-    case all_supported(opts)[id] do
-      nil -> {:error, :not_found}
-      x -> {:ok, x}
-    end
+  def all_workers(name \\ __MODULE__) do
+    name
+    |> Supervisor.which_children()
+    |> Enum.reduce([], fn
+      {{ExchangeRateWorker, source}, pid, _worker, _params}, acc ->
+        [{source, pid} | acc]
+
+      _, acc ->
+        acc
+    end)
   end
 
-  @spec fetch!(ExchangeRate.pair(), keyword) :: ExchangeRate.t()
-  def fetch!(pair, opts \\ []) do
-    case request(pair, opts) do
-      {:cached, rate} ->
-        rate
-
-      :updating ->
-        await_request!(pair)
-    end
+  def cache_name(name \\ __MODULE__) do
+    ProcessRegistry.via_tuple({name, :cache})
   end
 
-  @spec request(ExchangeRate.pair(), keyword) :: {:cached, ExchangeRate.t()} | :updating
-  def request(pair, opts \\ []) do
-    case Cache.fetch(@cache, pair) do
-      {:ok, rate} ->
-        {:cached, rate}
-
-      :error ->
-        {:ok, _pid} = Worker.start_worker(pair, opts)
-        :updating
-    end
+  def start_link(opts) do
+    name = Keyword.get(opts, :name, __MODULE__)
+    Supervisor.start_link(__MODULE__, opts, name: name)
   end
 
-  @spec await_request!(ExchangeRate.pair()) :: ExchangeRate.t()
-  def await_request!(pair) do
-    :ok = Worker.await_worker(pair)
-    Cache.fetch!(@cache, pair)
+  @impl true
+  def init(opts) do
+    name = Keyword.get(opts, :name, __MODULE__)
+    cache_name = cache_name(name)
+
+    sources = opts[:sources] || @sources
+
+    children = [
+      {ExchangeRateCache, name: cache_name}
+      | Enum.map(sources, fn {source, opts} ->
+          {ExchangeRateWorker, Keyword.merge(opts, source: source, cache_name: cache_name)}
+        end)
+    ]
+
+    Supervisor.init(children, strategy: :one_for_one)
   end
 end

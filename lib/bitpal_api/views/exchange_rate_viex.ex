@@ -3,23 +3,26 @@ defmodule BitPalApi.ExchangeRateView do
   alias BitPal.ExchangeRate
 
   def render("index.json", %{rates: rates}) do
-    Enum.map(rates, fn rate -> render("show.json", rate: rate) end)
+    Enum.map(rates, fn {base, rates} ->
+      render("show.json", base: base, rates: rates)
+    end)
   end
 
-  def render("show.json", %{rate: rate = %ExchangeRate{}}) do
-    currency = ExchangeRate.currency(rate)
-
+  def render("show.json", %{base: base, rates: rates}) do
     %{
-      code: Atom.to_string(currency),
-      name: Money.Currency.name(currency),
-      rate: rate.rate
+      base: Atom.to_string(base),
+      rates:
+        Enum.reduce(rates, %{}, fn %ExchangeRate{rate: rate, pair: {^base, xquote}}, acc ->
+          Map.put(acc, Atom.to_string(xquote), rate)
+        end)
     }
   end
 
-  def render("rate_response.json", %{rate: rate = %ExchangeRate{pair: {from, to}}}) do
+  def render("show.json", %{rate: %ExchangeRate{rate: rate, pair: {base, xquote}}}) do
     %{
-      pair: "#{from}-#{to}",
-      rate: rate.rate
+      base: Atom.to_string(base),
+      quote: Atom.to_string(xquote),
+      rate: rate
     }
   end
 end

@@ -1,5 +1,10 @@
 import Config
 
+config :bitpal,
+  backends: [BitPal.Backend.Flowee]
+
+config :bitpal, BitPal.ExchangeRate, backends: [BitPal.ExchangeRate.Kraken]
+
 config :bitpal, BitPalApi.Endpoint,
   http: [
     port: 4001,

@@ -1,6 +1,7 @@
 defmodule BitPalApi.StoreSocket do
   use Phoenix.Socket
   alias BitPal.Authentication.Tokens
+  require Logger
 
   ## Channels
   channel("invoice:*", BitPalApi.InvoiceChannel)
@@ -12,7 +13,8 @@ defmodule BitPalApi.StoreSocket do
       {:ok, store_id} ->
         {:ok, assign(socket, :store_id, store_id)}
 
-      _ ->
+      err ->
+        Logger.debug("Failed token auth: #{inspect(err)}")
         :error
     end
   end
