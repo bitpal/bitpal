@@ -1,9 +1,21 @@
 defmodule BitPalSettings.BackendSettings do
   import Ecto.Query
   alias BitPal.Repo
+  alias BitPal.BackendManager
   alias BitPalSchemas.BackendSettings
   alias BitPalSchemas.Currency
   alias Ecto.Changeset
+
+  @backends Application.compile_env!(:bitpal, [BackendManager, :backends])
+  # Maybe we could do something smarter in the future, like:
+  # 1 sec, 2 sec, 4 sec, 8 sec, 16 sec, 32 sec, 64 sec, ...
+  @restart_timeout Application.compile_env!(:bitpal, [BackendManager, :restart_timeout])
+
+  @spec backends :: [Supervisor.child_spec() | {module, term} | module]
+  def backends, do: @backends
+
+  @spec restart_timeout :: non_neg_integer
+  def restart_timeout, do: @restart_timeout
 
   @spec is_enabled(Currency.id()) :: boolean
   def is_enabled(currency_id) do

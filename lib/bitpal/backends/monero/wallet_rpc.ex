@@ -5,6 +5,9 @@ defmodule BitPal.Backend.Monero.WalletRPC do
   # FIXME usr/password and configurable
   @port 8332
   @url "http://localhost:#{@port}/json_rpc"
+  @daemon_ip "192.168.1.121"
+  @daemon_port 18081
+  @password ""
 
   def open_wallet(filename) do
     start(["--wallet-file", filename])
@@ -22,7 +25,7 @@ defmodule BitPal.Backend.Monero.WalletRPC do
         [
           System.find_executable("monero-wallet-rpc"),
           "--daemon-address",
-          "192.168.1.121:18081",
+          "#{@daemon_ip}:#{@daemon_port}",
           "--rpc-bind-port",
           "#{@port}",
           "--disable-rpc-login",
@@ -31,7 +34,7 @@ defmodule BitPal.Backend.Monero.WalletRPC do
           "--log-level",
           "2",
           "--password",
-          "",
+          @password,
           "--tx-notify",
           "#{Files.notify_path()} monero:tx-notify %s"
         ] ++ args

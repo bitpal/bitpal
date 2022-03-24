@@ -41,7 +41,6 @@ defmodule BitPal.Backend.Monero.Wallet do
 
   @impl true
   def init(_opts) do
-    # FIXME might be a good idea?
     Process.flag(:trap_exit, true)
 
     filename = Files.wallet_file(:monero)

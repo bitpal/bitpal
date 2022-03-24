@@ -35,6 +35,15 @@ defmodule BitPal.Backend.Monero.DaemonRPC do
     {:ok, init_args}
   end
 
+  defp async_call(method, params, task_supervisor) do
+    from = self()
+
+    Task.Supervisor.async_nolink(task_supervisor, fn ->
+      reply = call(method, params)
+      send(from, {method, reply})
+    end)
+  end
+
   defp call(method, params) do
     HTTP.call(@url, method, params)
   end
