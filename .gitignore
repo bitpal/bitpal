@@ -45,3 +45,5 @@ secrets.fish
 
 # Temp things
 *~
+
+*.login

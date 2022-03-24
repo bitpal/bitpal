@@ -60,18 +60,18 @@ defmodule BitPal.BackendStatusHandler do
 
   @impl true
   def handle_call(
-        {:set_status, new_status = {:recovering, _, _}},
+        {:set_status, new_status = {:recovering, _}},
         _,
-        state = %{status: {:recovering, _, _}}
+        state = %{status: {:recovering, _}}
       ) do
     {:reply, :ok, rate_limited_change_status(state, new_status)}
   end
 
   @impl true
   def handle_call(
-        {:set_status, new_status = {:syncing, _, _}},
+        {:set_status, new_status = {:syncing, _}},
         _,
-        state = %{status: {:syncing, _, _}}
+        state = %{status: {:syncing, _}}
       ) do
     {:reply, :ok, rate_limited_change_status(state, new_status)}
   end
@@ -96,7 +96,7 @@ defmodule BitPal.BackendStatusHandler do
         {:syncing, _} ->
           change_status(state, :ready)
 
-        {:recovering, _, _} ->
+        {:recovering, _} ->
           change_status(state, :ready)
 
         _ ->

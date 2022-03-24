@@ -37,6 +37,7 @@ defmodule BitPalWeb.ExchangeRateLiveTest do
       rate4 = cache_rate(pair: pair, source: Random, prio: 1_000)
       ExchangeRateCache.update_exchange_rate(name, rate4)
 
+      # FIXME this sometimes times out
       assert render_eventually(view, rate4.rate.rate |> Decimal.to_string(:normal))
     end
   end

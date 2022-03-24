@@ -1,10 +1,12 @@
 import Config
 
-config :bitpal,
+config :bitpal, BitPal.BackendManager,
+  restart_timeout: 3_000,
   backends: [
-    BitPal.Backend.Flowee,
-    {BitPal.BackendMock, auto: true, time_between_blocks: 1_000},
-    {BitPal.BackendMock, auto: true, time_between_blocks: 2_000, sync_time: 10_000}
+    # BitPal.Backend.Flowee,
+    BitPal.Backend.Monero
+    # {BitPal.BackendMock, auto: true, time_between_blocks: 1_000},
+    # {BitPal.BackendMock, auto: true, time_between_blocks: 2_000, sync_time: 10_000}
   ]
 
 config :bitpal, BitPal.ExchangeRate,
@@ -94,7 +96,6 @@ config :phoenix, :plug_init_mode, :runtime
 config :bitpal, BitPal.Mailer, adapter: Swoosh.Adapters.Local
 
 config :bitpal, BitPalFactory, init: true
-config :bitpal, BitPal.BackendManager, reconnect_timeout: 3_000
 
 config :swoosh, serve_mailbox: true, preview_port: 4011
 

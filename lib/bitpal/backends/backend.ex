@@ -37,8 +37,9 @@ defmodule BitPal.Backend do
 
   @type backend_status ::
           :starting
-          | {:recovering, Blocks.height(), Blocks.height()}
+          | {:recovering, {Blocks.height(), Blocks.height()}}
           | {:syncing, float}
+          | {:syncing, {Blocks.height(), Blocks.height()}}
           | :ready
           | {:stopped, stopped_reason}
           | :unknown
@@ -47,10 +48,16 @@ defmodule BitPal.Backend do
 
   @callback supported_currency(pid()) :: Currency.id()
   @callback register(pid(), Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
-  @callback info(pid()) :: {:ok, backend_info()} | {:error, term}
-  @callback poll_info(pid()) :: :ok | {:error, term}
+
+  @doc """
+  Get the stored info of the backend.
+  """
+  @callback info(pid()) :: backend_info() | nil
+
   @callback configure(pid(), map()) :: :ok | {:error, term}
 
+  # FIXME implement these with macros
+  #
   @spec supported_currency(backend_ref()) :: {:ok, Currency.id()} | {:error, :not_found}
   def supported_currency({pid, backend}) do
     try do
@@ -69,19 +76,10 @@ defmodule BitPal.Backend do
     end
   end
 
-  @spec info(backend_ref()) :: {:ok, backend_info} | {:error, term}
+  @spec info(backend_ref()) :: {:ok, backend_info | nil} | {:error, term}
   def info({pid, backend}) do
     try do
       backend.info(pid)
-    catch
-      :exit, _reason -> {:error, :not_found}
-    end
-  end
-
-  @spec poll_info(backend_ref()) :: :ok | {:error, term}
-  def poll_info({pid, backend}) do
-    try do
-      backend.poll_info(pid)
     catch
       :exit, _reason -> {:error, :not_found}
     end
@@ -100,4 +98,14 @@ defmodule BitPal.Backend do
   def via_tuple(currency_id) do
     ProcessRegistry.via_tuple({__MODULE__, currency_id})
   end
+
+  # FIXME use this to make it easier to implement backends?
+  # defmacro __using__(params) do
+  #   quote do
+  #     @behaviour BitPal.Backend
+  #     use GenServer
+  #
+  #     @currency_id Keyword.fetch!(unquote(params), :currency_id)
+  #   end
+  # end
 end

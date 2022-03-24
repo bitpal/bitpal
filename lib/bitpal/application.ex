@@ -11,6 +11,9 @@ defmodule BitPal.Application do
 
   @impl true
   def start(_type, _args) do
+    # FIXME needed?
+    # BitPal.Currencies.configure_money()
+
     children =
       factory() ++
         [
@@ -33,7 +36,8 @@ defmodule BitPal.Application do
           BitPal.BackendStatusSupervisor,
           BitPal.BackendManager,
           BitPal.ExchangeRateSupervisor,
-          BitPal.ServerSetup
+          BitPal.ServerSetup,
+          BitPal.ExtNotificationHandler
         ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: BitPal.Supervisor)

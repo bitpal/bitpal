@@ -20,18 +20,28 @@ defmodule BitPalWeb.BackendLive do
             currency_id: currency_id,
             breadcrumbs: Breadcrumbs.backend(socket, uri, currency_id)
           )
+          |> assign_plugin()
           |> assign_status()
           |> assign_info()
 
         if connected?(socket) do
           BackendEvents.subscribe(currency_id)
-          Process.send_after(self(), :poll, 1_000)
         end
 
         {:noreply, socket}
 
       :error ->
         {:noreply, push_redirect(socket, to: Routes.dashboard_path(socket, :show))}
+    end
+  end
+
+  defp assign_plugin(socket) do
+    case BackendManager.fetch_backend_module(socket.assigns.currency_id) do
+      {:ok, module} ->
+        assign(socket, plugin: module)
+
+      _ ->
+        assign(socket, plugin: :unknown)
     end
   end
 
@@ -49,8 +59,8 @@ defmodule BitPalWeb.BackendLive do
 
   defp update_info(socket, {:ok, ref = {_pid, module}}) do
     assign(socket,
-      plugin: module,
-      info: Backend.info(ref)
+      info: Backend.info(ref),
+      plugin: module
     )
   end
 
@@ -60,31 +70,11 @@ defmodule BitPalWeb.BackendLive do
   end
 
   @impl true
-  def handle_info(:poll, socket) do
-    ref = BackendManager.fetch_backend(socket.assigns.currency_id)
-
-    socket =
-      socket
-      |> assign_status()
-      |> update_info(ref)
-
-    case ref do
-      {:ok, {pid, module}} ->
-        module.poll_info(pid)
-
-      _ ->
-        nil
-    end
-
-    Process.send_after(self(), :poll, 3_000)
-
-    {:noreply, socket}
-  end
-
   def handle_info({{:backend, :status}, %{status: status}}, socket) do
     {:noreply, assign(socket, status: status)}
   end
 
+  @impl true
   def handle_info({{:backend, :info}, %{info: info}}, socket) do
     {:noreply, assign(socket, info: info)}
   end
