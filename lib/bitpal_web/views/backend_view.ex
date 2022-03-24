@@ -98,9 +98,13 @@ defmodule BitPalWeb.BackendView do
           <span class="stopped">
             Stopped
           </span>
+        <% {:stopped, {:shutdown, :econnrefused}} -> %>
+          <span class="error">
+            Connection refused
+          </span>
         <% {:stopped, {:shutdown, reason}} -> %>
           <span class="stopped">
-            Stopped<%= inspect(reason) %>
+            Stopped <%= inspect(reason) %>
           </span>
         <% {:stopped, {:error, :econnrefused}} -> %>
           <span class="error">
@@ -108,7 +112,7 @@ defmodule BitPalWeb.BackendView do
           </span>
         <% {:stopped, {:error, error}} -> %>
           <span class="error">
-            Unknown error<%= inspect(error) %>
+            Unknown error <%= inspect(error) %>
           </span>
         <% :plugin_not_found -> %>
           <span class="not-found">
