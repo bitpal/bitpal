@@ -15,7 +15,12 @@ defmodule BitPalApi.ExchangeRateChannel do
 
   @impl true
   def handle_info({{:exchange_rate, :update}, rate}, socket) do
-    broadcast!(socket, "updated_exchange_rate", ExchangeRateView.render("show.json", rate: rate))
+    broadcast!(
+      socket,
+      "updated_exchange_rate",
+      ExchangeRateView.render("show.json", rates: [rate])
+    )
+
     {:noreply, socket}
   end
 
@@ -30,7 +35,7 @@ defmodule BitPalApi.ExchangeRateChannel do
     with base <- cast_currency!(base, "base"),
          xquote <- cast_currency!(xquote, "quote"),
          {:ok, rate} <- ExchangeRates.fetch_exchange_rate({base, xquote}) do
-      {:reply, {:ok, ExchangeRateView.render("show.json", rate: rate)}, socket}
+      {:reply, {:ok, ExchangeRateView.render("show.json", rates: [rate])}, socket}
     else
       _ ->
         raise NotFoundError,
@@ -45,7 +50,7 @@ defmodule BitPalApi.ExchangeRateChannel do
     rates = ExchangeRates.fetch_exchange_rates_with_base(base)
 
     if Enum.any?(rates) do
-      {:reply, {:ok, ExchangeRateView.render("show.json", base: base, rates: rates)}, socket}
+      {:reply, {:ok, ExchangeRateView.render("show.json", rates: rates)}, socket}
     else
       raise NotFoundError,
         param: "base",
@@ -54,14 +59,9 @@ defmodule BitPalApi.ExchangeRateChannel do
   end
 
   def handle_event("get", _params, socket) do
-    rates =
-      ExchangeRates.all_exchange_rates()
-      |> Enum.group_by(
-        fn %ExchangeRate{pair: {base, _}} -> base end,
-        fn v -> v end
-      )
+    rates = ExchangeRates.all_exchange_rates()
 
-    {:reply, {:ok, ExchangeRateView.render("index.json", rates: rates)}, socket}
+    {:reply, {:ok, ExchangeRateView.render("show.json", rates: rates)}, socket}
   end
 
   def handle_event(event, _params, socket) do

@@ -20,8 +20,8 @@ defmodule BitPalApi.ExchangeRateChannelTest do
     rate = cache_rate(pair: {:DGC, :XXX}, source: Empty, prio: 1_000)
     ExchangeRateCache.update_exchange_rate(cache, rate)
 
-    dec = rate.rate.rate
-    assert_broadcast "updated_exchange_rate", %{base: "DGC", quote: "XXX", rate: ^dec}
+    dec = Decimal.to_float(rate.rate.rate)
+    assert_broadcast "updated_exchange_rate", %{:DGC => %{:XXX => ^dec}}
   end
 
   test "get all", %{socket: socket, cache: cache} do
@@ -32,18 +32,15 @@ defmodule BitPalApi.ExchangeRateChannelTest do
 
     ref = push(socket, "get", %{})
 
-    usd_rate = usd_rate.rate.rate
-    eur_rate = eur_rate.rate.rate
+    usd_rate = Decimal.to_float(usd_rate.rate.rate)
+    eur_rate = Decimal.to_float(eur_rate.rate.rate)
 
-    assert_reply(ref, :ok, [
-      %{
-        base: "DGC",
-        rates: %{
-          "USD" => ^usd_rate,
-          "EUR" => ^eur_rate
-        }
+    assert_reply(ref, :ok, %{
+      :DGC => %{
+        :USD => ^usd_rate,
+        :EUR => ^eur_rate
       }
-    ])
+    })
   end
 
   test "get base", %{socket: socket, cache: cache} do
@@ -54,14 +51,13 @@ defmodule BitPalApi.ExchangeRateChannelTest do
 
     ref = push(socket, "get", %{"base" => "DGC"})
 
-    usd_rate = usd_rate.rate.rate
-    eur_rate = eur_rate.rate.rate
+    usd_rate = Decimal.to_float(usd_rate.rate.rate)
+    eur_rate = Decimal.to_float(eur_rate.rate.rate)
 
     assert_reply(ref, :ok, %{
-      base: "DGC",
-      rates: %{
-        "USD" => ^usd_rate,
-        "EUR" => ^eur_rate
+      :DGC => %{
+        :USD => ^usd_rate,
+        :EUR => ^eur_rate
       }
     })
   end
@@ -71,8 +67,8 @@ defmodule BitPalApi.ExchangeRateChannelTest do
     ExchangeRateCache.update_exchange_rate(cache, rate)
 
     ref = push(socket, "get", %{"base" => "DGC", "quote" => "USD"})
-    dec = rate.rate.rate
-    assert_reply(ref, :ok, %{base: "DGC", quote: "USD", rate: ^dec})
+    dec = Decimal.to_float(rate.rate.rate)
+    assert_reply(ref, :ok, %{:DGC => %{:USD => ^dec}})
   end
 
   test "get not found base", %{socket: socket} do

@@ -24,25 +24,19 @@ defmodule BitPalApi.ExchangeRateControllerTest do
   end
 
   describe "/rates" do
+    @tag do: true
     test "/rates", %{conn: conn} do
       conn = get(conn, "/v1/rates")
 
-      assert [
-               %{
-                 "base" => "BCH",
-                 "rates" => %{
-                   "USD" => "1.1",
-                   "EUR" => "2.1"
-                 }
+      assert %{
+               "BCH" => %{
+                 "USD" => 1.1,
+                 "EUR" => 2.1
                },
-               %{
-                 "base" => "XMR",
-                 "rates" => %{
-                   "USD" => "3.1"
-                 }
+               "XMR" => %{
+                 "USD" => 3.1
                }
-             ] ==
-               json_response(conn, 200) |> Enum.sort()
+             } == json_response(conn, 200)
     end
   end
 
@@ -51,13 +45,11 @@ defmodule BitPalApi.ExchangeRateControllerTest do
       conn = get(conn, "/v1/rates/BCH")
 
       assert %{
-               "base" => "BCH",
-               "rates" => %{
-                 "USD" => "1.1",
-                 "EUR" => "2.1"
+               "BCH" => %{
+                 "USD" => 1.1,
+                 "EUR" => 2.1
                }
-             } ==
-               json_response(conn, 200)
+             } == json_response(conn, 200)
     end
 
     test "not found", %{conn: conn} do
@@ -93,11 +85,7 @@ defmodule BitPalApi.ExchangeRateControllerTest do
     test "get", %{conn: conn} do
       conn = get(conn, "/v1/rates/BCH/EUR")
 
-      assert %{
-               "base" => "BCH",
-               "quote" => "EUR",
-               "rate" => "2.1"
-             } = json_response(conn, 200)
+      assert %{"BCH" => %{"EUR" => 2.1}} == json_response(conn, 200)
     end
 
     test "not found", %{conn: conn} do
