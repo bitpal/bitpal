@@ -1,5 +1,5 @@
 defmodule BitPalApi.TransactionControllerTest do
-  use BitPalApi.ConnCase, async: true
+  use BitPalApi.ConnCase, async: true, integration: true
   alias BitPal.Stores
   alias BitPalApi.Authentication.BasicAuth
 
@@ -14,7 +14,7 @@ defmodule BitPalApi.TransactionControllerTest do
     |> with_txs(tx_count: 2, currency_id: currency_id)
 
     create_store()
-    |> with_invoices(txs: :auto, currency_id: currency_id)
+    |> with_invoices(txs: :auto, payment_currency_id: currency_id)
 
     conn = get(conn, "/v1/transactions/")
     assert txs = json_response(conn, 200)

@@ -12,7 +12,7 @@ defmodule BitPalWeb.StoreAddressesLiveTest do
     test "show address with invoice", %{conn: conn, store: store, currency_id: currency_id} do
       invoice =
         create_invoice(store.id,
-          curency_id: currency_id,
+          payment_curency_id: currency_id,
           status: :open,
           address: :auto
         )
@@ -45,7 +45,7 @@ defmodule BitPalWeb.StoreAddressesLiveTest do
         create_invoice(
           store_id: store.id,
           required_confirmations: 3,
-          currency_id: currency_id,
+          payment_currency_id: currency_id,
           status: :draft,
           address: :auto
         )
@@ -59,7 +59,7 @@ defmodule BitPalWeb.StoreAddressesLiveTest do
         create_invoice(
           store_id: store.id,
           required_confirmations: 3,
-          currency_id: currency_id,
+          payment_currency_id: currency_id,
           status: :draft,
           address: :auto
         )

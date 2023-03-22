@@ -1,7 +1,7 @@
 defmodule BitPal.ExchangeRate.Sources.Random do
   @behaviour BitPal.ExchangeRate.Source
 
-  alias BitPalFactory.UtilFactory
+  alias BitPalFactory.ExchangeRateFactory
   alias BitPalSettings.ExchangeRateSettings
 
   @impl true
@@ -20,6 +20,7 @@ defmodule BitPal.ExchangeRate.Sources.Random do
   def supported do
     fiat = ExchangeRateSettings.fiat_to_update() |> MapSet.new()
 
+    # FIXME update all test currencies as well?
     Enum.reduce(ExchangeRateSettings.crypto_to_update(), %{}, fn crypto, acc ->
       Map.put(acc, crypto, fiat)
     end)
@@ -32,15 +33,6 @@ defmodule BitPal.ExchangeRate.Sources.Random do
   def rates(opts) do
     base = Keyword.fetch!(opts, :base)
     xquote = Keyword.fetch!(opts, :quote)
-
-    Enum.reduce(base, %{}, fn crypto_id, acc ->
-      Map.put(
-        acc,
-        crypto_id,
-        Enum.reduce(xquote, %{}, fn fiat_id, acc ->
-          Map.put(acc, fiat_id, UtilFactory.rand_decimal())
-        end)
-      )
-    end)
+    ExchangeRateFactory.bundled_rates(crypto: base, fiat: xquote)
   end
 end

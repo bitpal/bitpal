@@ -31,7 +31,9 @@ defmodule BitPalFactory.StoreFactoryTest do
       else
         store =
           store
-          |> with_invoices(Map.take(tags, [:invoice_count, :currencies, :currency_id, :txs]))
+          |> with_invoices(
+            Map.take(tags, [:invoice_count, :payment_currencies, :payment_currency_id, :txs])
+          )
 
         %{tags | store: store}
       end
@@ -40,10 +42,10 @@ defmodule BitPalFactory.StoreFactoryTest do
     @tag manual: true
     test "override currency_id", %{store: store} do
       currency_id = unique_currency_id()
-      store = with_invoices(store, currency_id: currency_id)
+      store = with_invoices(store, payment_currency_id: currency_id)
 
       for invoice <- store.invoices do
-        assert invoice.currency_id == currency_id
+        assert invoice.payment_currency_id == currency_id
       end
     end
 
@@ -51,10 +53,10 @@ defmodule BitPalFactory.StoreFactoryTest do
     test "pick from currencies", %{store: store} do
       currencies = unique_currency_ids(2)
 
-      store = with_invoices(store, currencies: currencies)
+      store = with_invoices(store, payment_currencies: currencies)
 
       for invoice <- store.invoices do
-        assert invoice.currency_id in currencies
+        assert invoice.payment_currency_id in currencies
       end
     end
 

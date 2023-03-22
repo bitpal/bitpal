@@ -35,7 +35,7 @@ defmodule BitPalWeb.StoreTransacionsLiveTest do
         create_invoice(
           store_id: store.id,
           required_confirmations: 3,
-          currency_id: currency_id,
+          payment_currency_id: currency_id,
           status: :draft,
           address: :auto
         )
@@ -55,7 +55,7 @@ defmodule BitPalWeb.StoreTransacionsLiveTest do
         create_invoice(
           store_id: store.id,
           required_confirmations: 3,
-          currency_id: currency_id,
+          payment_currency_id: currency_id,
           status: :draft,
           address: :auto
         )

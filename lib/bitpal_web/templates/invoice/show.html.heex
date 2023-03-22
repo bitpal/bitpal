@@ -9,13 +9,13 @@
     <div class="row">
       <span class="descr">Invoiced amount</span>
       <span class="data">
-        <%= StoreView.format_amount(@invoice) %>
-        <%= StoreView.money_to_string(@invoice.fiat_amount) %>
+        <%= format_price(@invoice) %>
+        <%= format_expected_payment(@invoice) %>
       </span>
     </div>
     <div class="row">
       <span class="descr">Paid amount</span>
-      <span class="data"><%= StoreView.money_to_string(@invoice.amount_paid) %></span>
+      <span class="data"><%= money_to_string(@invoice.amount_paid) %></span>
     </div>
     <div class="row">
       <span class="descr">Status</span>
@@ -44,7 +44,7 @@
       <%= for tx <- @invoice.tx_outputs do %>
         <div class="tx-details">
           <span class="txid"><%= tx.txid %></span>
-          <span class="amount"><%= StoreView.format_amount(@invoice) %></span>
+          <span class="amount"><%= money_to_string(tx.amount) %></span>
           <%= StoreView.tx_status(%{tx: tx}) %>
         </div>
       <% end %>

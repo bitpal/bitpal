@@ -5,6 +5,7 @@ defmodule BitPal.InvoiceEvents do
 
   alias BitPal.EventHelpers
   alias BitPalSchemas.Invoice
+  alias BitPalSchemas.InvoiceStatus
   alias BitPalSchemas.TxOutput
 
   @type tx :: TxOutput.t()
@@ -13,18 +14,18 @@ defmodule BitPal.InvoiceEvents do
   @type processing_reason :: :verifying | {:confirming, additional_confirmations}
 
   @type msg ::
-          {{:invoice, :deleted}, %{id: Invoice.id(), status: Invoice.status()}}
+          {{:invoice, :deleted}, %{id: Invoice.id(), status: InvoiceStatus.t()}}
           | {{:invoice, :finalized}, Invoice.t()}
-          | {{:invoice, :voided}, %{id: Invoice.id(), status: Invoice.status()}}
+          | {{:invoice, :voided}, %{id: Invoice.id(), status: InvoiceStatus.t()}}
           | {{:invoice, :uncollectible},
-             %{id: Invoice.id(), status: Invoice.status(), reason: uncollectible_reason}}
+             %{id: Invoice.id(), status: InvoiceStatus.t(), reason: uncollectible_reason}}
           | {{:invoice, :underpaid},
-             %{id: Invoice.id(), status: Invoice.status(), amount_due: Money.t(), txs: [tx]}}
+             %{id: Invoice.id(), status: InvoiceStatus.t(), amount_due: Money.t(), txs: [tx]}}
           | {{:invoice, :overpaid},
-             %{id: Invoice.id(), status: Invoice.status(), overpaid_amount: Money.t(), txs: [tx]}}
+             %{id: Invoice.id(), status: InvoiceStatus.t(), overpaid_amount: Money.t(), txs: [tx]}}
           | {{:invoice, :processing},
-             %{id: Invoice.id(), status: Invoice.status(), reason: processing_reason, txs: [tx]}}
-          | {{:invoice, :paid}, %{id: Invoice.id(), status: Invoice.status()}}
+             %{id: Invoice.id(), status: InvoiceStatus.t(), reason: processing_reason, txs: [tx]}}
+          | {{:invoice, :paid}, %{id: Invoice.id(), status: InvoiceStatus.t()}}
 
   @spec subscribe(Invoice.id() | Invoice.t()) :: :ok | {:error, term}
   def subscribe(%Invoice{id: id}), do: EventHelpers.subscribe(topic(id))

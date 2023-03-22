@@ -1,5 +1,5 @@
 defmodule BitPalApi.ExchangeRateChannelTest do
-  use BitPalApi.ChannelCase, async: false
+  use BitPalApi.ChannelCase, async: false, integration: false
   alias BitPal.ExchangeRate.Sources.Empty
   alias BitPal.ExchangeRateCache
   alias BitPal.ExchangeRateSupervisor
@@ -111,7 +111,7 @@ defmodule BitPalApi.ExchangeRateChannelTest do
       :error,
       {:error,
        %{
-         message: "Currency `XXX` is invalid or not supported",
+         message: "is invalid or not supported",
          param: "base",
          type: "invalid_request_error",
          code: "invalid_currency"
@@ -127,7 +127,7 @@ defmodule BitPalApi.ExchangeRateChannelTest do
       :error,
       {:error,
        %{
-         message: "Currency `XXX` is invalid or not supported",
+         message: "is invalid or not supported",
          param: "base",
          type: "invalid_request_error",
          code: "invalid_currency"
@@ -143,7 +143,7 @@ defmodule BitPalApi.ExchangeRateChannelTest do
       :error,
       {:error,
        %{
-         message: "Currency `XXX` is invalid or not supported",
+         message: "is invalid or not supported",
          param: "quote",
          type: "invalid_request_error",
          code: "invalid_currency"

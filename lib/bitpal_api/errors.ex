@@ -1,6 +1,19 @@
 # NOTE add a fallback controller as well?
 # https://hexdocs.pm/phoenix/controllers.html#action-fallback
 
+defmodule BitPalApi.Errors do
+  defmacro __using__(_) do
+    quote do
+      alias BitPalApi.BadRequestError
+      alias BitPalApi.ForbiddenError
+      alias BitPalApi.InternalServerError
+      alias BitPalApi.NotFoundError
+      alias BitPalApi.RequestFailedError
+      alias BitPalApi.UnauthorizedError
+    end
+  end
+end
+
 defmodule BitPalApi.BadRequestError do
   @moduledoc """
   400 - Bad Request, The request was unacceptable, often due to missing a required parameter.

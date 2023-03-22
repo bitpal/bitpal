@@ -1,5 +1,7 @@
 defmodule BackendManagerTest do
-  use BitPal.IntegrationCase, async: true
+  # We have some weird crashes that happens sometimes.
+  # Set async: false for this test to see if backend crashes is the cause.
+  use BitPal.IntegrationCase, async: false
   alias BitPal.BackendManager
   alias BitPal.BackendMock
   alias BitPal.BackendStatusSupervisor

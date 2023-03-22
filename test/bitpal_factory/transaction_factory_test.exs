@@ -1,5 +1,6 @@
 defmodule BitPalFactory.TransactionFactoryTest do
   use BitPal.DataCase, async: true
+  alias BitPalSchemas.InvoiceStatus
 
   describe "unique_txid/0" do
     test "generate txs" do
@@ -79,62 +80,62 @@ defmodule BitPalFactory.TransactionFactoryTest do
       end
     end
 
-    @tag status: :processing, required_confirmations: 0
+    @tag status: {:processing, :verifying}, required_confirmations: 0
     test "processing invoice with 0-conf", %{invoices: invoices} do
       for invoice <- invoices do
         assert is_binary(invoice.address_id)
         assert invoice.required_confirmations == 0
         assert Enum.any?(invoice.tx_outputs)
-        assert invoice.status_reason == :verifying
+        assert InvoiceStatus.reason(invoice.status) == :verifying
         assert Invoices.target_amount_reached?(invoice) in [:overpaid, :ok]
       end
     end
 
-    @tag status: :processing, required_confirmations: 2
+    @tag status: {:processing, :confirming}, required_confirmations: 2
     test "processing invoice with confs", %{invoices: invoices} do
       for invoice <- invoices do
         assert is_binary(invoice.address_id)
         assert invoice.required_confirmations == 2
         assert Enum.any?(invoice.tx_outputs)
-        assert invoice.status_reason == :confirming
+        assert InvoiceStatus.reason(invoice.status) == :confirming
         assert Invoices.target_amount_reached?(invoice) in [:overpaid, :ok]
       end
     end
 
-    @tag status: :uncollectible, status_reason: :expired
+    @tag status: {:uncollectible, :expired}
     test "uncollectible expired invoice", %{invoices: invoices} do
       for invoice <- invoices do
         assert is_binary(invoice.address_id)
-        assert invoice.status_reason == :expired
+        assert InvoiceStatus.reason(invoice.status) == :expired
         assert Enum.empty?(invoice.tx_outputs)
       end
     end
 
-    @tag status: :uncollectible, status_reason: :canceled
+    @tag status: {:uncollectible, :canceled}
     test "uncollectible canceled invoice", %{invoices: invoices} do
       for invoice <- invoices do
         assert is_binary(invoice.address_id)
-        assert invoice.status_reason == :canceled
+        assert InvoiceStatus.reason(invoice.status) == :canceled
         assert Enum.empty?(invoice.tx_outputs)
       end
     end
 
-    @tag status: :uncollectible, status_reason: :timed_out, required_confirmations: 1
+    @tag status: {:uncollectible, :timed_out}, required_confirmations: 1
     test "uncollectible timed_out invoice", %{invoices: invoices} do
       for invoice <- invoices do
         assert is_binary(invoice.address_id)
-        assert invoice.status_reason == :timed_out
+        assert InvoiceStatus.reason(invoice.status) == :timed_out
         assert Enum.any?(invoice.tx_outputs)
         assert Invoices.target_amount_reached?(invoice) == :ok
         assert invoice.confirmations_due == 1
       end
     end
 
-    @tag status: :uncollectible, status_reason: :double_spent
+    @tag status: {:uncollectible, :double_spent}
     test "uncollectible invoice", %{invoices: invoices} do
       for invoice <- invoices do
         assert is_binary(invoice.address_id)
-        assert invoice.status_reason == :double_spent
+        assert InvoiceStatus.reason(invoice.status) == :double_spent
         [tx] = invoice.tx_outputs
         assert tx.double_spent
         assert Invoices.target_amount_reached?(invoice) == :ok
@@ -145,7 +146,14 @@ defmodule BitPalFactory.TransactionFactoryTest do
     test "void invoice", %{invoices: invoices} do
       for invoice <- invoices do
         assert is_binary(invoice.address_id)
-        assert invoice.status_reason in [:expired, :canceled, :double_spent, :timed_out, nil]
+
+        assert InvoiceStatus.reason(invoice.status) in [
+                 :expired,
+                 :canceled,
+                 :double_spent,
+                 :timed_out,
+                 nil
+               ]
       end
     end
 
@@ -153,7 +161,7 @@ defmodule BitPalFactory.TransactionFactoryTest do
     test "paid invoice", %{invoices: invoices} do
       for invoice <- invoices do
         assert is_binary(invoice.address_id)
-        assert invoice.status_reason == nil
+        assert InvoiceStatus.reason(invoice.status) == nil
         assert invoice.confirmations_due == 0
         assert Enum.count(invoice.tx_outputs) > 0
         assert Invoices.target_amount_reached?(invoice) in [:overpaid, :ok]

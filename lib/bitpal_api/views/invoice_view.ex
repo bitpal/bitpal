@@ -1,22 +1,31 @@
 defmodule BitPalApi.InvoiceView do
   use BitPalApi, :view
+  alias BitPalSchemas.InvoiceRates
   alias BitPalApi.TransactionView
   alias BitPalSchemas.Invoice
+  alias BitPalSchemas.InvoiceStatus
 
   def render("show.json", %{invoice: invoice = %Invoice{}}) do
+    {state, reason} = InvoiceStatus.split(invoice.status)
+
     %{
       id: invoice.id,
-      currency: invoice.currency_id,
+      status: state,
+      priceCurrency: invoice.price.currency,
+      price: Decimal.to_string(Money.to_decimal(invoice.price) |> Decimal.normalize(), :normal),
+      priceDisplay: money_to_string(invoice.price),
+      subPrice: invoice.price.amount,
       address: invoice.address_id,
-      status: invoice.status,
-      required_confirmations: invoice.required_confirmations,
       email: invoice.email,
       description: invoice.description,
-      pos_data: invoice.pos_data
+      orderId: invoice.order_id,
+      posData: invoice.pos_data
     }
-    |> put_unless_nil(:amount, invoice.amount, &Money.to_decimal/1)
-    |> put_unless_nil(:fiat_amount, invoice.fiat_amount, &Money.to_decimal/1)
-    |> put_unless_nil(:fiat_currency, invoice.fiat_amount, & &1.currency)
+    |> put_unless_empty(:rates, InvoiceRates.to_float(invoice.rates))
+    |> put_unless_nil(:statusReason, reason)
+    |> put_unless_nil(:requiredConfirmations, invoice.required_confirmations)
+    |> put_unless_nil(:paymentCurrency, invoice.payment_currency_id)
+    |> put_expected_payment(invoice)
   end
 
   def render("index.json", %{invoices: invoices}) do
@@ -76,5 +85,17 @@ defmodule BitPalApi.InvoiceView do
 
   defp render_txs(txs) do
     Enum.map(txs, fn tx -> TransactionView.render("show.json", tx: tx) end)
+  end
+
+  defp put_expected_payment(params, %{expected_payment: expected_payment})
+       when not is_nil(expected_payment) do
+    Map.merge(params, %{
+      paymentSubAmount: expected_payment.amount,
+      paymentDisplay: money_to_string(expected_payment)
+    })
+  end
+
+  defp put_expected_payment(params, _) do
+    params
   end
 end

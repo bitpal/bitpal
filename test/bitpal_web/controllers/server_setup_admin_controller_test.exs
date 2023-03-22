@@ -1,6 +1,5 @@
 defmodule BitPalWeb.ServerSetupAdminControllerTest do
   use BitPalWeb.ConnCase, async: true
-  import Phoenix.LiveViewTest
   import Mox
 
   setup :verify_on_exit!

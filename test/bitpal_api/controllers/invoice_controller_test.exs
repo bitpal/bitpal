@@ -1,76 +1,173 @@
 defmodule BitPalApi.InvoiceControllerTest do
-  use BitPalApi.ConnCase, async: true
+  use BitPalApi.ConnCase, async: true, integration: true
+  alias BitPal.ExchangeRate
+  alias BitPal.Invoices
+  alias BitPalSchemas.InvoiceRates
+  alias BitPal.ViewHelpers
 
   describe "create" do
-    test "basic", %{conn: conn, currency_id: currency_id} do
+    @tag do: true
+    test "standard fields", %{conn: conn} do
       conn =
         post(conn, "/v1/invoices", %{
-          amount: "1.2",
-          exchange_rate: "2.0",
-          currency_id: currency_id,
-          fiat_currency: "USD",
-          email: "test@bitpal.dev",
+          subPrice: 120,
+          priceCurrency: "USD",
           description: "My awesome invoice",
-          pos_data: %{
+          email: "test@bitpal.dev",
+          orderId: "id:123",
+          posData: %{
             "some" => "data",
-            "other" => %{"even_more" => 0}
+            "other" => %{"even_more" => 0.1337}
           }
         })
 
-      currency = Atom.to_string(currency_id)
-
       assert %{
                "id" => id,
-               "address" => nil,
-               "amount" => "1.20" <> _,
-               "currency" => ^currency,
-               "fiat_amount" => "2.40",
-               "fiat_currency" => "USD",
-               "required_confirmations" => 0,
                "status" => "draft",
-               "email" => "test@bitpal.dev",
+               "address" => nil,
                "description" => "My awesome invoice",
-               "pos_data" => %{
+               "email" => "test@bitpal.dev",
+               "orderId" => "id:123",
+               "posData" => %{
                  "some" => "data",
-                 "other" => %{"even_more" => 0}
+                 "other" => %{"even_more" => 0.1337}
                }
              } = json_response(conn, 200)
 
       assert id != nil
+      assert Invoices.fetch!(id).id == id
+    end
+
+    test "with fiat subPrice", %{conn: conn} do
+      conn =
+        post(conn, "/v1/invoices", %{
+          subPrice: 120,
+          priceCurrency: "USD"
+        })
+
+      assert %{
+               "price" => "1.2",
+               "subPrice" => 120,
+               "priceCurrency" => "USD",
+               "priceDisplay" => "$1.20",
+               "rates" => rates
+             } = json_response(conn, 200)
+
+      assert rates != nil
+      assert InvoiceRates.find_base_with_rate(rates, "USD") != :not_found
+    end
+
+    test "create with fiat price", %{conn: conn} do
+      conn =
+        post(conn, "/v1/invoices", %{
+          price: "1.20",
+          priceCurrency: "USD"
+        })
+
+      assert %{
+               "price" => "1.2",
+               "subPrice" => 120,
+               "priceCurrency" => "USD",
+               "priceDisplay" => "$1.20",
+               "rates" => rates
+             } = json_response(conn, 200)
+
+      assert rates != nil
+      assert InvoiceRates.find_base_with_rate(rates, "USD") != :not_found
+    end
+
+    test "with crypto subPrice", %{conn: conn} do
+      conn =
+        post(conn, "/v1/invoices", %{
+          subPrice: 1_200,
+          priceCurrency: "BCH"
+        })
+
+      assert %{
+               "price" => "0.000012",
+               "subPrice" => 1_200,
+               "priceCurrency" => "BCH",
+               "priceDisplay" => "0.000012 BCH",
+               "paymentCurrency" => "BCH",
+               "paymentSubAmount" => 1_200,
+               "paymentDisplay" => "0.000012 BCH"
+             } = json_response(conn, 200)
+    end
+
+    test "with crypto price", %{conn: conn} do
+      conn =
+        post(conn, "/v1/invoices", %{
+          price: "1.2",
+          priceCurrency: "BCH"
+        })
+
+      assert %{
+               "price" => "1.2",
+               "subPrice" => 120_000_000,
+               "priceCurrency" => "BCH",
+               "priceDisplay" => "1.2 BCH",
+               "paymentCurrency" => "BCH",
+               "paymentSubAmount" => 120_000_000,
+               "paymentDisplay" => "1.2 BCH"
+             } = json_response(conn, 200)
     end
 
     test "create and finalize", %{conn: conn, currency_id: currency_id} do
+      currency = Atom.to_string(currency_id)
+
       conn =
         post(conn, "/v1/invoices", %{
-          "amount" => "1.2",
-          "exchange_rate" => "2.0",
-          "currency_id" => currency_id,
-          "fiat_currency" => "USD",
-          "finalize" => true
+          price: "1.2",
+          priceCurrency: "USD",
+          paymentCurrency: currency,
+          finalize: true
         })
-
-      currency = Atom.to_string(currency_id)
 
       assert %{
                "id" => id,
                "address" => address,
-               "amount" => "1.20" <> _,
-               "currency" => ^currency,
-               "fiat_amount" => "2.40",
-               "fiat_currency" => "USD",
-               "required_confirmations" => 0,
+               "price" => "1.2",
+               "subPrice" => 120,
+               "priceCurrency" => "USD",
+               "priceDisplay" => "$1.20",
+               "paymentCurrency" => ^currency,
+               "paymentSubAmount" => payment_sub_amount,
+               "paymentDisplay" => payment_display,
+               "requiredConfirmations" => 0,
+               "rates" => %{
+                 ^currency => %{"USD" => rate}
+               },
                "status" => "open"
              } = json_response(conn, 200)
 
       assert id != nil
       assert address != nil
+      assert is_float(rate)
+
+      assert ViewHelpers.money_to_string(Money.new(payment_sub_amount, currency)) ==
+               payment_display
     end
 
     test "invoice creation fail", %{conn: conn} do
       {_, _, response} =
         assert_error_sent(402, fn ->
+          post(conn, "/v1/invoices", %{})
+        end)
+
+      assert %{
+               "type" => "invalid_request_error",
+               "message" => "Request Failed",
+               "errors" => %{
+                 "price" => "either `price` or `subPrice` must be provided",
+                 "subPrice" => "either `price` or `subPrice` must be provided",
+                 "priceCurrency" => "can't be blank"
+               }
+             } = Jason.decode!(response)
+
+      {_, _, response} =
+        assert_error_sent(402, fn ->
           post(conn, "/v1/invoices", %{
-            amount: "fail"
+            price: "fail"
           })
         end)
 
@@ -78,9 +175,8 @@ defmodule BitPalApi.InvoiceControllerTest do
                "type" => "invalid_request_error",
                "message" => "Request Failed",
                "errors" => %{
-                 "fiat_amount" => "must provide amount in either crypto or fiat",
-                 "amount" => "must provide amount in either crypto or fiat",
-                 "currency_id" => "cannot be empty"
+                 "price" => "is invalid",
+                 "priceCurrency" => "can't be blank"
                }
              } = Jason.decode!(response)
     end
@@ -93,16 +189,15 @@ defmodule BitPalApi.InvoiceControllerTest do
       conn = post(conn, "/v1/invoices/#{invoice.id}/finalize")
 
       id = invoice.id
-      currency = Atom.to_string(invoice.currency_id)
-      fiat_currency = Atom.to_string(invoice.fiat_amount.currency)
+      currency = Atom.to_string(invoice.payment_currency_id)
 
       assert %{
                "id" => ^id,
                "address" => address,
-               "amount" => "1.20" <> _,
-               "currency" => ^currency,
-               "fiat_amount" => "2.40",
-               "fiat_currency" => ^fiat_currency,
+               "price" => "1.2",
+               "subPrice" => 120,
+               "priceCurrency" => "USD",
+               "paymentCurrency" => ^currency,
                "status" => "open"
              } = json_response(conn, 200)
 
@@ -112,7 +207,7 @@ defmodule BitPalApi.InvoiceControllerTest do
     test "get invoice", %{conn: conn, invoice_id: id, currency_id: currency_id} do
       conn = get(conn, "/v1/invoices/#{id}")
       currency = Atom.to_string(currency_id)
-      assert %{"id" => ^id, "currency" => ^currency} = json_response(conn, 200)
+      assert %{"id" => ^id, "paymentCurrency" => ^currency} = json_response(conn, 200)
     end
 
     test "delete", %{conn: conn, invoice_id: id} do
@@ -129,7 +224,7 @@ defmodule BitPalApi.InvoiceControllerTest do
       assert %{
                "type" => "invalid_request_error",
                "code" => "invalid_transition",
-               "message" => "invalid transition from 'draft' to 'paid'"
+               "message" => "invalid transition from `draft` to `paid`"
              } = Jason.decode!(response)
     end
 
@@ -142,99 +237,84 @@ defmodule BitPalApi.InvoiceControllerTest do
       assert %{
                "type" => "invalid_request_error",
                "code" => "invalid_transition",
-               "message" => "invalid transition from 'draft' to 'void'"
+               "message" => "invalid transition from `draft` to `void`"
              } = Jason.decode!(response)
     end
 
-    test "update amount", %{conn: conn, invoice: invoice} do
+    test "update price", %{conn: conn, invoice: invoice} do
       conn =
         post(conn, "/v1/invoices/#{invoice.id}", %{
-          amount: "7.0"
+          price: 7.0,
+          priceCurrency: "EUR"
         })
 
-      currency = Atom.to_string(invoice.currency_id)
-      fiat_currency = Atom.to_string(invoice.fiat_amount.currency)
-
       assert %{
-               "amount" => "7.0" <> _,
-               "currency" => ^currency,
-               "fiat_amount" => "14.00",
-               "fiat_currency" => ^fiat_currency
+               "price" => "7",
+               "subPrice" => 700,
+               "priceCurrency" => "EUR",
+               "priceDisplay" => "€7.00",
+               "rates" => rates
              } = json_response(conn, 200)
+
+      assert rates != nil
+      assert InvoiceRates.find_base_with_rate(rates, "EUR") != :not_found
     end
 
-    test "update fiat amount", %{conn: conn, invoice: invoice} do
+    @tag payment_currency_id: nil
+    test "set price to crypto if no payment_currency has been selected", %{
+      conn: conn,
+      invoice: invoice
+    } do
+      assert invoice.payment_currency_id == nil
+
       conn =
         post(conn, "/v1/invoices/#{invoice.id}", %{
-          fiat_amount: "8"
-        })
-
-      currency = Atom.to_string(invoice.currency_id)
-      fiat_currency = Atom.to_string(invoice.fiat_amount.currency)
-
-      assert %{
-               "amount" => "4.0" <> _,
-               "currency" => ^currency,
-               "fiat_amount" => "8.00",
-               "fiat_currency" => ^fiat_currency
-             } = json_response(conn, 200)
-    end
-
-    test "update exchange rate", %{conn: conn, invoice: invoice} do
-      conn =
-        post(conn, "/v1/invoices/#{invoice.id}", %{
-          exchange_rate: "3.0"
-        })
-
-      currency = Atom.to_string(invoice.currency_id)
-      fiat_currency = Atom.to_string(invoice.fiat_amount.currency)
-
-      assert %{
-               "amount" => "1.20" <> _,
-               "currency" => ^currency,
-               "fiat_amount" => "3.60",
-               "fiat_currency" => ^fiat_currency
-             } = json_response(conn, 200)
-    end
-
-    test "update amount and exchange rate", %{conn: conn, invoice: invoice} do
-      conn =
-        post(conn, "/v1/invoices/#{invoice.id}", %{
-          amount: "7.0",
-          exchange_rate: "3.0"
-        })
-
-      currency = Atom.to_string(invoice.currency_id)
-      fiat_currency = Atom.to_string(invoice.fiat_amount.currency)
-
-      assert %{
-               "amount" => "7.0" <> _,
-               "currency" => ^currency,
-               "fiat_amount" => "21.00",
-               "fiat_currency" => ^fiat_currency
-             } = json_response(conn, 200)
-    end
-
-    test "change currency", %{conn: conn, invoice_id: id, currency_id: currency_id} do
-      currency = Atom.to_string(currency_id)
-
-      conn =
-        post(conn, "/v1/invoices/#{id}", %{
-          amount: "7.0",
-          currency: currency
+          sub_price: 1_000_000,
+          priceCurrency: "DGC"
         })
 
       assert %{
-               "amount" => "7.0" <> _,
-               "currency" => ^currency
+               "price" => "0.01",
+               "subPrice" => 1_000_000,
+               "priceCurrency" => "DGC",
+               "priceDisplay" => "0.01 DGC",
+               "paymentCurrency" => "DGC",
+               "paymentSubAmount" => 1_000_000,
+               "paymentDisplay" => "0.01 DGC"
              } = json_response(conn, 200)
     end
 
-    test "cannot change just fiat currency", %{conn: conn, invoice_id: id} do
+    test "cannot set price to crypto if payment is in another crypto", %{
+      conn: conn,
+      invoice: invoice
+    } do
+      assert invoice.payment_currency_id != nil
+
       {_, _, response} =
         assert_error_sent(402, fn ->
-          post(conn, "/v1/invoices/#{id}", %{
-            amount: "fail"
+          post(conn, "/v1/invoices/#{invoice.id}", %{
+            sub_price: 1_000_000,
+            priceCurrency: "DGC"
+          })
+        end)
+
+      price_error =
+        "must be the same as payment currency `#{invoice.payment_currency_id}` when priced in crypto"
+
+      assert %{
+               "type" => "invalid_request_error",
+               "message" => "Request Failed",
+               "errors" => %{
+                 "priceCurrency" => ^price_error
+               }
+             } = Jason.decode!(response)
+    end
+
+    test "if price is specified, need priceCurrency", %{conn: conn, invoice: invoice} do
+      {_, _, response} =
+        assert_error_sent(402, fn ->
+          post(conn, "/v1/invoices/#{invoice.id}", %{
+            price: 7.0
           })
         end)
 
@@ -242,38 +322,132 @@ defmodule BitPalApi.InvoiceControllerTest do
                "type" => "invalid_request_error",
                "message" => "Request Failed",
                "errors" => %{
-                 "amount" => "is invalid"
+                 "priceCurrency" => "can't be empty if either `price` or `subPrice` is set"
                }
              } = Jason.decode!(response)
     end
 
-    test "update many", %{conn: conn, invoice_id: id, currency_id: currency_id} do
+    test "if subPrice is specified, need priceCurrency", %{conn: conn, invoice: invoice} do
+      {_, _, response} =
+        assert_error_sent(402, fn ->
+          post(conn, "/v1/invoices/#{invoice.id}", %{
+            sub_price: 700
+          })
+        end)
+
+      assert %{
+               "type" => "invalid_request_error",
+               "message" => "Request Failed",
+               "errors" => %{
+                 "priceCurrency" => "can't be empty if either `price` or `subPrice` is set"
+               }
+             } = Jason.decode!(response)
+    end
+
+    test "if priceCurrency is specified, need price or subPrice", %{conn: conn, invoice: invoice} do
+      {_, _, response} =
+        assert_error_sent(402, fn ->
+          post(conn, "/v1/invoices/#{invoice.id}", %{
+            priceCurrency: "EUR"
+          })
+        end)
+
+      assert %{
+               "type" => "invalid_request_error",
+               "message" => "Request Failed",
+               "errors" => %{
+                 "price" => "either `price` or `subPrice` must be provided",
+                 "subPrice" => "either `price` or `subPrice` must be provided"
+               }
+             } = Jason.decode!(response)
+    end
+
+    test "change paymentCurrency", %{conn: conn, invoice: invoice} do
+      currency_id = :DGC
+      assert invoice.payment_currency_id != currency_id
       currency = Atom.to_string(currency_id)
 
       conn =
+        post(conn, "/v1/invoices/#{invoice.id}", %{
+          paymentCurrency: currency
+        })
+
+      assert %{
+               "price" => "1.2",
+               "priceCurrency" => "USD",
+               "paymentCurrency" => ^currency,
+               "paymentSubAmount" => sub_amount,
+               "paymentDisplay" => display,
+               "rates" => %{^currency => %{"USD" => rate}}
+             } = json_response(conn, 200)
+
+      assert is_integer(sub_amount)
+      assert display != nil
+      assert is_float(rate)
+
+      assert decimal_eq(
+               ExchangeRate.calculate_rate(
+                 Money.new(sub_amount, currency_id),
+                 Money.parse!("1.2", "USD")
+               ),
+               Decimal.from_float(rate)
+             )
+    end
+
+    test "validates priceCurrency", %{conn: conn, invoice_id: id} do
+      {_, _, response} =
+        assert_error_sent(402, fn ->
+          post(conn, "/v1/invoices/#{id}", %{
+            price: 1.0,
+            priceCurrency: "XXX"
+          })
+        end)
+
+      assert %{
+               "type" => "invalid_request_error",
+               "message" => "Request Failed",
+               "errors" => %{
+                 "priceCurrency" => "is invalid or not supported"
+               }
+             } = Jason.decode!(response)
+    end
+
+    test "validates paymentCurrency", %{conn: conn, invoice_id: id} do
+      {_, _, response} =
+        assert_error_sent(402, fn ->
+          post(conn, "/v1/invoices/#{id}", %{
+            paymentCurrency: "XXX"
+          })
+        end)
+
+      assert %{
+               "type" => "invalid_request_error",
+               "message" => "Request Failed",
+               "errors" => %{
+                 "paymentCurrency" => "is invalid or not supported"
+               }
+             } = Jason.decode!(response)
+    end
+
+    test "update meta fields", %{conn: conn, invoice_id: id} do
+      conn =
         post(conn, "/v1/invoices/#{id}", %{
-          amount: "7.0",
-          currency: currency,
-          exchange_rate: "3.0",
-          fiat_currency: "USD",
-          email: "test@bitpal.dev",
           description: "My awesome invoice",
-          pos_data: %{
+          email: "test@bitpal.dev",
+          orderId: "id:123",
+          posData: %{
             "some" => "data",
-            "other" => %{"even_more" => 0}
+            "other" => %{"even_more" => 0.1337}
           }
         })
 
       assert %{
-               "amount" => "7.0" <> _,
-               "currency" => ^currency,
-               "fiat_amount" => "21.00",
-               "fiat_currency" => "USD",
-               "email" => "test@bitpal.dev",
                "description" => "My awesome invoice",
-               "pos_data" => %{
+               "email" => "test@bitpal.dev",
+               "orderId" => "id:123",
+               "posData" => %{
                  "some" => "data",
-                 "other" => %{"even_more" => 0}
+                 "other" => %{"even_more" => 0.1337}
                }
              } = json_response(conn, 200)
     end
@@ -393,20 +567,29 @@ defmodule BitPalApi.InvoiceControllerTest do
   end
 
   defp setup_draft(context) do
-    add_invoice(context, amount: "1.2", exchange_rate: "2.0", status: :draft)
+    setup_invoice(context, price: Money.parse!(1.2, :USD), status: :draft)
   end
 
   defp setup_open(context) do
-    add_invoice(context,
+    setup_invoice(context,
+      price: Money.parse!(1.2, :USD),
       address_id: :auto,
       status: :open
     )
   end
 
   defp setup_uncollectable(context) do
-    add_invoice(context,
+    setup_invoice(context,
       address_id: :auto,
-      status: :uncollectible
+      status: {:uncollectible, :canceled}
     )
+  end
+
+  defp setup_invoice(context, attrs) do
+    invoice_attrs =
+      Map.take(context, [:payment_currency_id])
+      |> Map.merge(Map.new(attrs))
+
+    add_invoice(context, invoice_attrs)
   end
 end

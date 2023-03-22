@@ -1,10 +1,12 @@
 defmodule BitPal.Invoices do
   import Ecto.Changeset
   import Ecto.Query
+  alias BitPalApi.ApiHelpers
+  alias BitPal.ExchangeRates
   alias BitPal.Addresses
   alias BitPal.Blocks
+  alias BitPal.Currencies
   alias BitPal.ExchangeRate
-  alias BitPal.FSM
   alias BitPal.InvoiceEvents
   alias BitPal.Repo
   alias BitPal.StoreEvents
@@ -12,27 +14,31 @@ defmodule BitPal.Invoices do
   alias BitPalSchemas.Address
   alias BitPalSchemas.AddressKey
   alias BitPalSchemas.Invoice
+  alias BitPalSchemas.InvoiceRates
+  alias BitPalSchemas.InvoiceStatus
   alias BitPalSchemas.Store
   alias BitPalSchemas.TxOutput
   alias BitPalSettings.StoreSettings
+  alias BitPalSettings.ExchangeRateSettings
   alias Ecto.Changeset
   require Decimal
+  require Logger
 
   # External
 
   @spec register(Store.id(), map) :: {:ok, Invoice.t()} | {:error, Changeset.t()}
   def register(store_id, params) do
+    if params[:currency_id] do
+      raise "trying to set currency_id!"
+    end
+
+    if params[:amount] do
+      raise "trying to set amount!"
+    end
+
     res =
-      %Invoice{store_id: store_id}
-      |> cast(params, [:required_confirmations, :description, :email, :pos_data])
-      |> assoc_currency(params)
-      |> validate_currency(params, :fiat_currency)
-      |> cast_money(params, :amount, :currency_id)
-      |> cast_money(params, :fiat_amount, :fiat_currency)
-      |> cast_exchange_rate(params)
-      |> validate_into_matching_pairs()
-      |> validate_required_confirmations()
-      |> validate_format(:email, ~r/^.+@.+$/, message: "Must be a valid email")
+      %Invoice{store_id: store_id, status: :draft}
+      |> change_validation(params)
       |> Repo.insert()
 
     case res do
@@ -48,53 +54,22 @@ defmodule BitPal.Invoices do
     end
   end
 
-  @spec fetch(Invoice.id()) :: {:ok, Invoice.t()} | {:error, :not_found}
-  def fetch(id) do
-    if invoice = Repo.get(Invoice, id) do
-      {:ok, invoice}
-    else
-      {:error, :not_found}
-    end
-  rescue
-    _ -> {:error, :not_found}
-  end
-
-  @spec fetch(Invoice.id(), Store.id()) :: {:ok, Invoice.t()} | {:error, :not_found}
-  def fetch(id, store_id) do
-    invoice = from(i in Invoice, where: i.id == ^id and i.store_id == ^store_id) |> Repo.one()
-
-    if invoice do
-      {:ok, invoice}
-    else
-      {:error, :not_found}
-    end
-  rescue
-    _ -> {:error, :not_found}
-  end
-
-  @spec all :: [Invoice.t()]
-  def all do
-    Repo.all(Invoice)
-  end
-
   @spec update(Invoice.t(), map) ::
           {:ok, Invoice.t()} | {:error, :finalized} | {:error, Changeset.t()}
   def update(invoice, params) do
+    if params[:currency_id] do
+      raise "trying to set currency_id!"
+    end
+
+    if params[:amount] do
+      raise "trying to set amount!"
+    end
+
     if finalized?(invoice) do
       {:error, :finalized}
     else
       invoice
-      |> calculate_exchange_rate!()
-      |> cast(params, [:required_confirmations, :description, :email, :pos_data])
-      |> assoc_currency(params)
-      |> validate_currency(params, :fiat_currency)
-      |> cast_money(params, :amount, :currency_id)
-      |> cast_money(params, :fiat_amount, :fiat_currency)
-      |> cast_exchange_rate(params)
-      |> clear_pairs_for_update()
-      |> validate_into_matching_pairs(nil_bad_params: true)
-      |> validate_required_confirmations()
-      |> validate_format(:email, ~r/^.+@.+$/, message: "Must be a valid email")
+      |> change_validation(params)
       |> Repo.update()
     end
   end
@@ -118,14 +93,8 @@ defmodule BitPal.Invoices do
   @spec finalize(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Changeset.t()}
   def finalize(invoice) do
     res =
-      FSM.transition_changeset(invoice, :open)
-      |> validate_required([
-        :amount,
-        :fiat_amount,
-        :currency_id,
-        :address_id,
-        :required_confirmations
-      ])
+      invoice
+      |> finalize_validation()
       |> Repo.update()
 
     case res do
@@ -140,7 +109,14 @@ defmodule BitPal.Invoices do
 
   @spec void(Invoice.t()) :: {:ok, Invoice.t()} | {:error, Changeset.t()}
   def void(invoice) do
-    case transition(invoice, :void) do
+    status =
+      if reason = InvoiceStatus.reason(invoice.status) do
+        {:void, reason}
+      else
+        :void
+      end
+
+    case transition(invoice, status) do
       {:ok, invoice} ->
         InvoiceEvents.broadcast({{:invoice, :voided}, %{id: invoice.id, status: invoice.status}})
         {:ok, invoice}
@@ -155,7 +131,7 @@ defmodule BitPal.Invoices do
           | {:error, :no_block_height}
           | {:error, Changeset.t()}
   def pay_unchecked(invoice = %Invoice{}) do
-    with {:ok, height} <- Blocks.fetch_block_height(invoice.currency_id),
+    with {:ok, height} <- Blocks.fetch_block_height(invoice.payment_currency_id),
          invoice <- update_info_from_txs(invoice, height),
          {:ok, invoice} <- transition(invoice, :paid) do
       InvoiceEvents.broadcast({{:invoice, :paid}, %{id: invoice.id, status: invoice.status}})
@@ -169,7 +145,7 @@ defmodule BitPal.Invoices do
     end
   end
 
-  @spec has_status?(Invoice.t(), Invoice.status()) :: :ok | {:error, :invalid_status}
+  @spec has_status?(Invoice.t(), InvoiceStatus.t()) :: :ok | {:error, :invalid_status}
   def has_status?(invoice, status) do
     if invoice.status == status do
       :ok
@@ -182,19 +158,50 @@ defmodule BitPal.Invoices do
 
   @spec address_key(Invoice.t()) :: {:ok, AddressKey.t()} | {:error, :not_found}
   def address_key(invoice) do
-    StoreSettings.fetch_address_key(invoice.store_id, invoice.currency_id)
+    StoreSettings.fetch_address_key(invoice.store_id, invoice.payment_currency_id)
   end
 
   @spec double_spend_timeout(Invoice.t()) :: non_neg_integer
   def double_spend_timeout(invoice) do
-    StoreSettings.get_double_spend_timeout(invoice.store_id, invoice.currency_id)
+    StoreSettings.get_double_spend_timeout(invoice.store_id, invoice.payment_currency_id)
   end
 
   # Fetching
 
   @spec fetch!(Invoice.id()) :: Invoice.t()
   def fetch!(id) do
-    Repo.get!(Invoice, id)
+    {:ok, invoice} = fetch(id)
+    invoice
+  end
+
+  @spec fetch(Invoice.id(), Store.id()) :: {:ok, Invoice.t()} | {:error, :not_found}
+  def fetch(id, store_id) do
+    invoice = from(i in Invoice, where: i.id == ^id and i.store_id == ^store_id) |> Repo.one()
+
+    if invoice do
+      {:ok, update_expected_payment(invoice)}
+    else
+      {:error, :not_found}
+    end
+  rescue
+    _ -> {:error, :not_found}
+  end
+
+  @spec fetch(Invoice.id()) :: {:ok, Invoice.t()} | {:error, :not_found}
+  def fetch(id) do
+    if invoice = Repo.get(Invoice, id) do
+      {:ok, update_expected_payment(invoice)}
+    else
+      {:error, :not_found}
+    end
+  rescue
+    _ -> {:error, :not_found}
+  end
+
+  @spec all :: [Invoice.t()]
+  def all do
+    Repo.all(Invoice)
+    |> Enum.map(&update_expected_payment/1)
   end
 
   @spec fetch_by_address(Address.id()) :: {:ok, Invoice.t()} | :error
@@ -204,7 +211,7 @@ defmodule BitPal.Invoices do
       |> Repo.one()
 
     if invoice do
-      {:ok, invoice}
+      {:ok, update_expected_payment(invoice)}
     else
       :error
     end
@@ -216,6 +223,7 @@ defmodule BitPal.Invoices do
     |> with_status(:open)
     |> select([i], i)
     |> Repo.all()
+    |> Enum.map(&update_expected_payment/1)
   end
 
   @spec finalized?(Invoice.t()) :: boolean
@@ -251,7 +259,7 @@ defmodule BitPal.Invoices do
         :confirming
       end
 
-    case transition(invoice, :processing, reason) do
+    case transition(invoice, {:processing, reason}) do
       {:ok, invoice} ->
         broadcast_processing(invoice)
         {:ok, invoice}
@@ -296,7 +304,7 @@ defmodule BitPal.Invoices do
     end
 
     invoice =
-      FSM.transition_changeset(invoice, :paid)
+      transition_validation(invoice, :paid)
       |> Repo.update!()
 
     InvoiceEvents.broadcast({{:invoice, :paid}, %{id: invoice.id, status: invoice.status}})
@@ -305,7 +313,7 @@ defmodule BitPal.Invoices do
 
   @spec mark_uncollectible!(Invoice.t(), InvoiceEvents.uncollectible_reason()) :: Invoice.t()
   defp mark_uncollectible!(invoice, reason) do
-    {:ok, invoice} = transition(invoice, :uncollectible, reason)
+    {:ok, invoice} = transition(invoice, {:uncollectible, reason})
 
     InvoiceEvents.broadcast(
       {{:invoice, :uncollectible}, %{id: invoice.id, status: invoice.status, reason: reason}}
@@ -314,13 +322,12 @@ defmodule BitPal.Invoices do
     invoice
   end
 
-  defp transition(invoice, new_state, status_reason \\ nil) do
-    FSM.transition_changeset(invoice, new_state)
-    |> change(status_reason: status_reason)
+  defp transition(invoice, next_status) do
+    transition_validation(invoice, next_status)
     |> Repo.update()
   end
 
-  @spec set_status!(Invoice.t(), Invoice.status()) :: Invoice.t()
+  @spec set_status!(Invoice.t(), InvoiceStatus.t()) :: Invoice.t()
   def set_status!(invoice, status) do
     change(invoice, status: status)
     |> Repo.update!()
@@ -359,17 +366,65 @@ defmodule BitPal.Invoices do
 
   # Aux data
 
-  def calculate_exchange_rate!(invoice) do
-    cond do
-      invoice.exchange_rate ->
-        invoice
+  def rate(invoice = %Invoice{}) do
+    invoice.rates[invoice.payment_currency_id][invoice.price.currency]
+  end
 
-      invoice.amount && invoice.fiat_amount ->
-        %{invoice | exchange_rate: ExchangeRate.new!(invoice.amount, invoice.fiat_amount)}
+  def rate!(invoice = %Invoice{}) do
+    case rate(invoice) do
+      nil -> raise("rate not found in invoice: #{inspect(invoice)}")
+      x -> x
+    end
+  end
 
-      true ->
+  # If we get more virtual fields (that don't depend on more preloads) consider
+  # merging them with this.
+  def update_expected_payment(invoice = %Invoice{}) do
+    case calculate_expected_payment(invoice) do
+      {:ok, expected} ->
+        %{invoice | expected_payment: expected}
+
+      _ ->
         invoice
     end
+  end
+
+  def calculate_expected_payment(invoice = %Invoice{}) do
+    calculate_expected_payment(invoice.price, invoice.payment_currency_id, invoice.rates)
+  end
+
+  def calculate_expected_payment(_price, nil, _rates) do
+    {:error, "invoice must have payment_currency"}
+  end
+
+  def calculate_expected_payment(price = %Money{currency: currency}, currency, _rates) do
+    if Currencies.is_crypto(price.currency) do
+      {:ok, price}
+    else
+      {:error, "if price.currency == payment_currency then it must be a crypto"}
+    end
+  end
+
+  def calculate_expected_payment(
+        price = %Money{currency: price_currency},
+        payment_currency,
+        rates
+      ) do
+    case get_rate(price, payment_currency, rates) do
+      nil ->
+        {:error, "could not find rate #{payment_currency}-#{price_currency} in #{inspect(rates)}"}
+
+      rate ->
+        {:ok, ExchangeRate.calculate_base(rate, payment_currency, price)}
+    end
+  end
+
+  defp get_rate(_price, nil, _rates) do
+    nil
+  end
+
+  defp get_rate(%Money{currency: price_currency}, payment_currency, rates) do
+    InvoiceRates.get_rate(rates, payment_currency, price_currency)
   end
 
   @spec target_amount_reached?(Invoice.t()) :: :ok | :underpaid | :overpaid
@@ -378,7 +433,7 @@ defmodule BitPal.Invoices do
   end
 
   def target_amount_reached?(invoice) do
-    case Money.cmp(invoice.amount_paid, invoice.amount) do
+    case Money.cmp(invoice.amount_paid, invoice.expected_payment) do
       :lt -> :underpaid
       :gt -> :overpaid
       :eq -> :ok
@@ -387,7 +442,7 @@ defmodule BitPal.Invoices do
 
   @spec confirmations_until_paid(Invoice.t()) :: non_neg_integer
   def confirmations_until_paid(invoice) do
-    curr_height = Blocks.fetch_block_height!(invoice.currency_id)
+    curr_height = Blocks.fetch_block_height!(invoice.payment_currency_id)
 
     max_height =
       from(t in TxOutput,
@@ -403,7 +458,7 @@ defmodule BitPal.Invoices do
 
   @spec update_info_from_txs(Invoice.t()) :: Invoice.t()
   def update_info_from_txs(invoice) do
-    curr_height = Blocks.fetch_block_height!(invoice.currency_id)
+    curr_height = Blocks.fetch_block_height!(invoice.payment_currency_id)
     update_info_from_txs(invoice, curr_height)
   end
 
@@ -421,7 +476,7 @@ defmodule BitPal.Invoices do
   @spec calculate_amount_paid(Invoice.t()) :: Money.t()
   def calculate_amount_paid(invoice) do
     invoice.tx_outputs
-    |> Enum.reduce(Money.new(0, invoice.currency_id), fn tx, sum ->
+    |> Enum.reduce(Money.new(0, invoice.payment_currency_id), fn tx, sum ->
       Money.add(tx.amount, sum)
     end)
   end
@@ -447,7 +502,7 @@ defmodule BitPal.Invoices do
   @spec broadcast_processing(Invoice.t()) :: :ok | {:error, term}
   def broadcast_processing(invoice) do
     reason =
-      case invoice.status_reason do
+      case InvoiceStatus.reason(invoice.status) do
         :confirming ->
           {:confirming, invoice.confirmations_due}
 
@@ -473,7 +528,7 @@ defmodule BitPal.Invoices do
        %{
          id: invoice.id,
          status: invoice.status,
-         amount_due: Money.subtract(invoice.amount, invoice.amount_paid),
+         amount_due: Money.subtract(invoice.expected_payment, invoice.amount_paid),
          txs: invoice.tx_outputs
        }}
     )
@@ -486,7 +541,7 @@ defmodule BitPal.Invoices do
        %{
          id: invoice.id,
          status: invoice.status,
-         overpaid_amount: Money.subtract(invoice.amount_paid, invoice.amount),
+         overpaid_amount: Money.subtract(invoice.amount_paid, invoice.expected_payment),
          txs: invoice.tx_outputs
        }}
     )
@@ -496,16 +551,16 @@ defmodule BitPal.Invoices do
 
   def with_status(query, statuses) when is_list(statuses) do
     Enum.reduce(statuses, query, fn status, query ->
-      from(i in query, or_where: i.status == ^Atom.to_string(status))
+      from(i in query, or_where: fragment("(?)->>'state'", i.status) == ^Atom.to_string(status))
     end)
   end
 
   def with_status(query, status) do
-    from(i in query, where: i.status == ^Atom.to_string(status))
+    from(i in query, where: fragment("(?)->>'state'", i.status) == ^Atom.to_string(status))
   end
 
   def with_currency(query, currency_id) do
-    from(i in query, where: i.currency_id == ^Atom.to_string(currency_id))
+    from(i in query, where: i.payment_currency_id == ^Atom.to_string(currency_id))
   end
 
   def with_address(query, address_id) do
@@ -513,6 +568,45 @@ defmodule BitPal.Invoices do
   end
 
   # Validotions
+
+  defp change_validation(invoice = %Invoice{}, params) do
+    invoice
+    |> cast(params, [
+      :description,
+      :email,
+      :order_id,
+      :pos_data,
+      :price,
+      :rates,
+      :required_confirmations
+    ])
+    |> validate_price()
+    |> assoc_payment_currency(params)
+    |> validate_rates()
+    |> validate_expected_payment()
+    |> validate_required_confirmations()
+    |> validate_email()
+  end
+
+  defp finalize_validation(invoice = %Invoice{}) do
+    transition_validation(invoice, :open)
+    |> ensure_required_confirmations()
+    |> validate_required([
+      :price,
+      :rates,
+      :payment_currency_id,
+      :address_id,
+      :required_confirmations
+    ])
+    # Technically these validations shouldn't be necessary as all invoice changes should
+    # pass through register() or update(), but we try to be extra safe.
+    |> validate_price()
+    |> validate_payment_currency()
+    |> validate_rates()
+    |> validate_expected_payment()
+    |> validate_required_confirmations()
+    |> validate_email()
+  end
 
   defp validate_in_draft(changeset) do
     case get_field(changeset, :status) do
@@ -524,183 +618,351 @@ defmodule BitPal.Invoices do
     end
   end
 
-  defp validate_currency(changeset, params, key) do
-    case get_param(params, key) do
-      nil ->
+  @spec transition_validation(Invoice.t(), InvoiceStatus.status_spec()) :: Changeset.t()
+  defp transition_validation(invoice = %Invoice{}, next_status) do
+    case InvoiceStatus.validate_transition(invoice.status, next_status) do
+      {:ok, next_status} ->
+        invoice
+        |> Changeset.change()
+        |> Changeset.put_change(:status, next_status)
+
+      {:error, msg} ->
+        invoice
+        |> Changeset.change()
+        |> Changeset.add_error(:status, msg)
+    end
+  end
+
+  defp validate_price(changeset) do
+    # FIXME currencies have different minimum thresholds, and we need to calculate exchange rate
+    # and use a minimum per currency to figure out threshold used here.
+    if price = get_field(changeset, :price) do
+      if price.amount > 0 do
+        changeset
+      else
+        add_error(changeset, :price, "must be greater than 0")
+      end
+    else
+      add_error(changeset, :price, "must provide a price")
+    end
+  end
+
+  defp assoc_payment_currency(changeset, params) do
+    price_currency =
+      if price = get_field(changeset, :price) do
+        price.currency
+      else
+        nil
+      end
+
+    payment_currency_id =
+      get_param(params, :payment_currency_id) || get_field(changeset, :payment_currency_id)
+
+    case {price_currency, payment_currency_id} do
+      {nil, _} ->
         changeset
 
-      currency ->
-        if Money.Currency.exists?(currency) do
+      {c, c} ->
+        change_payment_currency(changeset, c)
+
+      {price, nil} ->
+        if Currencies.is_crypto(price) do
+          change_payment_currency(changeset, price)
+        else
           changeset
+        end
+
+      {price, payment} ->
+        if Currencies.is_crypto(price) do
+          add_same_price_error(changeset, price, payment)
         else
-          add_error(changeset, key, "is invalid")
+          change_payment_currency(changeset, payment)
         end
     end
   end
 
-  defp assoc_currency(changeset, params) do
-    currency =
-      get_param(params, :currency_id) ||
-        get_field(changeset, :currency_id)
-
-    if currency do
-      changeset
-      |> change(%{currency_id: Money.Currency.to_atom(currency)})
-      |> assoc_constraint(:currency)
-    else
-      add_error(changeset, :currency_id, "cannot be empty")
-    end
-  rescue
-    _ -> add_error(changeset, :currency_id, "is invalid")
+  defp add_same_price_error(changeset, price_currency, payment_currency) do
+    changeset
+    |> add_error(
+      :price,
+      "must be the same as payment currency `#{payment_currency}` when priced in crypto",
+      code: :same_price_error
+    )
+    |> add_error(
+      :payment_currency_id,
+      "must be the same as price currency `#{price_currency}` when priced in crypto",
+      code: :same_price_error
+    )
   end
 
-  defp cast_money(changeset, params, key, currency_key) do
-    val = get_param(params, key)
-    currency = get_currency(changeset, params, key, currency_key)
+  defp change_payment_currency(changeset, currency_id) do
+    if Currencies.is_crypto(currency_id) do
+      changeset
+      |> change(%{payment_currency_id: Money.Currency.to_atom(currency_id)})
+      |> assoc_constraint(:payment_currency)
+    else
+      add_error(
+        changeset,
+        :payment_currency_id,
+        "must be a cryptocurrency"
+      )
+    end
+  end
 
-    if val && currency do
-      with {:ok, dec} <- Decimal.cast(val),
-           {:ok, money} <- Money.parse(dec, currency) do
-        if money.amount <= 0 do
-          add_error(changeset, key, "must be greater than 0")
+  defp validate_rates(changeset) do
+    cond do
+      rates = get_change(changeset, :rates) ->
+        validate_rates_change(changeset, rates)
+
+      rates = get_field(changeset, :rates) ->
+        if update_rates?(changeset, rates) do
+          update_rates(changeset)
         else
-          force_change(changeset, key, money)
+          changeset
         end
-      else
-        _ ->
-          add_error(changeset, key, "is invalid")
-      end
-    else
-      changeset
-    end
-  rescue
-    # Might happen if we have an invalid currency, error is handled elsewhere
-    _ -> changeset
-  end
 
-  defp get_currency(changeset, params, key, currency_key) do
-    in_params = get_param(params, currency_key)
-
-    if in_params do
-      in_params
-    else
-      case get_field(changeset, key) do
-        %Money{currency: currency} ->
-          currency
-
-        _ ->
-          nil
-      end
+      true ->
+        update_rates(changeset)
     end
   end
 
-  defp cast_exchange_rate(changeset, params) do
-    currency = get_currency(changeset, params, :amount, :currency_id)
-    fiat_currency = get_currency(changeset, params, :fiat_amount, :fiat_currency)
-    exchange_rate = get_param(params, :exchange_rate)
+  defp update_rates?(changeset = %Changeset{valid?: false}, _rates) do
+    changeset
+  end
 
-    if currency && fiat_currency && exchange_rate do
-      with {:ok, dec} <- Decimal.cast(exchange_rate),
-           {:ok, rate} <- ExchangeRate.new(dec, {currency, fiat_currency}) do
-        force_change(changeset, :exchange_rate, rate)
-      else
-        _ -> add_error(changeset, :exchange_rate, "is invalid")
-      end
-    else
-      changeset
+  defp update_rates?(changeset, rates) do
+    !valid_rates?(changeset, rates) || !expired_rates?(changeset)
+  end
+
+  defp valid_rates?(changeset, rates) do
+    price_currency = get_field(changeset, :price).currency
+    payment_currency = get_field(changeset, :payment_currency_id)
+
+    case {price_currency, payment_currency} do
+      {c, c} ->
+        false
+
+      {price_currency, nil} ->
+        InvoiceRates.find_base_with_rate(rates, price_currency) == :not_found
+
+      _ ->
+        InvoiceRates.has_rate?(rates, payment_currency, price_currency)
     end
   end
 
-  defp get_param(params, key) when is_atom(key) do
-    params[key] || params[Atom.to_string(key)]
+  defp expired_rates?(changeset = %Changeset{}) do
+    if updated_at = get_field(changeset, :rates_updated_at) do
+      expired_rates?(updated_at)
+    else
+      # No field means a new invoice is being created, so it's not old.
+      false
+    end
   end
 
-  defp clear_pairs_for_update(changeset) do
-    amount = get_change(changeset, :amount)
-    fiat_amount = get_change(changeset, :fiat_amount)
-    exchange_rate = get_change(changeset, :exchange_rate)
+  defp expired_rates?(updated_at = %NaiveDateTime{}) do
+    now = NaiveDateTime.utc_now()
+    ttl = ExchangeRateSettings.rates_ttl()
+    valid_until = NaiveDateTime.add(updated_at, ttl, :millisecond)
+    NaiveDateTime.compare(valid_until, now) != :lt
+  end
+
+  defp validate_rates_change(changeset = %Changeset{valid?: false}, _rates) do
+    changeset
+  end
+
+  defp validate_rates_change(changeset, rates) do
+    case InvoiceRates.cast(rates) do
+      {:ok, rates} ->
+        price_currency = get_field(changeset, :price).currency
+        payment_currency = get_field(changeset, :payment_currency_id)
+
+        case {price_currency, payment_currency} do
+          {price_currency, nil} ->
+            if InvoiceRates.find_base_with_rate(rates, price_currency) != :not_found do
+              put_rates(changeset, rates)
+            else
+              add_error(
+                changeset,
+                :rates,
+                "could not find rate with #{price_currency} in #{inspect(rates)}"
+              )
+            end
+
+          _ ->
+            if InvoiceRates.has_rate?(rates, payment_currency, price_currency) do
+              put_rates(changeset, rates)
+            else
+              add_error(
+                changeset,
+                :rates,
+                "could not find rate #{payment_currency}-#{price_currency} in #{inspect(rates)}"
+              )
+            end
+        end
+
+      _ ->
+        add_error(
+          changeset,
+          :rates,
+          "invalid format"
+        )
+    end
+  end
+
+  defp update_rates(changeset) do
+    snapshot = snapshot_rates(changeset)
+    put_rates(changeset, snapshot)
+  end
+
+  defp put_rates(changeset, rates) do
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+    changeset
+    |> put_change(:rates, rates)
+    |> put_change(:rates_updated_at, now)
+  end
+
+  defp snapshot_rates(%Changeset{valid?: false}) do
+    # Implementation is easier if we can assume that we have currencies correctly setup.
+    %{}
+  end
+
+  defp snapshot_rates(changeset) do
+    price_currency = get_field(changeset, :price).currency
+    payment_currency_id = get_field(changeset, :payment_currency_id)
+
+    if price_currency == payment_currency_id do
+      # Specified in crypto, no need for exchange rates
+      # (one could maybe generate exchange rates between crypto, but that's a task for another day).
+      %{}
+    else
+      rates = ExchangeRates.fetch_exchange_rates(payment_currency_id, price_currency)
+
+      if Enum.empty?(rates) do
+        if payment_currency_id do
+          Logger.warning(
+            "No rates found in Invoices with #{payment_currency_id}-#{price_currency}"
+          )
+        else
+          Logger.warning("No rates found in Invoices for #{price_currency}")
+        end
+      end
+
+      InvoiceRates.bundle_rates(rates)
+    end
+  end
+
+  defp validate_payment_currency(changeset) do
+    payment_currency = get_field(changeset, :payment_currency_id)
 
     cond do
-      amount && fiat_amount && exchange_rate ->
+      payment_currency == nil ->
         changeset
 
-      amount && exchange_rate ->
-        change(changeset, fiat_amount: nil)
+      Currencies.is_crypto(payment_currency) ->
+        changeset
 
-      amount && fiat_amount ->
-        change(changeset, exchange_rate: nil)
+      true ->
+        add_error(
+          changeset,
+          :payment_currency_id,
+          "must be a cryptocurrency"
+        )
+    end
+  end
 
-      fiat_amount && exchange_rate ->
-        change(changeset, amount: nil)
+  defp validate_expected_payment(changeset) do
+    # This is a bit of a complex validation and does a few things:
+    # - validates that we have a supported exchange rate for the priced currency
+    # - if we also have a payment currency, that we have a matching exchange rate
+    # - calculates expected payment if we find a rate
+    # - as a special case allows us to ignore exchange rates if we specify the price in crypto
+    price = get_field(changeset, :price)
+    payment_currency = get_field(changeset, :payment_currency_id)
+    rates = get_field(changeset, :rates)
 
-      exchange_rate ->
-        change(changeset, fiat_amount: nil)
+    cond do
+      price == nil ->
+        # No price, error is handled elsewhere.
+        changeset
 
-      amount ->
-        change(changeset, fiat_amount: nil)
+      Currencies.is_crypto(price.currency) ->
+        if payment_currency == price.currency do
+          # Price is in crypto, exchange rates doesn't matter.
+          put_change(changeset, :expected_payment, price)
+        else
+          # Avoid duplicate errors from `assoc_payment_currency`.
+          if ApiHelpers.has_error?(changeset, :price, :same_price_error) do
+            changeset
+          else
+            add_same_price_error(changeset, price.currency, payment_currency)
+          end
+        end
 
-      fiat_amount ->
-        change(changeset, amount: nil)
+      changeset.valid? && payment_currency == nil ->
+        # No payment currency yet, we just need to check that the currency price exists anywhere in rates.
+        if fiat_in_rates?(rates, price.currency) do
+          changeset
+        else
+          add_error(
+            changeset,
+            :price,
+            "unsupported fiat currency without matching exchange rate"
+          )
+        end
+
+      rates == nil ->
+        # This is an error, but it's handled by `validate_rates`
+        changeset
+
+      changeset.valid? ->
+        # Both currencies exists, so we can even calculate the expected_payment here.
+        case calculate_expected_payment(price, payment_currency, rates) do
+          {:ok, expected_payment} ->
+            put_change(changeset, :expected_payment, expected_payment)
+
+          {:error, msg} ->
+            add_error(
+              changeset,
+              :rates,
+              msg
+            )
+        end
 
       true ->
         changeset
     end
   end
 
-  defp validate_into_matching_pairs(changeset, opts \\ []) do
-    amount = get_field(changeset, :amount)
-    fiat_amount = get_field(changeset, :fiat_amount)
-    exchange_rate = get_field(changeset, :exchange_rate)
+  defp fiat_in_rates?(rates, fiat) do
+    Enum.any?(rates, fn {_crypto, quotes} ->
+      Enum.any?(quotes, fn
+        {^fiat, _} -> true
+        _ -> false
+      end)
+    end)
+  end
 
+  defp get_param(params, key) when is_atom(key) do
+    params[key] || params[Atom.to_string(key)]
+  end
+
+  defp validate_email(changeset) do
+    changeset
+    |> validate_format(:email, ~r/^.+@.+$/, message: "Must be a valid email")
+  end
+
+  defp ensure_required_confirmations(changeset) do
     cond do
-      !amount && !fiat_amount ->
-        error = "must provide amount in either crypto or fiat"
-
+      get_field(changeset, :required_confirmations) ->
         changeset
-        |> add_error(:amount, error)
-        |> add_error(:fiat_amount, error)
 
-      !amount && !exchange_rate ->
-        error = "must provide either amount or exchange rate"
-
-        changeset
-        |> add_error(:amount, error)
-        |> add_error(:exchange_rate, error)
-
-      exchange_rate ->
-        case ExchangeRate.normalize(exchange_rate, amount, fiat_amount) do
-          {:ok, amount, fiat_amount} ->
-            changeset
-            |> change(amount: amount, fiat_amount: fiat_amount)
-
-          {:error, :mismatched_exchange_rate} ->
-            add_error(
-              changeset,
-              :exchange_rate,
-              "invalid exchange rate"
-            )
-
-          {:error, :bad_params} ->
-            if opts[:nil_bad_params] do
-              changeset
-              |> change(exchange_rate: nil, fiat_amount: nil)
-            else
-              add_error(
-                changeset,
-                :exchange_rate,
-                "invalid exchange rate pairs"
-              )
-            end
-        end
-
-      amount && fiat_amount ->
-        case ExchangeRate.new(amount, fiat_amount) do
-          {:ok, rate} ->
-            change(changeset, exchange_rate: rate)
-
-          _ ->
-            add_error(changeset, :exchange_rate, "invalid exchange rate")
-        end
+      currency = get_field(changeset, :payment_currency_id) ->
+        put_change(
+          changeset,
+          :required_confirmations,
+          StoreSettings.get_required_confirmations(changeset.data.store_id, currency)
+        )
 
       true ->
         changeset
@@ -708,18 +970,7 @@ defmodule BitPal.Invoices do
   end
 
   defp validate_required_confirmations(changeset) do
-    case get_change(changeset, :required_confirmations) do
-      nil ->
-        store_id = get_field(changeset, :store_id)
-        currency_id = get_field(changeset, :currency_id)
-        confs = StoreSettings.get_required_confirmations(store_id, currency_id)
-
-        changeset
-        |> change(required_confirmations: confs)
-
-      _ ->
-        changeset
-        |> validate_number(:required_confirmations, greater_than_or_equal_to: 0)
-    end
+    changeset
+    |> validate_number(:required_confirmations, greater_than_or_equal_to: 0)
   end
 end

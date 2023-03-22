@@ -1,5 +1,6 @@
 defmodule BitPalApi.ErrorView do
   use BitPalApi, :view
+  alias BitPalApi.ApiHelpers
   alias Ecto.Changeset
   require Logger
 
@@ -76,10 +77,11 @@ defmodule BitPalApi.ErrorView do
 
   def render_errors(changeset = %Changeset{}) do
     Changeset.traverse_errors(changeset, &render_changeset_error/1)
-    # Only keep a single error for each param, to make parsing it easier
+    |> ApiHelpers.keys_to_camel()
     |> Map.new(fn
       {key, []} -> {key, ""}
       {key, [x]} -> {key, x}
+      {key, xs} -> {key, hd(xs)}
     end)
   end
 

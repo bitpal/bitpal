@@ -57,12 +57,13 @@ defmodule BitPal.Currencies do
   end
 
   def invoice_ids(ids) when is_list(ids) do
-    from(i in Invoice, where: i.currency_id in ^ids, select: i.id) |> Repo.all()
+    from(i in Invoice, where: i.payment_currency_id in ^ids, select: i.id) |> Repo.all()
   end
 
   @spec invoices(Currency.id(), Store.id()) :: [Invoice.t()]
   def invoices(id, store_id) do
-    from(i in Invoice, where: i.currency_id == ^id and i.store_id == ^store_id) |> Repo.all()
+    from(i in Invoice, where: i.payment_currency_id == ^id and i.store_id == ^store_id)
+    |> Repo.all()
   end
 
   @spec ensure_exists!([Currency.id()]) :: :ok

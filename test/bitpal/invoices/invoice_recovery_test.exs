@@ -6,7 +6,7 @@ defmodule BitPal.InvoiceRecoveryTest do
     {:ok, inv, stub, handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 1,
-        currency_id: currency_id
+        payment_currency_id: currency_id
       )
 
     assert inv.status == :open
@@ -15,7 +15,7 @@ defmodule BitPal.InvoiceRecoveryTest do
     HandlerSubscriberCollector.await_msg(stub, {:invoice, :processing})
 
     inv = Invoices.fetch!(inv.id)
-    assert inv.status == :processing
+    assert inv.status == {:processing, :confirming}
 
     # Make sure handler is killed
     assert_shutdown(handler)
@@ -23,7 +23,7 @@ defmodule BitPal.InvoiceRecoveryTest do
     handler = wait_for_handler(inv.id, handler)
 
     inv = InvoiceHandler.fetch_invoice!(handler)
-    assert inv.status == :processing
+    assert inv.status == {:processing, :confirming}
 
     BackendMock.confirmed_in_new_block(inv)
 
@@ -35,7 +35,7 @@ defmodule BitPal.InvoiceRecoveryTest do
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 0,
         double_spend_timeout: 1,
-        currency_id: currency_id
+        payment_currency_id: currency_id
       )
 
     assert inv.status == :open
@@ -58,7 +58,7 @@ defmodule BitPal.InvoiceRecoveryTest do
     {:ok, inv, stub, handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 1,
-        currency_id: currency_id
+        payment_currency_id: currency_id
       )
 
     assert inv.status == :open
@@ -67,7 +67,7 @@ defmodule BitPal.InvoiceRecoveryTest do
     HandlerSubscriberCollector.await_msg(stub, {:invoice, :processing})
 
     inv = Invoices.fetch!(inv.id)
-    assert inv.status == :processing
+    assert inv.status == {:processing, :confirming}
 
     # Terminate on the top level to prevent handler from being restarted before we've added
     # things that we want it to recover from.

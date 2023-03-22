@@ -2,7 +2,6 @@ defmodule BitPal.ExchangeRateCache do
   alias BitPal.Cache
   alias BitPal.ExchangeRate
   alias BitPal.ExchangeRateEvents
-  alias BitPalSchemas.Currency
   alias BitPalSettings.ExchangeRateSettings
 
   defmodule Rate do
@@ -16,7 +15,17 @@ defmodule BitPal.ExchangeRateCache do
     defstruct [:prio, :source, :rate, :updated]
   end
 
-  @spec update_exchange_rate(module, Rate.t()) :: :ok
+  @spec update_exchange_rate(term, non_neg_integer, module, ExchangeRate.t()) :: :ok
+  def update_exchange_rate(cache \\ __MODULE__, prio, source, rate) do
+    update_exchange_rate(cache, %Rate{
+      prio: prio,
+      source: source,
+      rate: rate,
+      updated: NaiveDateTime.utc_now()
+    })
+  end
+
+  @spec update_exchange_rate(term, Rate.t()) :: :ok
   def update_exchange_rate(cache \\ __MODULE__, rate) do
     Cache.update(cache, rate.rate.pair, fn existing ->
       broadcast_raw_change(rate.rate.pair)
@@ -99,15 +108,6 @@ defmodule BitPal.ExchangeRateCache do
       {:ok, %{rate: rate}} -> {:ok, rate}
       :error -> :error
     end
-  end
-
-  @spec fetch_exchange_rates_with_base(term, Currency.id()) :: [ExchangeRate.t()]
-  def fetch_exchange_rates_with_base(name \\ __MODULE__, base) do
-    all_exchange_rates(name)
-    |> Enum.filter(fn
-      %ExchangeRate{pair: {^base, _}} -> true
-      _ -> false
-    end)
   end
 
   @spec all_raw_exchange_rates(term) :: [Rate.t()]

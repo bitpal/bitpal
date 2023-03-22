@@ -1,5 +1,5 @@
 defmodule BitPalApi.ExchangeRateControllerTest do
-  use BitPalApi.ConnCase, async: false
+  use BitPalApi.ConnCase, async: false, integration: false
   alias BitPal.ExchangeRateCache
   alias BitPal.ExchangeRateSupervisor
 
@@ -24,7 +24,6 @@ defmodule BitPalApi.ExchangeRateControllerTest do
   end
 
   describe "/rates" do
-    @tag do: true
     test "/rates", %{conn: conn} do
       conn = get(conn, "/v1/rates")
 
@@ -73,7 +72,7 @@ defmodule BitPalApi.ExchangeRateControllerTest do
         end)
 
       assert %{
-               "message" => "Currency `XXX` is invalid or not supported",
+               "message" => "is invalid or not supported",
                "param" => "base",
                "type" => "invalid_request_error",
                "code" => "invalid_currency"
@@ -109,7 +108,21 @@ defmodule BitPalApi.ExchangeRateControllerTest do
         end)
 
       assert %{
-               "message" => "Currency `XXX` is invalid or not supported",
+               "message" => "is invalid or not supported",
+               "param" => "base",
+               "type" => "invalid_request_error",
+               "code" => "invalid_currency"
+             } = Jason.decode!(response)
+    end
+
+    test "not a crypto base", %{conn: conn} do
+      {_, _, response} =
+        assert_error_sent(402, fn ->
+          get(conn, "/v1/rates/EUR/USD")
+        end)
+
+      assert %{
+               "message" => "not a supported cryptocurrency",
                "param" => "base",
                "type" => "invalid_request_error",
                "code" => "invalid_currency"
@@ -119,11 +132,11 @@ defmodule BitPalApi.ExchangeRateControllerTest do
     test "bad quote", %{conn: conn} do
       {_, _, response} =
         assert_error_sent(402, fn ->
-          get(conn, "/v1/rates/EUR/XXX")
+          get(conn, "/v1/rates/BCH/XXX")
         end)
 
       assert %{
-               "message" => "Currency `XXX` is invalid or not supported",
+               "message" => "is invalid or not supported",
                "param" => "quote",
                "type" => "invalid_request_error",
                "code" => "invalid_currency"

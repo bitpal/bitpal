@@ -7,6 +7,8 @@ defmodule BitPal.IntegrationCase do
 
   use ExUnit.CaseTemplate
   use BitPalFactory
+  alias BitPalFactory.ExchangeRateFactory
+  alias BitPal.ExchangeRateCache
   alias BitPal.BackendEvents
   alias BitPal.BackendManager
   alias BitPal.BackendMock
@@ -118,7 +120,17 @@ defmodule BitPal.IntegrationCase do
     backends = backends_to_start(tags[:backends])
     currencies = Enum.map(backends, fn _ -> unique_currency_id() end)
 
-    Enum.each(currencies, fn currency_id ->
+    for currency_id <- currencies do
+      # This is quite fugly...
+      for fiat_id <- [:USD, :EUR, :SEK] do
+        ExchangeRateCache.update_exchange_rate(
+          BitPal.ExchangeRateSupervisor.cache_name(),
+          10,
+          :NO_SRC,
+          ExchangeRateFactory.exchange_rate(pair: {currency_id, fiat_id})
+        )
+      end
+
       if tags[:subscribe] do
         BackendEvents.subscribe(currency_id)
       end
@@ -128,7 +140,7 @@ defmodule BitPal.IntegrationCase do
       end
 
       BackendStatusSupervisor.allow_parent(currency_id, self())
-    end)
+    end
 
     backends =
       Enum.zip([backends, currencies])
@@ -179,7 +191,7 @@ defmodule BitPal.IntegrationCase do
 
     # Alternative way, to avoid db accesses.
     for invoice <- InvoiceSupervisor.tracked_invoices() do
-      if invoice.currency_id in currencies_to_remove do
+      if invoice.payment_currency_id in currencies_to_remove do
         case InvoiceSupervisor.fetch_handler(invoice.id) do
           {:ok, handler} ->
             InvoiceSupervisor.terminate_handler(handler)

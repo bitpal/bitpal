@@ -54,6 +54,7 @@ defmodule BitPal.InvoiceHandler do
     # Register process directly, to prevent race condition with manager calling the handler
     # directly after start_link.
     invoice_id = Keyword.fetch!(opts, :invoice_id)
+
     Registry.register(ProcessRegistry, via_tuple(invoice_id), invoice_id)
 
     {:ok, %{invoice_id: invoice_id, opts: opts}, {:continue, :init}}
@@ -105,7 +106,7 @@ defmodule BitPal.InvoiceHandler do
       {:error, err} ->
         Logger.error("""
         Failed to register invoice with backend #{inspect(err)}
-        Wanted currency: #{invoice.currency_id}
+        Wanted currency: #{invoice.payment_currency_id}
         Supported currencies by the backends: #{inspect(BackendManager.currency_list())}
         """)
 
@@ -118,7 +119,7 @@ defmodule BitPal.InvoiceHandler do
     subscribe(invoice)
 
     # Should always have a block since we're trying to recover
-    block_height = Blocks.fetch_block_height!(invoice.currency_id)
+    block_height = Blocks.fetch_block_height!(invoice.payment_currency_id)
     invoice = Invoices.update_info_from_txs(invoice, block_height)
 
     txs =
@@ -268,7 +269,7 @@ defmodule BitPal.InvoiceHandler do
 
   defp subscribe(invoice) do
     :ok = AddressEvents.subscribe(invoice.address_id)
-    :ok = BlockchainEvents.subscribe(invoice.currency_id)
+    :ok = BlockchainEvents.subscribe(invoice.payment_currency_id)
   end
 
   defp ensure_invoice_is_processing(state, txs) do
@@ -279,7 +280,7 @@ defmodule BitPal.InvoiceHandler do
     end
   end
 
-  def ensure_processing!(invoice = %Invoice{status: :processing}), do: invoice
+  def ensure_processing!(invoice = %Invoice{status: {:processing, _}}), do: invoice
   def ensure_processing!(invoice), do: Invoices.process!(invoice)
 
   defp put_tx_to_process(state, txid, confirmed_height) do
@@ -324,7 +325,7 @@ defmodule BitPal.InvoiceHandler do
 
   defp clear_processed_txs(state, _txs), do: state
 
-  defp broadcast_processed_if_needed(state = %{invoice: %Invoice{status: :processing}}) do
+  defp broadcast_processed_if_needed(state = %{invoice: %Invoice{status: {:processing, _}}}) do
     prev = state.invoice.confirmations_due
     invoice = Invoices.update_info_from_txs(state.invoice, state.block_height)
 

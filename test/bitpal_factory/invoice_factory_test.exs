@@ -1,10 +1,185 @@
 defmodule BitPalFactory.InvoiceFactoryTest do
-  use BitPal.IntegrationCase, async: true
+  # use BitPal.IntegrationCase, async: true
+  use BitPal.DataCase, async: true
   alias BitPalSchemas.Address
+  alias BitPalSchemas.InvoiceStatus
   alias BitPalSettings.StoreSettings
 
   setup _tags do
     %{store: create_store()}
+  end
+
+  describe "adds valid payment setup to invoice attributes" do
+    setup _tags do
+      %{
+        price: Money.parse!(4.2, :USD),
+        payment_currency_id: :BCH,
+        rates: %{BCH: %{USD: Decimal.from_float(2.0)}},
+        expected_payment: Money.parse!(2.1, :BCH)
+      }
+    end
+
+    test "specify all", %{
+      price: price,
+      payment_currency_id: payment_currency_id,
+      rates: rates,
+      expected_payment: expected_payment
+    } do
+      gotten =
+        valid_invoice_attributes(%{
+          price: price,
+          payment_currency_id: payment_currency_id,
+          rates: rates,
+          expected_payment: expected_payment
+        })
+
+      assert gotten.price == price
+      assert gotten.payment_currency_id == payment_currency_id
+      assert gotten.rates == rates
+      assert gotten.expected_payment == expected_payment
+    end
+
+    test "with expected_payment", %{
+      price: price,
+      payment_currency_id: payment_currency_id,
+      rates: rates,
+      expected_payment: expected_payment
+    } do
+      gotten =
+        valid_invoice_attributes(%{
+          price: price,
+          expected_payment: expected_payment
+        })
+
+      assert gotten.price == price
+      assert gotten.payment_currency_id == payment_currency_id
+      assert gotten.rates[payment_currency_id][price.currency] != nil
+      assert gotten.expected_payment == expected_payment
+
+      gotten =
+        valid_invoice_attributes(%{
+          expected_payment: expected_payment,
+          rates: rates
+        })
+
+      assert gotten.price == price
+      assert gotten.payment_currency_id == payment_currency_id
+      assert gotten.rates == rates
+      assert gotten.expected_payment == expected_payment
+    end
+
+    test "with rates and price", %{
+      price: price,
+      payment_currency_id: payment_currency_id,
+      rates: rates,
+      expected_payment: expected_payment
+    } do
+      gotten =
+        valid_invoice_attributes(%{
+          price: price,
+          payment_currency_id: payment_currency_id,
+          rates: rates
+        })
+
+      assert gotten.price == price
+      assert gotten.payment_currency_id == payment_currency_id
+      assert gotten.rates == rates
+      assert gotten.expected_payment == expected_payment
+
+      gotten =
+        valid_invoice_attributes(%{
+          price: price,
+          rates: rates
+        })
+
+      assert gotten.price == price
+      assert gotten.payment_currency_id == payment_currency_id
+      assert gotten.rates[payment_currency_id][price.currency] != nil
+      # assert gotten.expected_payment == expected_payment
+    end
+
+    test "with rates", %{
+      price: price,
+      payment_currency_id: payment_currency_id,
+      rates: rates
+    } do
+      gotten =
+        valid_invoice_attributes(%{
+          rates: rates,
+          payment_currency_id: payment_currency_id
+        })
+
+      assert gotten.price != nil
+      assert gotten.payment_currency_id == payment_currency_id
+      assert gotten.rates[payment_currency_id][price.currency] != nil
+
+      gotten =
+        valid_invoice_attributes(%{
+          rates: rates
+        })
+
+      assert gotten.price != nil
+      assert gotten.payment_currency_id == payment_currency_id
+      assert gotten.rates[payment_currency_id][price.currency] != nil
+    end
+
+    test "with price", %{
+      price: price,
+      payment_currency_id: payment_currency_id
+    } do
+      gotten =
+        valid_invoice_attributes(%{
+          price: price,
+          payment_currency_id: payment_currency_id
+        })
+
+      assert gotten.price == price
+      assert gotten.payment_currency_id == payment_currency_id
+
+      gotten =
+        valid_invoice_attributes(%{
+          price: price
+        })
+
+      assert gotten.price == price
+      assert gotten.payment_currency_id != nil
+    end
+
+    test "priced in crypto" do
+      price = Money.parse!(1, :BCH)
+
+      gotten = valid_invoice_attributes(%{price: price})
+
+      assert gotten.price == price
+      assert gotten.payment_currency_id == price.currency
+    end
+
+    test "with payment_currency_id", %{
+      payment_currency_id: payment_currency_id
+    } do
+      gotten =
+        valid_invoice_attributes(%{
+          payment_currency_id: payment_currency_id
+        })
+
+      assert gotten.price != nil
+      assert gotten.payment_currency_id == payment_currency_id
+
+      gotten = valid_invoice_attributes()
+
+      assert gotten.price != nil
+      assert gotten.payment_currency_id != nil
+    end
+
+    test "block payment setup" do
+      gotten =
+        valid_invoice_attributes(%{
+          payment_currency_id: nil
+        })
+
+      assert Map.has_key?(gotten, :payment_currency_id) == false
+      assert Map.has_key?(gotten, :expected_payment) == false
+    end
   end
 
   describe "create_invoice/2" do
@@ -24,9 +199,9 @@ defmodule BitPalFactory.InvoiceFactoryTest do
     end
 
     test "assigns existing address", %{store: store} do
-      currency_id = unique_currency_id()
+      currency_id = :XMR
       address = create_address(store_id: store.id, currency_id: currency_id)
-      invoice = create_invoice(store, address_id: address.id, currency_id: currency_id)
+      invoice = create_invoice(store, address_id: address.id, payment_currency_id: currency_id)
       assert invoice.address_id == address.id
     end
 
@@ -45,32 +220,45 @@ defmodule BitPalFactory.InvoiceFactoryTest do
     end
 
     test "specify currency" do
-      currency_id = unique_currency_id()
-      assert create_invoice(currency_id: currency_id).currency_id == currency_id
+      currency_id = :XMR
+      assert create_invoice(payment_currency_id: currency_id).payment_currency_id == currency_id
+    end
+
+    test "specify expected_payment" do
+      currency_id = :XMR
+      expected = Money.parse!(1.3, currency_id)
+      invoice = create_invoice(expected_payment: expected)
+      assert invoice.payment_currency_id == currency_id
+      assert invoice.expected_payment == expected
     end
 
     test "specify xpub", %{store: store} do
-      xpub = "myxpub"
-      invoice = create_invoice(store: store, address_key: xpub)
-      address_key = StoreSettings.fetch_address_key!(store.id, invoice.currency_id)
+      xpub = "xpubtest"
+      invoice = create_invoice(store: store, address_key: xpub, unique_currency: true)
+      address_key = StoreSettings.fetch_address_key!(store.id, invoice.payment_currency_id)
+
       assert address_key.data == xpub
       {:ok, got_address_key} = Invoices.address_key(invoice)
       assert got_address_key.id == address_key.id
     end
 
     test "specify status generates status_reason", %{store: store} do
-      assert create_invoice(store, status: :draft).status_reason == nil
-      assert create_invoice(store, status: :open).status_reason == nil
-      assert create_invoice(store, status: :processing).status_reason in [:verifying, :confirming]
+      assert InvoiceStatus.reason(create_invoice(store, status: :draft).status) == nil
+      assert InvoiceStatus.reason(create_invoice(store, status: :open).status) == nil
 
-      assert create_invoice(store, status: :uncollectible).status_reason in [
+      assert InvoiceStatus.reason(create_invoice(store, status: :processing).status) in [
+               :verifying,
+               :confirming
+             ]
+
+      assert InvoiceStatus.reason(create_invoice(store, status: :uncollectible).status) in [
                :expired,
                :canceled,
                :timed_out,
                :double_spent
              ]
 
-      assert create_invoice(store, status: :void).status_reason in [
+      assert InvoiceStatus.reason(create_invoice(store, status: :void).status) in [
                :expired,
                :canceled,
                :timed_out,
@@ -78,7 +266,7 @@ defmodule BitPalFactory.InvoiceFactoryTest do
                nil
              ]
 
-      assert create_invoice(store, status: :paid).status_reason == nil
+      assert InvoiceStatus.reason(create_invoice(store, status: :paid).status) == nil
     end
   end
 
@@ -88,7 +276,7 @@ defmodule BitPalFactory.InvoiceFactoryTest do
     end
 
     test "pass through existing address", %{store: store, invoice: invoice} do
-      address = create_address(store_id: store.id, currency_id: invoice.currency_id)
+      address = create_address(store_id: store.id, currency_id: invoice.payment_currency_id)
 
       invoice = with_address(invoice, address_id: address.id)
       assert invoice.address_id == address.id

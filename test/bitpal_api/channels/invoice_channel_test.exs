@@ -1,15 +1,16 @@
 defmodule BitPalApi.InvoiceChannelTest do
-  use BitPalApi.ChannelCase, async: true
+  use BitPalApi.ChannelCase, async: true, integration: true
   alias BitPal.BackendMock
+  alias BitPal.HandlerSubscriberCollector
 
   describe "invoice notifications" do
     setup tags do
       {:ok, invoice, _stub, _invoice_handler} =
         HandlerSubscriberCollector.create_invoice(
           required_confirmations: tags[:required_confirmations] || 0,
-          amount: tags[:amount] || 0.3,
           double_spend_timeout: tags[:double_spend_timeout] || 1_000,
-          currency_id: Map.fetch!(tags, :currency_id)
+          price: Money.parse!(1.0, :USD),
+          expected_payment: Money.parse!(tags[:amount] || 0.3, Map.fetch!(tags, :currency_id))
         )
 
       # Bypasses socket `connect`, which is fine for these tests
@@ -84,7 +85,11 @@ defmodule BitPalApi.InvoiceChannelTest do
     @tag double_spend_timeout: 1, required_confirmations: 0, amount: 1.0
     test "Under and overpaid invoice", %{invoice: invoice} do
       id = invoice.id
-      BackendMock.tx_seen(%{invoice | amount: Money.parse!(0.3, invoice.currency_id)})
+
+      BackendMock.tx_seen(%{
+        invoice
+        | expected_payment: Money.parse!(0.3, invoice.payment_currency_id)
+      })
 
       assert_broadcast("underpaid", %{
         id: ^id,
@@ -94,7 +99,10 @@ defmodule BitPalApi.InvoiceChannelTest do
 
       assert "0.700" <> _ = Decimal.to_string(due)
 
-      BackendMock.tx_seen(%{invoice | amount: Money.parse!(1.3, invoice.currency_id)})
+      BackendMock.tx_seen(%{
+        invoice
+        | expected_payment: Money.parse!(1.3, invoice.payment_currency_id)
+      })
 
       assert_broadcast("overpaid", %{
         id: ^id,

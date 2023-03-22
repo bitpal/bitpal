@@ -2,7 +2,6 @@ defmodule BitPal.ExchangeRateWorker do
   use GenServer
   alias BitPal.ExchangeRate
   alias BitPal.ExchangeRateCache
-  alias BitPal.ExchangeRateCache.Rate
   alias BitPal.ProcessRegistry
   alias BitPal.RateLimiter
   alias BitPalSettings.ExchangeRateSettings
@@ -180,14 +179,12 @@ defmodule BitPal.ExchangeRateWorker do
     for {crypto_id, pairs} <- updated_rates do
       for {fiat_id, rate} <- pairs do
         if MapSet.member?(fiat_to_update, fiat_id) do
-          cached_rate = %Rate{
-            prio: state.prio,
-            source: state.source,
-            rate: ExchangeRate.new!(rate, {crypto_id, fiat_id}),
-            updated: NaiveDateTime.utc_now()
-          }
-
-          ExchangeRateCache.update_exchange_rate(state.cache_name, cached_rate)
+          ExchangeRateCache.update_exchange_rate(
+            state.cache_name,
+            state.prio,
+            state.source,
+            ExchangeRate.new!(rate, {crypto_id, fiat_id})
+          )
         end
       end
     end

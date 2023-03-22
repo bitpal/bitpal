@@ -26,7 +26,7 @@ defmodule BitPalFactory.AddressFactoryTest do
     test "assoc invoice" do
       invoice = create_invoice()
       address = create_address(invoice: invoice)
-      assert address.currency_id == invoice.currency_id
+      assert address.currency_id == invoice.payment_currency_id
       {:ok, got_invoice} = Invoices.fetch_by_address(address.id)
       assert got_invoice.id == invoice.id
     end

@@ -52,7 +52,7 @@ defmodule BitPal.ExchangeRate do
       true ->
         {:ok,
          %__MODULE__{
-           rate: Decimal.div(Money.to_decimal(b), Money.to_decimal(a)),
+           rate: calculate_rate(a, b),
            pair: {a.currency, b.currency}
          }}
     end
@@ -69,18 +69,10 @@ defmodule BitPal.ExchangeRate do
 
     case {a, b} do
       {%Money{currency: ^ex_a}, nil} ->
-        {:ok, a,
-         Money.parse!(
-           Decimal.mult(exchange_rate.rate, Money.to_decimal(a)),
-           elem(exchange_rate.pair, 1)
-         )}
+        {:ok, a, calculate_quote(exchange_rate.rate, a, ex_b)}
 
       {nil, %Money{currency: ^ex_b}} ->
-        {:ok,
-         Money.parse!(
-           Decimal.div(Money.to_decimal(b), exchange_rate.rate),
-           elem(exchange_rate.pair, 0)
-         ), b}
+        {:ok, calculate_base(exchange_rate.rate, ex_a, b), b}
 
       {%Money{currency: ^ex_b}, %Money{currency: ^ex_a}} ->
         normalize(exchange_rate, b, a)
@@ -101,6 +93,27 @@ defmodule BitPal.ExchangeRate do
       _ ->
         {:error, :bad_params}
     end
+  end
+
+  @spec calculate_base(Decimal.t(), atom, Money.t()) :: Money.t()
+  def calculate_base(rate, base_id, xquote) do
+    Money.parse!(
+      Decimal.div(Money.to_decimal(xquote), rate),
+      base_id
+    )
+  end
+
+  @spec calculate_quote(Decimal.t(), Money.t(), atom) :: Money.t()
+  def calculate_quote(rate, base, quote_id) do
+    Money.parse!(
+      Decimal.mult(rate, Money.to_decimal(base)),
+      quote_id
+    )
+  end
+
+  @spec calculate_rate(Money.t(), Money.t()) :: Decimal.t()
+  def calculate_rate(base, xquote) do
+    Decimal.div(Money.to_decimal(xquote), Money.to_decimal(base))
   end
 
   @spec eq?(t, t) :: boolean

@@ -6,7 +6,7 @@ defmodule BitPal.InvoiceAcceptanceTest do
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 0,
         double_spend_timeout: 1,
-        currency_id: currency_id
+        payment_currency_id: currency_id
       )
 
     BackendMock.tx_seen(inv)
@@ -29,7 +29,7 @@ defmodule BitPal.InvoiceAcceptanceTest do
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 0,
         double_spend_timeout: 1_000,
-        currency_id: currency_id
+        payment_currency_id: currency_id
       )
 
     BackendMock.tx_seen(inv)
@@ -48,7 +48,7 @@ defmodule BitPal.InvoiceAcceptanceTest do
     {:ok, inv, stub, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 1,
-        currency_id: currency_id
+        payment_currency_id: currency_id
       )
 
     BackendMock.tx_seen(inv)
@@ -67,7 +67,7 @@ defmodule BitPal.InvoiceAcceptanceTest do
     {:ok, inv, stub, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 1,
-        currency_id: currency_id
+        payment_currency_id: currency_id
       )
 
     BackendMock.confirmed_in_new_block(inv)
@@ -85,7 +85,7 @@ defmodule BitPal.InvoiceAcceptanceTest do
     {:ok, inv, stub, _invoice_handler} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 3,
-        currency_id: currency_id
+        payment_currency_id: currency_id
       )
 
     BackendMock.tx_seen(inv)
@@ -107,25 +107,22 @@ defmodule BitPal.InvoiceAcceptanceTest do
     {:ok, inv0, stub0, _} =
       HandlerSubscriberCollector.create_invoice(
         double_spend_timeout: 1,
-        amount: 0.1,
-        required_confirmations: 0,
-        currency_id: currency_id
+        expected_payment: Money.parse!(0.1, currency_id),
+        required_confirmations: 0
       )
 
     {:ok, inv1, stub1, _} =
       HandlerSubscriberCollector.create_invoice(
         double_spend_timeout: 1,
-        amount: 1.0,
-        required_confirmations: 1,
-        currency_id: currency_id
+        expected_payment: Money.parse!(1.0, currency_id),
+        required_confirmations: 1
       )
 
     {:ok, inv2, stub2, _} =
       HandlerSubscriberCollector.create_invoice(
         double_spend_timeout: 1,
-        amount: 2.0,
-        required_confirmations: 2,
-        currency_id: currency_id
+        expected_payment: Money.parse!(2.0, currency_id),
+        required_confirmations: 2
       )
 
     inv0_id = inv0.id
@@ -181,12 +178,12 @@ defmodule BitPal.InvoiceAcceptanceTest do
   end
 
   test "Invoices of the same amount", %{currency_id: currency_id} do
-    inv = [amount: 1.0, required_confirmations: 1, currency_id: currency_id]
+    inv = [expected_payment: Money.parse!(1.0, currency_id), required_confirmations: 1]
 
     {:ok, inv0, _, handler0} = HandlerSubscriberCollector.create_invoice(inv)
     {:ok, inv1, _, handler1} = HandlerSubscriberCollector.create_invoice(inv)
 
-    assert inv0.amount == inv1.amount
+    assert inv0.expected_payment == inv1.expected_payment
     assert inv0.address_id != inv1.address_id
     assert handler0 != handler1
   end
@@ -195,7 +192,7 @@ defmodule BitPal.InvoiceAcceptanceTest do
     {:ok, inv, stub, _} =
       HandlerSubscriberCollector.create_invoice(
         required_confirmations: 0,
-        currency_id: currency_id
+        payment_currency_id: currency_id
       )
 
     BackendMock.tx_seen(inv)
@@ -213,13 +210,12 @@ defmodule BitPal.InvoiceAcceptanceTest do
   test "Underpaid invoice", %{currency_id: currency_id} do
     {:ok, inv, stub, _handler} =
       HandlerSubscriberCollector.create_invoice(
-        amount: 1.0,
+        expected_payment: Money.parse!(1.0, currency_id),
         required_confirmations: 0,
-        double_spend_timeout: 1,
-        currency_id: currency_id
+        double_spend_timeout: 1
       )
 
-    BackendMock.tx_seen(%{inv | amount: Money.parse!(0.3, currency_id)})
+    BackendMock.tx_seen(%{inv | expected_payment: Money.parse!(0.3, currency_id)})
 
     HandlerSubscriberCollector.await_msg(stub, {:invoice, :underpaid})
     due = Money.parse!(0.7, currency_id)
@@ -229,7 +225,7 @@ defmodule BitPal.InvoiceAcceptanceTest do
              {{:invoice, :underpaid}, %{amount_due: ^due}}
            ] = HandlerSubscriberCollector.received(stub)
 
-    BackendMock.tx_seen(%{inv | amount: Money.parse!(0.7, currency_id)})
+    BackendMock.tx_seen(%{inv | expected_payment: Money.parse!(0.7, currency_id)})
     HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
 
     assert [
@@ -243,16 +239,15 @@ defmodule BitPal.InvoiceAcceptanceTest do
   test "Overpaid invoice", %{currency_id: currency_id} do
     {:ok, inv, stub, _handler} =
       HandlerSubscriberCollector.create_invoice(
-        amount: 1.0,
+        expected_payment: Money.parse!(1.0, currency_id),
         required_confirmations: 0,
-        double_spend_timeout: 1,
-        currency_id: currency_id
+        double_spend_timeout: 1
       )
 
-    BackendMock.tx_seen(%{inv | amount: Money.parse!(0.3, currency_id)})
+    BackendMock.tx_seen(%{inv | expected_payment: Money.parse!(0.3, currency_id)})
     HandlerSubscriberCollector.await_msg(stub, {:invoice, :underpaid})
 
-    BackendMock.tx_seen(%{inv | amount: Money.parse!(1.3, currency_id)})
+    BackendMock.tx_seen(%{inv | expected_payment: Money.parse!(1.3, currency_id)})
     HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
 
     due = Money.parse!(0.7, currency_id)

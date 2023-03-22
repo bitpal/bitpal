@@ -1,10 +1,9 @@
 defmodule BitPalApi.ExchangeRateChannel do
   use BitPalApi, :channel
-  alias BitPal.Currencies
-  alias BitPal.ExchangeRate
   alias BitPal.ExchangeRateEvents
   alias BitPal.ExchangeRates
   alias BitPalApi.ExchangeRateView
+  alias BitPalApi.ExchangeRateHandler
   require Logger
 
   @impl true
@@ -32,53 +31,22 @@ defmodule BitPalApi.ExchangeRateChannel do
   end
 
   def handle_event("get", %{"base" => base, "quote" => xquote}, socket) do
-    with base <- cast_currency!(base, "base"),
-         xquote <- cast_currency!(xquote, "quote"),
-         {:ok, rate} <- ExchangeRates.fetch_exchange_rate({base, xquote}) do
-      {:reply, {:ok, ExchangeRateView.render("show.json", rates: [rate])}, socket}
-    else
-      _ ->
-        raise NotFoundError,
-          param: "pair",
-          message:
-            "Exchange rate for pair `#{String.upcase(base)}-#{String.upcase(xquote)}` not found"
-    end
+    rate = ExchangeRateHandler.fetch_with_pair!(base, xquote)
+    {:reply, {:ok, ExchangeRateView.render("show.json", rates: [rate])}, socket}
   end
 
   def handle_event("get", %{"base" => base}, socket) do
-    base = cast_currency!(base, "base")
-    rates = ExchangeRates.fetch_exchange_rates_with_base(base)
-
-    if Enum.any?(rates) do
-      {:reply, {:ok, ExchangeRateView.render("show.json", rates: rates)}, socket}
-    else
-      raise NotFoundError,
-        param: "base",
-        message: "Exchange rate for `#{base}` not found"
-    end
+    rates = ExchangeRateHandler.fetch_with_base!(base)
+    {:reply, {:ok, ExchangeRateView.render("show.json", rates: rates)}, socket}
   end
 
   def handle_event("get", _params, socket) do
     rates = ExchangeRates.all_exchange_rates()
-
     {:reply, {:ok, ExchangeRateView.render("show.json", rates: rates)}, socket}
   end
 
   def handle_event(event, _params, socket) do
     Logger.error("unhandled event #{event}")
     {:noreply, socket}
-  end
-
-  defp cast_currency!(currency, param) do
-    case Currencies.cast(currency) do
-      {:ok, id} ->
-        id
-
-      _ ->
-        raise RequestFailedError,
-          param: param,
-          message: "Currency `#{currency}` is invalid or not supported",
-          code: "invalid_currency"
-    end
   end
 end

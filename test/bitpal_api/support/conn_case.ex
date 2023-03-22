@@ -15,50 +15,56 @@ defmodule BitPalApi.ConnCase do
   this option is not recommended for other databases.
   """
 
-  use ExUnit.CaseTemplate
-  use BitPalFactory
-  import Plug.BasicAuth
-  import Plug.Conn
-  import Phoenix.ConnTest
-  alias BitPal.IntegrationCase
-
-  using do
+  defmacro __using__(params) do
     quote do
+      use ExUnit.Case, unquote(params)
+      use BitPal.CaseHelpers
       use BitPalFactory
       import Plug.Conn
+      import Plug.BasicAuth
       import Phoenix.ConnTest
       import BitPalApi.ConnCase
       import BitPal.TestHelpers
       import BitPal.ConnTestHelpers
       alias BitPalApi.Router.Helpers, as: Routes
+      alias BitPal.DataCase
+      alias BitPal.IntegrationCase
 
       # The default endpoint for testing
       @endpoint BitPalApi.Endpoint
+
+      @integration Keyword.get(unquote(params), :integration)
+
+      setup tags do
+        res = setup_integration(tags)
+        conn = build_conn() |> auth(tags)
+
+        {:ok, Map.put(res, :conn, conn)}
+      end
+
+      defp setup_integration(tags) do
+        if @integration do
+          IntegrationCase.setup_integration(tags)
+        else
+          DataCase.setup_db(tags)
+          tags
+        end
+      end
+
+      defp auth(conn, %{auth: false}), do: conn
+
+      defp auth(conn, %{token: token}) do
+        put_auth(conn, token)
+      end
+
+      defp auth(conn, _tags) do
+        %{store_id: _store_id, token: token} = create_auth()
+        put_auth(conn, token)
+      end
+
+      defp put_auth(conn, token) do
+        put_req_header(conn, "authorization", encode_basic_auth(token, ""))
+      end
     end
-  end
-
-  setup tags do
-    res = IntegrationCase.setup_integration(tags)
-
-    conn =
-      build_conn()
-      |> auth(tags)
-
-    {:ok, Map.put(res, :conn, conn)}
-  end
-
-  defp auth(conn, %{auth: false}), do: conn
-
-  defp auth(conn, %{token: token}) do
-    put_auth(conn, token)
-  end
-
-  defp auth(conn, _tags) do
-    %{store_id: _store_id, token: token} = create_auth()
-    put_auth(conn, token)
-  end
-
-  defp put_auth(conn, token) do
-    put_req_header(conn, "authorization", encode_basic_auth(token, ""))
   end
 end

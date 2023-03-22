@@ -43,7 +43,7 @@ defmodule BitPalFactory.SettingsFactory do
   def create_address_key(attrs \\ %{})
 
   def create_address_key(invoice = %Invoice{}) do
-    create_address_key(store_id: invoice.store_id, currency_id: invoice.currency_id)
+    create_address_key(store_id: invoice.store_id, currency_id: invoice.payment_currency_id)
   end
 
   def create_address_key(attrs) do
@@ -51,6 +51,7 @@ defmodule BitPalFactory.SettingsFactory do
 
     store_id = StoreFactory.get_or_create_store_id(attrs)
     currency_id = CurrencyFactory.get_or_create_currency_id(attrs)
+
     data = attrs[:data] || unique_address_key_id(currency_id)
 
     {:ok, address_key} = StoreSettings.set_address_key(store_id, currency_id, data)
@@ -75,8 +76,12 @@ defmodule BitPalFactory.SettingsFactory do
         address_key
 
       _ ->
-        data = attrs[:data] || unique_address_key_id(currency_id)
+        data =
+          attrs[:data] ||
+            unique_address_key_id(currency_id)
+
         {:ok, address_key} = StoreSettings.set_address_key(store_id, currency_id, data)
+
         address_key
     end
   end
@@ -86,12 +91,16 @@ defmodule BitPalFactory.SettingsFactory do
     address_key
   end
 
+  def get_or_create_address_key(%{store_id: store_id, payment_currency_id: currency_id}) do
+    get_or_create_address_key(store_id, currency_id)
+  end
+
   def get_or_create_address_key(%{store_id: store_id, currency_id: currency_id}) do
     get_or_create_address_key(store_id, currency_id)
   end
 
   def get_or_create_address_key(%{invoice: invoice}) do
-    get_or_create_address_key(invoice.store_id, invoice.currency_id)
+    get_or_create_address_key(invoice.store_id, invoice.payment_currency_id)
   end
 
   def get_or_create_address_key(params) do

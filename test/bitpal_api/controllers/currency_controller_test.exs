@@ -1,5 +1,5 @@
 defmodule BitPalApi.CurrencyControllerTest do
-  use BitPalApi.ConnCase, async: true
+  use BitPalApi.ConnCase, async: true, integration: true
 
   @backends [
     BitPal.BackendMock,
@@ -22,12 +22,12 @@ defmodule BitPalApi.CurrencyControllerTest do
 
   @tag backends: @backends
   test "show", %{conn: conn, currencies: [c0, c1]} do
-    a = create_invoice(conn, address_id: :auto, currency_id: c0)
-    b = create_invoice(conn, address_id: :auto, currency_id: c0)
+    a = create_invoice(conn, address_id: :auto, payment_currency_id: c0)
+    b = create_invoice(conn, address_id: :auto, payment_currency_id: c0)
 
     # Should not show up
     _ = create_invoice(address_id: :auto)
-    _ = create_invoice(currency_id: c1, address_id: :auto)
+    _ = create_invoice(payment_currency_id: c1, address_id: :auto)
 
     conn = get(conn, "/v1/currencies/#{c0}")
 

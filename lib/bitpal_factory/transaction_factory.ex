@@ -26,9 +26,9 @@ defmodule BitPalFactory.TransactionFactory do
   end
 
   def create_tx(invoice = %Invoice{}, params) do
-    params = Enum.into(params, %{amount: invoice.amount})
+    params = Enum.into(params, %{amount: invoice.expected_payment})
     invoice = with_address(invoice)
-    create_tx(invoice.address_id, invoice.currency_id, params)
+    create_tx(invoice.address_id, invoice.payment_currency_id, params)
   end
 
   def create_tx(address = %Address{}, params) do
@@ -56,7 +56,7 @@ defmodule BitPalFactory.TransactionFactory do
     tx_count = opts[:tx_count] || pick([{90, 0}, {9, 1}, {1, 2}])
 
     _txids =
-      rand_money_lt(invoice.amount, tx_count)
+      rand_money_lt(invoice.expected_payment, tx_count)
       |> Enum.map(fn amount ->
         create_tx(invoice, amount: amount)
       end)
@@ -64,7 +64,7 @@ defmodule BitPalFactory.TransactionFactory do
     invoice |> update_info_from_txs()
   end
 
-  def with_txs(invoice = %Invoice{status: :processing}, _opts) do
+  def with_txs(invoice = %Invoice{status: {:processing, _}}, _opts) do
     create_tx(invoice,
       amount: paid_or_overpaid_amount(invoice)
     )
@@ -72,28 +72,28 @@ defmodule BitPalFactory.TransactionFactory do
     invoice |> update_info_from_txs()
   end
 
-  def with_txs(invoice = %Invoice{status_reason: :expired}, _opts) do
+  def with_txs(invoice = %Invoice{status: {_, :expired}}, _opts) do
     # No txs here, invoice was started but was never paid.
     invoice |> update_info_from_txs()
   end
 
-  def with_txs(invoice = %Invoice{status_reason: :canceled}, _opts) do
+  def with_txs(invoice = %Invoice{status: {_, :canceled}}, _opts) do
     # No txs here, invoice was canceled.
     invoice |> update_info_from_txs()
   end
 
-  def with_txs(invoice = %Invoice{status_reason: :timed_out}, _opts) do
+  def with_txs(invoice = %Invoice{status: {_, :timed_out}}, _opts) do
     if invoice.required_confirmations > 0 do
       # One tx here that didn't confirm.
-      create_tx(invoice, amount: invoice.amount)
+      create_tx(invoice, amount: invoice.expected_payment)
     end
 
     invoice |> update_info_from_txs()
   end
 
-  def with_txs(invoice = %Invoice{status_reason: :double_spent}, _opts) do
+  def with_txs(invoice = %Invoice{status: {_, :double_spent}}, _opts) do
     # One tx that was double spent.
-    create_tx(invoice, amount: invoice.amount, double_spent: true)
+    create_tx(invoice, amount: invoice.expected_payment, double_spent: true)
     invoice |> update_info_from_txs()
   end
 
@@ -108,7 +108,7 @@ defmodule BitPalFactory.TransactionFactory do
     amount =
       case pick([{75, :paid}, {25, :overpaid}]) do
         :paid ->
-          invoice.amount
+          invoice.expected_payment
 
         :overpaid ->
           paid_or_overpaid_amount(invoice)
@@ -116,7 +116,9 @@ defmodule BitPalFactory.TransactionFactory do
 
     confirmed_height =
       if invoice.required_confirmations > 0 do
-        CurrencyFactory.block_height(invoice.currency_id, min: invoice.required_confirmations) -
+        CurrencyFactory.block_height(invoice.payment_currency_id,
+          min: invoice.required_confirmations
+        ) -
           invoice.required_confirmations
       else
         nil
@@ -127,13 +129,16 @@ defmodule BitPalFactory.TransactionFactory do
   end
 
   defp paid_or_overpaid_amount(invoice) do
-    create_money(invoice.amount.currency,
-      min: invoice.amount.amount,
-      max: round(invoice.amount.amount * 1.2)
+    create_money(invoice.expected_payment.currency,
+      min: invoice.expected_payment.amount,
+      max: round(invoice.expected_payment.amount * 1.2)
     )
   end
 
   defp update_info_from_txs(invoice) do
-    Invoices.update_info_from_txs(invoice, CurrencyFactory.block_height(invoice.currency_id))
+    Invoices.update_info_from_txs(
+      invoice,
+      CurrencyFactory.block_height(invoice.payment_currency_id)
+    )
   end
 end

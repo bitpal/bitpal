@@ -112,7 +112,6 @@ defmodule BitPal.ExchangeRateWorkerTest do
   end
 
   describe "supported" do
-    @tag do: true
     test "stores supported", %{worker: worker} do
       assert eventually(fn ->
                ExchangeRateWorker.supported(worker) == %{
