@@ -139,5 +139,19 @@ defmodule BitPal.Repo.Migrations.NewBeginning do
 
     create unique_index(:invoices, :id)
     execute("CREATE INDEX ON invoices((status->'state'));")
+
+    create table(:exchange_rates) do
+      add :rate, :decimal, null: false
+      add :base, :string, size: 8, null: false
+      add :quote, :string, size: 8, null: false
+
+      add :source, :string, null: false
+      add :prio, :integer, null: false
+
+      timestamps(inserted_at: false)
+    end
+
+    create unique_index(:exchange_rates, [:base, :quote, :source])
+    create index(:exchange_rates, [:base, :quote])
   end
 end

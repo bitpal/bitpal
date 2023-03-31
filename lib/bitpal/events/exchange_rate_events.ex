@@ -7,7 +7,7 @@ defmodule BitPal.ExchangeRateEvents do
   alias BitPal.ExchangeRate
 
   @type msg :: {{:exchange_rate, :update}, ExchangeRate.t()}
-  @type raw_msg :: {{:exchange_rate, :raw_update}, ExchangeRate.pair()}
+  @type raw_msg :: {{:exchange_rate, :raw_update}, ExchangeRate.t()}
 
   @spec subscribe :: :ok | {:error, term}
   def subscribe, do: EventHelpers.subscribe(topic())

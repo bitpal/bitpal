@@ -6,7 +6,6 @@ defmodule BitPal.Invoices do
   alias BitPal.Addresses
   alias BitPal.Blocks
   alias BitPal.Currencies
-  alias BitPal.ExchangeRate
   alias BitPal.InvoiceEvents
   alias BitPal.Repo
   alias BitPal.StoreEvents
@@ -19,7 +18,6 @@ defmodule BitPal.Invoices do
   alias BitPalSchemas.Store
   alias BitPalSchemas.TxOutput
   alias BitPalSettings.StoreSettings
-  alias BitPalSettings.ExchangeRateSettings
   alias Ecto.Changeset
   require Decimal
   require Logger
@@ -415,7 +413,7 @@ defmodule BitPal.Invoices do
         {:error, "could not find rate #{payment_currency}-#{price_currency} in #{inspect(rates)}"}
 
       rate ->
-        {:ok, ExchangeRate.calculate_base(rate, payment_currency, price)}
+        {:ok, ExchangeRates.calculate_base(rate, payment_currency, price)}
     end
   end
 
@@ -760,10 +758,7 @@ defmodule BitPal.Invoices do
   end
 
   defp expired_rates?(updated_at = %NaiveDateTime{}) do
-    now = NaiveDateTime.utc_now()
-    ttl = ExchangeRateSettings.rates_ttl()
-    valid_until = NaiveDateTime.add(updated_at, ttl, :millisecond)
-    NaiveDateTime.compare(valid_until, now) != :lt
+    ExchangeRates.expired?(updated_at)
   end
 
   defp validate_rates_change(changeset = %Changeset{valid?: false}, _rates) do

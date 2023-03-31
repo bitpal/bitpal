@@ -1,6 +1,6 @@
 defmodule BitPalSchemas.InvoiceRates do
   use Ecto.Type
-  alias BitPal.ExchangeRate
+  alias BitPalSchemas.ExchangeRate
   alias BitPalSchemas.Currency
   require Logger
 
@@ -23,21 +23,14 @@ defmodule BitPalSchemas.InvoiceRates do
   def bundle_rates(rates) do
     rates
     |> Enum.group_by(
-      fn %ExchangeRate{pair: {base, _}} -> base end,
+      fn %ExchangeRate{base: base} -> base end,
       fn v -> v end
     )
-    |> Enum.reduce(%{}, fn {base, quotes}, acc ->
-      Map.put(
-        acc,
-        base,
-        Enum.reduce(quotes, %{}, fn rate, acc ->
-          Map.put(
-            acc,
-            ExchangeRate.currency(rate),
-            rate.rate
-          )
-        end)
-      )
+    |> Map.new(fn {base, quotes} ->
+      {base,
+       Map.new(quotes, fn rate ->
+         {rate.quote, rate.rate}
+       end)}
     end)
   end
 
@@ -154,7 +147,6 @@ defmodule BitPalSchemas.InvoiceRates do
     if Decimal.gt?(x, 0) do
       x
     else
-      Logger.error("rate must be > 0")
       raise("rate must be > 0")
     end
   end

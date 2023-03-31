@@ -1,8 +1,6 @@
 defmodule BitPalApi.ExchangeRateChannelTest do
-  use BitPalApi.ChannelCase, async: false, integration: false
-  alias BitPal.ExchangeRate.Sources.Empty
-  alias BitPal.ExchangeRateCache
-  alias BitPal.ExchangeRateSupervisor
+  use BitPalApi.ChannelCase, async: true, integration: false
+  alias BitPal.ExchangeRates
 
   setup do
     {:ok, _, socket} =
@@ -10,76 +8,70 @@ defmodule BitPalApi.ExchangeRateChannelTest do
       |> socket("user_id", %{some: :assign})
       |> subscribe_and_join(BitPalApi.ExchangeRateChannel, "exchange_rate")
 
-    cache = ExchangeRateSupervisor.cache_name()
-    ExchangeRateCache.delete_all(cache)
-
-    %{socket: socket, cache: cache}
+    c1 = unique_currency_id()
+    %{socket: socket, c1: c1}
   end
 
-  test "get rate update", %{cache: cache} do
-    rate = cache_rate(pair: {:DGC, :XXX}, source: Empty, prio: 1_000)
-    ExchangeRateCache.update_exchange_rate(cache, rate)
+  test "get rate update", %{c1: c1} do
+    rate = ExchangeRates.update_exchange_rate(rate_params(base: c1, quote: :USD))
 
-    dec = Decimal.to_float(rate.rate.rate)
-    assert_broadcast "updated_exchange_rate", %{:DGC => %{:XXX => ^dec}}
+    dec = Decimal.to_float(rate.rate)
+    assert_broadcast "updated_exchange_rate", %{^c1 => %{USD: ^dec}}
   end
 
-  test "get all", %{socket: socket, cache: cache} do
-    usd_rate = cache_rate(pair: {:DGC, :USD}, source: Empty, prio: 1_000)
-    eur_rate = cache_rate(pair: {:DGC, :EUR}, source: Empty, prio: 1_000)
-    ExchangeRateCache.update_exchange_rate(cache, usd_rate)
-    ExchangeRateCache.update_exchange_rate(cache, eur_rate)
+  test "get all", %{socket: socket, c1: c1} do
+    usd_rate = ExchangeRates.update_exchange_rate(rate_params(base: c1, quote: :USD))
+    eur_rate = ExchangeRates.update_exchange_rate(rate_params(base: c1, quote: :EUR))
 
     ref = push(socket, "get", %{})
 
-    usd_rate = Decimal.to_float(usd_rate.rate.rate)
-    eur_rate = Decimal.to_float(eur_rate.rate.rate)
+    usd_rate = Decimal.to_float(usd_rate.rate)
+    eur_rate = Decimal.to_float(eur_rate.rate)
 
     assert_reply(ref, :ok, %{
-      :DGC => %{
+      ^c1 => %{
         :USD => ^usd_rate,
         :EUR => ^eur_rate
       }
     })
   end
 
-  test "get base", %{socket: socket, cache: cache} do
-    usd_rate = cache_rate(pair: {:DGC, :USD}, source: Empty, prio: 1_000)
-    eur_rate = cache_rate(pair: {:DGC, :EUR}, source: Empty, prio: 1_000)
-    ExchangeRateCache.update_exchange_rate(cache, usd_rate)
-    ExchangeRateCache.update_exchange_rate(cache, eur_rate)
+  test "get base", %{socket: socket, c1: c1} do
+    usd_rate = ExchangeRates.update_exchange_rate(rate_params(base: c1, quote: :USD))
+    eur_rate = ExchangeRates.update_exchange_rate(rate_params(base: c1, quote: :EUR))
 
-    ref = push(socket, "get", %{"base" => "DGC"})
+    ref = push(socket, "get", %{"base" => Atom.to_string(c1)})
 
-    usd_rate = Decimal.to_float(usd_rate.rate.rate)
-    eur_rate = Decimal.to_float(eur_rate.rate.rate)
+    usd_rate = Decimal.to_float(usd_rate.rate)
+    eur_rate = Decimal.to_float(eur_rate.rate)
 
     assert_reply(ref, :ok, %{
-      :DGC => %{
+      ^c1 => %{
         :USD => ^usd_rate,
         :EUR => ^eur_rate
       }
     })
   end
 
-  test "get pair", %{socket: socket, cache: cache} do
-    rate = cache_rate(pair: {:DGC, :USD}, source: Empty, prio: 1_000)
-    ExchangeRateCache.update_exchange_rate(cache, rate)
+  test "get pair", %{socket: socket, c1: c1} do
+    rate = ExchangeRates.update_exchange_rate(rate_params(base: c1, quote: :USD))
 
-    ref = push(socket, "get", %{"base" => "DGC", "quote" => "USD"})
-    dec = Decimal.to_float(rate.rate.rate)
-    assert_reply(ref, :ok, %{:DGC => %{:USD => ^dec}})
+    ref = push(socket, "get", %{"base" => Atom.to_string(c1), "quote" => "USD"})
+    dec = Decimal.to_float(rate.rate)
+    assert_reply(ref, :ok, %{^c1 => %{:USD => ^dec}})
   end
 
-  test "get not found base", %{socket: socket} do
-    ref = push(socket, "get", %{"base" => "BTC"})
+  test "get not found base", %{socket: socket, c1: c1} do
+    ref = push(socket, "get", %{"base" => Atom.to_string(c1)})
+
+    msg = "Exchange rate for `#{c1}` not found"
 
     assert_reply(
       ref,
       :error,
       {:error,
        %{
-         message: "Exchange rate for `BTC` not found",
+         message: ^msg,
          param: "base",
          type: "invalid_request_error",
          code: "resource_missing"
@@ -87,15 +79,17 @@ defmodule BitPalApi.ExchangeRateChannelTest do
     )
   end
 
-  test "get not found pair", %{socket: socket} do
-    ref = push(socket, "get", %{"base" => "BTC", "quote" => "SEK"})
+  test "get not found pair", %{socket: socket, c1: c1} do
+    ref = push(socket, "get", %{"base" => Atom.to_string(c1), "quote" => "SEK"})
+
+    msg = "Exchange rate for pair `#{c1}-SEK` not found"
 
     assert_reply(
       ref,
       :error,
       {:error,
        %{
-         message: "Exchange rate for pair `BTC-SEK` not found",
+         message: ^msg,
          param: "pair",
          type: "invalid_request_error",
          code: "resource_missing"
@@ -103,6 +97,7 @@ defmodule BitPalApi.ExchangeRateChannelTest do
     )
   end
 
+  #
   test "get bad base", %{socket: socket} do
     ref = push(socket, "get", %{"base" => "XXX"})
 

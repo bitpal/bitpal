@@ -8,7 +8,6 @@ defmodule BitPal.IntegrationCase do
   use ExUnit.CaseTemplate
   use BitPalFactory
   alias BitPalFactory.ExchangeRateFactory
-  alias BitPal.ExchangeRateCache
   alias BitPal.BackendEvents
   alias BitPal.BackendManager
   alias BitPal.BackendMock
@@ -16,6 +15,7 @@ defmodule BitPal.IntegrationCase do
   alias BitPal.CaseHelpers
   alias BitPal.InvoiceSupervisor
   alias BitPal.Repo
+  alias BitPalSchemas.ExchangeRate
   alias BitPalSettings.BackendSettings
   alias Ecto.Adapters.SQL.Sandbox
 
@@ -121,14 +121,15 @@ defmodule BitPal.IntegrationCase do
     currencies = Enum.map(backends, fn _ -> unique_currency_id() end)
 
     for currency_id <- currencies do
-      # This is quite fugly...
       for fiat_id <- [:USD, :EUR, :SEK] do
-        ExchangeRateCache.update_exchange_rate(
-          BitPal.ExchangeRateSupervisor.cache_name(),
-          10,
-          :NO_SRC,
-          ExchangeRateFactory.exchange_rate(pair: {currency_id, fiat_id})
-        )
+        %ExchangeRate{
+          base: currency_id,
+          quote: fiat_id,
+          rate: ExchangeRateFactory.random_rate(),
+          source: currency_id,
+          prio: 10
+        }
+        |> Repo.insert!()
       end
 
       if tags[:subscribe] do

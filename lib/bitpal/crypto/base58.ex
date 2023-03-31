@@ -9,8 +9,6 @@ defmodule BitPal.Crypto.Base58 do
   the module don't have to worry about that.
   """
 
-  use Bitwise
-
   @doc """
   Encode the binary into base58. No checksumming.
   """

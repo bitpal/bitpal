@@ -1,6 +1,6 @@
 defmodule BitPalApi.InvoiceControllerTest do
   use BitPalApi.ConnCase, async: true, integration: true
-  alias BitPal.ExchangeRate
+  alias BitPal.ExchangeRates
   alias BitPal.Invoices
   alias BitPalSchemas.InvoiceRates
   alias BitPal.ViewHelpers
@@ -386,7 +386,7 @@ defmodule BitPalApi.InvoiceControllerTest do
       assert is_float(rate)
 
       assert decimal_eq(
-               ExchangeRate.calculate_rate(
+               ExchangeRates.calculate_rate(
                  Money.new(sub_amount, currency_id),
                  Money.parse!("1.2", "USD")
                ),

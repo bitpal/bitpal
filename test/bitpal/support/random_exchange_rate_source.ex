@@ -20,7 +20,6 @@ defmodule BitPal.ExchangeRate.Sources.Random do
   def supported do
     fiat = ExchangeRateSettings.fiat_to_update() |> MapSet.new()
 
-    # FIXME update all test currencies as well?
     Enum.reduce(ExchangeRateSettings.crypto_to_update(), %{}, fn crypto, acc ->
       Map.put(acc, crypto, fiat)
     end)

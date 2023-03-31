@@ -125,13 +125,12 @@ defmodule BitPal.RateLimiterTest do
            end)
 
     # There must be a delay here, so we have time to make this call.
+    Process.sleep(20)
     Handler.clear_responses(handler)
 
     assert eventually(fn ->
              Handler.responses(handler) == 6..10 |> Enum.into([])
            end)
-
-    Process.sleep(20)
   end
 
   @tag retry_timeout: 50

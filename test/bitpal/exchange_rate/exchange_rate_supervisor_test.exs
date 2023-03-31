@@ -1,9 +1,9 @@
 defmodule BitPal.ExchangeRateSupervisorTest do
-  use ExUnit.Case, async: false
+  use BitPal.DataCase, async: false
   use BitPal.CaseHelpers
   import Mox
-  alias BitPal.ExchangeRateCache
   alias BitPal.ExchangeRateSupervisor
+  alias BitPal.ExchangeRates
 
   setup :set_mox_from_context
   setup :verify_on_exit!
@@ -23,7 +23,7 @@ defmodule BitPal.ExchangeRateSupervisorTest do
        ]}
     )
 
-    %{name: name, cache_name: ExchangeRateSupervisor.cache_name(name)}
+    %{name: name}
   end
 
   defp setup_mock(name, 1) do
@@ -46,6 +46,9 @@ defmodule BitPal.ExchangeRateSupervisorTest do
 
     name
     |> stub(:request_type, fn -> :multi end)
+
+    name
+    |> stub(:name, fn -> "Mock" end)
 
     name
     |> stub(:rates, fn _ ->
@@ -77,6 +80,9 @@ defmodule BitPal.ExchangeRateSupervisorTest do
     |> stub(:request_type, fn -> :multi end)
 
     name
+    |> stub(:name, fn -> "Mock" end)
+
+    name
     |> stub(:rates, fn _ ->
       %{
         XMR: %{EUR: Decimal.new("2.1"), USD: Decimal.new("2.4")}
@@ -84,19 +90,17 @@ defmodule BitPal.ExchangeRateSupervisorTest do
     end)
   end
 
-  test "updates cache", %{cache_name: cache_name} do
+  test "updates rates" do
     dec = Decimal.new("1.1")
 
     assert eventually(fn ->
-             {:ok, %{rate: ^dec}} =
-               ExchangeRateCache.fetch_exchange_rate(cache_name, {:BCH, :EUR})
+             {:ok, %{rate: ^dec}} = ExchangeRates.fetch_exchange_rate({:BCH, :EUR})
            end)
 
     dec = Decimal.new("2.1")
 
     assert eventually(fn ->
-             {:ok, %{rate: ^dec}} =
-               ExchangeRateCache.fetch_exchange_rate(cache_name, {:XMR, :EUR})
+             {:ok, %{rate: ^dec}} = ExchangeRates.fetch_exchange_rate({:XMR, :EUR})
            end)
   end
 

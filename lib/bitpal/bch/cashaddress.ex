@@ -3,7 +3,7 @@ defmodule BitPal.BCH.Cashaddress do
   Address management. Allows converting between different BCH address types.
   """
 
-  use Bitwise
+  import Bitwise
   alias BitPal.BCH.KeyTree
   alias BitPal.Cache
   alias BitPal.Crypto.Base32

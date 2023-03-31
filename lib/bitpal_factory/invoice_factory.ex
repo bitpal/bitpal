@@ -8,7 +8,7 @@ defmodule BitPalFactory.InvoiceFactory do
   alias BitPalFactory.ExchangeRateFactory
   alias BitPal.Currencies
   alias BitPal.Addresses
-  alias BitPal.ExchangeRate
+  alias BitPal.ExchangeRates
   alias BitPal.Invoices
   alias BitPal.InvoiceSupervisor
   alias BitPal.Repo
@@ -96,7 +96,7 @@ defmodule BitPalFactory.InvoiceFactory do
       end
     end
 
-    rate = ExchangeRate.calculate_rate(price, expected_payment)
+    rate = ExchangeRates.calculate_rate(price, expected_payment)
 
     Map.merge(attrs, %{
       rates: %{expected_payment.currency => %{price.currency => rate}},
@@ -125,7 +125,7 @@ defmodule BitPalFactory.InvoiceFactory do
 
     {price_currency, rate} = InvoiceRates.find_quote_with_rate(rates, expected_payment.currency)
 
-    price = ExchangeRate.calculate_quote(rate, expected_payment, price_currency)
+    price = ExchangeRates.calculate_quote(rate, expected_payment, price_currency)
 
     Map.merge(attrs, %{
       price: price,

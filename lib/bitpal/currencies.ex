@@ -18,8 +18,8 @@ defmodule BitPal.Currencies do
 
   @spec is_crypto(atom) :: boolean
   def is_crypto(id) do
-    Application.get_env(:money, :custom_currencies)
-    |> Map.has_key?(id)
+    Application.get_env(:money, :custom_currencies) |> Map.has_key?(id) &&
+      !(Atom.to_string(id) |> String.starts_with?("𝓕 "))
   end
 
   @spec add_custom_curreny(atom, map) :: :ok

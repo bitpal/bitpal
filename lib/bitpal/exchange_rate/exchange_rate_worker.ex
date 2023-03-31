@@ -1,7 +1,6 @@
 defmodule BitPal.ExchangeRateWorker do
   use GenServer
-  alias BitPal.ExchangeRate
-  alias BitPal.ExchangeRateCache
+  alias BitPal.ExchangeRates
   alias BitPal.ProcessRegistry
   alias BitPal.RateLimiter
   alias BitPalSettings.ExchangeRateSettings
@@ -43,8 +42,10 @@ defmodule BitPal.ExchangeRateWorker do
   end
 
   def child_spec(opts) do
+    id = Keyword.get(opts, :id) || Keyword.fetch!(opts, :module)
+
     %{
-      id: {__MODULE__, Keyword.fetch!(opts, :source)},
+      id: {__MODULE__, id},
       restart: :permanent,
       start: {__MODULE__, :start_link, [opts]}
     }
@@ -52,9 +53,10 @@ defmodule BitPal.ExchangeRateWorker do
 
   @impl true
   def init(opts) do
-    source = Keyword.fetch!(opts, :source)
+    module = Keyword.fetch!(opts, :module)
+    id = Keyword.get(opts, :id, module)
     prio = Keyword.fetch!(opts, :prio)
-    cache_name = Keyword.fetch!(opts, :cache_name)
+    name = Keyword.get_lazy(opts, :name, fn -> module.name() end)
 
     supported_refresh_rate =
       Keyword.get(opts, :supported_refresh_rate, ExchangeRateSettings.supported_refresh_rate())
@@ -65,7 +67,7 @@ defmodule BitPal.ExchangeRateWorker do
     retry_timeout = Keyword.get(opts, :retry_timeout, ExchangeRateSettings.retry_timeout())
 
     rate_limit_settings =
-      source.rate_limit_settings()
+      module.rate_limit_settings()
       |> Map.put(:retry_timeout, retry_timeout)
       |> Enum.into([])
 
@@ -75,14 +77,15 @@ defmodule BitPal.ExchangeRateWorker do
 
     Registry.register(
       ProcessRegistry,
-      via_tuple(source),
+      via_tuple(id),
       __MODULE__
     )
 
     state = %{
-      source: source,
+      id: id,
+      module: module,
       prio: prio,
-      cache_name: cache_name,
+      name: name,
       rate_limiter: rate_limiter,
       supported_refresh_rate: supported_refresh_rate,
       rates_refresh_rate: rates_refresh_rate,
@@ -93,8 +96,8 @@ defmodule BitPal.ExchangeRateWorker do
     {:ok, state}
   end
 
-  defp via_tuple(source) do
-    ProcessRegistry.via_tuple({__MODULE__, source})
+  defp via_tuple(id) do
+    ProcessRegistry.via_tuple({__MODULE__, id})
   end
 
   @impl true
@@ -102,7 +105,7 @@ defmodule BitPal.ExchangeRateWorker do
     fiat_to_update = ExchangeRateSettings.fiat_to_update()
     crypto_to_update = ExchangeRateSettings.crypto_to_update()
 
-    case state.source.request_type() do
+    case state.module.request_type() do
       :pair ->
         for crypto_id <- crypto_to_update do
           if supported = Map.get(state.supported, crypto_id) do
@@ -136,8 +139,8 @@ defmodule BitPal.ExchangeRateWorker do
   def handle_info(:fetch_supported, state) do
     RateLimiter.make_request(
       state.rate_limiter,
-      {state.source, :supported, []},
-      {__MODULE__, :set_supported, [state.source]}
+      {state.module, :supported, []},
+      {__MODULE__, :set_supported, [state.module]}
     )
 
     {:noreply, state}
@@ -147,8 +150,8 @@ defmodule BitPal.ExchangeRateWorker do
   def handle_info({:update, opts}, state) do
     RateLimiter.make_request(
       state.rate_limiter,
-      {state.source, :rates, [opts]},
-      {__MODULE__, :update_rates, [state.source]}
+      {state.module, :rates, [opts]},
+      {__MODULE__, :update_rates, [state.module]}
     )
 
     {:noreply, state}
@@ -179,11 +182,11 @@ defmodule BitPal.ExchangeRateWorker do
     for {crypto_id, pairs} <- updated_rates do
       for {fiat_id, rate} <- pairs do
         if MapSet.member?(fiat_to_update, fiat_id) do
-          ExchangeRateCache.update_exchange_rate(
-            state.cache_name,
-            state.prio,
-            state.source,
-            ExchangeRate.new!(rate, {crypto_id, fiat_id})
+          ExchangeRates.update_exchange_rate(
+            {crypto_id, fiat_id},
+            rate,
+            state.id,
+            state.prio
           )
         end
       end
@@ -213,11 +216,11 @@ defmodule BitPal.ExchangeRateWorker do
 
   @impl true
   def handle_call(:info, _from, state) do
-    {:reply, %{prio: state.prio, name: state.source.name()}, state}
+    {:reply, %{prio: state.prio, name: state.name}, state}
   end
 
-  @spec fetch_worker(module) :: {:ok, pid} | {:error, :not_found}
-  def fetch_worker(source) do
-    ProcessRegistry.get_process(via_tuple(source))
+  @spec fetch_worker(term) :: {:ok, pid} | {:error, :not_found}
+  def fetch_worker(id) do
+    ProcessRegistry.get_process(via_tuple(id))
   end
 end

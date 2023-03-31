@@ -1,64 +1,65 @@
 defmodule BitPalApi.ExchangeRateControllerTest do
-  use BitPalApi.ConnCase, async: false, integration: false
-  alias BitPal.ExchangeRateCache
-  alias BitPal.ExchangeRateSupervisor
+  use BitPalApi.ConnCase, async: true, integration: false
+  alias BitPal.ExchangeRates
 
-  setup _tags do
-    name = ExchangeRateSupervisor.cache_name()
-    ExchangeRateCache.delete_all(name)
+  setup do
+    c1 = unique_currency_id()
+    c2 = unique_currency_id()
 
-    ExchangeRateCache.update_exchange_rate(
-      name,
-      cache_rate(pair: {:BCH, :USD}, rate: Decimal.new("1.1"))
-    )
+    f1 = unique_fiat()
+    f2 = unique_fiat()
 
-    ExchangeRateCache.update_exchange_rate(
-      name,
-      cache_rate(pair: {:BCH, :EUR}, rate: Decimal.new("2.1"))
-    )
+    ExchangeRates.update_exchange_rate(rate_params(pair: {c1, f1}, rate: Decimal.from_float(1.1)))
+    ExchangeRates.update_exchange_rate(rate_params(pair: {c1, f2}, rate: Decimal.from_float(2.1)))
+    ExchangeRates.update_exchange_rate(rate_params(pair: {c2, f1}, rate: Decimal.from_float(3.1)))
 
-    ExchangeRateCache.update_exchange_rate(
-      name,
-      cache_rate(pair: {:XMR, :USD}, rate: Decimal.new("3.1"))
-    )
+    %{
+      c1: Atom.to_string(c1),
+      c2: Atom.to_string(c2),
+      c3: Atom.to_string(unique_currency_id()),
+      f1: Atom.to_string(f1),
+      f2: Atom.to_string(f2)
+    }
   end
 
   describe "/rates" do
-    test "/rates", %{conn: conn} do
+    test "/rates", %{conn: conn, c1: c1, c2: c2, f1: f1, f2: f2} do
       conn = get(conn, "/v1/rates")
 
       assert %{
-               "BCH" => %{
-                 "USD" => 1.1,
-                 "EUR" => 2.1
+               ^c1 => %{
+                 ^f1 => 1.1,
+                 ^f2 => 2.1
                },
-               "XMR" => %{
-                 "USD" => 3.1
+               ^c2 => %{
+                 ^f1 => 3.1
                }
-             } == json_response(conn, 200)
+             } = json_response(conn, 200)
     end
   end
 
   describe "/rates/:base" do
-    test "get", %{conn: conn} do
-      conn = get(conn, "/v1/rates/BCH")
+    test "get", %{conn: conn, c1: c1, f1: f1, f2: f2} do
+      conn = get(conn, "/v1/rates/#{c1}")
 
       assert %{
-               "BCH" => %{
-                 "USD" => 1.1,
-                 "EUR" => 2.1
+               c1 => %{
+                 f1 => 1.1,
+                 f2 => 2.1
                }
              } == json_response(conn, 200)
     end
 
-    test "not found", %{conn: conn} do
+    test "not found", %{conn: conn, c3: c3} do
       {_, _, response} =
         assert_error_sent(404, fn ->
-          get(conn, "/v1/rates/BTC")
+          get(conn, "/v1/rates/#{c3}")
         end)
 
+      msg = "Exchange rate for `#{c3}` not found"
+
       assert %{
-               "message" => "Exchange rate for `BTC` not found",
+               "message" => ^msg,
                "param" => "base",
                "type" => "invalid_request_error",
                "code" => "resource_missing"
@@ -81,30 +82,32 @@ defmodule BitPalApi.ExchangeRateControllerTest do
   end
 
   describe "/rates/:basecurrency/:currency" do
-    test "get", %{conn: conn} do
-      conn = get(conn, "/v1/rates/BCH/EUR")
+    test "get", %{conn: conn, c1: c1, f2: f2} do
+      conn = get(conn, "/v1/rates/#{c1}/#{f2}")
 
-      assert %{"BCH" => %{"EUR" => 2.1}} == json_response(conn, 200)
+      assert %{c1 => %{f2 => 2.1}} == json_response(conn, 200)
     end
 
-    test "not found", %{conn: conn} do
+    test "not found", %{conn: conn, c2: c2, f2: f2} do
       {_, _, response} =
         assert_error_sent(404, fn ->
-          get(conn, "/v1/rates/BTC/SEK")
+          get(conn, "/v1/rates/#{c2}/#{f2}")
         end)
 
+      msg = "Exchange rate for pair `#{c2}-#{f2}` not found"
+
       assert %{
-               "message" => "Exchange rate for pair `BTC-SEK` not found",
+               "message" => ^msg,
                "param" => "pair",
                "type" => "invalid_request_error",
                "code" => "resource_missing"
              } = Jason.decode!(response)
     end
 
-    test "bad base", %{conn: conn} do
+    test "bad base", %{conn: conn, f2: f2} do
       {_, _, response} =
         assert_error_sent(402, fn ->
-          get(conn, "/v1/rates/XXX/EUR")
+          get(conn, "/v1/rates/XXX/#{f2}")
         end)
 
       assert %{
@@ -115,10 +118,10 @@ defmodule BitPalApi.ExchangeRateControllerTest do
              } = Jason.decode!(response)
     end
 
-    test "not a crypto base", %{conn: conn} do
+    test "not a crypto base", %{conn: conn, f1: f1, f2: f2} do
       {_, _, response} =
         assert_error_sent(402, fn ->
-          get(conn, "/v1/rates/EUR/USD")
+          get(conn, "/v1/rates/#{f2}/#{f1}")
         end)
 
       assert %{
@@ -129,10 +132,10 @@ defmodule BitPalApi.ExchangeRateControllerTest do
              } = Jason.decode!(response)
     end
 
-    test "bad quote", %{conn: conn} do
+    test "bad quote", %{conn: conn, c1: c1} do
       {_, _, response} =
         assert_error_sent(402, fn ->
-          get(conn, "/v1/rates/BCH/XXX")
+          get(conn, "/v1/rates/#{c1}/XXX")
         end)
 
       assert %{

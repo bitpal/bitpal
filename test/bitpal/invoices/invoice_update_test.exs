@@ -1,6 +1,7 @@
 defmodule BitPal.InvoiceUpdateTest do
   use BitPal.DataCase, async: true
   alias BitPal.Invoices
+  alias BitPalSettings.ExchangeRateSettings
 
   setup tags do
     tags = Map.put_new(tags, :status, :draft)
@@ -255,8 +256,9 @@ defmodule BitPal.InvoiceUpdateTest do
          rates: %{BCH: %{USD: Decimal.from_float(1.0)}}
     test "updates rates if too old", %{invoice: invoice} do
       now = NaiveDateTime.utc_now()
-      yesterday = NaiveDateTime.add(now, -1, :day)
-      {:ok, updated} = Invoices.finalize(%{invoice | rates_updated_at: yesterday})
+      ttl = ExchangeRateSettings.rates_ttl()
+      expired = NaiveDateTime.add(now, -ttl - 1, :millisecond)
+      {:ok, updated} = Invoices.finalize(%{invoice | rates_updated_at: expired})
       assert invoice.rates != updated.rates
     end
 

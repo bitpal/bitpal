@@ -37,28 +37,20 @@ defmodule BitPalWeb.ExchangeRateLive do
     # where rates are sorted in `source_order`, and contains `value: nil` if the
     # rate corresponding rate doesn't exist.
     all_rates =
-      ExchangeRates.all_raw_exchange_rates()
+      ExchangeRates.all_unprioritized_exchange_rates()
       # First level is by base
-      |> Enum.group_by(
-        fn %{rate: %{pair: {base, _}}} -> base end,
-        fn v -> v end
-      )
-      |> Enum.map(fn {base, rates_by_base} ->
+      |> Enum.group_by(fn rate -> rate.base end)
+      |> Map.new(fn {base, rates_by_base} ->
         # Second is by quote
         rates_by_base =
           rates_by_base
-          |> Enum.group_by(
-            fn %{rate: %{pair: {_, xquote}}} -> xquote end,
-            fn v -> v end
-          )
-          |> Enum.map(fn {xquote, rates_by_quote} ->
+          |> Enum.group_by(fn rate -> rate.quote end)
+          |> Map.new(fn {xquote, rates_by_quote} ->
             {xquote, transform_and_sort(rates_by_quote, source_order)}
           end)
-          |> Enum.into(%{})
 
         {base, rates_by_base}
       end)
-      |> Enum.into(%{})
 
     {:ok,
      assign(socket,
@@ -75,44 +67,45 @@ defmodule BitPalWeb.ExchangeRateLive do
   end
 
   @impl true
-  def handle_info({{:exchange_rate, :raw_update}, pair}, socket) do
-    {:noreply, update_pair(pair, socket)}
+  def handle_info({{:exchange_rate, :raw_update}, rate}, socket) do
+    {:noreply, update_pair({rate.base, rate.quote}, socket)}
   end
 
   defp update_pair(pair = {base, xquote}, socket) do
-    case ExchangeRates.fetch_raw_exchange_rates(pair) do
-      {:ok, new_rates} ->
-        all_rates = socket.assigns.all_rates
-        source_order = socket.assigns.source_order
+    new_rates = ExchangeRates.fetch_unprioritized_exchange_rates(pair)
 
-        # Safeguard against new base/quote ids are introduced.
-        # But note that we do not support new sources dynamically.
-        rates_by_base = Map.get(all_rates, base, %{})
+    if Enum.empty?(new_rates) do
+      socket
+    else
+      all_rates = socket.assigns.all_rates
+      source_order = socket.assigns.source_order
 
-        rates_by_quote =
-          new_rates
-          |> transform_and_sort(source_order)
+      # Safeguard against new base/quote ids are introduced.
+      # But note that we do not support new sources dynamically.
+      rates_by_base = Map.get(all_rates, base, %{})
 
-        rates_by_base = Map.put(rates_by_base, xquote, rates_by_quote)
+      rates_by_quote =
+        new_rates
+        |> transform_and_sort(source_order)
 
-        assign(socket,
-          all_rates: Map.put(all_rates, base, rates_by_base)
-        )
+      rates_by_base = Map.put(rates_by_base, xquote, rates_by_quote)
 
-      :error ->
-        socket
+      assign(socket,
+        all_rates: Map.put(all_rates, base, rates_by_base)
+      )
     end
   end
 
   defp transform_and_sort(rates, source_order) do
-    # Sort by soource, insert nil if a source isn't represented
+    # Sort by source, insert nil if a source isn't represented
     rates_by_source =
-      Enum.reduce(rates, %{}, fn rate, acc ->
-        Map.put(acc, rate.source, %{
-          source: rate.source,
-          value: rate.rate.rate,
-          updated: rate.updated
-        })
+      Map.new(rates, fn rate ->
+        {rate.source,
+         %{
+           source: rate.source,
+           value: rate.rate,
+           updated: rate.updated_at
+         }}
       end)
 
     Enum.map(source_order, fn source ->
