@@ -1,7 +1,6 @@
 defmodule BitPalSchemas.ExchangeRate do
   use TypedEctoSchema
   alias BitPal.Currency
-  alias BitPal.Currencies
 
   @type pair :: {Currency.id(), Currency.id()}
 
