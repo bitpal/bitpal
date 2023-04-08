@@ -1,8 +1,9 @@
 defmodule BitPalSchemas.ExchangeRate do
   use TypedEctoSchema
-  alias BitPal.Currency
+  alias BitPalSchemas.Currency
 
   @type pair :: {Currency.id(), Currency.id()}
+  @type bundled :: %{Currency.t() => %{Currency.t() => t()}}
 
   typed_schema "exchange_rates" do
     field(:rate, :decimal)

@@ -81,7 +81,6 @@ defmodule BitPalFactory.StoreFactory do
   @spec with_invoices(Store.t(), map | keyword) :: Store.t()
   def with_invoices(store, params \\ %{}) do
     params = Enum.into(params, %{})
-    payment_currency_id = pick_payment_currency_id(params)
     invoice_count = params[:invoice_count] || Faker.random_between(1, 3)
     generate_txs = params[:txs] == :auto
 
@@ -91,6 +90,8 @@ defmodule BitPalFactory.StoreFactory do
 
     invoices =
       Stream.repeatedly(fn ->
+        payment_currency_id = pick_payment_currency_id(params)
+
         invoice =
           InvoiceFactory.create_invoice(
             store,

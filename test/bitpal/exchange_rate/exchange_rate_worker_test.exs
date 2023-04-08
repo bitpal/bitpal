@@ -4,6 +4,7 @@ defmodule BitPal.ExchangeRateWorkerTest do
   import BitPal.TestHelpers
   alias BitPal.ExchangeRate.MockSource
   alias BitPal.ExchangeRateWorker
+  alias BitPal.ExchangeRateEvents
 
   setup :set_mox_from_context
   setup :verify_on_exit!
@@ -13,6 +14,11 @@ defmodule BitPal.ExchangeRateWorkerTest do
   @f2 :USD
 
   setup tags do
+    if tags[:subscribe] do
+      ExchangeRateEvents.subscribe()
+      ExchangeRateEvents.subscribe_raw()
+    end
+
     if tags[:fail_first_supported] do
       MockSource
       |> expect(:supported, 1, fn ->
@@ -210,6 +216,21 @@ defmodule BitPal.ExchangeRateWorkerTest do
                    XMR: %{@f1 => Decimal.new("2.1"), @f2 => Decimal.new("2.4")}
                  }
              end)
+    end
+
+    @tag request_type: :multi,
+         rates_response: %{
+           BCH: %{@f1 => Decimal.from_float(1.0), @f2 => Decimal.from_float(1.0)},
+           XMR: %{@f1 => Decimal.from_float(1.0)}
+         },
+         rates_refresh_rate: 30,
+         subscribe: true
+    @tag do: true
+    test "sends multi updates" do
+      d1 = Decimal.from_float(1.0)
+
+      assert_receive {{:exchange_rate, :update},
+                      %{BCH: %{@f1 => ^d1, @f2 => ^d1}, XMR: %{@f1 => ^d1}}}
     end
   end
 end

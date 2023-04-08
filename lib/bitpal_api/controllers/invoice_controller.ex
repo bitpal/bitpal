@@ -1,11 +1,11 @@
 defmodule BitPalApi.InvoiceController do
   use BitPalApi, :controller
+  import Ecto.Changeset
   alias BitPal.Invoices
   alias BitPal.InvoiceSupervisor
   alias BitPal.Repo
   alias BitPal.Stores
   alias Ecto.Changeset
-  import Ecto.Changeset
   require Logger
 
   # Dialyzer complains about "The pattern can never match the type" for Invoice fetching and updating,
@@ -131,6 +131,7 @@ defmodule BitPalApi.InvoiceController do
     render(conn, "index.json", invoices: store.invoices)
   end
 
+  @spec transition_error(Changeset.t()) :: no_return()
   defp transition_error(changeset) do
     case changeset_error(changeset, :status) do
       nil ->

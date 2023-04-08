@@ -1,7 +1,8 @@
 defmodule BitPalApi.ApiHelpers do
   alias BitPal.Currencies
+  alias BitPalSchemas.Currency
 
-  @spec cast_crypto(term) :: {:ok, Currency.t()} | {:error, String.t()}
+  @spec cast_crypto(atom | String.t()) :: {:ok, Currency.id()} | {:error, term}
   def cast_crypto(currency) do
     with {:ok, id} <- cast_currency(currency),
          true <- Currencies.is_crypto(id) do
@@ -12,7 +13,7 @@ defmodule BitPalApi.ApiHelpers do
     end
   end
 
-  @spec cast_currency(term) :: {:ok, Currency.t()} | {:error, String.t()}
+  @spec cast_currency(atom | String.t()) :: {:ok, Currency.id()} | {:error, term}
   def cast_currency(currency) do
     case Currencies.cast(currency) do
       {:ok, id} ->

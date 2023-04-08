@@ -46,7 +46,7 @@ defmodule BitPalWeb.ExchangeRateLive do
           rates_by_base
           |> Enum.group_by(fn rate -> rate.quote end)
           |> Map.new(fn {xquote, rates_by_quote} ->
-            {xquote, transform_and_sort(rates_by_quote, source_order)}
+            {xquote, sort(Enum.map(rates_by_quote, &transform/1), source_order)}
           end)
 
         {base, rates_by_base}
@@ -67,47 +67,36 @@ defmodule BitPalWeb.ExchangeRateLive do
   end
 
   @impl true
-  def handle_info({{:exchange_rate, :raw_update}, rate}, socket) do
-    {:noreply, update_pair({rate.base, rate.quote}, socket)}
+  def handle_info({{:exchange_rate, :raw_update}, rates}, socket) do
+    {:noreply, update_rates(rates, socket)}
   end
 
-  defp update_pair(pair = {base, xquote}, socket) do
-    new_rates = ExchangeRates.fetch_unprioritized_exchange_rates(pair)
+  defp update_rates(new_rates, socket) do
+    all_rates = socket.assigns.all_rates
+    source_order = socket.assigns.source_order
 
-    if Enum.empty?(new_rates) do
-      socket
-    else
-      all_rates = socket.assigns.all_rates
-      source_order = socket.assigns.source_order
-
-      # Safeguard against new base/quote ids are introduced.
-      # But note that we do not support new sources dynamically.
-      rates_by_base = Map.get(all_rates, base, %{})
-
-      rates_by_quote =
-        new_rates
-        |> transform_and_sort(source_order)
-
-      rates_by_base = Map.put(rates_by_base, xquote, rates_by_quote)
-
-      assign(socket,
-        all_rates: Map.put(all_rates, base, rates_by_base)
-      )
-    end
-  end
-
-  defp transform_and_sort(rates, source_order) do
-    # Sort by source, insert nil if a source isn't represented
-    rates_by_source =
-      Map.new(rates, fn rate ->
-        {rate.source,
-         %{
-           source: rate.source,
-           value: rate.rate,
-           updated: rate.updated_at
-         }}
+    rates =
+      Map.merge(all_rates, new_rates, fn _base, xs, ys ->
+        Map.merge(xs, ys, fn _quote, existing, new ->
+          [
+            transform(new)
+            | Enum.filter(existing, fn rate -> rate.source != new.source end)
+          ]
+          |> sort(source_order)
+        end)
       end)
 
+    assign(socket, all_rates: rates)
+  end
+
+  defp transform(rate) do
+    %{source: rate.source, updated: rate.updated_at, value: rate.rate}
+  end
+
+  defp sort(rates, source_order) do
+    rates_by_source = Map.new(rates, fn rate -> {rate.source, rate} end)
+
+    # Sort by source, insert nil if a source isn't represented
     Enum.map(source_order, fn source ->
       Map.get(rates_by_source, source, %{source: source, value: nil})
     end)

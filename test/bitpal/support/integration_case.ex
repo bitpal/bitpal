@@ -7,7 +7,6 @@ defmodule BitPal.IntegrationCase do
 
   use ExUnit.CaseTemplate
   use BitPalFactory
-  alias BitPalFactory.ExchangeRateFactory
   alias BitPal.BackendEvents
   alias BitPal.BackendManager
   alias BitPal.BackendMock
@@ -15,6 +14,7 @@ defmodule BitPal.IntegrationCase do
   alias BitPal.CaseHelpers
   alias BitPal.InvoiceSupervisor
   alias BitPal.Repo
+  alias BitPalFactory.ExchangeRateFactory
   alias BitPalSchemas.ExchangeRate
   alias BitPalSettings.BackendSettings
   alias Ecto.Adapters.SQL.Sandbox

@@ -68,12 +68,12 @@ defmodule BitPalFactory.InvoiceFactory do
   # expected_payment is ignored during invoice creation and is only sometimes added here.
   # payment_currency is also not required for draft creation, but is added here regardless
   # (unless payment_currency_id: nil is passed)
-  defp add_valid_payment_setup(%{payment_currency_id: nil} = attrs) do
+  defp add_valid_payment_setup(attrs = %{payment_currency_id: nil}) do
     Map.delete(attrs, :payment_currency_id)
   end
 
   defp add_valid_payment_setup(
-         %{price: price, payment_currency_id: payment_currency_id, rates: rates} = attrs
+         attrs = %{price: price, payment_currency_id: payment_currency_id, rates: rates}
        ) do
     {:ok, expected_payment} =
       Invoices.calculate_expected_payment(price, payment_currency_id, rates)
@@ -89,7 +89,7 @@ defmodule BitPalFactory.InvoiceFactory do
     |> Map.put(:expected_payment, expected_payment)
   end
 
-  defp add_valid_payment_setup(%{price: price, expected_payment: expected_payment} = attrs) do
+  defp add_valid_payment_setup(attrs = %{price: price, expected_payment: expected_payment}) do
     if id = attrs[:payment_currency_id] do
       if id != expected_payment.currency do
         raise "payment_currency mismatch got: `#{id}` expected `#{expected_payment.currency}`"
@@ -104,7 +104,7 @@ defmodule BitPalFactory.InvoiceFactory do
     })
   end
 
-  defp add_valid_payment_setup(%{expected_payment: expected_payment} = attrs) do
+  defp add_valid_payment_setup(attrs = %{expected_payment: expected_payment}) do
     if id = attrs[:payment_currency_id] do
       if id != expected_payment.currency do
         raise "payment_currency mismatch got: `#{id}` expected `#{expected_payment.currency}`"
@@ -134,17 +134,17 @@ defmodule BitPalFactory.InvoiceFactory do
     })
   end
 
-  defp add_valid_payment_setup(%{rates: rates, price: price} = attrs) do
+  defp add_valid_payment_setup(attrs = %{rates: rates, price: price}) do
     {payment_currency_id, _} = InvoiceRates.find_base_with_rate(rates, price.currency)
     Map.put(attrs, :payment_currency_id, payment_currency_id)
   end
 
-  defp add_valid_payment_setup(%{rates: rates, payment_currency_id: payment_currency_id} = attrs) do
+  defp add_valid_payment_setup(attrs = %{rates: rates, payment_currency_id: payment_currency_id}) do
     {price_currency, _} = InvoiceRates.find_quote_with_rate(rates, payment_currency_id)
     Map.put(attrs, :price, create_money(price_currency))
   end
 
-  defp add_valid_payment_setup(%{rates: rates} = attrs) do
+  defp add_valid_payment_setup(attrs = %{rates: rates}) do
     # Have rates but not price and no expected_payment.
     {payment_currency_id, price_currency, _rate} = InvoiceRates.find_any_rate(rates)
 
@@ -155,12 +155,12 @@ defmodule BitPalFactory.InvoiceFactory do
   end
 
   defp add_valid_payment_setup(
-         %{price: _price, payment_currency_id: _payment_currency_id} = attrs
+         attrs = %{price: _price, payment_currency_id: _payment_currency_id}
        ) do
     attrs
   end
 
-  defp add_valid_payment_setup(%{price: price} = attrs) do
+  defp add_valid_payment_setup(attrs = %{price: price}) do
     if Currencies.is_crypto(price.currency) do
       payment_currency_id = price.currency
       Map.merge(attrs, %{payment_currency_id: payment_currency_id})
@@ -177,7 +177,7 @@ defmodule BitPalFactory.InvoiceFactory do
     Map.merge(attrs, %{price: price, payment_currency_id: payment_currency_id})
   end
 
-  def add_test_currency_rates(%{payment_currency_id: payment_currency} = attrs) do
+  def add_test_currency_rates(attrs = %{payment_currency_id: payment_currency}) do
     if Currencies.is_test_currency?(payment_currency) do
       rates = attrs[:rates]
 

@@ -3,8 +3,11 @@ import Config
 config :bitpal,
   backends: [
     # BitPal.Backend.Flowee,
-    {BitPal.BackendMock, auto: true, time_between_blocks: 1_000}
+    # This uses a completely unique currency that's only used for testing.
     # {BitPal.BackendMock, auto: true, time_between_blocks: 2_000, sync_time: 10_000}
+    # These specifies currencies directly.
+    {BitPal.BackendMock, auto: true, time_between_blocks: 10 * 60 * 1_000, currency_id: :BCH},
+    {BitPal.BackendMock, auto: true, time_between_blocks: 3 * 60 * 1_000, currency_id: :XMR}
   ]
 
 config :bitpal, BitPal.ExchangeRate,
@@ -12,9 +15,12 @@ config :bitpal, BitPal.ExchangeRate,
   # If there are multiple sources with the same exchange rate pair,
   # the higher `prio` will decide which we use.
   sources: [
-    {BitPal.ExchangeRate.Sources.Kraken, prio: 100},
-    {BitPal.ExchangeRate.Sources.Coinbase, prio: 50},
-    {BitPal.ExchangeRate.Sources.Coingecko, prio: 0}
+    # Real sources.
+    # {BitPal.ExchangeRate.Sources.Kraken, prio: 100},
+    # {BitPal.ExchangeRate.Sources.Coinbase, prio: 50},
+    # {BitPal.ExchangeRate.Sources.Coingecko, prio: 0}
+    # Gives random rates for all pairs.
+    {BitPal.ExchangeRate.Sources.Random, prio: 10}
   ],
   # How often should we refresh the exchange rate?
   # 1 minute = 1_000 * 60 * 1

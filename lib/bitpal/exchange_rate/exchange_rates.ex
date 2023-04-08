@@ -2,6 +2,7 @@ defmodule BitPal.ExchangeRates do
   import Ecto.Query
   alias BitPal.ExchangeRateEvents
   alias BitPalSchemas.ExchangeRate
+  alias BitPalSchemas.InvoiceRates
   alias BitPal.Repo
   alias BitPalSchemas.Currency
   alias BitPalSettings.ExchangeRateSettings
@@ -44,31 +45,67 @@ defmodule BitPal.ExchangeRates do
         source: source,
         prio: prio
       }) do
-    update_exchange_rate({base, xquote}, rate, source, prio)
+    hd(update_exchange_rates(%{rates: %{base => %{xquote => rate}}, prio: prio, source: source}))
   end
 
   @spec update_exchange_rate(ExchangeRate.pair(), Decimal.t(), module(), non_neg_integer) ::
           ExchangeRate.t()
   def update_exchange_rate({base, xquote}, rate, source, prio) do
-    highest = get_exchange_rate({base, xquote})
+    hd(update_exchange_rates(%{rates: %{base => %{xquote => rate}}, prio: prio, source: source}))
+  end
 
-    inserted =
-      %ExchangeRate{
-        base: base,
-        quote: xquote,
-        source: source,
-        prio: prio,
-        rate: rate
-      }
-      |> Repo.insert!(
+  @spec update_exchange_rates(%{
+          rates: InvoiceRates.t(),
+          source: module(),
+          prio: non_neg_integer
+        }) :: [ExchangeRate.t()]
+  def update_exchange_rates(%{rates: rates, source: source, prio: prio}) do
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+    to_insert =
+      Enum.map(rates, fn {base, quotes} ->
+        Enum.map(quotes, fn {xquote, rate} ->
+          %{
+            base: base,
+            quote: xquote,
+            source: source,
+            prio: prio,
+            rate: rate,
+            updated_at: now
+          }
+        end)
+      end)
+      |> List.flatten()
+
+    {_, inserted} =
+      Repo.insert_all(
+        ExchangeRate,
+        to_insert,
         on_conflict: :replace_all,
-        conflict_target: [:base, :quote, :source]
+        conflict_target: [:base, :quote, :source],
+        returning: true
       )
 
-    ExchangeRateEvents.broadcast_raw({{:exchange_rate, :raw_update}, inserted})
+    highest =
+      Enum.reduce(to_insert, from(r in ExchangeRate), fn rate, query ->
+        or_where(
+          query,
+          [r],
+          r.base == ^rate.base and r.quote == ^rate.quote and
+            r.updated_at == ^now and r.prio == ^rate.prio and r.source == ^rate.source
+        )
+      end)
+      |> filter_valid()
+      |> Repo.all()
 
-    if !highest || inserted.prio >= highest.prio do
-      ExchangeRateEvents.broadcast({{:exchange_rate, :update}, inserted})
+    ExchangeRateEvents.broadcast_raw(
+      {{:exchange_rate, :raw_update}, InvoiceRates.bundle_exchange_rates(inserted)}
+    )
+
+    if Enum.any?(highest) do
+      ExchangeRateEvents.broadcast(
+        {{:exchange_rate, :update}, InvoiceRates.bundle_rates(highest)}
+      )
     end
 
     inserted
@@ -136,16 +173,6 @@ defmodule BitPal.ExchangeRates do
   @spec all_unprioritized_exchange_rates() :: [ExchangeRate.t()]
   def all_unprioritized_exchange_rates do
     from(r in ExchangeRate, order_by: [desc: r.prio])
-    |> where_not_expired()
-    |> Repo.all()
-  end
-
-  @spec fetch_unprioritized_exchange_rates(ExchangeRate.pair()) :: [ExchangeRate.t()]
-  def fetch_unprioritized_exchange_rates({base, xquote}) do
-    from(r in ExchangeRate,
-      where: r.base == ^base and r.quote == ^xquote,
-      order_by: [desc: r.prio]
-    )
     |> where_not_expired()
     |> Repo.all()
   end

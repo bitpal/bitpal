@@ -3,7 +3,7 @@ defmodule BitPalApi.ExchangeRateChannel do
   alias BitPal.ExchangeRateEvents
   alias BitPal.ExchangeRates
   alias BitPalApi.ExchangeRateView
-  alias BitPalApi.ExchangeRateHandler
+  alias BitPalApi.ExchangeRateHandling
   require Logger
 
   @impl true
@@ -13,11 +13,11 @@ defmodule BitPalApi.ExchangeRateChannel do
   end
 
   @impl true
-  def handle_info({{:exchange_rate, :update}, rate}, socket) do
+  def handle_info({{:exchange_rate, :update}, rates}, socket) do
     broadcast!(
       socket,
       "updated_exchange_rate",
-      ExchangeRateView.render("show.json", rates: [rate])
+      ExchangeRateView.render("show.json", rates: rates)
     )
 
     {:noreply, socket}
@@ -31,12 +31,12 @@ defmodule BitPalApi.ExchangeRateChannel do
   end
 
   def handle_event("get", %{"base" => base, "quote" => xquote}, socket) do
-    rate = ExchangeRateHandler.fetch_with_pair!(base, xquote)
+    rate = ExchangeRateHandling.fetch_with_pair!(base, xquote)
     {:reply, {:ok, ExchangeRateView.render("show.json", rates: [rate])}, socket}
   end
 
   def handle_event("get", %{"base" => base}, socket) do
-    rates = ExchangeRateHandler.fetch_with_base!(base)
+    rates = ExchangeRateHandling.fetch_with_base!(base)
     {:reply, {:ok, ExchangeRateView.render("show.json", rates: rates)}, socket}
   end
 

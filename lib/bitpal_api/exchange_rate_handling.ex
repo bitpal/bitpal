@@ -1,7 +1,7 @@
-defmodule BitPalApi.ExchangeRateHandler do
+defmodule BitPalApi.ExchangeRateHandling do
   use BitPalApi.Errors
-  alias BitPal.ExchangeRates
   import BitPalApi.ApiHelpers
+  alias BitPal.ExchangeRates
 
   def fetch_with_base!(base) do
     with base <- cast_base!(base),

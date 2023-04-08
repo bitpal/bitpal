@@ -5,6 +5,7 @@ defmodule BitPalSchemas.InvoiceRates do
   require Logger
 
   @type t :: %{Currency.t() => %{Currency.t() => Decimal.t()}}
+  @type bundled :: %{Currency.t() => %{Currency.t() => ExchangeRate.t()}}
 
   # Utility functions
 
@@ -21,15 +22,18 @@ defmodule BitPalSchemas.InvoiceRates do
   """
   @spec bundle_rates([ExchangeRate.t()]) :: t
   def bundle_rates(rates) do
+    bundle_exchange_rates(rates, & &1.rate)
+  end
+
+  @spec bundle_exchange_rates([ExchangeRate.t()], (ExchangeRate.t() -> term)) ::
+          %{Currency.t() => %{Currency.t() => term}}
+  def bundle_exchange_rates(rates, rate_transform \\ & &1) do
     rates
-    |> Enum.group_by(
-      fn %ExchangeRate{base: base} -> base end,
-      fn v -> v end
-    )
+    |> Enum.group_by(fn rate -> rate.base end)
     |> Map.new(fn {base, quotes} ->
       {base,
        Map.new(quotes, fn rate ->
-         {rate.quote, rate.rate}
+         {rate.quote, rate_transform.(rate)}
        end)}
     end)
   end

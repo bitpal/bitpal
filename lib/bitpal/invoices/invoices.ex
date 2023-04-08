@@ -616,7 +616,7 @@ defmodule BitPal.Invoices do
     end
   end
 
-  @spec transition_validation(Invoice.t(), InvoiceStatus.status_spec()) :: Changeset.t()
+  @spec transition_validation(Invoice.t(), InvoiceStatus.t()) :: Changeset.t()
   defp transition_validation(invoice = %Invoice{}, next_status) do
     case InvoiceStatus.validate_transition(invoice.status, next_status) do
       {:ok, next_status} ->

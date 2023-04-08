@@ -4,10 +4,11 @@ defmodule BitPal.ExchangeRateEvents do
   """
 
   alias BitPal.EventHelpers
-  alias BitPal.ExchangeRate
+  alias BitPalSchemas.ExchangeRate
+  alias BitPalSchemas.InvoiceRates
 
-  @type msg :: {{:exchange_rate, :update}, ExchangeRate.t()}
-  @type raw_msg :: {{:exchange_rate, :raw_update}, ExchangeRate.t()}
+  @type msg :: {{:exchange_rate, :update}, InvoiceRates.t()}
+  @type raw_msg :: {{:exchange_rate, :raw_update}, ExchangeRate.bundled()}
 
   @spec subscribe :: :ok | {:error, term}
   def subscribe, do: EventHelpers.subscribe(topic())

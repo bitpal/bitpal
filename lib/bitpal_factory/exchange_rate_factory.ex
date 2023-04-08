@@ -1,12 +1,21 @@
 defmodule BitPalFactory.ExchangeRateFactory do
   import BitPalFactory.UtilFactory
   alias BitPalFactory.CurrencyFactory
-  alias BitPal.ExchangeRate
+  alias BitPalSchemas.ExchangeRate
   alias BitPalSchemas.InvoiceRates
 
   def random_rate(opts \\ []) do
     decimals = Keyword.get(opts, :decimals, 3)
     rand_pos_decimal(decimals: decimals)
+  end
+
+  def random_rates(opts \\ []) do
+    %{
+      CurrencyFactory.crypto_currency_id() => %{
+        CurrencyFactory.fiat_currency_id() => random_rate(opts),
+        CurrencyFactory.fiat_currency_id() => random_rate(opts)
+      }
+    }
   end
 
   @spec pair(keyword) :: ExchangeRate.pair()
@@ -22,6 +31,15 @@ defmodule BitPalFactory.ExchangeRateFactory do
       prio: opts[:prio] || Faker.random_between(0, 100),
       source: opts[:source] || :FACTORY,
       rate: opts[:rate] || random_rate(opts)
+    }
+  end
+
+  @spec rates_params(keyword) :: map
+  def rates_params(opts \\ []) do
+    %{
+      rates: opts[:rates] || random_rates(opts),
+      prio: opts[:prio] || Faker.random_between(0, 100),
+      source: opts[:source] || :FACTORY
     }
   end
 

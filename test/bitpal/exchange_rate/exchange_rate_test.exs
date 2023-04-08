@@ -30,15 +30,10 @@ defmodule BitPal.ExchangeRateTest do
                 prio: ^prio
               }} = ExchangeRates.fetch_exchange_rate(pair)
 
-      assert_receive {{:exchange_rate, :update},
-                      %ExchangeRate{
-                        rate: ^rate
-                      }}
+      assert_receive {{:exchange_rate, :update}, %{^base => %{^xquote => ^rate}}}
 
       assert_receive {{:exchange_rate, :raw_update},
-                      %ExchangeRate{
-                        rate: ^rate
-                      }}
+                      %{^base => %{^xquote => %ExchangeRate{rate: ^rate}}}}
     end
 
     @tag subscribe: true
@@ -62,29 +57,193 @@ defmodule BitPal.ExchangeRateTest do
                 prio: ^lower_prio
               }} = ExchangeRates.fetch_exchange_rate(pair)
 
-      assert_receive {{:exchange_rate, :update}, %ExchangeRate{rate: ^rate}}
-      assert_receive {{:exchange_rate, :raw_update}, %ExchangeRate{rate: ^rate}}
+      assert_receive {{:exchange_rate, :update}, %{^base => %{^xquote => ^rate}}}
+
+      assert_receive {{:exchange_rate, :raw_update},
+                      %{^base => %{^xquote => %ExchangeRate{rate: ^rate}}}}
     end
 
     @tag subscribe: true
-    test "replace a lower prio rate", %{pair: pair} do
+    test "replace a lower prio rate", %{pair: pair = {base, xquote}} do
       rate1 = Decimal.from_float(1.0)
       rate2 = Decimal.from_float(2.0)
 
       ExchangeRates.update_exchange_rate(pair, rate1, :SRC_1, 10)
-      assert_receive {{:exchange_rate, :update}, %ExchangeRate{rate: ^rate1}}
+      assert_receive {{:exchange_rate, :update}, %{^base => %{^xquote => ^rate1}}}
       ExchangeRates.update_exchange_rate(pair, rate2, :SRC_2, 20)
-      assert_receive {{:exchange_rate, :update}, %ExchangeRate{rate: ^rate2}}
+      assert_receive {{:exchange_rate, :update}, %{^base => %{^xquote => ^rate2}}}
 
       assert {:ok, %ExchangeRate{rate: ^rate2}} = ExchangeRates.fetch_exchange_rate(pair)
 
       # We update the lower prio rate, which should not be generally visible.
       rate3 = Decimal.from_float(3.0)
       ExchangeRates.update_exchange_rate(pair, rate3, :SRC_1, 10)
-      assert_receive {{:exchange_rate, :raw_update}, %ExchangeRate{rate: ^rate3}}
-      refute_receive {{:exchange_rate, :update}, %ExchangeRate{rate: ^rate3}}
+
+      assert_receive {{:exchange_rate, :raw_update},
+                      %{^base => %{^xquote => %ExchangeRate{rate: ^rate3}}}}
+
+      refute_receive {{:exchange_rate, :update}, %{^base => %{^xquote => ^rate3}}}
 
       assert {:ok, %ExchangeRate{rate: ^rate2}} = ExchangeRates.fetch_exchange_rate(pair)
+    end
+
+    @tag subscribe: true
+    test "multiple updates", %{pair: {c1, _}} do
+      c2 = unique_currency_id()
+
+      f1 = Decimal.from_float(1.0)
+      f2 = Decimal.from_float(2.0)
+      f3 = Decimal.from_float(3.0)
+
+      # Seed with some initial rates
+      ExchangeRates.update_exchange_rates(
+        rates_params(
+          rates: %{
+            c1 => %{
+              SEK: f1,
+              USD: f2
+            },
+            c2 => %{
+              SEK: f3
+            }
+          },
+          prio: 10,
+          source: :ONE
+        )
+      )
+
+      assert_receive {{:exchange_rate, :raw_update},
+                      %{
+                        ^c1 => %{
+                          SEK: %ExchangeRate{rate: ^f1},
+                          USD: %ExchangeRate{rate: ^f2}
+                        },
+                        ^c2 => %{
+                          SEK: %ExchangeRate{rate: ^f3}
+                        }
+                      }}
+
+      assert_receive {{:exchange_rate, :update},
+                      %{
+                        ^c1 => %{
+                          SEK: ^f1,
+                          USD: ^f2
+                        },
+                        ^c2 => %{
+                          SEK: ^f3
+                        }
+                      }}
+
+      f4 = Decimal.from_float(4.0)
+      f5 = Decimal.from_float(5.0)
+
+      # Update some of them, but with lower prio
+      ExchangeRates.update_exchange_rates(
+        rates_params(
+          rates: %{
+            c1 => %{
+              SEK: f4
+            },
+            c2 => %{
+              SEK: f5
+            }
+          },
+          prio: 5,
+          source: :TWO
+        )
+      )
+
+      assert_receive {{:exchange_rate, :raw_update},
+                      %{
+                        ^c1 => %{
+                          SEK: %ExchangeRate{rate: ^f4}
+                        },
+                        ^c2 => %{
+                          SEK: %ExchangeRate{rate: ^f5}
+                        }
+                      }}
+
+      refute_receive {{:exchange_rate, :update},
+                      %{
+                        ^c1 => %{}
+                      }}
+
+      # Update rates
+      ExchangeRates.update_exchange_rates(
+        rates_params(
+          rates: %{
+            c1 => %{
+              USD: f4
+            },
+            c2 => %{
+              SEK: f5
+            }
+          },
+          prio: 10,
+          source: :ONE
+        )
+      )
+
+      assert_receive {{:exchange_rate, :raw_update},
+                      %{
+                        ^c1 => %{
+                          USD: %ExchangeRate{rate: ^f4}
+                        },
+                        ^c2 => %{
+                          SEK: %ExchangeRate{rate: ^f5}
+                        }
+                      }}
+
+      assert_receive {{:exchange_rate, :update},
+                      %{
+                        ^c1 => %{
+                          USD: ^f4
+                        },
+                        ^c2 => %{
+                          SEK: ^f5
+                        }
+                      }}
+
+      f100 = Decimal.from_float(100.0)
+
+      # Overwrite rates with higher prio
+      ExchangeRates.update_exchange_rates(
+        rates_params(
+          rates: %{
+            c1 => %{
+              USD: f100
+            },
+            c2 => %{
+              SEK: f100,
+              EUR: f100
+            }
+          },
+          prio: 100,
+          source: :THREE
+        )
+      )
+
+      assert_receive {{:exchange_rate, :raw_update},
+                      %{
+                        ^c1 => %{
+                          USD: %ExchangeRate{rate: ^f100}
+                        },
+                        ^c2 => %{
+                          SEK: %ExchangeRate{rate: ^f100},
+                          EUR: %ExchangeRate{rate: ^f100}
+                        }
+                      }}
+
+      assert_receive {{:exchange_rate, :update},
+                      %{
+                        ^c1 => %{
+                          USD: ^f100
+                        },
+                        ^c2 => %{
+                          SEK: ^f100,
+                          EUR: ^f100
+                        }
+                      }}
     end
   end
 
@@ -293,9 +452,6 @@ defmodule BitPal.ExchangeRateTest do
            |> filter_source(source) == []
 
     assert ExchangeRates.all_unprioritized_exchange_rates()
-           |> filter_source(source) == []
-
-    assert ExchangeRates.fetch_unprioritized_exchange_rates(pair)
            |> filter_source(source) == []
   end
 

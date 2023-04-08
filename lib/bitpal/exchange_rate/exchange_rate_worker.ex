@@ -175,22 +175,11 @@ defmodule BitPal.ExchangeRateWorker do
 
   @impl true
   def handle_call({:update_rates, updated_rates}, _from, state) do
-    fiat_to_update =
-      ExchangeRateSettings.fiat_to_update()
-      |> Enum.into(MapSet.new())
-
-    for {crypto_id, pairs} <- updated_rates do
-      for {fiat_id, rate} <- pairs do
-        if MapSet.member?(fiat_to_update, fiat_id) do
-          ExchangeRates.update_exchange_rate(
-            {crypto_id, fiat_id},
-            rate,
-            state.id,
-            state.prio
-          )
-        end
-      end
-    end
+    ExchangeRates.update_exchange_rates(%{
+      rates: updated_rates,
+      source: state.id,
+      prio: state.prio
+    })
 
     new_rates =
       Map.merge(state.rates, updated_rates, fn _k, v1, v2 ->
