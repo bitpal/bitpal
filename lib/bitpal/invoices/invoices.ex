@@ -310,7 +310,7 @@ defmodule BitPal.Invoices do
     invoice
   end
 
-  @spec mark_uncollectible!(Invoice.t(), InvoiceEvents.uncollectible_reason()) :: Invoice.t()
+  @spec mark_uncollectible!(Invoice.t(), InvoiceStatus.uncollectible_reason()) :: Invoice.t()
   defp mark_uncollectible!(invoice, reason) do
     {:ok, invoice} = transition(invoice, {:uncollectible, reason})
 

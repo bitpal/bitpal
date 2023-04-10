@@ -10,7 +10,7 @@ defmodule BitPalWeb.ExchangeRateLiveTest do
   end
 
   describe "exchange rate updates" do
-    test "updates exchange rates", %{conn: conn, pair: pair} do
+    test "updates exchange rates", %{conn: conn, pair: pair = {base, xquote}} do
       rate1 = random_rate()
       ExchangeRates.update_exchange_rate(pair, rate1, :SEED, 10)
 
@@ -26,9 +26,23 @@ defmodule BitPalWeb.ExchangeRateLiveTest do
       ExchangeRates.update_exchange_rate(pair, rate3, :SEED, 10)
       assert render_eventually(view, rate3 |> Decimal.to_string(:normal))
 
+      # Adds in a new fiat for existing base
       rate4 = random_rate()
-      ExchangeRates.update_exchange_rate(pair, rate4, :FACTORY, 1_000)
+      rate5 = random_rate()
+
+      ExchangeRates.update_exchange_rates(%{
+        rates: %{base => %{unique_fiat() => rate4, unique_fiat() => rate5}},
+        source: :FACTORY,
+        prio: 1_000
+      })
+
       assert render_eventually(view, rate4 |> Decimal.to_string(:normal))
+      assert render_eventually(view, rate5 |> Decimal.to_string(:normal))
+
+      # Adds in a new base
+      rate6 = random_rate()
+      ExchangeRates.update_exchange_rate({unique_currency_id(), xquote}, rate6, :FACTORY, 1_000)
+      assert render_eventually(view, rate6 |> Decimal.to_string(:normal))
     end
   end
 end

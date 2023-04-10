@@ -75,13 +75,19 @@ defmodule BitPalWeb.ExchangeRateLive do
     all_rates = socket.assigns.all_rates
     source_order = socket.assigns.source_order
 
+    new_rates =
+      Map.new(new_rates, fn {base, quotes} ->
+        {base,
+         Map.new(quotes, fn {xquote, rate} ->
+           {xquote, [transform(rate)]}
+         end)}
+      end)
+
     rates =
       Map.merge(all_rates, new_rates, fn _base, xs, ys ->
         Map.merge(xs, ys, fn _quote, existing, new ->
-          [
-            transform(new)
-            | Enum.filter(existing, fn rate -> rate.source != new.source end)
-          ]
+          (new ++ existing)
+          |> Enum.uniq_by(fn rate -> rate.source end)
           |> sort(source_order)
         end)
       end)

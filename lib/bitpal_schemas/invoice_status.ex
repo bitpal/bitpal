@@ -64,18 +64,16 @@ defmodule BitPalSchemas.InvoiceStatus do
   use Ecto.Type
 
   @type status :: :draft | :open | :processing | :uncollectible | :void | :paid
-  @type status_reason ::
-          :expired | :canceled | :double_spent | :timed_out | :verifying | :confirming | nil
+
+  @type processing_reason :: :verifying | :confirming
+  @type uncollectible_reason :: :expired | :canceled | :timed_out | :double_spent
+  @type status_reason :: processing_reason() | uncollectible_reason() | nil
 
   @type t ::
           :draft
           | :open
-          | {:processing, :verifying}
-          | {:processing, :confirming}
-          | {:uncollectible, :expired}
-          | {:uncollectible, :canceled}
-          | {:uncollectible, :timed_out}
-          | {:uncollectible, :double_spent}
+          | {:processing, processing_reason()}
+          | {:uncollectible, uncollectible_reason()}
           | {:void, status_reason}
           | :void
           | :paid
