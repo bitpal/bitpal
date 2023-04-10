@@ -1,26 +1,11 @@
 defmodule BitPalApi.InvoiceChannelTest do
   use BitPalApi.ChannelCase, async: true, integration: true
+  alias BitPalFactory.InvoiceFactory
   alias BitPal.BackendMock
   alias BitPal.HandlerSubscriberCollector
 
   describe "invoice notifications" do
-    setup tags do
-      {:ok, invoice, _stub, _invoice_handler} =
-        HandlerSubscriberCollector.create_invoice(
-          required_confirmations: tags[:required_confirmations] || 0,
-          double_spend_timeout: tags[:double_spend_timeout] || 1_000,
-          price: Money.parse!(1.0, :USD),
-          expected_payment: Money.parse!(tags[:amount] || 0.3, Map.fetch!(tags, :currency_id))
-        )
-
-      # Bypasses socket `connect`, which is fine for these tests
-      {:ok, _, socket} =
-        BitPalApi.StoreSocket
-        |> socket(nil, %{store_id: invoice.store_id})
-        |> subscribe_and_join(BitPalApi.InvoiceChannel, "invoice:" <> invoice.id)
-
-      %{invoice: invoice, socket: socket}
-    end
+    setup [:setup_open]
 
     @tag double_spend_timeout: 1
     test "0-conf acceptance", %{invoice: invoice} do
@@ -29,7 +14,7 @@ defmodule BitPalApi.InvoiceChannelTest do
 
       assert_broadcast("processing", %{
         id: ^id,
-        reason: "verifying",
+        statusReason: :verifying,
         txs: [%{amount: _, txid: ^txid}]
       })
 
@@ -43,7 +28,7 @@ defmodule BitPalApi.InvoiceChannelTest do
 
       assert_broadcast("processing", %{
         id: ^id,
-        reason: "confirming",
+        statusReason: :confirming,
         confirmations_due: 3,
         txs: [%{amount: _, txid: ^txid}]
       })
@@ -52,7 +37,7 @@ defmodule BitPalApi.InvoiceChannelTest do
 
       assert_broadcast("processing", %{
         id: ^id,
-        reason: "confirming",
+        statusReason: :confirming,
         confirmations_due: 2
       })
 
@@ -60,7 +45,7 @@ defmodule BitPalApi.InvoiceChannelTest do
 
       assert_broadcast("processing", %{
         id: ^id,
-        reason: "confirming",
+        statusReason: :confirming,
         confirmations_due: 1
       })
 
@@ -75,11 +60,11 @@ defmodule BitPalApi.InvoiceChannelTest do
 
       assert_broadcast("processing", %{
         id: ^id,
-        reason: "verifying",
+        statusReason: :verifying,
         txs: _
       })
 
-      assert_broadcast("uncollectible", %{id: ^id, reason: "double_spent"})
+      assert_broadcast("uncollectible", %{id: ^id, statusReason: :double_spent})
     end
 
     @tag double_spend_timeout: 1, required_confirmations: 0, amount: 1.0
@@ -114,7 +99,7 @@ defmodule BitPalApi.InvoiceChannelTest do
 
       assert_broadcast("processing", %{
         id: ^id,
-        reason: "verifying",
+        statusReason: :verifying,
         txs: _
       })
 
@@ -132,5 +117,178 @@ defmodule BitPalApi.InvoiceChannelTest do
       {:error, %{message: "Unauthorized", type: "api_connection_error"}} =
         subscribe_and_join(socket, "invoice:" <> invoice.id)
     end
+  end
+
+  # Invoice channel and invoice controller use the same internals,
+  # so we don't have to replicate all tests here.
+  describe "draft actions" do
+    setup [:setup_draft]
+
+    test "get invoice", %{socket: socket, invoice: invoice} do
+      id = invoice.id
+      ref = push(socket, "get", %{})
+
+      assert_reply(ref, :ok, %{
+        id: ^id,
+        status: :draft
+      })
+    end
+
+    test "delete", %{socket: socket, invoice: invoice} do
+      ref = push(socket, "delete", %{})
+      id = invoice.id
+
+      assert_reply(ref, :ok, %{})
+      assert_broadcast("deleted", %{id: ^id, deleted: true})
+    end
+
+    test "update", %{socket: socket, invoice: invoice} do
+      ref =
+        push(socket, "update", %{
+          price: 7.0,
+          priceCurrency: "EUR",
+          paymentCurrency: "XMR",
+          description: "My awesome invoice",
+          email: "test@bitpal.dev",
+          orderId: "id:123",
+          posData: %{
+            "some" => "data",
+            "other" => %{"even_more" => 0.1337}
+          }
+        })
+
+      id = invoice.id
+
+      assert_reply(ref, :ok, %{
+        id: ^id
+      })
+    end
+
+    test "cannot mark as paid", %{socket: socket} do
+      ref = push(socket, "pay", %{})
+
+      assert_reply(ref, :error, %{
+        code: "invalid_transition",
+        message: "invalid transition from `draft` to `paid`",
+        type: "invalid_request_error"
+      })
+    end
+
+    test "cannot void", %{socket: socket} do
+      ref = push(socket, "void", %{})
+
+      assert_reply(ref, :error, %{
+        code: "invalid_transition",
+        message: "invalid transition from `draft` to `void`",
+        type: "invalid_request_error"
+      })
+    end
+  end
+
+  describe "open invoice actions" do
+    setup [:setup_open]
+
+    test "cannot delete a finalized invoice", %{socket: socket} do
+      ref = push(socket, "delete", %{})
+
+      assert_reply(ref, :error, %{
+        code: "invoice_not_editable",
+        message: "cannot delete a finalized invoice",
+        type: "invalid_request_error"
+      })
+    end
+
+    test "void", %{socket: socket, invoice: invoice} do
+      ref = push(socket, "void", %{})
+      id = invoice.id
+
+      assert_reply(ref, :ok, %{})
+
+      assert_broadcast("voided", %{
+        id: ^id,
+        status: :void
+      })
+    end
+  end
+
+  describe "uncollectible actions" do
+    setup [:setup_uncollectable]
+
+    test "void", %{socket: socket, invoice: invoice} do
+      ref = push(socket, "void", %{})
+      id = invoice.id
+
+      assert_reply(ref, :ok, %{})
+
+      assert_broadcast("voided", %{
+        id: ^id,
+        status: :void,
+        statusReason: :canceled
+      })
+    end
+
+    test "pay", %{socket: socket, invoice: invoice} do
+      ref = push(socket, "pay", %{})
+      id = invoice.id
+
+      assert_reply(ref, :ok, %{})
+
+      assert_broadcast("paid", %{
+        id: ^id,
+        status: :paid
+      })
+    end
+  end
+
+  defp setup_draft(context) do
+    setup_invoice(context, status: :draft)
+  end
+
+  defp setup_open(context) do
+    setup_invoice(context,
+      address_id: :auto,
+      status: :open
+    )
+  end
+
+  defp setup_uncollectable(context) do
+    setup_invoice(context,
+      address_id: :auto,
+      status: {:uncollectible, :canceled}
+    )
+  end
+
+  defp setup_invoice(context, attrs) do
+    invoice_attrs =
+      %{
+        required_confirmations: 0,
+        double_spend_timeout: 1_000,
+        expected_payment:
+          Money.parse!(context[:amount] || 0.3, Map.fetch!(context, :currency_id)),
+        price: Money.parse!(1.0, :USD)
+      }
+      |> Map.merge(
+        Map.take(context, [:payment_currency_id, :required_confirmations, :double_spend_timeout])
+      )
+      |> Map.merge(Map.new(attrs))
+
+    invoice = init_invoice(invoice_attrs)
+
+    # Bypasses socket `connect`, which is fine for these tests
+    {:ok, _, socket} =
+      BitPalApi.StoreSocket
+      |> socket(nil, %{store_id: invoice.store_id})
+      |> subscribe_and_join(BitPalApi.InvoiceChannel, "invoice:" <> invoice.id)
+
+    %{invoice: invoice, socket: socket}
+  end
+
+  defp init_invoice(attrs = %{status: :open}) do
+    {:ok, invoice, _stub, _invoice_handler} = HandlerSubscriberCollector.create_invoice(attrs)
+    invoice
+  end
+
+  defp init_invoice(attrs) do
+    InvoiceFactory.create_invoice(attrs)
   end
 end

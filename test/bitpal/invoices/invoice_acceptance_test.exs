@@ -17,7 +17,7 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
     assert [
              {{:invoice, :finalized}, %{id: ^id, status: :open, address_id: _}},
-             {{:invoice, :processing}, %{id: ^id, reason: :verifying}},
+             {{:invoice, :processing}, %{id: ^id, status: {:processing, :verifying}}},
              {{:invoice, :paid}, %{id: ^id}}
            ] = HandlerSubscriberCollector.received(stub)
   end
@@ -39,7 +39,7 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
     assert [
              {{:invoice, :finalized}, _},
-             {{:invoice, :processing}, %{reason: :verifying}},
+             {{:invoice, :processing}, %{status: {:processing, :verifying}}},
              {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub)
   end
@@ -58,7 +58,8 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
     assert [
              {{:invoice, :finalized}, _},
-             {{:invoice, :processing}, %{reason: {:confirming, 1}}},
+             {{:invoice, :processing},
+              %{status: {:processing, :confirming}, confirmations_due: 1}},
              {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub)
   end
@@ -76,7 +77,8 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
     assert [
              {{:invoice, :finalized}, _},
-             {{:invoice, :processing}, %{reason: {:confirming, 0}}},
+             {{:invoice, :processing},
+              %{status: {:processing, :confirming}, confirmations_due: 0}},
              {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub)
   end
@@ -96,9 +98,12 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
     assert [
              {{:invoice, :finalized}, _},
-             {{:invoice, :processing}, %{reason: {:confirming, 3}}},
-             {{:invoice, :processing}, %{reason: {:confirming, 2}}},
-             {{:invoice, :processing}, %{reason: {:confirming, 1}}},
+             {{:invoice, :processing},
+              %{status: {:processing, :confirming}, confirmations_due: 3}},
+             {{:invoice, :processing},
+              %{status: {:processing, :confirming}, confirmations_due: 2}},
+             {{:invoice, :processing},
+              %{status: {:processing, :confirming}, confirmations_due: 1}},
              {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub)
   end
@@ -136,13 +141,14 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
     assert [
              {{:invoice, :finalized}, %{id: ^inv0_id}},
-             {{:invoice, :processing}, %{id: ^inv0_id, reason: :verifying}},
+             {{:invoice, :processing}, %{id: ^inv0_id, status: {:processing, :verifying}}},
              {{:invoice, :paid}, %{id: ^inv0_id}}
            ] = HandlerSubscriberCollector.received(stub0)
 
     assert [
              {{:invoice, :finalized}, %{id: ^inv1_id}},
-             {{:invoice, :processing}, %{id: ^inv1_id, reason: {:confirming, 1}}}
+             {{:invoice, :processing},
+              %{id: ^inv1_id, status: {:processing, :confirming}, confirmations_due: 1}}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
@@ -154,12 +160,14 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
     assert [
              {{:invoice, :finalized}, %{id: ^inv1_id}},
-             {{:invoice, :processing}, %{id: ^inv1_id, reason: {:confirming, 1}}}
+             {{:invoice, :processing},
+              %{id: ^inv1_id, status: {:processing, :confirming}, confirmations_due: 1}}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
              {{:invoice, :finalized}, %{id: ^inv2_id}},
-             {{:invoice, :processing}, %{id: ^inv2_id, reason: {:confirming, 1}}}
+             {{:invoice, :processing},
+              %{id: ^inv2_id, status: {:processing, :confirming}, confirmations_due: 1}}
            ] = HandlerSubscriberCollector.received(stub2)
 
     BackendMock.issue_blocks(currency_id, 2)
@@ -167,12 +175,14 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
     assert [
              {{:invoice, :finalized}, %{id: ^inv1_id}},
-             {{:invoice, :processing}, %{id: ^inv1_id, reason: {:confirming, 1}}}
+             {{:invoice, :processing},
+              %{id: ^inv1_id, status: {:processing, :confirming}, confirmations_due: 1}}
            ] = HandlerSubscriberCollector.received(stub1)
 
     assert [
              {{:invoice, :finalized}, %{id: ^inv2_id}},
-             {{:invoice, :processing}, %{id: ^inv2_id, reason: {:confirming, 1}}},
+             {{:invoice, :processing},
+              %{id: ^inv2_id, status: {:processing, :confirming}, confirmations_due: 1}},
              {{:invoice, :paid}, %{id: ^inv2_id}}
            ] = HandlerSubscriberCollector.received(stub2)
   end
@@ -202,8 +212,8 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
     assert [
              {{:invoice, :finalized}, _},
-             {{:invoice, :processing}, %{reason: :verifying}},
-             {{:invoice, :uncollectible}, %{reason: :double_spent}}
+             {{:invoice, :processing}, %{status: {:processing, :verifying}}},
+             {{:invoice, :uncollectible}, %{status: {:uncollectible, :double_spent}}}
            ] = HandlerSubscriberCollector.received(stub)
   end
 
@@ -231,7 +241,7 @@ defmodule BitPal.InvoiceAcceptanceTest do
     assert [
              {{:invoice, :finalized}, _},
              {{:invoice, :underpaid}, %{amount_due: ^due}},
-             {{:invoice, :processing}, %{reason: :verifying}},
+             {{:invoice, :processing}, %{status: {:processing, :verifying}}},
              {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub)
   end
@@ -257,7 +267,7 @@ defmodule BitPal.InvoiceAcceptanceTest do
              {{:invoice, :finalized}, _},
              {{:invoice, :underpaid}, %{amount_due: ^due}},
              {{:invoice, :overpaid}, %{overpaid_amount: ^overpaid}},
-             {{:invoice, :processing}, %{reason: :verifying}},
+             {{:invoice, :processing}, %{status: {:processing, :verifying}}},
              {{:invoice, :paid}, _}
            ] = HandlerSubscriberCollector.received(stub)
   end

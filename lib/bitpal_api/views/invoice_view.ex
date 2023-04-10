@@ -6,11 +6,8 @@ defmodule BitPalApi.InvoiceView do
   alias BitPalSchemas.InvoiceStatus
 
   def render("show.json", %{invoice: invoice = %Invoice{}}) do
-    {state, reason} = InvoiceStatus.split(invoice.status)
-
     %{
       id: invoice.id,
-      status: state,
       priceCurrency: invoice.price.currency,
       price: Decimal.to_string(Money.to_decimal(invoice.price) |> Decimal.normalize(), :normal),
       priceDisplay: money_to_string(invoice.price),
@@ -21,8 +18,8 @@ defmodule BitPalApi.InvoiceView do
       orderId: invoice.order_id,
       posData: invoice.pos_data
     }
+    |> add_status(invoice)
     |> put_unless_empty(:rates, InvoiceRates.to_float(invoice.rates))
-    |> put_unless_nil(:statusReason, reason)
     |> put_unless_nil(:requiredConfirmations, invoice.required_confirmations)
     |> put_unless_nil(:paymentCurrency, invoice.payment_currency_id)
     |> put_expected_payment(invoice)
@@ -34,57 +31,62 @@ defmodule BitPalApi.InvoiceView do
     end)
   end
 
-  def render("processing.json", %{id: id, status: status, reason: reason, txs: txs}) do
+  def render("processing.json", data = %{id: id, txs: txs}) do
     %{
       id: id,
-      status: status,
       txs: render_txs(txs)
     }
-    |> then(fn res ->
-      case reason do
-        {:confirming, confirmations_due} ->
-          res
-          |> Map.put(:reason, "confirming")
-          |> Map.put(:confirmations_due, confirmations_due)
-
-        :verifying ->
-          Map.put(res, :reason, "verifying")
-      end
-    end)
+    |> add_status(data)
+    |> put_unless_nil(:confirmations_due, data[:confirmations_due])
   end
 
-  def render("uncollectible.json", %{id: id, status: status, reason: reason}) do
-    %{id: id, status: status, reason: Atom.to_string(reason)}
+  def render("uncollectible.json", data = %{id: id}) do
+    %{id: id}
+    |> add_status(data)
   end
 
-  def render("underpaid.json", %{id: id, status: status, amount_due: amount_due, txs: txs}) do
-    %{id: id, status: status, amount_due: Money.to_decimal(amount_due), txs: render_txs(txs)}
+  def render("underpaid.json", data = %{id: id, amount_due: amount_due, txs: txs}) do
+    %{id: id, amount_due: Money.to_decimal(amount_due), txs: render_txs(txs)}
+    |> add_status(data)
   end
 
-  def render("overpaid.json", %{
-        id: id,
-        status: status,
-        overpaid_amount: overpaid_amount,
-        txs: txs
-      }) do
+  def render("overpaid.json", data = %{id: id, overpaid_amount: overpaid_amount, txs: txs}) do
     %{
       id: id,
-      status: status,
       overpaid_amount: Money.to_decimal(overpaid_amount),
       txs: render_txs(txs)
     }
+    |> add_status(data)
   end
 
-  def render("paid.json", %{id: id, status: status}) do
-    %{id: id, status: status}
+  def render("paid.json", data = %{id: id}) do
+    %{id: id}
+    |> add_status(data)
   end
 
-  def render("deleted.json", %{id: id, deleted: deleted}) do
-    %{id: id, deleted: deleted}
+  def render("deleted.json", %{id: id}) do
+    %{id: id, deleted: true}
+  end
+
+  def render("voided.json", data = %{id: id}) do
+    %{id: id}
+    |> add_status(data)
+  end
+
+  def render("finalized.json", invoice) do
+    render("show.json", %{invoice: invoice})
   end
 
   defp render_txs(txs) do
     Enum.map(txs, fn tx -> TransactionView.render("show.json", tx: tx) end)
+  end
+
+  defp add_status(res, %{status: status}) do
+    {state, reason} = InvoiceStatus.split(status)
+
+    res
+    |> Map.put(:status, state)
+    |> put_unless_nil(:statusReason, reason)
   end
 
   defp put_expected_payment(params, %{expected_payment: expected_payment})

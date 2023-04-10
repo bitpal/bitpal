@@ -1,15 +1,16 @@
 defmodule BitPal.Invoices do
   import Ecto.Changeset
   import Ecto.Query
-  alias BitPalApi.ApiHelpers
-  alias BitPal.ExchangeRates
   alias BitPal.Addresses
   alias BitPal.Blocks
   alias BitPal.Currencies
+  alias BitPal.ExchangeRates
   alias BitPal.InvoiceEvents
   alias BitPal.Repo
   alias BitPal.StoreEvents
   alias BitPal.Transactions
+  alias BitPal.ViewHelpers
+  alias BitPalApi.ApiHelpers
   alias BitPalSchemas.Address
   alias BitPalSchemas.AddressKey
   alias BitPalSchemas.Invoice
@@ -314,7 +315,7 @@ defmodule BitPal.Invoices do
     {:ok, invoice} = transition(invoice, {:uncollectible, reason})
 
     InvoiceEvents.broadcast(
-      {{:invoice, :uncollectible}, %{id: invoice.id, status: invoice.status, reason: reason}}
+      {{:invoice, :uncollectible}, %{id: invoice.id, status: invoice.status}}
     )
 
     invoice
@@ -499,13 +500,13 @@ defmodule BitPal.Invoices do
 
   @spec broadcast_processing(Invoice.t()) :: :ok | {:error, term}
   def broadcast_processing(invoice) do
-    reason =
+    confirmations_due =
       case InvoiceStatus.reason(invoice.status) do
         :confirming ->
-          {:confirming, invoice.confirmations_due}
+          invoice.confirmations_due
 
         :verifying ->
-          :verifying
+          nil
       end
 
     InvoiceEvents.broadcast(
@@ -513,9 +514,9 @@ defmodule BitPal.Invoices do
        %{
          id: invoice.id,
          status: invoice.status,
-         reason: reason,
          txs: invoice.tx_outputs
-       }}
+       }
+       |> ViewHelpers.put_unless_nil(:confirmations_due, confirmations_due)}
     )
   end
 

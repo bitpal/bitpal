@@ -6,7 +6,7 @@ defmodule BitPalApi.ExchangeRateChannelTest do
     {:ok, _, socket} =
       BitPalApi.StoreSocket
       |> socket("user_id", %{some: :assign})
-      |> subscribe_and_join(BitPalApi.ExchangeRateChannel, "exchange_rate")
+      |> subscribe_and_join(BitPalApi.ExchangeRateChannel, "exchange_rates")
 
     c1 = unique_currency_id()
     %{socket: socket, c1: c1}

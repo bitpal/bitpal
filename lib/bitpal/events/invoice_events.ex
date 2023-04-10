@@ -10,21 +10,23 @@ defmodule BitPal.InvoiceEvents do
 
   @type tx :: TxOutput.t()
   @type additional_confirmations :: non_neg_integer
-  @type uncollectible_reason :: :expired | :canceled | :double_spent | :timed_out
-  @type processing_reason :: :verifying | {:confirming, additional_confirmations}
 
   @type msg ::
           {{:invoice, :deleted}, %{id: Invoice.id(), status: InvoiceStatus.t()}}
           | {{:invoice, :finalized}, Invoice.t()}
           | {{:invoice, :voided}, %{id: Invoice.id(), status: InvoiceStatus.t()}}
-          | {{:invoice, :uncollectible},
-             %{id: Invoice.id(), status: InvoiceStatus.t(), reason: uncollectible_reason}}
+          | {{:invoice, :uncollectible}, %{id: Invoice.id(), status: InvoiceStatus.t()}}
           | {{:invoice, :underpaid},
              %{id: Invoice.id(), status: InvoiceStatus.t(), amount_due: Money.t(), txs: [tx]}}
           | {{:invoice, :overpaid},
              %{id: Invoice.id(), status: InvoiceStatus.t(), overpaid_amount: Money.t(), txs: [tx]}}
           | {{:invoice, :processing},
-             %{id: Invoice.id(), status: InvoiceStatus.t(), reason: processing_reason, txs: [tx]}}
+             %{
+               id: Invoice.id(),
+               status: InvoiceStatus.t(),
+               confirmations_due: additional_confirmations,
+               txs: [tx]
+             }}
           | {{:invoice, :paid}, %{id: Invoice.id(), status: InvoiceStatus.t()}}
 
   @spec subscribe(Invoice.id() | Invoice.t()) :: :ok | {:error, term}

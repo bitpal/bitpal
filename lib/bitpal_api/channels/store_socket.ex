@@ -4,8 +4,9 @@ defmodule BitPalApi.StoreSocket do
   require Logger
 
   ## Channels
+  channel("store:*", BitPalApi.StoreChannel)
   channel("invoice:*", BitPalApi.InvoiceChannel)
-  channel("exchange_rate", BitPalApi.ExchangeRateChannel)
+  channel("exchange_rates", BitPalApi.ExchangeRateChannel)
 
   @impl true
   def connect(%{"token" => token}, socket, _connect_info) do
@@ -48,5 +49,5 @@ defmodule BitPalApi.StoreSocket do
   #
   # Returning `nil` makes this socket anonymous.
   @impl true
-  def id(_socket), do: nil
+  def id(socket), do: "store_socket:#{socket.assigns.store_id}"
 end

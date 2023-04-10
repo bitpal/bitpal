@@ -6,7 +6,6 @@ defmodule BitPalApi.InvoiceControllerTest do
   alias BitPal.ViewHelpers
 
   describe "create" do
-    @tag do: true
     test "standard fields", %{conn: conn} do
       conn =
         post(conn, "/v1/invoices", %{
