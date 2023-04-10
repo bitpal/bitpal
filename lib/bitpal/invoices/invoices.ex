@@ -633,8 +633,6 @@ defmodule BitPal.Invoices do
   end
 
   defp validate_price(changeset) do
-    # FIXME currencies have different minimum thresholds, and we need to calculate exchange rate
-    # and use a minimum per currency to figure out threshold used here.
     if price = get_field(changeset, :price) do
       if price.amount > 0 do
         changeset

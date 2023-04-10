@@ -26,7 +26,6 @@ defmodule BitPalApi.Router do
     get("/transactions/:txid", TransactionController, :show)
     get("/transactions", TransactionController, :index)
 
-    # FIXME get all rates with a fiat?
     get("/rates", ExchangeRateController, :index)
     get("/rates/:base", ExchangeRateController, :base)
     get("/rates/:base/:quote", ExchangeRateController, :pair)

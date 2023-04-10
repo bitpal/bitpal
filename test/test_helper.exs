@@ -38,7 +38,6 @@ Repo.insert_all(ExchangeRate, seeded_rates,
 
 ServerSetup.set_state(:completed)
 
-ExUnit.configure(assert_receive_timeout: 200)
 ExUnit.start()
 Faker.start()
 Ecto.Adapters.SQL.Sandbox.mode(BitPal.Repo, :manual)
