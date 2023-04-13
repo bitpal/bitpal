@@ -1,15 +1,16 @@
 defmodule BitPalApi.InvoiceControllerTest do
   use BitPalApi.ConnCase, async: true, integration: true
+  alias BitPal.BackendMock
   alias BitPal.ExchangeRates
   alias BitPal.Invoices
-  alias BitPalSchemas.InvoiceRates
   alias BitPal.ViewHelpers
+  alias BitPalSchemas.InvoiceRates
 
   describe "create" do
     test "standard fields", %{conn: conn} do
       conn =
         post(conn, "/v1/invoices", %{
-          subPrice: 120,
+          priceSubAmount: 120,
           priceCurrency: "USD",
           description: "My awesome invoice",
           email: "test@bitpal.dev",
@@ -37,16 +38,15 @@ defmodule BitPalApi.InvoiceControllerTest do
       assert Invoices.fetch!(id).id == id
     end
 
-    test "with fiat subPrice", %{conn: conn} do
+    test "with fiat priceSubAmount", %{conn: conn} do
       conn =
         post(conn, "/v1/invoices", %{
-          subPrice: 120,
+          priceSubAmount: 120,
           priceCurrency: "USD"
         })
 
       assert %{
-               "price" => "1.2",
-               "subPrice" => 120,
+               "priceSubAmount" => 120,
                "priceCurrency" => "USD",
                "priceDisplay" => "$1.20",
                "rates" => rates
@@ -64,8 +64,8 @@ defmodule BitPalApi.InvoiceControllerTest do
         })
 
       assert %{
-               "price" => "1.2",
-               "subPrice" => 120,
+               "price" => 1.2,
+               "priceSubAmount" => 120,
                "priceCurrency" => "USD",
                "priceDisplay" => "$1.20",
                "rates" => rates
@@ -75,16 +75,16 @@ defmodule BitPalApi.InvoiceControllerTest do
       assert InvoiceRates.find_base_with_rate(rates, "USD") != :not_found
     end
 
-    test "with crypto subPrice", %{conn: conn} do
+    test "with crypto priceSubAmount", %{conn: conn} do
       conn =
         post(conn, "/v1/invoices", %{
-          subPrice: 1_200,
+          priceSubAmount: 1_200,
           priceCurrency: "BCH"
         })
 
       assert %{
-               "price" => "0.000012",
-               "subPrice" => 1_200,
+               "price" => 0.000012,
+               "priceSubAmount" => 1_200,
                "priceCurrency" => "BCH",
                "priceDisplay" => "0.000012 BCH",
                "paymentCurrency" => "BCH",
@@ -101,8 +101,8 @@ defmodule BitPalApi.InvoiceControllerTest do
         })
 
       assert %{
-               "price" => "1.2",
-               "subPrice" => 120_000_000,
+               "price" => 1.2,
+               "priceSubAmount" => 120_000_000,
                "priceCurrency" => "BCH",
                "priceDisplay" => "1.2 BCH",
                "paymentCurrency" => "BCH",
@@ -125,8 +125,8 @@ defmodule BitPalApi.InvoiceControllerTest do
       assert %{
                "id" => id,
                "address" => address,
-               "price" => "1.2",
-               "subPrice" => 120,
+               "price" => 1.2,
+               "priceSubAmount" => 120,
                "priceCurrency" => "USD",
                "priceDisplay" => "$1.20",
                "paymentCurrency" => ^currency,
@@ -157,8 +157,8 @@ defmodule BitPalApi.InvoiceControllerTest do
                "type" => "invalid_request_error",
                "message" => "Request Failed",
                "errors" => %{
-                 "price" => "either `price` or `subPrice` must be provided",
-                 "subPrice" => "either `price` or `subPrice` must be provided",
+                 "price" => "either `price` or `priceSubAmount` must be provided",
+                 "priceSubAmount" => "either `price` or `priceSubAmount` must be provided",
                  "priceCurrency" => "can't be blank"
                }
              } = Jason.decode!(response)
@@ -193,8 +193,8 @@ defmodule BitPalApi.InvoiceControllerTest do
       assert %{
                "id" => ^id,
                "address" => address,
-               "price" => "1.2",
-               "subPrice" => 120,
+               "price" => 1.2,
+               "priceSubAmount" => 120,
                "priceCurrency" => "USD",
                "paymentCurrency" => ^currency,
                "status" => "open"
@@ -248,8 +248,7 @@ defmodule BitPalApi.InvoiceControllerTest do
         })
 
       assert %{
-               "price" => "7",
-               "subPrice" => 700,
+               "priceSubAmount" => 700,
                "priceCurrency" => "EUR",
                "priceDisplay" => "€7.00",
                "rates" => rates
@@ -268,13 +267,12 @@ defmodule BitPalApi.InvoiceControllerTest do
 
       conn =
         post(conn, "/v1/invoices/#{invoice.id}", %{
-          sub_price: 1_000_000,
+          priceSubAmount: 1_000_000,
           priceCurrency: "DGC"
         })
 
       assert %{
-               "price" => "0.01",
-               "subPrice" => 1_000_000,
+               "priceSubAmount" => 1_000_000,
                "priceCurrency" => "DGC",
                "priceDisplay" => "0.01 DGC",
                "paymentCurrency" => "DGC",
@@ -292,7 +290,7 @@ defmodule BitPalApi.InvoiceControllerTest do
       {_, _, response} =
         assert_error_sent(402, fn ->
           post(conn, "/v1/invoices/#{invoice.id}", %{
-            sub_price: 1_000_000,
+            priceSubAmount: 1_000_000,
             priceCurrency: "DGC"
           })
         end)
@@ -321,16 +319,16 @@ defmodule BitPalApi.InvoiceControllerTest do
                "type" => "invalid_request_error",
                "message" => "Request Failed",
                "errors" => %{
-                 "priceCurrency" => "can't be empty if either `price` or `subPrice` is set"
+                 "priceCurrency" => "can't be empty if either `price` or `priceSubAmount` is set"
                }
              } = Jason.decode!(response)
     end
 
-    test "if subPrice is specified, need priceCurrency", %{conn: conn, invoice: invoice} do
+    test "if priceSubAmount is specified, need priceCurrency", %{conn: conn, invoice: invoice} do
       {_, _, response} =
         assert_error_sent(402, fn ->
           post(conn, "/v1/invoices/#{invoice.id}", %{
-            sub_price: 700
+            priceSubAmount: 700
           })
         end)
 
@@ -338,12 +336,15 @@ defmodule BitPalApi.InvoiceControllerTest do
                "type" => "invalid_request_error",
                "message" => "Request Failed",
                "errors" => %{
-                 "priceCurrency" => "can't be empty if either `price` or `subPrice` is set"
+                 "priceCurrency" => "can't be empty if either `price` or `priceSubAmount` is set"
                }
              } = Jason.decode!(response)
     end
 
-    test "if priceCurrency is specified, need price or subPrice", %{conn: conn, invoice: invoice} do
+    test "if priceCurrency is specified, need price or priceSubAmount", %{
+      conn: conn,
+      invoice: invoice
+    } do
       {_, _, response} =
         assert_error_sent(402, fn ->
           post(conn, "/v1/invoices/#{invoice.id}", %{
@@ -355,8 +356,8 @@ defmodule BitPalApi.InvoiceControllerTest do
                "type" => "invalid_request_error",
                "message" => "Request Failed",
                "errors" => %{
-                 "price" => "either `price` or `subPrice` must be provided",
-                 "subPrice" => "either `price` or `subPrice` must be provided"
+                 "price" => "either `price` or `priceSubAmount` must be provided",
+                 "priceSubAmount" => "either `price` or `priceSubAmount` must be provided"
                }
              } = Jason.decode!(response)
     end
@@ -372,7 +373,6 @@ defmodule BitPalApi.InvoiceControllerTest do
         })
 
       assert %{
-               "price" => "1.2",
                "priceCurrency" => "USD",
                "paymentCurrency" => ^currency,
                "paymentSubAmount" => sub_amount,
@@ -465,6 +465,22 @@ defmodule BitPalApi.InvoiceControllerTest do
                "type" => "invalid_request_error",
                "code" => "invoice_not_editable"
              } = Jason.decode!(response)
+    end
+
+    test "get a partially paid invoice", %{conn: conn, invoice_id: id} do
+      invoice = Invoices.fetch!(id)
+
+      paid = Money.parse!(0.3, invoice.payment_currency_id)
+      BackendMock.tx_seen(%{invoice | expected_payment: paid})
+
+      paid_amount = paid.amount
+
+      conn = get(conn, "/v1/invoices/#{id}")
+
+      assert %{
+               "paidDisplay" => "0.3 " <> _,
+               "paidSubAmount" => ^paid_amount
+             } = json_response(conn, 200)
     end
   end
 

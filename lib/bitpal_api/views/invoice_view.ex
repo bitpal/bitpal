@@ -8,10 +8,10 @@ defmodule BitPalApi.InvoiceView do
   def render("show.json", %{invoice: invoice = %Invoice{}}) do
     %{
       id: invoice.id,
+      price: Decimal.to_float(Money.to_decimal(invoice.price) |> Decimal.normalize()),
       priceCurrency: invoice.price.currency,
-      price: Decimal.to_string(Money.to_decimal(invoice.price) |> Decimal.normalize(), :normal),
       priceDisplay: money_to_string(invoice.price),
-      subPrice: invoice.price.amount,
+      priceSubAmount: invoice.price.amount,
       address: invoice.address_id,
       email: invoice.email,
       description: invoice.description,
@@ -23,6 +23,7 @@ defmodule BitPalApi.InvoiceView do
     |> put_unless_nil(:requiredConfirmations, invoice.required_confirmations)
     |> put_unless_nil(:paymentCurrency, invoice.payment_currency_id)
     |> put_expected_payment(invoice)
+    |> add_paid(invoice)
   end
 
   def render("index.json", %{invoices: invoices}) do
@@ -37,7 +38,7 @@ defmodule BitPalApi.InvoiceView do
       txs: render_txs(txs)
     }
     |> add_status(data)
-    |> put_unless_nil(:confirmations_due, data[:confirmations_due])
+    |> put_unless_nil(:confirmationsDue, data[:confirmations_due])
   end
 
   def render("uncollectible.json", data = %{id: id}) do
@@ -45,23 +46,16 @@ defmodule BitPalApi.InvoiceView do
     |> add_status(data)
   end
 
-  def render("underpaid.json", data = %{id: id, amount_due: amount_due, txs: txs}) do
-    %{id: id, amount_due: Money.to_decimal(amount_due), txs: render_txs(txs)}
-    |> add_status(data)
+  def render("underpaid.json", data) do
+    render_pay_update(data)
   end
 
-  def render("overpaid.json", data = %{id: id, overpaid_amount: overpaid_amount, txs: txs}) do
-    %{
-      id: id,
-      overpaid_amount: Money.to_decimal(overpaid_amount),
-      txs: render_txs(txs)
-    }
-    |> add_status(data)
+  def render("overpaid.json", data) do
+    render_pay_update(data)
   end
 
-  def render("paid.json", data = %{id: id}) do
-    %{id: id}
-    |> add_status(data)
+  def render("paid.json", data) do
+    render_pay_update(data)
   end
 
   def render("deleted.json", %{id: id}) do
@@ -75,6 +69,32 @@ defmodule BitPalApi.InvoiceView do
 
   def render("finalized.json", invoice) do
     render("show.json", %{invoice: invoice})
+  end
+
+  defp render_pay_update(data = %{id: id}) do
+    %{id: id}
+    |> add_paid(data)
+    |> add_status(data)
+    |> add_txs(data)
+  end
+
+  defp add_paid(res, %{payment_currency_id: nil}) do
+    res
+  end
+
+  defp add_paid(res, %{amount_paid: nil}) do
+    res
+  end
+
+  defp add_paid(res, %{amount_paid: paid}) do
+    res
+    |> Map.put(:paidDisplay, money_to_string(paid))
+    |> Map.put(:paidSubAmount, paid.amount)
+  end
+
+  defp add_txs(res, %{txs: txs}) do
+    res
+    |> Map.put(:txs, render_txs(txs))
   end
 
   defp render_txs(txs) do

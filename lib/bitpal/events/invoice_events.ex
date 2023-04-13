@@ -16,10 +16,14 @@ defmodule BitPal.InvoiceEvents do
           | {{:invoice, :finalized}, Invoice.t()}
           | {{:invoice, :voided}, %{id: Invoice.id(), status: InvoiceStatus.t()}}
           | {{:invoice, :uncollectible}, %{id: Invoice.id(), status: InvoiceStatus.t()}}
-          | {{:invoice, :underpaid},
-             %{id: Invoice.id(), status: InvoiceStatus.t(), amount_due: Money.t(), txs: [tx]}}
-          | {{:invoice, :overpaid},
-             %{id: Invoice.id(), status: InvoiceStatus.t(), overpaid_amount: Money.t(), txs: [tx]}}
+          | {
+              {:invoice, :underpaid},
+              %{id: Invoice.id(), status: InvoiceStatus.t(), amount_paid: Money.t(), txs: [tx]}
+            }
+          | {
+              {:invoice, :overpaid},
+              %{id: Invoice.id(), status: InvoiceStatus.t(), amount_paid: Money.t(), txs: [tx]}
+            }
           | {{:invoice, :processing},
              %{
                id: Invoice.id(),
@@ -27,7 +31,8 @@ defmodule BitPal.InvoiceEvents do
                confirmations_due: additional_confirmations,
                txs: [tx]
              }}
-          | {{:invoice, :paid}, %{id: Invoice.id(), status: InvoiceStatus.t()}}
+          | {{:invoice, :paid},
+             %{id: Invoice.id(), status: InvoiceStatus.t(), amount_paid: Money.t(), txs: [tx]}}
 
   @spec subscribe(Invoice.id() | Invoice.t()) :: :ok | {:error, term}
   def subscribe(%Invoice{id: id}), do: EventHelpers.subscribe(topic(id))

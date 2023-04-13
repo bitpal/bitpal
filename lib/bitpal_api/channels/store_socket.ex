@@ -4,7 +4,7 @@ defmodule BitPalApi.StoreSocket do
   require Logger
 
   ## Channels
-  channel("store:*", BitPalApi.StoreChannel)
+  channel("invoices", BitPalApi.InvoiceChannel)
   channel("invoice:*", BitPalApi.InvoiceChannel)
   channel("exchange_rates", BitPalApi.ExchangeRateChannel)
 

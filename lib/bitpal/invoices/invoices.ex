@@ -133,7 +133,7 @@ defmodule BitPal.Invoices do
     with {:ok, height} <- Blocks.fetch_block_height(invoice.payment_currency_id),
          invoice <- update_info_from_txs(invoice, height),
          {:ok, invoice} <- transition(invoice, :paid) do
-      InvoiceEvents.broadcast({{:invoice, :paid}, %{id: invoice.id, status: invoice.status}})
+      broadcast_paid(invoice)
       {:ok, invoice}
     else
       :error ->
@@ -306,7 +306,7 @@ defmodule BitPal.Invoices do
       transition_validation(invoice, :paid)
       |> Repo.update!()
 
-    InvoiceEvents.broadcast({{:invoice, :paid}, %{id: invoice.id, status: invoice.status}})
+    broadcast_paid(invoice)
     invoice
   end
 
@@ -456,6 +456,10 @@ defmodule BitPal.Invoices do
   end
 
   @spec update_info_from_txs(Invoice.t()) :: Invoice.t()
+  def update_info_from_txs(invoice = %{payment_currency_id: nil}) do
+    invoice
+  end
+
   def update_info_from_txs(invoice) do
     curr_height = Blocks.fetch_block_height!(invoice.payment_currency_id)
     update_info_from_txs(invoice, curr_height)
@@ -527,7 +531,7 @@ defmodule BitPal.Invoices do
        %{
          id: invoice.id,
          status: invoice.status,
-         amount_due: Money.subtract(invoice.expected_payment, invoice.amount_paid),
+         amount_paid: invoice.amount_paid,
          txs: invoice.tx_outputs
        }}
     )
@@ -540,7 +544,20 @@ defmodule BitPal.Invoices do
        %{
          id: invoice.id,
          status: invoice.status,
-         overpaid_amount: Money.subtract(invoice.amount_paid, invoice.expected_payment),
+         amount_paid: invoice.amount_paid,
+         txs: invoice.tx_outputs
+       }}
+    )
+  end
+
+  @spec broadcast_paid(Invoice.t()) :: :ok | {:error, term}
+  def broadcast_paid(invoice) do
+    InvoiceEvents.broadcast(
+      {{:invoice, :paid},
+       %{
+         id: invoice.id,
+         status: invoice.status,
+         amount_paid: invoice.amount_paid,
          txs: invoice.tx_outputs
        }}
     )
@@ -943,7 +960,8 @@ defmodule BitPal.Invoices do
 
   defp validate_email(changeset) do
     changeset
-    |> validate_format(:email, ~r/^.+@.+$/, message: "Must be a valid email")
+    |> validate_format(:email, ~r/^[^\s]+@[^\s]+$/, message: "must have the @ sign and no spaces")
+    |> validate_length(:email, max: 160)
   end
 
   defp ensure_required_confirmations(changeset) do

@@ -3,13 +3,13 @@ defmodule BitPalApi.ExchangeRateChannelTest do
   alias BitPal.ExchangeRates
 
   setup do
-    {:ok, _, socket} =
+    {:ok, reply, socket} =
       BitPalApi.StoreSocket
       |> socket("user_id", %{some: :assign})
       |> subscribe_and_join(BitPalApi.ExchangeRateChannel, "exchange_rates")
 
     c1 = unique_currency_id()
-    %{socket: socket, c1: c1}
+    %{socket: socket, c1: c1, reply: reply}
   end
 
   describe "getting" do
@@ -161,7 +161,6 @@ defmodule BitPalApi.ExchangeRateChannelTest do
       })
     end
 
-    @tag do: true
     test "multiple rate updates", %{c1: c1} do
       c2 = unique_currency_id()
 
@@ -188,6 +187,13 @@ defmodule BitPalApi.ExchangeRateChannelTest do
           SEK: 3.0
         }
       })
+    end
+  end
+
+  describe "reply on join" do
+    test "replies with all rates", %{reply: reply} do
+      assert rates = reply
+      assert Enum.count(rates) > 0
     end
   end
 end

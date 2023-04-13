@@ -1,16 +1,17 @@
 defmodule BitPalApi.InvoiceChannel do
   use BitPalApi, :channel
   import BitPalApi.InvoiceView
+  alias BitPal.Invoices
   alias BitPal.InvoiceEvents
-  alias BitPal.Stores
   alias BitPalApi.InvoiceHandling
   require Logger
 
   @impl true
   def join("invoice:" <> invoice_id, _payload, socket) do
-    with :authorized <- authorized?(invoice_id, socket.assigns),
+    with {:ok, invoice} <- authorized_invoice(invoice_id, socket.assigns),
          :ok <- InvoiceEvents.subscribe(invoice_id) do
-      {:ok, assign(socket, invoice_id: invoice_id)}
+      {:ok, %{invoice: render("show.json", invoice: invoice)},
+       assign(socket, invoice_id: invoice_id)}
     else
       :unauthorized ->
         render_error(%UnauthorizedError{})
@@ -18,6 +19,11 @@ defmodule BitPalApi.InvoiceChannel do
       _ ->
         render_error(%InternalServerError{})
     end
+  end
+
+  @impl true
+  def join("invoices", _payload, socket) do
+    {:ok, socket}
   end
 
   @impl true
@@ -33,9 +39,18 @@ defmodule BitPalApi.InvoiceChannel do
     error -> {:reply, render_error(error), socket}
   end
 
-  defp handle_event("get", _params, socket) do
-    invoice = InvoiceHandling.get(socket.assigns.store_id, socket.assigns.invoice_id)
+  defp handle_event("get", %{"id" => id}, socket) do
+    invoice = InvoiceHandling.get(socket.assigns.store_id, id)
     {:reply, {:ok, render("show.json", invoice: invoice)}, socket}
+  end
+
+  defp handle_event("get", _params, socket = %{assigns: %{store_id: store_id, invoice_id: id}}) do
+    invoice = InvoiceHandling.get(store_id, id)
+    {:reply, {:ok, render("show.json", invoice: invoice)}, socket}
+  end
+
+  defp handle_event("get", _params, socket) do
+    {:reply, render_error(%BadRequestError{}), socket}
   end
 
   defp handle_event("update", params, socket) do
@@ -67,15 +82,27 @@ defmodule BitPalApi.InvoiceChannel do
     {:reply, :ok, socket}
   end
 
-  defp authorized?(invoice_id, %{store_id: store_id}) do
-    if Stores.has_invoice?(store_id, invoice_id) do
-      :authorized
-    else
-      :unauthorized
+  defp handle_event("create", params, socket) do
+    invoice = InvoiceHandling.create(socket.assigns.store_id, params)
+    {:reply, {:ok, render("show.json", invoice: invoice)}, socket}
+  end
+
+  defp handle_event("list", _params, socket) do
+    invoices = InvoiceHandling.all_invoices(socket.assigns.store_id)
+    {:reply, {:ok, render("index.json", invoices: invoices)}, socket}
+  end
+
+  defp authorized_invoice(invoice_id, %{store_id: store_id}) do
+    case Invoices.fetch(invoice_id, store_id) do
+      {:ok, invoice} ->
+        {:ok, invoice}
+
+      _ ->
+        :unauthorized
     end
   end
 
-  defp authorized?(_payload, _assigns) do
+  defp authorized_invoice(_id, _assigns) do
     :unauthorized
   end
 

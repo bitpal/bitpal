@@ -9,7 +9,8 @@ defmodule BitPalApi.ExchangeRateChannel do
   @impl true
   def join("exchange_rates", _payload, socket) do
     ExchangeRateEvents.subscribe()
-    {:ok, socket}
+    rates = ExchangeRates.all_exchange_rates()
+    {:ok, render("show.json", rates: rates), socket}
   end
 
   @impl true

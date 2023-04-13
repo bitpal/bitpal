@@ -225,24 +225,27 @@ defmodule BitPal.InvoiceAcceptanceTest do
         double_spend_timeout: 1
       )
 
-    BackendMock.tx_seen(%{inv | expected_payment: Money.parse!(0.3, currency_id)})
+    paid = Money.parse!(0.3, currency_id)
+    BackendMock.tx_seen(%{inv | expected_payment: paid})
 
     HandlerSubscriberCollector.await_msg(stub, {:invoice, :underpaid})
-    due = Money.parse!(0.7, currency_id)
 
     assert [
              {{:invoice, :finalized}, _},
-             {{:invoice, :underpaid}, %{amount_due: ^due}}
+             {{:invoice, :underpaid}, %{amount_paid: ^paid, txs: [_]}}
            ] = HandlerSubscriberCollector.received(stub)
 
-    BackendMock.tx_seen(%{inv | expected_payment: Money.parse!(0.7, currency_id)})
+    paid2 = Money.parse!(0.7, currency_id)
+    BackendMock.tx_seen(%{inv | expected_payment: paid2})
     HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
+
+    fully_paid = Money.add(paid, paid2)
 
     assert [
              {{:invoice, :finalized}, _},
-             {{:invoice, :underpaid}, %{amount_due: ^due}},
+             {{:invoice, :underpaid}, %{amount_paid: ^paid, txs: [_]}},
              {{:invoice, :processing}, %{status: {:processing, :verifying}}},
-             {{:invoice, :paid}, _}
+             {{:invoice, :paid}, %{amount_paid: ^fully_paid, txs: [_, _]}}
            ] = HandlerSubscriberCollector.received(stub)
   end
 
@@ -254,21 +257,22 @@ defmodule BitPal.InvoiceAcceptanceTest do
         double_spend_timeout: 1
       )
 
-    BackendMock.tx_seen(%{inv | expected_payment: Money.parse!(0.3, currency_id)})
+    amount1 = Money.parse!(0.3, currency_id)
+    BackendMock.tx_seen(%{inv | expected_payment: amount1})
     HandlerSubscriberCollector.await_msg(stub, {:invoice, :underpaid})
 
-    BackendMock.tx_seen(%{inv | expected_payment: Money.parse!(1.3, currency_id)})
+    amount2 = Money.parse!(1.3, currency_id)
+    BackendMock.tx_seen(%{inv | expected_payment: amount2})
     HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
 
-    due = Money.parse!(0.7, currency_id)
-    overpaid = Money.parse!(0.6, currency_id)
+    total_paid = Money.add(amount1, amount2)
 
     assert [
              {{:invoice, :finalized}, _},
-             {{:invoice, :underpaid}, %{amount_due: ^due}},
-             {{:invoice, :overpaid}, %{overpaid_amount: ^overpaid}},
+             {{:invoice, :underpaid}, %{amount_paid: ^amount1, txs: [_]}},
+             {{:invoice, :overpaid}, %{amount_paid: ^total_paid, txs: [_, _]}},
              {{:invoice, :processing}, %{status: {:processing, :verifying}}},
-             {{:invoice, :paid}, _}
+             {{:invoice, :paid}, %{amount_paid: ^total_paid, txs: [_, _]}}
            ] = HandlerSubscriberCollector.received(stub)
   end
 end

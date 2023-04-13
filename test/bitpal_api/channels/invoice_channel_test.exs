@@ -1,8 +1,8 @@
 defmodule BitPalApi.InvoiceChannelTest do
   use BitPalApi.ChannelCase, async: true, integration: true
-  alias BitPalFactory.InvoiceFactory
   alias BitPal.BackendMock
   alias BitPal.HandlerSubscriberCollector
+  alias BitPal.Invoices
 
   describe "invoice notifications" do
     setup [:setup_open]
@@ -15,7 +15,7 @@ defmodule BitPalApi.InvoiceChannelTest do
       assert_broadcast("processing", %{
         id: ^id,
         statusReason: :verifying,
-        txs: [%{amount: _, txid: ^txid}]
+        txs: [%{outputSubAmount: _, outputDisplay: _, txid: ^txid}]
       })
 
       assert_broadcast("paid", %{id: ^id})
@@ -29,8 +29,8 @@ defmodule BitPalApi.InvoiceChannelTest do
       assert_broadcast("processing", %{
         id: ^id,
         statusReason: :confirming,
-        confirmations_due: 3,
-        txs: [%{amount: _, txid: ^txid}]
+        confirmationsDue: 3,
+        txs: [%{outputSubAmount: _, outputDisplay: _, txid: ^txid}]
       })
 
       BackendMock.confirmed_in_new_block(invoice)
@@ -38,7 +38,7 @@ defmodule BitPalApi.InvoiceChannelTest do
       assert_broadcast("processing", %{
         id: ^id,
         statusReason: :confirming,
-        confirmations_due: 2
+        confirmationsDue: 2
       })
 
       BackendMock.issue_blocks(invoice, 2)
@@ -46,7 +46,7 @@ defmodule BitPalApi.InvoiceChannelTest do
       assert_broadcast("processing", %{
         id: ^id,
         statusReason: :confirming,
-        confirmations_due: 1
+        confirmationsDue: 1
       })
 
       assert_broadcast("paid", %{id: ^id})
@@ -70,19 +70,23 @@ defmodule BitPalApi.InvoiceChannelTest do
     @tag double_spend_timeout: 1, required_confirmations: 0, amount: 1.0
     test "Under and overpaid invoice", %{invoice: invoice} do
       id = invoice.id
+      currency = invoice.payment_currency_id
 
       BackendMock.tx_seen(%{
         invoice
-        | expected_payment: Money.parse!(0.3, invoice.payment_currency_id)
+        | expected_payment: Money.parse!(0.3, currency)
       })
 
       assert_broadcast("underpaid", %{
         id: ^id,
-        amount_due: due,
+        paidDisplay: "0.3 " <> _,
+        paidSubAmount: amount,
         txs: _
       })
 
-      assert "0.700" <> _ = Decimal.to_string(due)
+      assert Money.new(amount, invoice.payment_currency_id)
+             |> Money.to_decimal()
+             |> Decimal.to_float() == 0.3
 
       BackendMock.tx_seen(%{
         invoice
@@ -91,11 +95,14 @@ defmodule BitPalApi.InvoiceChannelTest do
 
       assert_broadcast("overpaid", %{
         id: ^id,
-        overpaid_amount: overpaid,
+        paidDisplay: "1.6 " <> _,
+        paidSubAmount: amount,
         txs: _
       })
 
-      assert "0.600" <> _ = Decimal.to_string(overpaid)
+      assert Money.new(amount, invoice.payment_currency_id)
+             |> Money.to_decimal()
+             |> Decimal.to_float() == 1.6
 
       assert_broadcast("processing", %{
         id: ^id,
@@ -240,6 +247,105 @@ defmodule BitPalApi.InvoiceChannelTest do
     end
   end
 
+  describe "create" do
+    setup [:setup_socket]
+
+    test "standard fields", %{socket: socket} do
+      ref =
+        push(socket, "create", %{
+          priceSubAmount: 120,
+          priceCurrency: "USD",
+          description: "My awesome invoice",
+          email: "test@bitpal.dev",
+          orderId: "id:123",
+          posData: %{
+            "some" => "data",
+            "other" => %{"even_more" => 0.1337}
+          }
+        })
+
+      assert_reply(ref, :ok, %{
+        id: id,
+        priceSubAmount: 120,
+        priceCurrency: :USD,
+        description: "My awesome invoice",
+        email: "test@bitpal.dev",
+        orderId: "id:123",
+        posData: %{
+          "some" => "data",
+          "other" => %{"even_more" => 0.1337}
+        }
+      })
+
+      assert Invoices.fetch!(id)
+    end
+
+    test "creation failed", %{socket: socket} do
+      ref = push(socket, "create", %{})
+
+      assert_reply(ref, :error, %{
+        errors: %{
+          price: "either `price` or `priceSubAmount` must be provided",
+          priceCurrency: "can't be blank",
+          priceSubAmount: "either `price` or `priceSubAmount` must be provided"
+        },
+        message: "Request Failed",
+        type: "invalid_request_error"
+      })
+    end
+  end
+
+  describe "get" do
+    setup [:setup_draft]
+
+    test "existing", %{socket: socket, invoice: invoice} do
+      # invoice = create_invoice(%{store_id: store_id})
+      id = invoice.id
+      sub_price = invoice.price.amount
+
+      ref = push(socket, "get", %{id: id})
+      assert_reply(ref, :ok, %{id: ^id, priceSubAmount: ^sub_price})
+    end
+
+    test "not found", %{socket: socket} do
+      ref = push(socket, "get", %{id: "xxx"})
+
+      assert_reply(ref, :error, %{
+        code: "resource_missing",
+        message: "Not Found",
+        type: "invalid_request_error"
+      })
+    end
+  end
+
+  describe "list" do
+    setup [:setup_draft]
+
+    test "list multiple", %{socket: socket, invoice: i1} do
+      i2 = create_invoice(%{store_id: i1.store_id})
+
+      ref = push(socket, "list", %{})
+      assert_reply(ref, :ok, [%{id: id1}, %{id: id2}])
+
+      assert Enum.sort([id1, id2]) == Enum.sort([i1.id, i2.id])
+    end
+  end
+
+  describe "reply on join" do
+    test "gets invoice", %{currency_id: currency} do
+      invoice = create_invoice(payment_currency_id: currency)
+
+      {:ok, %{invoice: joined}, _} =
+        BitPalApi.StoreSocket
+        |> socket(nil, %{store_id: invoice.store_id})
+        |> subscribe_and_join(BitPalApi.InvoiceChannel, "invoice:" <> invoice.id)
+
+      assert joined.id == invoice.id
+      assert joined.address == invoice.address_id
+      assert joined.priceCurrency == invoice.price.currency
+    end
+  end
+
   defp setup_draft(context) do
     setup_invoice(context, status: :draft)
   end
@@ -274,13 +380,25 @@ defmodule BitPalApi.InvoiceChannelTest do
 
     invoice = init_invoice(invoice_attrs)
 
-    # Bypasses socket `connect`, which is fine for these tests
-    {:ok, _, socket} =
-      BitPalApi.StoreSocket
-      |> socket(nil, %{store_id: invoice.store_id})
-      |> subscribe_and_join(BitPalApi.InvoiceChannel, "invoice:" <> invoice.id)
+    %{socket: socket} = setup_socket(%{store_id: invoice.store_id})
+
+    socket =
+      socket
+      |> subscribe_and_join!(BitPalApi.InvoiceChannel, "invoice:" <> invoice.id)
 
     %{invoice: invoice, socket: socket}
+  end
+
+  defp setup_socket(context) do
+    store_id = Map.get_lazy(context, :store_id, fn -> create_store().id end)
+
+    # Bypasses socket `connect`, which is fine for these tests
+    socket =
+      BitPalApi.StoreSocket
+      |> socket(nil, %{store_id: store_id})
+      |> subscribe_and_join!(BitPalApi.InvoiceChannel, "invoices")
+
+    %{socket: socket}
   end
 
   defp init_invoice(attrs = %{status: :open}) do
@@ -289,6 +407,6 @@ defmodule BitPalApi.InvoiceChannelTest do
   end
 
   defp init_invoice(attrs) do
-    InvoiceFactory.create_invoice(attrs)
+    create_invoice(attrs)
   end
 end

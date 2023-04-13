@@ -24,9 +24,12 @@ defmodule BitPalApi.TransactionControllerTest do
   test "show", %{conn: conn, store: store, currency_id: currency_id} do
     tx = create_tx(store, currency_id: currency_id)
     txid = tx.txid
+    amount = tx.amount.amount
 
     conn = get(conn, "/v1/transactions/#{txid}")
-    assert %{"txid" => ^txid, "amount" => _, "address" => _} = json_response(conn, 200)
+
+    assert %{"txid" => ^txid, "outputDisplay" => _, "outputSubAmount" => ^amount, "address" => _} =
+             json_response(conn, 200)
   end
 
   test "not found", %{conn: conn} do

@@ -20,6 +20,7 @@ defmodule BitPalApi.InvoiceHandling do
          {:ok, invoice} <- Invoices.register(store, validated),
          {:ok, invoice} <- finalize_if(invoice, params) do
       invoice
+      |> Invoices.update_info_from_txs()
     else
       {:error, changeset = %Changeset{}} ->
         handle_changeset_error(changeset)
@@ -30,6 +31,7 @@ defmodule BitPalApi.InvoiceHandling do
     case Invoices.fetch(id, store) do
       {:ok, invoice} ->
         invoice
+        |> Invoices.update_info_from_txs()
 
       {:error, _} ->
         raise NotFoundError, param: "id"
@@ -45,6 +47,7 @@ defmodule BitPalApi.InvoiceHandling do
          {:ok, params} <- validate_update_params(params),
          {:ok, invoice} <- Invoices.update(invoice, params) do
       invoice
+      |> Invoices.update_info_from_txs()
     else
       {:error, :not_found} ->
         raise NotFoundError, param: "id"
@@ -94,6 +97,7 @@ defmodule BitPalApi.InvoiceHandling do
     with {:ok, invoice} <- Invoices.fetch(id, store),
          {:ok, invoice} <- Invoices.pay_unchecked(invoice) do
       invoice
+      |> Invoices.update_info_from_txs()
     else
       {:error, :not_found} ->
         raise NotFoundError, param: "id"
@@ -110,6 +114,7 @@ defmodule BitPalApi.InvoiceHandling do
     with {:ok, invoice} <- Invoices.fetch(id, store),
          {:ok, invoice} <- Invoices.void(invoice) do
       invoice
+      |> Invoices.update_info_from_txs()
     else
       {:error, :not_found} ->
         raise NotFoundError, param: "id"
@@ -158,7 +163,7 @@ defmodule BitPalApi.InvoiceHandling do
   defp validate_create_params(params) do
     spec = %{
       price: :decimal,
-      sub_price: :integer,
+      price_sub_amount: :integer,
       price_currency: :string,
       payment_currency: :string,
       description: :string,
@@ -181,7 +186,7 @@ defmodule BitPalApi.InvoiceHandling do
   defp validate_update_params(params) do
     spec = %{
       price: :decimal,
-      sub_price: :integer,
+      price_sub_amount: :integer,
       price_currency: :string,
       payment_currency: :string,
       description: :string,
@@ -200,8 +205,8 @@ defmodule BitPalApi.InvoiceHandling do
     |> transform_keys()
   end
 
-  defp update_price(changeset = %Changeset{changes: %{price: _, sub_price: _}}) do
-    add_both_price_error(changeset)
+  defp update_price(changeset = %Changeset{changes: %{price: _, price_sub_amount: _}}) do
+    add_must_provide_either_price_error(changeset)
   end
 
   defp update_price(
@@ -220,13 +225,13 @@ defmodule BitPalApi.InvoiceHandling do
 
   defp update_price(
          changeset = %Changeset{
-           changes: %{sub_price: amount, price_currency: currency},
+           changes: %{price_sub_amount: amount, price_currency: currency},
            valid?: true
          }
        ) do
     changeset
     |> force_change(:price, Money.new(amount, currency))
-    |> delete_change(:sub_price)
+    |> delete_change(:price_sub_amount)
     |> delete_change(:price_currency)
   end
 
@@ -239,7 +244,7 @@ defmodule BitPalApi.InvoiceHandling do
   end
 
   defp validate_price_required(changeset) do
-    price_error? = empty_change?(changeset, :price) && empty_change?(changeset, :sub_price)
+    price_error? = empty_change?(changeset, :price) && empty_change?(changeset, :price_sub_amount)
 
     if price_error? do
       add_must_provide_either_price_error(changeset)
@@ -249,14 +254,16 @@ defmodule BitPalApi.InvoiceHandling do
   end
 
   defp validate_price_currency_required_if_price_changed(changeset) do
-    has_price? = get_change(changeset, :price) != nil || get_change(changeset, :sub_price) != nil
+    has_price? =
+      get_change(changeset, :price) != nil || get_change(changeset, :price_sub_amount) != nil
+
     has_price_currency? = get_change(changeset, :price_currency) != nil
 
     if has_price? and !has_price_currency? do
       add_error(
         changeset,
         :price_currency,
-        "can't be empty if either `price` or `subPrice` is set"
+        "can't be empty if either `price` or `priceSubAmount` is set"
       )
     else
       changeset
@@ -277,20 +284,12 @@ defmodule BitPalApi.InvoiceHandling do
     end
   end
 
-  defp add_both_price_error(changeset) do
-    msg = "both `price` and `sub_price` cannot be provided"
-
-    changeset
-    |> add_error(:price, msg)
-    |> add_error(:subPrice, msg)
-  end
-
   defp add_must_provide_either_price_error(changeset) do
-    msg = "either `price` or `subPrice` must be provided"
+    msg = "either `price` or `priceSubAmount` must be provided"
 
     changeset
     |> add_error(:price, msg)
-    |> add_error(:sub_price, msg)
+    |> add_error(:priceSubAmount, msg)
   end
 
   defp empty_change?(changeset, key) do
