@@ -55,6 +55,7 @@ config :bitpal, :BCH,
     "xpub6C23JpFE6ABbBudoQfwMU239R5Bm6QGoigtLq1BD3cz3cC6DUTg89H3A7kf95GDzfcTis1K1m7ypGuUPmXCaCvoxDKbeNv6wRBEGEnt1NV7"
 
 config :bitpal, BitPalFactory, init: true
+config :bitpal, BitPal.InvoiceSupervisor, pass_parent_pid: true
 
 config :bitpal, BitPal.BackendManager, reconnect_timeout: 10
 
