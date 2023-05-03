@@ -14,6 +14,42 @@ defmodule BitPalApi.Errors do
   end
 end
 
+# FIXME
+# These error codes are quite bad. They're taken from Stripe's API,
+# but they don't correspond to HTTP status codes...
+#
+# Instead rework status codes:
+# https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
+#
+# Should use:
+# Not errors:
+# 200 OK
+# 201 Created
+# 202 Accepted
+# 204 No Content
+# 205 Reset Content
+#
+# Redirects:
+# 301 Moved Permanently
+# 302 Found
+# 304 Not Modified
+#
+# Errors:
+# 400 Bad Request
+# 401 Unauthorized
+# 403 Forbidden
+# 404 Not Found
+# 405 Method Not Allowed
+# 408 Request Timeout
+# 409 Conflict
+# 410 Gone
+# 429 Too Many Requests
+#
+# 500 Internal Server Error
+# 501 Not Implemented
+# 503 Service Unavailable
+#    If a backend isn't ready for instance
+
 defmodule BitPalApi.BadRequestError do
   @moduledoc """
   400 - Bad Request, The request was unacceptable, often due to missing a required parameter.

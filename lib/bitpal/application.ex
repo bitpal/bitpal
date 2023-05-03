@@ -19,7 +19,8 @@ defmodule BitPal.Application do
           Supervisor.child_spec({Phoenix.PubSub, name: BitPalApi.PubSub}, id: BitPalApi.PubSub),
           Supervisor.child_spec({Phoenix.PubSub, name: BitPalWeb.PubSub}, id: BitPalWeb.PubSub),
           BitPal.ProcessRegistry,
-          Supervisor.child_spec({Task.Supervisor, name: BitPal.TaskSupervisor},
+          Supervisor.child_spec(
+            {Task.Supervisor, name: BitPal.TaskSupervisor, strategy: :one_for_one},
             id: BitPal.TaskSupervisor
           ),
           Supervisor.child_spec(
