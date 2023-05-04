@@ -19,14 +19,8 @@ Ready to run in production? Please [check out the Phoenix deployment guides](htt
 
 # Contribution
 
-We enforce checks at CI level. They can be run locally with `mix bitpal.ci` and it includes:
+We enforce checks at CI level. They can be run locally with `mix test` and `mix check`.
 
-- Formating checks (using `mix format`)
-- Credo checks (`mix credo --all --strict`)
-- Dialyzer checks (`mix dialyzer --format short`)
-
-  If you encounter an error that you want to silence, add the output of `mix dialyzer --format short` to `.dialyzer_ignore.exs` or add a `@dialyzer` attribute in the file.
+  If you encounter a type error that you want to silence, add the output of `mix dialyzer --format short` to `.dialyzer_ignore.exs` or add a `@dialyzer` attribute in the file.
 
   Running dialyzer can be very time consuming the first time you run it.
-
-See `lib/mix/ci.ex` for details.
