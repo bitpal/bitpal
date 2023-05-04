@@ -1,57 +1,148 @@
-name: "ci"
+name: CI
 
-on: [pull_request]
+on:
+  pull_request:
+    branches: [ "master" ]
+
+# Sets the ENV `MIX_ENV` to `test` for running tests
+env:
+  MIX_ENV: test
+
+permissions:
+  contents: read
 
 jobs:
   test:
-    runs-on: ubuntu-latest
-
-    env:
-      CACHE_VERSION: v1
-
     services:
-      postgres:
-        image: postgres:latest
+      db:
+        image: postgres:12
+        ports: ['5432:5432']
         env:
-          POSTGRES_DB: bitpal_test
           POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-        ports:
-          - 5432:5432
-        # Set health checks to wait until postgres has started
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
 
+    runs-on: ubuntu-latest
+    name: Test on OTP ${{matrix.otp}} / Elixir ${{matrix.elixir}}
+    strategy:
+      # Specify the OTP and Elixir versions to use when building
+      # and running the workflow steps.
+      matrix:
+        otp: ['25.0.4']       # Define the OTP version [required]
+        elixir: ['1.14.3']    # Define the elixir version [required]
     steps:
-      - uses: actions/checkout@v2
+    # Step: Setup Elixir + Erlang image as the base.
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        otp-version: ${{matrix.otp}}
+        elixir-version: ${{matrix.elixir}}
 
-      - uses: erlef/setup-elixir@v1
-        with:
-          otp-version: 24
-          elixir-version: 1.13.2
+    # Step: Check out the code.
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      - uses: actions/setup-go@v2
-        with:
-          go-version: 1.15
+    # Step: Define how to cache deps. Restores existing cache if present.
+    - name: Cache deps
+      id: cache-deps
+      uses: actions/cache@v3
+      env:
+        cache-name: cache-elixir-deps
+      with:
+        path: deps
+        key: ${{ runner.os }}-mix-${{ env.cache-name }}-${{ hashFiles('**/mix.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-mix-${{ env.cache-name }}-
 
-      - name: Restore cached deps
-        uses: actions/cache@v1
-        with:
-          path: deps
-          key: deps-${{ env.CACHE_VERSION }}-${{ github.ref }}-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
-          restore-keys: |
-            deps-${{ env.CACHE_VERSION }}-${{ github.ref }}-
-            deps-${{ env.CACHE_VERSION }}-
-      - name: Restore cached build
-        uses: actions/cache@v1
-        with:
-          path: _build
-          key: build-${{ env.CACHE_VERSION }}-${{ github.ref }}-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
-          restore-keys: |
-            build-${{ env.CACHE_VERSION }}-${{ github.ref }}-
-            build-${{ env.CACHE_VERSION }}-
-      - run: mix deps.get
-      - run: mix bitpal.ci
+    # Step: Define how to cache the `_build` directory. After the first run,
+    # this speeds up tests runs a lot. This includes not re-compiling our
+    # project's downloaded deps every run.
+    - name: Cache compiled build
+      id: cache-build
+      uses: actions/cache@v3
+      env:
+        cache-name: cache-compiled-build
+      with:
+        path: _build
+        key: ${{ runner.os }}-mix-${{ env.cache-name }}-${{ hashFiles('**/mix.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-mix-${{ env.cache-name }}-
+          ${{ runner.os }}-mix-
+
+    # Step: Conditionally bust the cache when job is re-run.
+    # Sometimes, we may have issues with incremental builds that are fixed by
+    # doing a full recompile. In order to not waste dev time on such trivial
+    # issues (while also reaping the time savings of incremental builds for
+    # *most* day-to-day development), force a full recompile only on builds
+    # that are retried.
+    - name: Clean to rule out incremental build as a source of flakiness
+      if: github.run_attempt != '1'
+      run: |
+        mix deps.clean --all
+        mix clean
+      shell: sh
+
+    # Step: Download project dependencies.
+    # If unchanged, uses the cached version.
+    - name: Install dependencies
+      run: mix deps.get
+
+    - name: Compiles without warnings
+      run: mix compile --warnings-as-errors
+
+    - name: Check Formatting
+      run: mix format --check-formatted
+
+    - name: Run tests
+      run: mix test
+
+    - name: Credo checks
+      run: mix credo --all --strict
+
+    # - name: Security issues
+    #   run: mix sobelow --skip --private --exit
+
+    - name: Dependency audit
+      run: mix deps.audit
+
+    - name: Hex audit
+      run: mix hex.audit
+
+    - name: Unused dependencies
+      run: mix deps.unlock --check-unused
+
+    # Don't cache PLTs based on mix.lock hash, as Dialyzer can incrementally update even old ones
+    # Cache key based on Elixir & Erlang version (also useful when running in matrix)
+    - name: Restore PLT cache
+      id: plt_cache
+      uses: actions/cache/restore@v3
+      with:
+        key: |
+          ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-plt
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-plt
+        path: |
+          priv/plts
+
+    # Create PLTs if no cache was found
+    - name: Create PLTs
+      if: steps.plt_cache.outputs.cache-hit != 'true'
+      run: mix dialyzer --plt
+
+    # By default, the GitHub Cache action will only save the cache if all steps in the job succeed,
+    # so we separate the cache restore and save steps in case running dialyzer fails.
+    - name: Save PLT cache
+      id: plt_cache_save
+      uses: actions/cache/save@v3
+      if: steps.plt_cache.outputs.cache-hit != 'true'
+      with:
+        key: |
+          ${{ runner.os }}-${{ matrix.elixir }}-${{ matrix.otp }}-plt
+        path: |
+          priv/plts
+
+    - name: Type checks
+      run: mix dialyzer --format github
