@@ -6,15 +6,15 @@ config :bitpal,
 config :bitpal, BitPal.ExchangeRate,
   sources: [
     # Empty is only used for manual tests that require manual rates for a source.
-    {BitPal.ExchangeRate.Sources.Empty, prio: 1_000},
-    {BitPal.ExchangeRate.Sources.Random, prio: 100}
+    {BitPal.ExchangeRate.Sources.Empty, prio: 1, id: :SEED, name: "Test seed"},
+    {BitPal.ExchangeRate.Sources.Empty, prio: 2, id: :FACTORY, name: "Factory source"}
   ],
   # These are overridden by tests when it matters, but they still need to exist.
   rates_refresh_rate: 1_000 * 60,
   supported_refresh_rate: 1_000 * 60 * 60 * 24,
   request_timeout: 5_000,
   retry_timeout: 5_000,
-  rates_ttl: 15_000 * 60,
+  rates_ttl: 1_000 * 60 * 60,
   # These pairs are used by tests.
   fiat_to_update: [
     :EUR,
@@ -55,6 +55,7 @@ config :bitpal, :BCH,
     "xpub6C23JpFE6ABbBudoQfwMU239R5Bm6QGoigtLq1BD3cz3cC6DUTg89H3A7kf95GDzfcTis1K1m7ypGuUPmXCaCvoxDKbeNv6wRBEGEnt1NV7"
 
 config :bitpal, BitPalFactory, init: true
+config :bitpal, BitPal.InvoiceSupervisor, pass_parent_pid: true
 
 config :bitpal, BitPal.BackendManager, reconnect_timeout: 10
 
@@ -64,3 +65,4 @@ config :logger, level: :warning
 # Can use this to hide GenServer shutdown errors, generated from our backend tests
 # when the backends are made to crash or killed after a local test.
 config :logger, level: :critical
+# config :logger, level: :error

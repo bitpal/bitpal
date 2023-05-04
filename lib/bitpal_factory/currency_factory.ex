@@ -19,6 +19,11 @@ defmodule BitPalFactory.CurrencyFactory do
     CurrencyCounter.next_fiat()
   end
 
+  @spec crypto_currency_id([atom]) :: atom
+  def crypto_currency_id(blacklist \\ []) do
+    Faker.Util.pick([:BCH, :XMR, :DGC], blacklist)
+  end
+
   @spec fiat_currency_id([atom]) :: atom
   def fiat_currency_id(blacklist \\ []) do
     Faker.Util.pick([:USD, :EUR, :SEK], blacklist)

@@ -1,6 +1,7 @@
 defmodule BitPalWeb.StoreInvoicesLive do
   use BitPalWeb, :live_view
   alias BitPal.InvoiceEvents
+  alias BitPal.Stores
   alias BitPal.InvoiceSupervisor
   alias BitPal.StoreEvents
   alias BitPalWeb.StoreLiveAuth
@@ -9,7 +10,7 @@ defmodule BitPalWeb.StoreInvoicesLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    store = socket.assigns.store |> Repo.preload(:invoices)
+    store = socket.assigns.store |> Stores.load_invoices()
 
     if connected?(socket) do
       for invoice <- store.invoices do

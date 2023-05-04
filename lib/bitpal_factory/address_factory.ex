@@ -64,6 +64,10 @@ defmodule BitPalFactory.AddressFactory do
   end
 
   @spec generate_address(Addresses.address_generator_args()) :: Address.id()
+  def generate_address(%{key: "xpub:test" <> _, currency_id: currency_id}) do
+    unique_address_id(currency_id)
+  end
+
   def generate_address(%{key: xpub, index: address_index, currency_id: :BCH}) do
     Cashaddress.derive_address(xpub, address_index)
   end

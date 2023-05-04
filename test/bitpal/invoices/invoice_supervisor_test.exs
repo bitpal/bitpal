@@ -11,11 +11,12 @@ defmodule InvoiceSupervisorTest do
 
   describe "finalize_invoice/2" do
     test "initialize", %{currency_id: currency_id, name: name} do
-      inv1 = create_invoice(currency_id: currency_id)
+      inv1 = create_invoice(payment_currency_id: currency_id)
+
       assert {:ok, got_inv1} = InvoiceSupervisor.finalize_invoice(inv1, name: name)
       assert inv1.id == got_inv1.id
 
-      inv2 = create_invoice(currency_id: currency_id)
+      inv2 = create_invoice(payment_currency_id: currency_id)
       assert {:ok, got_inv2} = InvoiceSupervisor.finalize_invoice(inv2, name: name)
       assert inv2.id == got_inv2.id
 
@@ -31,7 +32,7 @@ defmodule InvoiceSupervisorTest do
     end
 
     test "finalizes", %{currency_id: currency_id, name: name} do
-      inv = create_invoice(currency_id: currency_id, status: :draft)
+      inv = create_invoice(payment_currency_id: currency_id, status: :draft)
       assert {:ok, got_inv} = InvoiceSupervisor.finalize_invoice(inv, name: name)
       assert inv.id == got_inv.id
       assert got_inv.status == :open
@@ -43,7 +44,7 @@ defmodule InvoiceSupervisorTest do
       currency_id: currency_id,
       name: name
     } do
-      inv = create_invoice(currency_id: currency_id, status: :open)
+      inv = create_invoice(payment_currency_id: currency_id, status: :open)
       assert inv.status == :open
       assert {:ok, handler} = InvoiceSupervisor.ensure_handler(inv, name: name)
       assert is_pid(handler)

@@ -1,8 +1,6 @@
 defmodule BitPal.ExchangeRateSupervisor do
   use Supervisor
-  alias BitPal.ExchangeRateCache
   alias BitPal.ExchangeRateWorker
-  alias BitPal.ProcessRegistry
   alias BitPalSchemas.Currency
   require Logger
 
@@ -37,10 +35,6 @@ defmodule BitPal.ExchangeRateSupervisor do
     end)
   end
 
-  def cache_name(name \\ __MODULE__) do
-    ProcessRegistry.via_tuple({name, :cache})
-  end
-
   def start_link(opts) do
     name = Keyword.get(opts, :name, __MODULE__)
     Supervisor.start_link(__MODULE__, opts, name: name)
@@ -48,17 +42,18 @@ defmodule BitPal.ExchangeRateSupervisor do
 
   @impl true
   def init(opts) do
-    name = Keyword.get(opts, :name, __MODULE__)
-    cache_name = cache_name(name)
-
     sources = opts[:sources] || @sources
 
-    children = [
-      {ExchangeRateCache, name: cache_name}
-      | Enum.map(sources, fn {source, opts} ->
-          {ExchangeRateWorker, Keyword.merge(opts, source: source, cache_name: cache_name)}
-        end)
-    ]
+    children =
+      Enum.map(sources, fn {module, opts} ->
+        args =
+          opts
+          |> Map.new()
+          |> Map.put_new(:module, module)
+          |> Enum.into([])
+
+        {ExchangeRateWorker, args}
+      end)
 
     Supervisor.init(children, strategy: :one_for_one)
   end

@@ -5,7 +5,10 @@ defmodule BitPalFactory.InvoiceFactory do
   """
   import BitPalFactory.UtilFactory
   import Ecto.Changeset
+  alias BitPalFactory.ExchangeRateFactory
+  alias BitPal.Currencies
   alias BitPal.Addresses
+  alias BitPal.ExchangeRates
   alias BitPal.Invoices
   alias BitPal.InvoiceSupervisor
   alias BitPal.Repo
@@ -16,37 +19,234 @@ defmodule BitPalFactory.InvoiceFactory do
   alias BitPalFactory.StoreFactory
   alias BitPalSchemas.Address
   alias BitPalSchemas.Invoice
+  alias BitPalSchemas.InvoiceStatus
+  alias BitPalSchemas.InvoiceRates
   alias BitPalSchemas.Store
+  require Logger
+
+  def valid_invoice_attributes(attrs \\ %{}) do
+    required_confirmations = attrs[:required_confirmations] || Faker.random_between(0, 3)
+
+    if attrs[:currency_id] do
+      raise "trying to set currency_id!"
+    end
+
+    Enum.into(
+      attrs,
+      %{
+        status: valid_status(required_confirmations),
+        required_confirmations: required_confirmations,
+        description: Faker.Commerce.product_name(),
+        email: Faker.Internet.email(),
+        order_id: Faker.Code.isbn()
+      }
+    )
+    |> add_valid_payment_setup()
+    |> add_test_currency_rates()
+    |> add_pos_data()
+    |> Map.take([
+      :status,
+      :price,
+      :rates,
+      :payment_currency_id,
+      :expected_payment,
+      :required_confirmations,
+      :description,
+      :email,
+      :order_id,
+      :pos_data,
+      :address_id,
+      :store_id
+    ])
+  end
+
+  # These 4 fields must match, and this will fill in the missing ones:
+  # - price
+  # - payment_currency_id
+  # - expected_payment
+  # - rates (matching price + payment_currency)
+  # expected_payment is ignored during invoice creation and is only sometimes added here.
+  # payment_currency is also not required for draft creation, but is added here regardless
+  # (unless payment_currency_id: nil is passed)
+  defp add_valid_payment_setup(attrs = %{payment_currency_id: nil}) do
+    Map.delete(attrs, :payment_currency_id)
+  end
+
+  defp add_valid_payment_setup(
+         attrs = %{price: price, payment_currency_id: payment_currency_id, rates: rates}
+       ) do
+    {:ok, expected_payment} =
+      Invoices.calculate_expected_payment(price, payment_currency_id, rates)
+
+    if specified = attrs[:expected_payment] do
+      if specified != expected_payment do
+        raise "expected_payment mismatch got: `#{specified}` expected `#{expected_payment}`"
+      end
+    end
+
+    # Should be calculated in invoice creation, so we could leave it out too.
+    attrs
+    |> Map.put(:expected_payment, expected_payment)
+  end
+
+  defp add_valid_payment_setup(attrs = %{price: price, expected_payment: expected_payment}) do
+    if id = attrs[:payment_currency_id] do
+      if id != expected_payment.currency do
+        raise "payment_currency mismatch got: `#{id}` expected `#{expected_payment.currency}`"
+      end
+    end
+
+    rate = ExchangeRates.calculate_rate(price, expected_payment)
+
+    Map.merge(attrs, %{
+      rates: %{expected_payment.currency => %{price.currency => rate}},
+      payment_currency_id: expected_payment.currency
+    })
+  end
+
+  defp add_valid_payment_setup(attrs = %{expected_payment: expected_payment}) do
+    if id = attrs[:payment_currency_id] do
+      if id != expected_payment.currency do
+        raise "payment_currency mismatch got: `#{id}` expected `#{expected_payment.currency}`"
+      end
+    end
+
+    # Round to avoid rounding errors in == some edge-case tests
+    # if rates have too many decimals. This appears because we
+    # may specify the expected_payment exactly, but when creating the invoice
+    # we calculate it from price which is money with (usually) only 2 decimal places,
+    # leading to some rounding errors.
+    # But crypto can have many more decimals, which may be lost during this conversion.
+    # This should not have any effect on regular operation, as this roundabout calculation
+    # is only done in some tests.
+    rates =
+      attrs[:rates] ||
+        ExchangeRateFactory.bundled_rates(crypto: expected_payment.currency, decimals: 0)
+
+    {price_currency, rate} = InvoiceRates.find_quote_with_rate(rates, expected_payment.currency)
+
+    price = ExchangeRates.calculate_quote(rate, expected_payment, price_currency)
+
+    Map.merge(attrs, %{
+      price: price,
+      payment_currency_id: expected_payment.currency,
+      rates: rates
+    })
+  end
+
+  defp add_valid_payment_setup(attrs = %{rates: rates, price: price}) do
+    {payment_currency_id, _} = InvoiceRates.find_base_with_rate(rates, price.currency)
+    Map.put(attrs, :payment_currency_id, payment_currency_id)
+  end
+
+  defp add_valid_payment_setup(attrs = %{rates: rates, payment_currency_id: payment_currency_id}) do
+    {price_currency, _} = InvoiceRates.find_quote_with_rate(rates, payment_currency_id)
+    Map.put(attrs, :price, create_money(price_currency))
+  end
+
+  defp add_valid_payment_setup(attrs = %{rates: rates}) do
+    # Have rates but not price and no expected_payment.
+    {payment_currency_id, price_currency, _rate} = InvoiceRates.find_any_rate(rates)
+
+    Map.merge(attrs, %{
+      price: create_money(price_currency),
+      payment_currency_id: payment_currency_id
+    })
+  end
+
+  defp add_valid_payment_setup(
+         attrs = %{price: _price, payment_currency_id: _payment_currency_id}
+       ) do
+    attrs
+  end
+
+  defp add_valid_payment_setup(attrs = %{price: price}) do
+    if Currencies.is_crypto(price.currency) do
+      payment_currency_id = price.currency
+      Map.merge(attrs, %{payment_currency_id: payment_currency_id})
+    else
+      payment_currency_id = valid_payment_currency(attrs)
+      Map.merge(attrs, %{payment_currency_id: payment_currency_id})
+    end
+  end
+
+  defp add_valid_payment_setup(attrs) do
+    # Nothing here except maybe payment_currency_id
+    payment_currency_id = valid_payment_currency(attrs)
+    price = create_money(CurrencyFactory.fiat_currency_id())
+    Map.merge(attrs, %{price: price, payment_currency_id: payment_currency_id})
+  end
+
+  def add_test_currency_rates(attrs = %{payment_currency_id: payment_currency}) do
+    if Currencies.is_test_currency?(payment_currency) do
+      rates = attrs[:rates]
+
+      if !rates || InvoiceRates.find_quote_with_rate(rates, payment_currency) == :not_found do
+        add_bundled_rates(payment_currency, attrs)
+      else
+        attrs
+      end
+    else
+      attrs
+    end
+  end
+
+  def add_test_currency_rates(attrs) do
+    attrs
+  end
+
+  defp add_bundled_rates(payment_currency, attrs) do
+    Map.put(
+      attrs,
+      :rates,
+      ExchangeRateFactory.bundled_rates(crypto: payment_currency, decimals: 0)
+    )
+  end
+
+  def valid_status(required_confirmations, blacklist \\ []) do
+    state = Faker.Util.pick([:draft, :open, :processing, :uncollectible, :void, :paid], blacklist)
+
+    reason =
+      case state do
+        :processing ->
+          if required_confirmations == 0 do
+            :verifying
+          else
+            :confirming
+          end
+
+        :uncollectible ->
+          Enum.random([:expired, :canceled, :timed_out, :double_spent])
+
+        :void ->
+          Enum.random([:expired, :canceled, :timed_out, :double_spent, nil])
+
+        _ ->
+          nil
+      end
+
+    InvoiceStatus.cast!({state, reason})
+  end
 
   def valid_pos_data do
     %{"ref" => Faker.random_between(0, 1_000_000)}
   end
 
-  def valid_invoice_attributes(attrs \\ %{}) do
-    Enum.into(attrs, %{
-      amount: rand_pos_float(),
-      exchange_rate: rand_pos_float(),
-      currency_id: CurrencyFactory.unique_currency_id() |> Atom.to_string(),
-      fiat_currency: CurrencyFactory.fiat_currency(),
-      description: Faker.Commerce.product_name(),
-      email: Faker.Internet.email(),
-      required_confirmations: Faker.random_between(0, 3),
-      status: Enum.random([:draft, :open, :processing, :uncollectible, :void, :paid])
-    })
-    |> add_pos_data()
-    |> Map.take([
-      :amount,
-      :fiat_currency,
-      :fiat_amount,
-      :exchange_rate,
-      :currency_id,
-      :description,
-      :email,
-      :status,
-      :status_reason,
-      :pos_data,
-      :required_confirmations
-    ])
+  def valid_price do
+    create_money(Enum.random([:USD, :EUR, :SEK]))
+  end
+
+  def valid_payment_currency(attrs \\ %{}) do
+    cond do
+      currency = attrs[:payment_currency_id] ->
+        currency
+
+      attrs[:unique_currency] ->
+        CurrencyFactory.unique_currency_id()
+
+      true ->
+        Enum.random([:BCH, :XMR, :DGC])
+    end
   end
 
   defp add_pos_data(attrs = %{pos_data: _}) do
@@ -97,12 +297,23 @@ defmodule BitPalFactory.InvoiceFactory do
 
   def create_invoice(store_id, params) when is_integer(store_id) do
     invoice_params = valid_invoice_attributes(params)
-    {:ok, invoice} = Invoices.register(store_id, invoice_params)
+
+    invoice =
+      case Invoices.register(store_id, invoice_params) do
+        {:ok, invoice} ->
+          invoice
+
+        {:error, changeset} ->
+          Logger.critical("invoice factory failed to create invoice")
+          Logger.critical("  #{inspect(changeset)}")
+          Logger.critical("  #{inspect(invoice_params)}")
+          raise("bad invoice creation in factory")
+      end
 
     if address_key = params[:address_key] do
       SettingsFactory.ensure_address_key!(
         store_id: store_id,
-        currency_id: invoice.currency_id,
+        currency_id: invoice.payment_currency_id,
         data: address_key
       )
     end
@@ -122,28 +333,31 @@ defmodule BitPalFactory.InvoiceFactory do
   end
 
   @spec change_status(Invoice.t(), map) :: Invoice.t()
-  defp change_status(invoice, params = %{status: status}) do
-    status_reason =
-      params[:status_reason] ||
-        case status do
-          :processing ->
-            if invoice.required_confirmations == 0 do
-              :verifying
-            else
-              :confirming
-            end
+  defp change_status(invoice, %{status: status}) do
+    status =
+      case status do
+        :processing ->
+          if invoice.required_confirmations == 0 do
+            {:processing, :verifying}
+          else
+            {:processing, :confirming}
+          end
 
-          :uncollectible ->
-            Enum.random([:expired, :canceled, :timed_out, :double_spent])
+        :uncollectible ->
+          {:uncollectible, Enum.random([:expired, :canceled, :timed_out, :double_spent])}
 
-          :void ->
-            Enum.random([:expired, :canceled, :timed_out, :double_spent, nil])
+        :void ->
+          if reason = Enum.random([:expired, :canceled, :timed_out, :double_spent, nil]) do
+            {:void, reason}
+          else
+            :void
+          end
 
-          _ ->
-            nil
-        end
+        alone ->
+          alone
+      end
 
-    change(invoice, status: status, status_reason: status_reason)
+    change(invoice, status: status)
     |> Repo.update!()
   end
 

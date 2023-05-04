@@ -21,7 +21,7 @@ defmodule BitPal.Backend.Flowee.Connection do
   in Elixir).
   """
 
-  use Bitwise
+  import Bitwise
   alias BitPal.Backend.Flowee.Connection
   alias BitPal.BCH.Cashaddress
   require Logger

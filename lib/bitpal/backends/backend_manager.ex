@@ -28,7 +28,7 @@ defmodule BitPal.BackendManager do
 
   @spec register(server_name, Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
   def register(server \\ __MODULE__, invoice) do
-    case fetch_backend(server, invoice.currency_id) do
+    case fetch_backend(server, invoice.payment_currency_id) do
       {:ok, ref} -> Backend.register(ref, invoice)
       error -> error
     end

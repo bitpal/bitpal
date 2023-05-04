@@ -1,28 +1,74 @@
 defmodule BitPalFactory.ExchangeRateFactory do
   import BitPalFactory.UtilFactory
-  alias BitPal.ExchangeRate
-  alias BitPal.ExchangeRateCache
+  alias BitPalFactory.CurrencyFactory
+  alias BitPalSchemas.ExchangeRate
+  alias BitPalSchemas.InvoiceRates
+
+  def random_rate(opts \\ []) do
+    decimals = Keyword.get(opts, :decimals, 3)
+    rand_pos_decimal(decimals: decimals)
+  end
+
+  def random_rates(opts \\ []) do
+    %{
+      CurrencyFactory.crypto_currency_id() => %{
+        CurrencyFactory.fiat_currency_id() => random_rate(opts),
+        CurrencyFactory.fiat_currency_id() => random_rate(opts)
+      }
+    }
+  end
 
   @spec pair(keyword) :: ExchangeRate.pair()
   def pair(opts \\ []) do
-    {opts[:base] || :BCH, opts[:quote] || :USD}
+    {opts[:base] || CurrencyFactory.crypto_currency_id(),
+     opts[:quote] || CurrencyFactory.fiat_currency_id()}
   end
 
-  @spec exchange_rate(keyword) :: ExchangeRate.t()
-  def exchange_rate(opts \\ []) do
-    %ExchangeRate{
+  @spec rate_params(keyword) :: map
+  def rate_params(opts \\ []) do
+    %{
       pair: opts[:pair] || pair(opts),
-      rate: opts[:rate] || rand_decimal()
+      prio: opts[:prio] || Faker.random_between(0, 100),
+      source: opts[:source] || :FACTORY,
+      rate: opts[:rate] || random_rate(opts)
     }
   end
 
-  @spec cache_rate(keyword) :: ExchangeRateCache.Rate.t()
-  def cache_rate(opts \\ []) do
-    %ExchangeRateCache.Rate{
+  @spec rates_params(keyword) :: map
+  def rates_params(opts \\ []) do
+    %{
+      rates: opts[:rates] || random_rates(opts),
       prio: opts[:prio] || Faker.random_between(0, 100),
-      source: opts[:source] || :NO_SRC,
-      rate: opts[:exchange_rate] || exchange_rate(opts),
-      updated: opts[:updated] || NaiveDateTime.utc_now()
+      source: opts[:source] || :FACTORY
     }
+  end
+
+  @spec bundled_rates(keyword) :: InvoiceRates.t()
+  def bundled_rates(opts \\ []) do
+    fiat =
+      case Keyword.get(opts, :fiat) do
+        nil -> [:USD, :EUR, :SEK]
+        x when is_list(x) -> x
+        x when is_atom(x) -> [x]
+      end
+      |> MapSet.new()
+
+    crypto =
+      case Keyword.get(opts, :crypto) do
+        nil -> [:BCH, :XMR, :DGC]
+        x when is_list(x) -> x
+        x when is_atom(x) -> [x]
+      end
+      |> MapSet.new()
+
+    Enum.reduce(crypto, %{}, fn crypto_id, acc ->
+      Map.put(
+        acc,
+        crypto_id,
+        Enum.reduce(fiat, %{}, fn fiat_id, acc ->
+          Map.put(acc, fiat_id, random_rate(opts))
+        end)
+      )
+    end)
   end
 end

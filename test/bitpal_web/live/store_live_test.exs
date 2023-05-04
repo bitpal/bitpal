@@ -17,7 +17,7 @@ defmodule BitPalWeb.StoreLiveTest do
       _invoice =
         create_invoice(store.id,
           description: "A draft invoice",
-          curency_id: currency_id
+          payment_curency_id: currency_id
         )
 
       assert render_eventually(view, "A draft invoice")
@@ -35,7 +35,7 @@ defmodule BitPalWeb.StoreLiveTest do
           store_id: store.id,
           address_id: :auto,
           required_confirmations: 3,
-          currency_id: currency_id
+          payment_currency_id: currency_id
         )
 
       render_eventually(view, "open")

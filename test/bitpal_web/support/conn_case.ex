@@ -123,7 +123,7 @@ defmodule BitPalWeb.ConnCase do
       HandlerSubscriberCollector.create_invoice(
         Enum.into(attrs, %{
           store_id: store.id,
-          currency_id: currency_id
+          payment_currency_id: currency_id
         })
       )
 

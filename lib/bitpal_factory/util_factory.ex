@@ -24,6 +24,26 @@ defmodule BitPalFactory.UtilFactory do
     dec
   end
 
+  @spec rand_pos_decimal(keyword) :: Decimal.t()
+  def rand_pos_decimal(opts) do
+    decimals = opts[:decimals] || nil
+    min = Decimal.from_float(opts[:min] || 0.1)
+    max = opts[:max] || 1_000.0
+
+    res =
+      if decimals do
+        Decimal.round(rand_decimal(max), decimals)
+      else
+        rand_decimal()
+      end
+
+    if Decimal.lt?(min, res) do
+      res
+    else
+      min
+    end
+  end
+
   @spec split_money(Money.t(), non_neg_integer) :: [Money.t()]
   def split_money(_money = %Money{}, 0), do: []
   def split_money(money = %Money{}, 1), do: [money]
@@ -94,4 +114,11 @@ defmodule BitPalFactory.UtilFactory do
       count
     )
   end
+
+  # @spec rand_price() :: Money.t()
+  # def rand_price() do
+  #
+  # end
+  #
+  # def rand_payment
 end

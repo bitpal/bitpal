@@ -5,12 +5,14 @@ defmodule BitPal.InvoiceTransactionsTest do
 
   setup tags do
     currency_id = unique_currency_id()
+    amount = Map.get(tags, :amount, rand_pos_float())
+    expected_payment = Money.parse!(amount, currency_id)
 
     invoice =
       Map.take(tags, [:amount, :required_confirmations])
       |> Map.merge(%{
         address_id: :auto,
-        currency_id: currency_id
+        expected_payment: expected_payment
       })
       |> create_invoice()
 

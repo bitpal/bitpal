@@ -5,7 +5,7 @@ defmodule BitPal.MixProject do
     [
       app: :bitpal,
       version: "0.1.0",
-      elixir: "~> 1.13",
+      elixir: "~> 1.14.3",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
@@ -59,6 +59,7 @@ defmodule BitPal.MixProject do
       {:con_cache, "~> 1.0"},
       {:faker, "~> 0.16"},
       {:timex, "~> 3.0"},
+      {:recase, "~> 0.7"},
 
       # Server docs
       {:nimble_publisher, git: "https://github.com/treeman/nimble_publisher.git"},
@@ -89,13 +90,12 @@ defmodule BitPal.MixProject do
       {:heex_formatter, github: "feliperenan/heex_formatter"},
 
       # CI and tests
-      {:ci,
-       git: "https://github.com/sasa1977/ci.git", ref: "bc67646b67255a0df7dff761b1105f8b822e9b5d"},
-      {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
-      {:sobelow, "~> 0.8", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
+      {:sobelow, "~> 0.11", only: [:dev, :test], runtime: false},
+      {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
 
-      # Elixir docsdefstruct 
+      # Elixir docsdefstruct
       {:ex_doc, "~> 0.24", only: :dev, runtime: false}
     ]
   end
@@ -105,14 +105,24 @@ defmodule BitPal.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      ci: "bitpal.ci",
       "phx.routes": "phx.routes BitPalWeb.Router",
       setup: ["deps.get", "ecto.setup"],
       "ecto.dev_reset": ["ecto.reset", "run priv/repo/dev_seeds.exs"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
-      # test: ["ecto.create --quiet", "ecto.migrate --quiet", "test --no-start"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
+      check: [
+        "compile --warnings-as-errors --all-warnings",
+        "format --check-formatted --dry-run",
+        "credo --all --strict",
+        # "sobelow --skip --exit",
+        "deps.audit",
+        "hex.audit",
+        "deps.unlock --check-unused",
+        "dialyzer --format short"
+      ],
+      "assets.setup": ["esbuild.install --if-missing"],
+      "assets.build": ["esbuild default"],
       "assets.deploy": [
         "sass default --no-source-map --style=compressed",
         "esbuild default --minify",

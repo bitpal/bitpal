@@ -10,6 +10,7 @@ defmodule BitPalSchemas.TxOutput do
     field(:txid, :string)
     field(:amount, NumericType) :: Money.t()
     field(:confirmed_height, :integer) :: height
+    # field(:required_confirmations, :integer) :: non_neg_integer
     field(:double_spent, :boolean, default: false)
 
     belongs_to(:address, Address, type: :string)

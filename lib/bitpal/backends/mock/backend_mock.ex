@@ -106,7 +106,7 @@ defmodule BitPal.BackendMock do
   end
 
   defp server(invoice = %Invoice{}) do
-    server(invoice.currency_id)
+    server(invoice.payment_currency_id)
   end
 
   defp server(currency_id) when is_atom(currency_id) do
@@ -221,7 +221,7 @@ defmodule BitPal.BackendMock do
   @impl true
   def handle_call({:tx_seen, invoice}, _from, state) do
     txid = unique_txid()
-    :ok = Transactions.seen(txid, [{invoice.address_id, invoice.amount}])
+    :ok = Transactions.seen(txid, [{invoice.address_id, invoice.expected_payment}])
     {:reply, txid, state}
   end
 
@@ -268,7 +268,7 @@ defmodule BitPal.BackendMock do
 
   @impl true
   def handle_info({:auto_tx_seen, invoice}, state) do
-    :ok = Transactions.seen(unique_txid(), [{invoice.address_id, invoice.amount}])
+    :ok = Transactions.seen(unique_txid(), [{invoice.address_id, invoice.expected_payment}])
     {:noreply, append_auto_confirm(state, invoice)}
   end
 
@@ -358,7 +358,8 @@ defmodule BitPal.BackendMock do
         _ -> unique_txid()
       end
 
-    :ok = Transactions.confirmed(txid, [{invoice.address_id, invoice.amount}], state.height)
+    :ok =
+      Transactions.confirmed(txid, [{invoice.address_id, invoice.expected_payment}], state.height)
 
     state
   end

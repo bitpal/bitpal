@@ -44,4 +44,10 @@ defmodule BitPal.TestHelpers do
       end)
     end)
   end
+
+  @spec decimal_eq(Decimal.t(), Decimal.t(), float) :: boolean
+  def decimal_eq(a, b, tolerance \\ 0.1) do
+    diff = Decimal.sub(a, b) |> Decimal.abs()
+    Decimal.compare(diff, Decimal.from_float(tolerance)) == :lt
+  end
 end

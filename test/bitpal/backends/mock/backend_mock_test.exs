@@ -11,14 +11,14 @@ defmodule BackendMockTest do
     test "auto confirms", %{currency_id: currency_id} do
       {:ok, _inv1, stub1, _invoice_handler} =
         HandlerSubscriberCollector.create_invoice(
-          currency_id: currency_id,
+          payment_currency_id: currency_id,
           required_confirmations: 1,
           amount: 1.0
         )
 
       {:ok, _inv3, stub3, _invoice_handler} =
         HandlerSubscriberCollector.create_invoice(
-          currency_id: currency_id,
+          payment_currency_id: currency_id,
           required_confirmations: 3,
           amount: 3.0
         )

@@ -6,7 +6,6 @@ defmodule BitPal.Backend.Flowee.Protocol do
   a easier to use, high-level protocol.
   """
 
-  use Bitwise
   alias BitPal.Backend.Flowee.Connection
   alias BitPal.Backend.Flowee.Connection.Binary
   alias BitPal.Backend.Flowee.Connection.RawMsg

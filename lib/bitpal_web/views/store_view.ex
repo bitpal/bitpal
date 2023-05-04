@@ -1,9 +1,9 @@
 defmodule BitPalWeb.StoreView do
   use BitPalWeb, :view
-  alias BitPal.Currencies
   alias BitPal.Invoices
   alias BitPalSchemas.AccessToken
   alias BitPalSchemas.Invoice
+  alias BitPalSchemas.InvoiceStatus
 
   @dialyzer {:nowarn_function, format_pos_data: 1}
 
@@ -25,7 +25,7 @@ defmodule BitPalWeb.StoreView do
   end
 
   defp readable_status(status) do
-    tag = Atom.to_string(status)
+    tag = Atom.to_string(InvoiceStatus.state(status))
     readable = tag |> String.capitalize()
 
     assigns = %{
@@ -57,11 +57,11 @@ defmodule BitPalWeb.StoreView do
     ""
   end
 
-  defp readable_status_reason_msg(%Invoice{status_reason: :verifying}) do
+  defp readable_status_reason_msg(%Invoice{status: {_, :verifying}}) do
     "Verifying 0-conf"
   end
 
-  defp readable_status_reason_msg(invoice = %Invoice{status_reason: :confirming}) do
+  defp readable_status_reason_msg(invoice = %Invoice{status: {_, :confirming}}) do
     # This is slow, as it forces txs to be reloaded
     # Maybe we could have the invoices be loaded with txs directly?
     invoice = Invoices.update_info_from_txs(invoice)
@@ -70,53 +70,29 @@ defmodule BitPalWeb.StoreView do
     "Confirming #{have}/#{invoice.required_confirmations}"
   end
 
-  defp readable_status_reason_msg(%Invoice{status_reason: :expired}) do
+  defp readable_status_reason_msg(%Invoice{status: {_, :expired}}) do
     "Expired"
   end
 
-  defp readable_status_reason_msg(%Invoice{status_reason: :canceled}) do
+  defp readable_status_reason_msg(%Invoice{status: {_, :canceled}}) do
     "Canceled by user"
   end
 
-  defp readable_status_reason_msg(%Invoice{status_reason: :double_spent}) do
+  defp readable_status_reason_msg(%Invoice{status: {_, :double_spent}}) do
     "Double spend detected"
   end
 
-  defp readable_status_reason_msg(%Invoice{status_reason: :timed_out}) do
+  defp readable_status_reason_msg(%Invoice{status: {_, :timed_out}}) do
     "Payment timed out"
   end
 
-  defp readable_status_reason_msg(%Invoice{status_reason: nil}) do
+  defp readable_status_reason_msg(%Invoice{status: _}) do
     ""
   end
 
   # def format_date(invoice) do
   #   DateTime.to_date(invoice.inserted_at)
   # end
-
-  def format_amount(invoice) do
-    invoice.amount |> money_to_string()
-  end
-
-  def format_fiat_amount(invoice) do
-    invoice.fiat_amount |> money_to_string()
-  end
-
-  def money_to_string(money) do
-    Money.to_string(money, money_format_args(money.currency))
-  end
-
-  def money_format_args(:SEK) do
-    [separator: "", delimiter: ".", symbol_space: true, symbol_on_right: true]
-  end
-
-  def money_format_args(id) do
-    if Currencies.is_crypto(id) do
-      [symbol_space: true, symbol_on_right: true]
-    else
-      []
-    end
-  end
 
   def live_invoice_link(socket, opts) do
     id = Keyword.fetch!(opts, :id)

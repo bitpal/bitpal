@@ -1,5 +1,7 @@
 defmodule BitPal.RateLimiterTest do
-  use ExUnit.Case, async: true
+  # async: false as "rate limited requests" tests is hard to find a good timeframe for
+  # consistency, while not slowing down the test suite.
+  use ExUnit.Case, async: false
   import BitPal.TestHelpers
   alias BitPal.RateLimiter
 
@@ -125,13 +127,12 @@ defmodule BitPal.RateLimiterTest do
            end)
 
     # There must be a delay here, so we have time to make this call.
+    # So the timeframe must be large enough for us to see it.
     Handler.clear_responses(handler)
 
     assert eventually(fn ->
              Handler.responses(handler) == 6..10 |> Enum.into([])
            end)
-
-    Process.sleep(20)
   end
 
   @tag retry_timeout: 50

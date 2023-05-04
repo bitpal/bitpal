@@ -8,16 +8,7 @@ defmodule BitPal.StoreTest do
   end
 
   test "store invoice association", %{store: store} do
-    assert {:ok, invoice} =
-             Invoices.register(
-               store.id,
-               %{
-                 amount: "1.2",
-                 currency_id: unique_currency_id(),
-                 exchange_rate: "2.0",
-                 fiat_currency: fiat_currency()
-               }
-             )
+    assert {:ok, invoice} = Invoices.register(store.id, valid_invoice_attributes())
 
     store = Repo.preload(store, [:invoices])
     assert length(store.invoices) == 1

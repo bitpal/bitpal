@@ -15,24 +15,34 @@ defmodule BitPalApi.ChannelCase do
   this option is not recommended for other databases.
   """
 
-  use ExUnit.CaseTemplate
-  alias BitPal.IntegrationCase
-
-  using do
+  defmacro __using__(params) do
     quote do
+      use ExUnit.Case, unquote(params)
+      use BitPal.CaseHelpers
       use BitPalFactory
       import Phoenix.ChannelTest
       import BitPalApi.ChannelCase
       import BitPal.TestHelpers
+      alias BitPal.DataCase
+      alias BitPal.IntegrationCase
 
       # The default endpoint for testing
       @endpoint BitPalApi.Endpoint
 
-      alias BitPal.HandlerSubscriberCollector
-    end
-  end
+      @integration Keyword.get(unquote(params), :integration)
 
-  setup tags do
-    IntegrationCase.setup_integration(tags)
+      setup tags do
+        {:ok, setup_integration(tags)}
+      end
+
+      defp setup_integration(tags) do
+        if @integration do
+          IntegrationCase.setup_integration(tags)
+        else
+          DataCase.setup_db(tags)
+          tags
+        end
+      end
+    end
   end
 end

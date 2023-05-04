@@ -1,6 +1,7 @@
 defmodule BitPal.Stores do
   import Ecto.Changeset
   import Ecto.Query, only: [from: 2]
+  alias BitPal.Invoices
   alias BitPal.Repo
   alias BitPal.UserEvents
   alias BitPalSchemas.AccessToken
@@ -191,5 +192,11 @@ defmodule BitPal.Stores do
     |> String.downcase()
     |> String.replace(~r/[^a-z0-9\s-]/, "")
     |> String.replace(~r/(\s|-)+/, "-")
+  end
+
+  @spec load_invoices(Store.t()) :: Store.t()
+  def load_invoices(store) do
+    store = Repo.preload(store, :invoices)
+    %{store | invoices: Enum.map(store.invoices, &Invoices.update_expected_payment/1)}
   end
 end

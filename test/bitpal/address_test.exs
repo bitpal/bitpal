@@ -109,18 +109,18 @@ defmodule AddressTest do
   describe "addresses with invoice statuses" do
     setup %{currency_id: currency_id} do
       draft_address =
-        create_invoice(currency_id: currency_id, address_id: :auto, status: :draft).address_id
+        create_invoice(payment_currency_id: currency_id, address_id: :auto, status: :draft).address_id
 
       open_address =
         create_invoice(
-          currency_id: currency_id,
+          payment_currency_id: currency_id,
           address_id: :auto,
           status: :open
         ).address_id
 
       processing_address =
         create_invoice(
-          currency_id: currency_id,
+          payment_currency_id: currency_id,
           address_id: :auto,
           status: :processing
         ).address_id

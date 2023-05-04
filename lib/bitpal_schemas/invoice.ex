@@ -1,69 +1,68 @@
 defmodule BitPalSchemas.Invoice do
   use TypedEctoSchema
 
-  use BitPal.FSM.Config,
-    state_field: :status,
-    transitions: %{
-      :draft => :open,
-      :open => [:processing, :uncollectible, :void],
-      :processing => [:paid, :uncollectible],
-      :uncollectible => [:paid, :void]
-    }
-
-  alias BitPal.ExchangeRate
   alias BitPalSchemas.Address
   alias BitPalSchemas.Currency
+  alias BitPalSchemas.InvoiceRates
+  alias BitPalSchemas.InvoiceStatus
   alias BitPalSchemas.Store
   alias Money.Ecto.NumericType
 
   @type id :: Ecto.UUID.t()
-  @type status :: :draft | :open | :processing | :uncollectible | :void | :paid
-  @type status_reason ::
-          :expired | :canceled | :double_spent | :timed_out | :verifying | :confirming | nil
 
   @primary_key false
   typed_schema "invoices" do
     field(:id, :binary_id, autogenerate: true, primary_key: true) :: id
 
-    # Amount to pay
-    field(:amount, NumericType) :: Money.t() | nil
-    field(:fiat_amount, NumericType) :: Money.t() | nil
-    field(:exchange_rate, :map, virtual: true) :: ExchangeRate.t() | nil
+    # Tracks invoice status + status reason,
+    # such as {:processing, :confirming}
+    field(:status, InvoiceStatus) :: InvoiceStatus.t()
 
-    # Settings
-    # NOTE this should probably be per tx
-    field(:required_confirmations, :integer, default: 0) :: non_neg_integer
+    # Price of invoice, can be specified in either fiat or crypto.
+    # If specified in crypto, then it must match `payment_currency`.
+    field(:price, NumericType) :: Money.t()
 
-    # Extra information
-    # Description of the payment, displayed in payment uri and the customer's wallet
-    field(:description, :string)
-    field(:email, :string)
-    # Passthru variable provided by the merchant, allows for arbitrary data storage.
-    field(:pos_data, :map)
+    # Valid exchange rates.
+    # Filled with all supported rates upon creation.
+    # A map from cryptocurrency -> fiat
+    field(:rates, InvoiceRates) :: InvoiceRates.t()
+    field(:rates_updated_at, :naive_datetime)
 
-    # field(:payment_uri, :string, virtual: true)
+    # The amount + currency we're waiting for. Calculated from :rates and :payment_currency.
+    field(:expected_payment, NumericType, virtual: true) :: Money.t() | nil
+    # The cryptocurrency the invoice should be poid with.
+    belongs_to(:payment_currency, Currency, type: Ecto.Atom)
+    # The generated cryptocurrency address, matching the :payment_currency.
+    belongs_to(:address, Address, type: :string, on_replace: :mark_as_invalid)
+    # Any transactions belonging to the above address.
+    has_many(:tx_outputs, through: [:address, :tx_outputs])
+    # How many confirmations do we require?
+    # Can be overridden by txs.
+    field(:required_confirmations, :integer) :: non_neg_integer | nil
 
-    # Calculated from transactions
+    # Calculated from transactions.
     field(:amount_paid, NumericType, virtual: true) :: Money.t() | nil
     field(:confirmations_due, :integer, virtual: true) :: non_neg_integer | nil
 
-    # NOTE maybe we should create our own custom Enum type, to not separate field declaration
-    # from state transitions?
-    field(:status, Ecto.Enum,
-      values: [:draft, :open, :processing, :uncollectible, :void, :paid],
-      default: :draft
-    ) :: status
+    # Also keep a virtual map of exchange rates that is set when finalized...?
 
-    # Why did we enter the current status?
-    field(:status_reason, Ecto.Enum,
-      values: [:expired, :canceled, :double_spent, :timed_out, :verifying, :confirming]
-    ) :: status_reason
-
-    timestamps()
+    # Description of the payment, displayed in payment uri and the customer's wallet.
+    field(:description, :string)
+    # Payee email, for payment notifications.
+    field(:email, :string)
+    # Order id, for association between a BitPal invoice and merchant pos system.
+    field(:order_id, :string)
+    # Pass through variable provided by the merchant, allows for arbitrary data storage.
+    field(:pos_data, :map)
 
     belongs_to(:store, Store)
-    belongs_to(:address, Address, type: :string, on_replace: :mark_as_invalid)
-    belongs_to(:currency, Currency, type: Ecto.Atom)
-    has_many(:tx_outputs, through: [:address, :tx_outputs])
+
+    timestamps()
   end
+
+  # @primary_key false
+  # typed_schema "invoices" do
+  #   # What's this? bitcoincash:myadderss?x=y&description=boyah ?
+  #   # field(:payment_uri, :string, virtual: true)
+  # end
 end

@@ -6,6 +6,10 @@ defmodule BitPal.InvoiceSupervisor do
   alias BitPalSchemas.Invoice
   alias Ecto.Changeset
 
+  @pass_parent_pid Application.compile_env(:bitpal, [__MODULE__, :pass_parent_pid], false)
+  # Silence compile time switch
+  @dialyzer :no_match
+
   @type server_name :: atom | {:via, term, term}
 
   @spec start_link(keyword) :: Supervisor.on_start()
@@ -28,9 +32,11 @@ defmodule BitPal.InvoiceSupervisor do
           {:ok, Invoice.t()} | {:error, Changeset.t()}
   def finalize_invoice(invoice = %Invoice{}, opts \\ []) do
     opts =
-      Enum.into(opts, %{
-        parent: self()
-      })
+      if @pass_parent_pid do
+        Enum.into(opts, %{parent: self()})
+      else
+        Enum.into(opts, %{})
+      end
 
     # The handler will finalize and update the invoice, so we'll need to fetch the
     # updated invoice from the handler.

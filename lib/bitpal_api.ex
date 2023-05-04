@@ -22,6 +22,7 @@ defmodule BitPalApi do
       use Phoenix.Controller, namespace: BitPalApi
 
       import Plug.Conn
+      import BitPalApi.ApiHelpers
       alias BitPalApi.ErrorView
       alias BitPalApi.Router.Helpers, as: Routes
 
@@ -54,6 +55,7 @@ defmodule BitPalApi do
       use Phoenix.Channel
       import Phoenix.View
       import BitPalApi.ChannelHelpers
+      import BitPalApi.ApiHelpers
       alias BitPalApi.InvoiceView
 
       unquote(errors())
@@ -76,12 +78,7 @@ defmodule BitPalApi do
 
   defp errors do
     quote do
-      alias BitPalApi.BadRequestError
-      alias BitPalApi.ForbiddenError
-      alias BitPalApi.InternalServerError
-      alias BitPalApi.NotFoundError
-      alias BitPalApi.RequestFailedError
-      alias BitPalApi.UnauthorizedError
+      use BitPalApi.Errors
     end
   end
 

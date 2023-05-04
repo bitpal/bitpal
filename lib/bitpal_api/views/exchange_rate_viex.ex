@@ -1,28 +1,13 @@
 defmodule BitPalApi.ExchangeRateView do
   use BitPalApi, :view
-  alias BitPal.ExchangeRate
+  alias BitPalSchemas.InvoiceRates
 
-  def render("index.json", %{rates: rates}) do
-    Enum.map(rates, fn {base, rates} ->
-      render("show.json", base: base, rates: rates)
-    end)
+  def render(target, %{rates: rates}) when is_list(rates) do
+    render(target, %{rates: InvoiceRates.bundle_rates(rates)})
   end
 
-  def render("show.json", %{base: base, rates: rates}) do
-    %{
-      base: Atom.to_string(base),
-      rates:
-        Enum.reduce(rates, %{}, fn %ExchangeRate{rate: rate, pair: {^base, xquote}}, acc ->
-          Map.put(acc, Atom.to_string(xquote), rate)
-        end)
-    }
-  end
-
-  def render("show.json", %{rate: %ExchangeRate{rate: rate, pair: {base, xquote}}}) do
-    %{
-      base: Atom.to_string(base),
-      quote: Atom.to_string(xquote),
-      rate: rate
-    }
+  def render("show.json", %{rates: rates}) when is_map(rates) do
+    rates
+    |> InvoiceRates.to_float()
   end
 end

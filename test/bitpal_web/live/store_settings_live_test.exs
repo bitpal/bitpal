@@ -192,7 +192,6 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
       assert confs == StoreSettings.get_required_confirmations(store.id, currency_id)
     end
 
-    @tag do: true
     test "failed to set required confirmations", %{
       conn: conn,
       store: store,

@@ -10,7 +10,7 @@ defmodule BitPal.Crypto.Base32 do
   checksumming is done on the 5-bit chunks rather than 8-bit chunks.
   """
 
-  use Bitwise
+  import Bitwise
 
   @doc """
   Decode a base32-string into a binary representation. No checksumming.

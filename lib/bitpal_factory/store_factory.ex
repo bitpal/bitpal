@@ -81,13 +81,22 @@ defmodule BitPalFactory.StoreFactory do
   @spec with_invoices(Store.t(), map | keyword) :: Store.t()
   def with_invoices(store, params \\ %{}) do
     params = Enum.into(params, %{})
-    currency_id = pick_currency_id(params)
     invoice_count = params[:invoice_count] || Faker.random_between(1, 3)
     generate_txs = params[:txs] == :auto
 
+    if params[:currency_id] do
+      raise "trying to set currency_id!"
+    end
+
     invoices =
       Stream.repeatedly(fn ->
-        invoice = InvoiceFactory.create_invoice(store, Map.put(params, :currency_id, currency_id))
+        payment_currency_id = pick_payment_currency_id(params)
+
+        invoice =
+          InvoiceFactory.create_invoice(
+            store,
+            Map.put(params, :payment_currency_id, payment_currency_id)
+          )
 
         if generate_txs do
           TransactionFactory.with_txs(invoice)
@@ -100,15 +109,15 @@ defmodule BitPalFactory.StoreFactory do
     %{store | invoices: invoices}
   end
 
-  defp pick_currency_id(%{currencies: currencies}) do
+  defp pick_payment_currency_id(%{payment_currencies: currencies}) do
     Enum.random(currencies)
   end
 
-  defp pick_currency_id(%{currency_id: currency_id}) do
+  defp pick_payment_currency_id(%{payment_currency_id: currency_id}) do
     currency_id
   end
 
-  defp pick_currency_id(_) do
+  defp pick_payment_currency_id(_) do
     CurrencyFactory.unique_currency_id()
   end
 end

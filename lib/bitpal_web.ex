@@ -101,6 +101,7 @@ defmodule BitPalWeb do
       import Phoenix.View
 
       import BitPalWeb.ErrorHelpers
+      import BitPal.ViewHelpers
       import BitPalWeb.ViewHelpers
       alias BitPalWeb.Router.Helpers, as: Routes
     end
