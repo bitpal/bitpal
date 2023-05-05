@@ -10,7 +10,7 @@ defmodule BitPalWeb.CreateStoreLiveTest do
 
   describe "create store" do
     test "creates a store and lists it", %{conn: conn, user: user} do
-      {:ok, view, _html} = live(conn, Routes.create_store_path(conn, :show))
+      {:ok, view, _html} = live(conn, ~p"/stores")
 
       label = StoreFactory.unique_store_label()
 
@@ -25,7 +25,7 @@ defmodule BitPalWeb.CreateStoreLiveTest do
     end
 
     test "renders errors if invalid", %{conn: conn, user: _user} do
-      {:ok, view, _html} = live(conn, Routes.create_store_path(conn, :show))
+      {:ok, view, _html} = live(conn, ~p"/stores")
 
       rendered =
         view

@@ -1,0 +1,16 @@
+<.breadcrumbs {assigns} />
+
+<section class="title-bar">
+  <h1>Server settings</h1>
+</section>
+
+<.side_nav uri={@uri}>
+  <:group links={[
+    backends_nav_link("Backends"),
+    users_nav_link("Users")
+  ]} />
+
+  <section class="settings">
+    <%= render_slot(@inner_block) %>
+  </section>
+</.side_nav>

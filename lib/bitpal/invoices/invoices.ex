@@ -9,7 +9,7 @@ defmodule BitPal.Invoices do
   alias BitPal.Repo
   alias BitPal.StoreEvents
   alias BitPal.Transactions
-  alias BitPal.ViewHelpers
+  alias BitPal.RenderHelpers
   alias BitPalApi.ApiHelpers
   alias BitPalSchemas.Address
   alias BitPalSchemas.AddressKey
@@ -520,7 +520,7 @@ defmodule BitPal.Invoices do
          status: invoice.status,
          txs: invoice.tx_outputs
        }
-       |> ViewHelpers.put_unless_nil(:confirmations_due, confirmations_due)}
+       |> RenderHelpers.put_unless_nil(:confirmations_due, confirmations_due)}
     )
   end
 

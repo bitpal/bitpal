@@ -6,14 +6,14 @@ defmodule BitPalWeb.UserResetPasswordController do
   plug(:get_user_by_reset_password_token when action in [:edit, :update])
 
   def new(conn, _params) do
-    render(conn, "new.html")
+    render(conn, :new)
   end
 
   def create(conn, %{"user" => %{"email" => email}}) do
     if user = Accounts.get_user_by_email(email) do
       Accounts.deliver_user_reset_password_instructions(
         user,
-        &Routes.user_reset_password_url(conn, :edit, &1)
+        &url(~p"/users/reset_password/#{&1}")
       )
     end
 
@@ -27,7 +27,7 @@ defmodule BitPalWeb.UserResetPasswordController do
   end
 
   def edit(conn, _params) do
-    render(conn, "edit.html", changeset: Accounts.change_user_password(conn.assigns.user))
+    render(conn, :edit, changeset: Accounts.change_user_password(conn.assigns.user))
   end
 
   # Do not log in the user after reset password to avoid a
@@ -37,10 +37,10 @@ defmodule BitPalWeb.UserResetPasswordController do
       {:ok, _} ->
         conn
         |> put_flash(:info, "Password reset successfully.")
-        |> redirect(to: Routes.user_session_path(conn, :new))
+        |> redirect(to: ~p"/users/log_in")
 
       {:error, changeset} ->
-        render(conn, "edit.html", changeset: changeset)
+        render(conn, :edit, changeset: changeset)
     end
   end
 
@@ -52,7 +52,7 @@ defmodule BitPalWeb.UserResetPasswordController do
     else
       conn
       |> put_flash(:error, "Reset password link is invalid or it has expired.")
-      |> redirect(to: "/")
+      |> redirect(to: ~p"/")
       |> halt()
     end
   end

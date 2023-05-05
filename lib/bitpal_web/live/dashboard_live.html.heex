@@ -1,0 +1,41 @@
+<.dashboard_breadcrumbs {assigns} />
+
+<section class="stores">
+  <h2>Stores</h2>
+
+  <.flex_table rows={@stores} class="stores-table">
+    <:col :let={{_, store}} label="Label">
+      <%= live_redirect(store.label, to: ~p"/stores/#{store}/invoices") %>
+    </:col>
+    <:col :let={{_, store}} label="Invoices">
+      <%= live_redirect(length(store.invoices),
+        to: ~p"/stores/#{store}/invoices"
+      ) %>
+    </:col>
+  </.flex_table>
+
+  <div class="button-wrapper">
+    <%= live_redirect("Create store",
+      to: ~p"/stores",
+      class: "button"
+    ) %>
+  </div>
+</section>
+
+<section class="backend-status">
+  <h2>Backend status</h2>
+
+  <.flex_table rows={@backend_status} class="backends-table">
+    <:col :let={{currency_id, _}} label="Backend">
+      <span class="currency">
+        <%= live_redirect(currency_id, to: ~p"/backends/#{currency_id}") %>
+      </span>
+    </:col>
+    <:col :let={{_, params}} label="Status">
+      <%= format_backend_status(params) %>
+    </:col>
+    <:col :let={{currency_id, params}} label="">
+      <%= control_buttons(currency_id, params) %>
+    </:col>
+  </.flex_table>
+</section>

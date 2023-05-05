@@ -25,7 +25,7 @@ defmodule BitPalWeb.StoreInvoicesLive do
 
   @impl true
   def render(assigns) do
-    render(BitPalWeb.StoreView, "invoices.html", assigns)
+    BitPalWeb.StoreHTML.invoices(assigns)
   end
 
   @impl true
@@ -54,7 +54,7 @@ defmodule BitPalWeb.StoreInvoicesLive do
       {:noreply,
        push_patch(
          socket,
-         to: Routes.store_invoices_path(socket, :show, store_slug),
+         to: ~p"/stores/#{store_slug}/invoices",
          replace: true
        )}
     else

@@ -16,7 +16,7 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
 
   describe "update store label" do
     test "set", %{conn: conn, store: store} do
-      {:ok, view, _html} = live(conn, Routes.store_settings_path(conn, :general, store.slug))
+      {:ok, view, _html} = live(conn, ~p"/stores/#{store}/settings/general")
       new_label = "new label"
 
       rendered =
@@ -32,7 +32,7 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
     end
 
     test "errors on empty label", %{conn: conn, store: store} do
-      {:ok, view, _html} = live(conn, Routes.store_settings_path(conn, :general, store.slug))
+      {:ok, view, _html} = live(conn, ~p"/stores/#{store}/settings/general")
 
       rendered =
         view
@@ -53,8 +53,7 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
         |> with_token(signed_at: now - 1_000)
         |> with_token(signed_at: now)
 
-      {:ok, _view, html} =
-        live(conn, Routes.store_settings_path(conn, :access_tokens, store.slug))
+      {:ok, _view, html} = live(conn, ~p"/stores/#{store}/settings/access_tokens")
 
       for token <- store.access_tokens do
         assert html =~ token.label
@@ -63,8 +62,7 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
     end
 
     test "create", %{conn: conn, store: store} do
-      {:ok, view, _html} =
-        live(conn, Routes.store_settings_path(conn, :access_tokens, store.slug))
+      {:ok, view, _html} = live(conn, ~p"/stores/#{store}/settings/access_tokens")
 
       label = Faker.StarWars.character()
 
@@ -82,8 +80,7 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
     end
 
     test "create errors on missing label", %{conn: conn, store: store} do
-      {:ok, view, _html} =
-        live(conn, Routes.store_settings_path(conn, :access_tokens, store.slug))
+      {:ok, view, _html} = live(conn, ~p"/stores/#{store}/settings/access_tokens")
 
       rendered =
         view
@@ -94,8 +91,7 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
     end
 
     test "create with valid_until", %{conn: conn, store: store} do
-      {:ok, view, _html} =
-        live(conn, Routes.store_settings_path(conn, :access_tokens, store.slug))
+      {:ok, view, _html} = live(conn, ~p"/stores/#{store}/settings/access_tokens")
 
       tomorrow =
         NaiveDateTime.utc_now()
@@ -113,8 +109,7 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
     test "revoke token", %{conn: conn, store: store} do
       t0 = create_token(store)
 
-      {:ok, view, _html} =
-        live(conn, Routes.store_settings_path(conn, :access_tokens, store.slug))
+      {:ok, view, _html} = live(conn, ~p"/stores/#{store}/settings/access_tokens")
 
       t1 = create_token(store)
 
@@ -137,7 +132,7 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
       # logic is different depending on if the settings data exists in db or not.
       {:ok, _} = StoreSettings.set_required_confirmations(store.id, c0, 42)
 
-      {:ok, _view, html} = live(conn, Routes.store_settings_path(conn, :general, store.slug))
+      {:ok, _view, html} = live(conn, ~p"/stores/#{store}/settings/general")
 
       for currency_id <- currencies do
         assert html =~ Money.Currency.name!(currency_id)
@@ -147,8 +142,7 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
 
   describe "crypto settings" do
     test "set xpub", %{conn: conn, store: store, currency_id: currency_id} do
-      {:ok, view, _html} =
-        live(conn, Routes.store_settings_path(conn, :crypto, store.slug, currency_id))
+      {:ok, view, _html} = live(conn, ~p"/stores/#{store}/settings/crypto/#{currency_id}")
 
       xpub = unique_address_key_id()
 
@@ -165,8 +159,7 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
     end
 
     test "failed to set xpub", %{conn: conn, store: store, currency_id: currency_id} do
-      {:ok, view, _html} =
-        live(conn, Routes.store_settings_path(conn, :crypto, store.slug, currency_id))
+      {:ok, view, _html} = live(conn, ~p"/stores/#{store}/settings/crypto/#{currency_id}")
 
       rendered =
         view
@@ -178,8 +171,7 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
     end
 
     test "set required confirmations", %{conn: conn, store: store, currency_id: currency_id} do
-      {:ok, view, _html} =
-        live(conn, Routes.store_settings_path(conn, :crypto, store.slug, currency_id))
+      {:ok, view, _html} = live(conn, ~p"/stores/#{store}/settings/crypto/#{currency_id}")
 
       confs = 13
 
@@ -197,8 +189,7 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
       store: store,
       currency_id: currency_id
     } do
-      {:ok, view, _html} =
-        live(conn, Routes.store_settings_path(conn, :crypto, store.slug, currency_id))
+      {:ok, view, _html} = live(conn, ~p"/stores/#{store}/settings/crypto/#{currency_id}")
 
       rendered =
         view
@@ -209,20 +200,14 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
     end
   end
 
-  describe "OLD" do
-  end
-
-  describe "update required confirmations" do
-  end
-
   describe "security" do
     test "redirect from other store", %{conn: conn, store: _store} do
       other_store =
         create_user()
         |> create_store()
 
-      {:error, {:redirect, %{to: "/"}}} =
-        live(conn, Routes.store_settings_path(conn, :general, other_store))
+      to = ~p"/"
+      {:error, {:redirect, %{to: ^to}}} = live(conn, ~p"/stores/#{other_store}/settings/general")
     end
   end
 end

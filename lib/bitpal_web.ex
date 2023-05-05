@@ -1,80 +1,27 @@
 defmodule BitPalWeb do
   @moduledoc """
   The entrypoint for defining your web interface, such
-  as controllers, views, channels and so on.
+  as controllers, components, channels, and so on.
 
   This can be used in your application as:
 
       use BitPalWeb, :controller
-      use BitPalWeb, :view
+      use BitPalWeb, :html
 
-  The definitions below will be executed for every view,
-  controller, etc, so keep them short and clean, focused
+  The definitions below will be executed for every controller,
+  component, etc, so keep them short and clean, focused
   on imports, uses and aliases.
 
   Do NOT define functions inside the quoted expressions
-  below. Instead, define any helper function in modules
-  and import those modules here.
+  below. Instead, define additional modules and import
+  those modules here.
   """
 
-  def controller do
-    quote do
-      use Phoenix.Controller, namespace: BitPalWeb
-
-      import Plug.Conn
-      alias BitPalWeb.Router.Helpers, as: Routes
-    end
-  end
-
-  def view do
-    quote do
-      use Phoenix.View,
-        root: "lib/bitpal_web/templates",
-        namespace: BitPalWeb
-
-      # Import convenience functions from controllers
-      import Phoenix.Controller,
-        only: [get_flash: 1, get_flash: 2, view_module: 1, view_template: 1]
-
-      # Include shared imports and aliases for views
-      unquote(view_helpers())
-
-      import BitPalWeb.PortalComponent
-    end
-  end
-
-  def live_view do
-    quote do
-      use Phoenix.LiveView,
-        layout: {BitPalWeb.LayoutView, "live.html"}
-
-      unquote(view_helpers())
-
-      alias BitPal.Repo
-      alias BitPalWeb.Breadcrumbs
-      require Logger
-    end
-  end
-
-  def component do
-    quote do
-      use Phoenix.Component
-
-      unquote(view_helpers())
-    end
-  end
-
-  def live_component do
-    quote do
-      use Phoenix.LiveComponent
-
-      unquote(view_helpers())
-    end
-  end
+  def static_paths, do: ~w(js css fonts images favicon.ico robots.txt)
 
   def router do
     quote do
-      use Phoenix.Router
+      use Phoenix.Router, helpers: false
 
       import Plug.Conn
       import Phoenix.Controller
@@ -88,22 +35,101 @@ defmodule BitPalWeb do
     end
   end
 
-  defp view_helpers do
+  def controller do
     quote do
-      # Use all HTML functionality (forms, tags, etc)
-      use Phoenix.HTML
+      use Phoenix.Controller,
+        formats: [:html, :json],
+        layouts: [html: BitPalWeb.Layouts]
 
-      # Import LiveView helpers (live_render, live_component, live_patch, etc)
+      import Plug.Conn
+
+      unquote(verified_routes())
+    end
+  end
+
+  def live_view do
+    quote do
+      use Phoenix.LiveView,
+        layout: {BitPalWeb.Layouts, :app}
+
+      unquote(html_helpers())
+      unquote(standard_components())
+
+      alias BitPal.Repo
+      alias BitPalWeb.Breadcrumbs
+      require Logger
+    end
+  end
+
+  def live_component do
+    quote do
+      use Phoenix.LiveComponent
+
+      unquote(html_helpers())
+    end
+  end
+
+  def html do
+    quote do
+      use Phoenix.Component
+
+      # Import convenience functions from controllers
+      import Phoenix.Controller,
+        only: [get_csrf_token: 0, view_module: 1, view_template: 1]
+
+      unquote(html_helpers())
+      unquote(standard_components())
+    end
+  end
+
+  def live_auth do
+    quote do
+      import Phoenix.Component
+      import Phoenix.LiveView
+
+      unquote(html_helpers())
+    end
+  end
+
+  def verified_routes do
+    quote do
+      use Phoenix.VerifiedRoutes,
+        endpoint: BitPalWeb.Endpoint,
+        router: BitPalWeb.Router,
+        statics: BitPalWeb.static_paths()
+    end
+  end
+
+  def component do
+    quote do
+      use Phoenix.Component
+
+      unquote(html_helpers())
+    end
+  end
+
+  defp standard_components do
+    quote do
+      # Note that we can't import components in html_helpers as that introduces
+      # a cyclic dependency loop.
+      import BitPalWeb.PortalComponents
+    end
+  end
+
+  defp html_helpers do
+    quote do
+      import Phoenix.HTML
+      import Phoenix.HTML.Form
+      import Phoenix.HTML.Link
+
       import Phoenix.LiveView.Helpers
       alias Phoenix.LiveView.JS
 
-      # Import basic rendering functionality (render, render_layout, etc)
-      import Phoenix.View
-
       import BitPalWeb.ErrorHelpers
-      import BitPal.ViewHelpers
-      import BitPalWeb.ViewHelpers
-      alias BitPalWeb.Router.Helpers, as: Routes
+      import BitPal.RenderHelpers
+      import BitPalWeb.HTMLHelpers
+
+      unquote(verified_routes())
     end
   end
 

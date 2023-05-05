@@ -10,7 +10,7 @@ defmodule BitPalWeb.StoreLiveTest do
 
   describe "invoice updates" do
     test "show new invoice", %{conn: conn, store: store, currency_id: currency_id} do
-      {:ok, view, html} = live(conn, Routes.store_invoices_path(conn, :show, store.slug))
+      {:ok, view, html} = live(conn, ~p"/stores/#{store}/invoices")
       assert html =~ store.label |> html_string()
       assert html =~ "There are no invoices here yet"
 
@@ -28,7 +28,7 @@ defmodule BitPalWeb.StoreLiveTest do
       store: store,
       currency_id: currency_id
     } do
-      {:ok, view, _html} = live(conn, Routes.store_invoices_path(conn, :show, store))
+      {:ok, view, _html} = live(conn, ~p"/stores/#{store}/invoices")
 
       {:ok, invoice, _, _} =
         HandlerSubscriberCollector.create_invoice(
@@ -57,8 +57,7 @@ defmodule BitPalWeb.StoreLiveTest do
         create_user()
         |> create_store()
 
-      {:error, {:redirect, %{to: "/"}}} =
-        live(conn, Routes.store_invoices_path(conn, :show, other_store))
+      {:error, {:redirect, %{to: "/"}}} = live(conn, ~p"/stores/#{other_store}/invoices")
     end
   end
 end

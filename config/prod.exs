@@ -10,6 +10,11 @@ config :bitpal, BitPalApi.Endpoint,
     port: 4001,
     transport_options: [socket_opts: [:inet6]]
   ],
+  force_ssl: [
+    host: nil,
+    rewrite_on: [:x_forwarded_port, :x_forwarded_proto],
+    hsts: true
+  ],
   server: true
 
 config :bitpal, BitPalWeb.Endpoint,
@@ -18,6 +23,11 @@ config :bitpal, BitPalWeb.Endpoint,
   http: [
     port: 4002,
     transport_options: [socket_opts: [:inet6]]
+  ],
+  force_ssl: [
+    host: nil,
+    rewrite_on: [:x_forwarded_port, :x_forwarded_proto],
+    hsts: true
   ],
   server: true
 

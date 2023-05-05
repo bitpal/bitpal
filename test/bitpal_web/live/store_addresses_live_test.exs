@@ -17,7 +17,7 @@ defmodule BitPalWeb.StoreAddressesLiveTest do
           address: :auto
         )
 
-      {:ok, _view, html} = live(conn, Routes.store_addresses_path(conn, :show, store.slug))
+      {:ok, _view, html} = live(conn, ~p"/stores/#{store}/addresses")
       assert html =~ store.label |> html_string()
       assert html =~ invoice.address_id
     end
@@ -26,7 +26,7 @@ defmodule BitPalWeb.StoreAddressesLiveTest do
       address_key = get_or_create_address_key(store.id, currency_id)
       address = create_address(address_key)
 
-      {:ok, _view, html} = live(conn, Routes.store_addresses_path(conn, :show, store.slug))
+      {:ok, _view, html} = live(conn, ~p"/stores/#{store}/addresses")
       assert html =~ store.label |> html_string()
       assert html =~ address.id
     end
@@ -38,7 +38,7 @@ defmodule BitPalWeb.StoreAddressesLiveTest do
       store: store,
       currency_id: currency_id
     } do
-      {:ok, view, html} = live(conn, Routes.store_addresses_path(conn, :show, store.slug))
+      {:ok, view, html} = live(conn, ~p"/stores/#{store}/addresses")
       assert html =~ "There are no addresses here yet"
 
       invoice =
@@ -65,7 +65,7 @@ defmodule BitPalWeb.StoreAddressesLiveTest do
         )
         |> finalize_and_track()
 
-      {:ok, view, _html} = live(conn, Routes.store_addresses_path(conn, :show, store.slug))
+      {:ok, view, _html} = live(conn, ~p"/stores/#{store}/addresses")
 
       txid = BackendMock.tx_seen(invoice)
       render_eventually(view, txid)
@@ -78,8 +78,7 @@ defmodule BitPalWeb.StoreAddressesLiveTest do
         create_user()
         |> create_store()
 
-      {:error, {:redirect, %{to: "/"}}} =
-        live(conn, Routes.store_addresses_path(conn, :show, other_store))
+      {:error, {:redirect, %{to: "/"}}} = live(conn, ~p"/stores/#{other_store}/addresses")
     end
   end
 end

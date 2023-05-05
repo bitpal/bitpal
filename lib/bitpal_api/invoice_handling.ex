@@ -7,7 +7,7 @@ defmodule BitPalApi.InvoiceHandling do
   alias Ecto.Changeset
   alias BitPal.Stores
   alias BitPal.Repo
-  alias BitPalApi.ErrorView
+  alias BitPalApi.ErrorJSON
 
   # Dialyzer complains about "The pattern can never match the type" for Invoice fetching and updating,
   # even though the specs looks correct to me...
@@ -154,7 +154,7 @@ defmodule BitPalApi.InvoiceHandling do
     error = Keyword.get(errors, param)
 
     if error do
-      ErrorView.render_changeset_error(error)
+      ErrorJSON.render_changeset_error(error)
     else
       nil
     end

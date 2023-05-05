@@ -22,8 +22,7 @@ defmodule BitPalWeb.StoreSettingsLive do
 
   @impl true
   def render(assigns) do
-    template = Atom.to_string(assigns.live_action) <> ".html"
-    render(BitPalWeb.StoreSettingsView, template, assigns)
+    apply(BitPalWeb.StoreSettingsHTML, assigns.live_action, [assigns])
   end
 
   @impl true
@@ -48,7 +47,7 @@ defmodule BitPalWeb.StoreSettingsLive do
       {:noreply,
        push_patch(
          socket,
-         to: Routes.store_settings_path(socket, :general, store_slug),
+         to: ~p"/stores/#{store_slug}/settings/general",
          replace: true
        )}
     else
@@ -218,7 +217,7 @@ defmodule BitPalWeb.StoreSettingsLive do
   defp redirect_to_general(socket, store_slug) do
     push_patch(
       socket,
-      to: Routes.store_settings_path(socket, :general, store_slug),
+      to: ~p"/stores/#{store_slug}/settings/general",
       replace: true
     )
   end

@@ -1,6 +1,6 @@
 defmodule BitPalApi.InvoiceChannel do
   use BitPalApi, :channel
-  import BitPalApi.InvoiceView
+  import BitPalApi.InvoiceJSON
   alias BitPal.Invoices
   alias BitPal.InvoiceEvents
   alias BitPalApi.InvoiceHandling
@@ -10,8 +10,7 @@ defmodule BitPalApi.InvoiceChannel do
   def join("invoice:" <> invoice_id, _payload, socket) do
     with {:ok, invoice} <- authorized_invoice(invoice_id, socket.assigns),
          :ok <- InvoiceEvents.subscribe(invoice_id) do
-      {:ok, %{invoice: render("show.json", invoice: invoice)},
-       assign(socket, invoice_id: invoice_id)}
+      {:ok, %{invoice: show(%{invoice: invoice})}, assign(socket, invoice_id: invoice_id)}
     else
       :unauthorized ->
         render_error(%UnauthorizedError{})
@@ -41,12 +40,12 @@ defmodule BitPalApi.InvoiceChannel do
 
   defp handle_event("get", %{"id" => id}, socket) do
     invoice = InvoiceHandling.get(socket.assigns.store_id, id)
-    {:reply, {:ok, render("show.json", invoice: invoice)}, socket}
+    {:reply, {:ok, show(%{invoice: invoice})}, socket}
   end
 
   defp handle_event("get", _params, socket = %{assigns: %{store_id: store_id, invoice_id: id}}) do
     invoice = InvoiceHandling.get(store_id, id)
-    {:reply, {:ok, render("show.json", invoice: invoice)}, socket}
+    {:reply, {:ok, show(%{invoice: invoice})}, socket}
   end
 
   defp handle_event("get", _params, socket) do
@@ -55,7 +54,7 @@ defmodule BitPalApi.InvoiceChannel do
 
   defp handle_event("update", params, socket) do
     invoice = InvoiceHandling.update(socket.assigns.store_id, socket.assigns.invoice_id, params)
-    {:reply, {:ok, render("show.json", invoice: invoice)}, socket}
+    {:reply, {:ok, show(%{invoice: invoice})}, socket}
   end
 
   # These messages already produces a broadcast over the channel.
@@ -84,12 +83,12 @@ defmodule BitPalApi.InvoiceChannel do
 
   defp handle_event("create", params, socket) do
     invoice = InvoiceHandling.create(socket.assigns.store_id, params)
-    {:reply, {:ok, render("show.json", invoice: invoice)}, socket}
+    {:reply, {:ok, show(%{invoice: invoice})}, socket}
   end
 
   defp handle_event("list", _params, socket) do
     invoices = InvoiceHandling.all_invoices(socket.assigns.store_id)
-    {:reply, {:ok, render("index.json", invoices: invoices)}, socket}
+    {:reply, {:ok, index(%{invoices: invoices})}, socket}
   end
 
   defp authorized_invoice(invoice_id, %{store_id: store_id}) do
@@ -107,8 +106,7 @@ defmodule BitPalApi.InvoiceChannel do
   end
 
   defp broadcast_event({{:invoice, event}, data}, socket) do
-    event = Atom.to_string(event)
-    broadcast!(socket, event, InvoiceView.render(event <> ".json", data))
+    broadcast!(socket, Atom.to_string(event), apply(BitPalApi.InvoiceJSON, event, [data]))
   end
 
   defp broadcast_event(event, _socket) do

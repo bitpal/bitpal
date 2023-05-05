@@ -8,40 +8,40 @@ defmodule BitPalWeb.UserSessionControllerTest do
 
   describe "GET /users/log_in" do
     test "renders log in page", %{conn: conn} do
-      conn = get(conn, Routes.user_session_path(conn, :new))
+      conn = get(conn, ~p"/users/log_in")
       response = html_response(conn, 200)
-      assert response =~ "<h1>Log in</h1>"
-      assert response =~ "Register</a>"
-      assert response =~ "Forgot your password?</a>"
+      assert response =~ "Log in"
+      assert response =~ ~p"/users/register"
+      assert response =~ "Forgot your password?"
     end
 
     test "redirects if already logged in", %{conn: conn, user: user} do
-      conn = conn |> log_in_user(user) |> get(Routes.user_session_path(conn, :new))
-      assert redirected_to(conn) == "/"
+      conn = conn |> log_in_user(user) |> get(~p"/users/log_in")
+      assert redirected_to(conn) == ~p"/"
     end
   end
 
   describe "POST /users/log_in" do
     test "logs the user in", %{conn: conn, user: user, password: password} do
       conn =
-        post(conn, Routes.user_session_path(conn, :create), %{
+        post(conn, ~p"/users/log_in", %{
           "user" => %{"email" => user.email, "password" => password}
         })
 
       assert get_session(conn, :user_token)
-      assert redirected_to(conn) == "/"
+      assert redirected_to(conn) == ~p"/"
 
       # Now do a logged in request and assert on the menu
-      conn = get(conn, "/")
+      conn = get(conn, ~p"/")
       response = html_response(conn, 200)
       assert response =~ user.email
-      assert response =~ "Settings</a>"
-      assert response =~ "Log out</a>"
+      assert response =~ ~p"/users/settings"
+      assert response =~ ~p"/users/log_out"
     end
 
     test "logs the user in with remember me", %{conn: conn, user: user, password: password} do
       conn =
-        post(conn, Routes.user_session_path(conn, :create), %{
+        post(conn, ~p"/users/log_in", %{
           "user" => %{
             "email" => user.email,
             "password" => password,
@@ -49,15 +49,15 @@ defmodule BitPalWeb.UserSessionControllerTest do
           }
         })
 
-      assert conn.resp_cookies["_tmp_phx_web_user_remember_me"]
-      assert redirected_to(conn) == "/"
+      assert conn.resp_cookies["_bitpal_web_user_remember_me"]
+      assert redirected_to(conn) == ~p"/"
     end
 
     test "logs the user in with return to", %{conn: conn, user: user, password: password} do
       conn =
         conn
         |> init_test_session(user_return_to: "/foo/bar")
-        |> post(Routes.user_session_path(conn, :create), %{
+        |> post(~p"/users/log_in", %{
           "user" => %{
             "email" => user.email,
             "password" => password
@@ -69,29 +69,29 @@ defmodule BitPalWeb.UserSessionControllerTest do
 
     test "emits error message with invalid credentials", %{conn: conn, user: user} do
       conn =
-        post(conn, Routes.user_session_path(conn, :create), %{
+        post(conn, ~p"/users/log_in", %{
           "user" => %{"email" => user.email, "password" => "invalid_password"}
         })
 
       response = html_response(conn, 200)
-      assert response =~ "<h1>Log in</h1>"
+      assert response =~ "Log in"
       assert response =~ "Invalid email or password"
     end
   end
 
   describe "DELETE /users/log_out" do
     test "logs the user out", %{conn: conn, user: user} do
-      conn = conn |> log_in_user(user) |> delete(Routes.user_session_path(conn, :delete))
-      assert redirected_to(conn) == "/"
+      conn = conn |> log_in_user(user) |> delete(~p"/users/log_out")
+      assert redirected_to(conn) == ~p"/"
       refute get_session(conn, :user_token)
-      assert get_flash(conn, :info) =~ "Logged out successfully"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Logged out successfully"
     end
 
     test "succeeds even if the user is not logged in", %{conn: conn} do
-      conn = delete(conn, Routes.user_session_path(conn, :delete))
-      assert redirected_to(conn) == "/"
+      conn = delete(conn, ~p"/users/log_out")
+      assert redirected_to(conn) == ~p"/"
       refute get_session(conn, :user_token)
-      assert get_flash(conn, :info) =~ "Logged out successfully"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Logged out successfully"
     end
   end
 end

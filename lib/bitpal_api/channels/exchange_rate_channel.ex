@@ -1,6 +1,6 @@
 defmodule BitPalApi.ExchangeRateChannel do
   use BitPalApi, :channel
-  import BitPalApi.ExchangeRateView
+  import BitPalApi.ExchangeRateJSON
   alias BitPal.ExchangeRateEvents
   alias BitPal.ExchangeRates
   alias BitPalApi.ExchangeRateHandling
@@ -10,7 +10,7 @@ defmodule BitPalApi.ExchangeRateChannel do
   def join("exchange_rates", _payload, socket) do
     ExchangeRateEvents.subscribe()
     rates = ExchangeRates.all_exchange_rates()
-    {:ok, render("show.json", rates: rates), socket}
+    {:ok, show(%{rates: rates}), socket}
   end
 
   @impl true
@@ -18,7 +18,7 @@ defmodule BitPalApi.ExchangeRateChannel do
     broadcast!(
       socket,
       "updated_exchange_rate",
-      render("show.json", rates: rates)
+      show(%{rates: rates})
     )
 
     {:noreply, socket}
@@ -33,17 +33,17 @@ defmodule BitPalApi.ExchangeRateChannel do
 
   def handle_event("get", %{"base" => base, "quote" => xquote}, socket) do
     rate = ExchangeRateHandling.fetch_with_pair!(base, xquote)
-    {:reply, {:ok, render("show.json", rates: [rate])}, socket}
+    {:reply, {:ok, show(%{rate: rate})}, socket}
   end
 
   def handle_event("get", %{"base" => base}, socket) do
     rates = ExchangeRateHandling.fetch_with_base!(base)
-    {:reply, {:ok, render("show.json", rates: rates)}, socket}
+    {:reply, {:ok, show(%{rates: rates})}, socket}
   end
 
   def handle_event("get", _params, socket) do
     rates = ExchangeRates.all_exchange_rates()
-    {:reply, {:ok, render("show.json", rates: rates)}, socket}
+    {:reply, {:ok, show(%{rates: rates})}, socket}
   end
 
   def handle_event(event, _params, socket) do

@@ -1,7 +1,7 @@
 defmodule BitPalApi.ChannelHelpers do
-  alias BitPalApi.ErrorView
+  alias BitPalApi.ErrorJSON
 
   def render_error(error) when is_struct(error) do
-    {:error, ErrorView.render_error(error)}
+    {:error, ErrorJSON.render_error(error)}
   end
 end

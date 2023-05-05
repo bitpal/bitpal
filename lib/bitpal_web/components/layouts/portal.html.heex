@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <.live_title>
+      <%= assigns[:page_title] || "BitPal" %>
+    </.live_title>
+    <link phx-track-static rel="stylesheet" href={~p"/css/portal.css"} />
+    <script defer phx-track-static type="text/javascript" src={~p"/js/app.js"}>
+    </script>
+  </head>
+  <body class="web-body">
+    <header>
+      <section class="top-nav">
+        <nav>
+          <span class="left">
+            <span class="title">BitPal</span>
+            <ul>
+              <li><%= link("Documentation", to: ~p"/doc") %></li>
+              <li><a href="https://github.com/bitpal/bitpal/issues">Issues</a></li>
+            </ul>
+          </span>
+
+          <span class="right">
+            <ul>
+              <%= if @current_user do %>
+                <li><%= @current_user.email %></li>
+                <li><%= link("Settings", to: ~p"/users/settings") %></li>
+                <li>
+                  <%= link("Log out",
+                    to: ~p"/users/log_out",
+                    method: :delete
+                  ) %>
+                </li>
+              <% else %>
+                <li><%= link("Log in", to: ~p"/users/log_in") %></li>
+              <% end %>
+            </ul>
+          </span>
+        </nav>
+      </section>
+    </header>
+
+    <div class="main-wrapper">
+      <section class="main-content" role="main">
+        <%= @inner_content %>
+      </section>
+    </div>
+  </body>
+</html>

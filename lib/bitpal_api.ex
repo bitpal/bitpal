@@ -1,49 +1,27 @@
 defmodule BitPalApi do
   @moduledoc """
   The entrypoint for defining your web interface, such
-  as controllers, views, channels and so on.
+  as controllers, components, channels, and so on.
 
   This can be used in your application as:
 
-      use BitPalApi, :controller
-      use BitPalApi, :view
+      use BitPalWeb, :controller
+      use BitPalWeb, :html
 
-  The definitions below will be executed for every view,
-  controller, etc, so keep them short and clean, focused
+  The definitions below will be executed for every controller,
+  component, etc, so keep them short and clean, focused
   on imports, uses and aliases.
 
   Do NOT define functions inside the quoted expressions
-  below. Instead, define any helper function in modules
-  and import those modules here.
+  below. Instead, define additional modules and import
+  those modules here.
   """
 
-  def controller do
-    quote do
-      use Phoenix.Controller, namespace: BitPalApi
-
-      import Plug.Conn
-      import BitPalApi.ApiHelpers
-      alias BitPalApi.ErrorView
-      alias BitPalApi.Router.Helpers, as: Routes
-
-      unquote(errors())
-    end
-  end
-
-  def view do
-    quote do
-      use Phoenix.View,
-        root: "lib/bitpal_api/templates",
-        namespace: BitPalApi
-
-      unquote(view_helpers())
-      unquote(errors())
-    end
-  end
+  def static_paths, do: ~w(assets fonts images favicon.ico robots.txt)
 
   def router do
     quote do
-      use Phoenix.Router
+      use Phoenix.Router, helpers: false
 
       import Plug.Conn
       import Phoenix.Controller
@@ -53,32 +31,51 @@ defmodule BitPalApi do
   def channel do
     quote do
       use Phoenix.Channel
-      import Phoenix.View
+
+      use BitPalApi.Errors
       import BitPalApi.ChannelHelpers
       import BitPalApi.ApiHelpers
-      alias BitPalApi.InvoiceView
-
-      unquote(errors())
+      # alias BitPalApi.InvoiceView
     end
   end
 
-  defp view_helpers do
+  def controller do
     quote do
-      # Use all HTML functionality (forms, tags, etc)
-      use Phoenix.HTML
+      use Phoenix.Controller, formats: [:json]
 
-      # Import basic rendering functionality (render, render_layout, etc)
-      import Phoenix.View
-
-      import BitPal.ViewHelpers
-
-      alias BitPalApi.Router.Helpers, as: Routes
-    end
-  end
-
-  defp errors do
-    quote do
       use BitPalApi.Errors
+      import Plug.Conn
+      import BitPalApi.ApiHelpers
+      alias BitPalApi.ErrorJSON
+
+      unquote(verified_routes())
+    end
+  end
+
+  def json do
+    quote do
+      use Phoenix.Component
+
+      use BitPalApi.Errors
+
+      unquote(json_helpers())
+    end
+  end
+
+  defp json_helpers do
+    quote do
+      import BitPal.RenderHelpers
+
+      unquote(verified_routes())
+    end
+  end
+
+  def verified_routes do
+    quote do
+      use Phoenix.VerifiedRoutes,
+        endpoint: BitPalApi.Endpoint,
+        router: BitPalApi.Router,
+        statics: BitPalApi.static_paths()
     end
   end
 

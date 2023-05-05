@@ -12,7 +12,7 @@ defmodule BitPalWeb.CreateStoreLive do
 
   @impl true
   def render(assigns) do
-    render(BitPalWeb.StoreView, "create.html", assigns)
+    BitPalWeb.StoreHTML.create(assigns)
   end
 
   @impl true
@@ -21,7 +21,7 @@ defmodule BitPalWeb.CreateStoreLive do
 
     case Stores.create(changeset) do
       {:ok, store} ->
-        {:noreply, push_redirect(socket, to: Routes.store_settings_path(socket, :general, store))}
+        {:noreply, push_redirect(socket, to: ~p"/stores/#{store}/settings/general")}
 
       {:error, changeset} ->
         {:noreply, assign(socket, store_changeset: changeset)}

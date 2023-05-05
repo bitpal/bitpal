@@ -1,0 +1,7 @@
+<ul>
+  <%= for entry <- @entries do %>
+    <li>
+      <%= link(entry.title, to: ~p"/doc/#{entry}") %>
+    </li>
+  <% end %>
+</ul>

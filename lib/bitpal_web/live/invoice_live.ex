@@ -1,5 +1,6 @@
 defmodule BitPalWeb.InvoiceLive do
   use BitPalWeb, :live_view
+  import BitPalWeb.StoreHTML
   alias BitPal.InvoiceEvents
   alias BitPal.Invoices
   alias BitPal.InvoiceSupervisor
@@ -12,11 +13,6 @@ defmodule BitPalWeb.InvoiceLive do
   @impl true
   def mount(_params, _session, socket) do
     {:ok, socket}
-  end
-
-  @impl true
-  def render(assigns) do
-    render(BitPalWeb.InvoiceView, "show.html", assigns)
   end
 
   @impl true

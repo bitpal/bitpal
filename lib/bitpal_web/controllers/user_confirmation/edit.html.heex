@@ -1,0 +1,11 @@
+<h1>Confirm account</h1>
+
+<.form :let={_f} for={%{}} as={:user} action={~p"/users/confirm/#{@token}"}>
+  <div>
+    <%= submit("Confirm my account") %>
+  </div>
+</.form>
+
+<p>
+  <%= link("Register", to: ~p"/users/register") %>| <%= link("Log in", to: ~p"/users/log_in") %>
+</p>

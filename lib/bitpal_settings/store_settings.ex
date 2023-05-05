@@ -183,7 +183,7 @@ defmodule BitPalSettings.StoreSettings do
   defp get_address_key(store_id, currency_id) do
     from(x in AddressKey,
       join: s in ^currency_settings_query(store_id, currency_id),
-      where: x.currency_settings_id == s.id,
+      on: x.currency_settings_id == s.id,
       select: x
     )
     |> Repo.one()

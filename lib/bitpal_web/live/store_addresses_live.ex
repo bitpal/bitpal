@@ -34,7 +34,7 @@ defmodule BitPalWeb.StoreAddressesLive do
 
   @impl true
   def render(assigns) do
-    render(BitPalWeb.StoreView, "addresses.html", assigns)
+    BitPalWeb.StoreHTML.addresses(assigns)
   end
 
   @impl true

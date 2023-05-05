@@ -1,0 +1,53 @@
+<%= bar(assigns) %>
+
+<section class="store-wrapper">
+  <div class="detailed-invoice">
+    <div class="row">
+      <span class="descr">Created at</span>
+      <span class="data"><%= NaiveDateTime.to_date(@invoice.inserted_at) %></span>
+    </div>
+    <div class="row">
+      <span class="descr">Invoiced amount</span>
+      <span class="data">
+        <%= format_price(@invoice) %>
+        <%= format_expected_payment(@invoice) %>
+      </span>
+    </div>
+    <div class="row">
+      <span class="descr">Paid amount</span>
+      <span class="data"><%= money_to_string(@invoice.amount_paid) %></span>
+    </div>
+    <div class="row">
+      <span class="descr">Status</span>
+      <span class="data"><%= format_status(@invoice) %></span>
+    </div>
+    <div class="row">
+      <span class="descr">Description</span>
+      <span class="data"><%= @invoice.description %></span>
+    </div>
+    <div class="row">
+      <span class="descr">Address</span>
+      <span class="data"><%= @invoice.address_id %></span>
+    </div>
+    <div class="row">
+      <span class="descr">Email</span>
+      <span class="data"><%= @invoice.email %></span>
+    </div>
+
+    <div class="pos-data">
+      <div class="header">POS data</div>
+      <div class="data"><%= format_pos_data(@invoice.pos_data) %></div>
+    </div>
+
+    <div class="txs">
+      <div class="header">Transactions</div>
+      <%= for tx <- @invoice.tx_outputs do %>
+        <div class="tx-details">
+          <span class="txid"><%= tx.txid %></span>
+          <span class="amount"><%= money_to_string(tx.amount) %></span>
+          <%= tx_status(%{tx: tx}) %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</section>

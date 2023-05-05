@@ -1,5 +1,5 @@
 defmodule BitPalWeb.InvoiceLiveAuth do
-  import Phoenix.LiveView
+  use BitPalWeb, :live_auth
   alias BitPal.Accounts.Users
   alias BitPal.Stores
 

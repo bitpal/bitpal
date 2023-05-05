@@ -36,7 +36,7 @@ defmodule BitPal.ExchangeRate.Sources.Kraken do
     {:ok, body} = BitPalSettings.http_client().request_body(@asset_pairs_url)
 
     body
-    |> Poison.decode!()
+    |> Jason.decode!()
     |> Map.fetch!("result")
     |> Enum.reduce(%{}, fn {_, info}, acc ->
       with {:ok, {base, xquote}} <- into_pair(info),
@@ -77,7 +77,7 @@ defmodule BitPal.ExchangeRate.Sources.Kraken do
 
     {:ok, rate} =
       body
-      |> Poison.decode!()
+      |> Jason.decode!()
       |> Map.fetch!("result")
       |> Map.values()
       |> List.first()

@@ -10,14 +10,14 @@ defmodule BitPalWeb.Router do
     plug(:accepts, ["html"])
     plug(:fetch_session)
     plug(:fetch_live_flash)
-    plug(:put_root_layout, {BitPalWeb.LayoutView, :portal})
+    plug(:put_root_layout, html: {BitPalWeb.Layouts, :portal})
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
     plug(:fetch_current_user)
   end
 
   pipeline :doc_layout do
-    plug(:put_root_layout, {BitPalWeb.LayoutView, :doc})
+    plug(:put_root_layout, html: {BitPalWeb.Layouts, :doc})
   end
 
   pipeline :portal do
@@ -32,7 +32,7 @@ defmodule BitPalWeb.Router do
 
   pipeline :setup_wizard do
     plug(:browser)
-    plug(:put_root_layout, {BitPalWeb.LayoutView, :setup_wizard})
+    plug(:put_root_layout, {BitPalWeb.Layouts, :setup_wizard})
   end
 
   # Main portal
@@ -55,13 +55,13 @@ defmodule BitPalWeb.Router do
       live("/stores/:store/settings", StoreSettingsLive, :redirect)
       live("/stores/:store/settings/general", StoreSettingsLive, :general)
       live("/stores/:store/settings/crypto/:crypto", StoreSettingsLive, :crypto)
-      live("/stores/:store/settings/exchange_rates", StoreSettingsLive, :exchange_rates)
+      live("/stores/:store/settings/rates", StoreSettingsLive, :rates)
       live("/stores/:store/settings/invoices", StoreSettingsLive, :invoices)
       live("/stores/:store/settings/access_tokens", StoreSettingsLive, :access_tokens)
 
       live("/backends/:crypto", BackendLive, :show)
 
-      live("/exchange_rates", ExchangeRateLive, :show)
+      live("/rates", ExchangeRateLive, :show)
     end
   end
 

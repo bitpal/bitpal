@@ -14,23 +14,23 @@ defmodule BitPalWeb.ServerSetupTest do
     @tag server_setup_state: :create_server_admin
     test "protected routes", %{conn: conn} do
       protected_routes = [
-        "/",
-        "/server/dashboard",
-        "/users/register",
-        "/server/setup/wizard"
+        ~p"/",
+        ~p"/server/dashboard",
+        ~p"/users/register",
+        ~p"/server/setup/wizard"
       ]
 
       for route <- protected_routes do
         conn = get(conn, route)
-        assert redirected_to(conn) == "/server/setup/server_admin"
+        assert redirected_to(conn) == ~p"/server/setup/server_admin"
       end
     end
 
     @tag server_setup_state: :create_server_admin
     test "allowed routes", %{conn: conn} do
       allowed_routes = [
-        "/doc",
-        "/server/setup/server_admin"
+        ~p"/doc",
+        ~p"/server/setup/server_admin"
       ]
 
       for route <- allowed_routes do
@@ -44,11 +44,11 @@ defmodule BitPalWeb.ServerSetupTest do
     @tag server_setup_state: :enable_backends
     test "protected routes when not logged in", %{conn: conn} do
       protected_routes = [
-        "/",
-        "/server/dashboard",
-        "/users/register",
-        "/server/setup/server_admin",
-        "/server/setup/wizard"
+        ~p"/",
+        ~p"/server/dashboard",
+        ~p"/users/register",
+        ~p"/server/setup/server_admin",
+        ~p"/server/setup/wizard"
       ]
 
       for route <- protected_routes do
@@ -60,8 +60,8 @@ defmodule BitPalWeb.ServerSetupTest do
     @tag server_setup_state: :enable_backends
     test "allowed routes when not logged in", %{conn: conn} do
       allowed_routes = [
-        "/users/log_in",
-        "/doc"
+        ~p"/users/log_in",
+        ~p"/doc"
       ]
 
       for route <- allowed_routes do
@@ -73,24 +73,24 @@ defmodule BitPalWeb.ServerSetupTest do
     @tag server_setup_state: :enable_backends, login: true
     test "protected routes when logged in", %{conn: conn} do
       protected_routes = [
-        "/",
-        "/server/dashboard",
-        "/users/log_in",
-        "/users/register",
-        "/server/setup/server_admin"
+        ~p"/",
+        ~p"/server/dashboard",
+        ~p"/users/log_in",
+        ~p"/users/register",
+        ~p"/server/setup/server_admin"
       ]
 
       for route <- protected_routes do
         conn = get(conn, route)
-        assert redirected_to(conn) == "/server/setup/wizard"
+        assert redirected_to(conn) == ~p"/server/setup/wizard"
       end
     end
 
     @tag server_setup_state: :enable_backends, login: true
     test "allowed routes when logged in", %{conn: conn} do
       allowed_routes = [
-        "/doc",
-        "/server/setup/wizard"
+        ~p"/doc",
+        ~p"/server/setup/wizard"
       ]
 
       for route <- allowed_routes do
@@ -104,10 +104,10 @@ defmodule BitPalWeb.ServerSetupTest do
     @tag server_setup_state: :completed
     test "protected routes when not logged in", %{conn: conn} do
       protected_routes = [
-        "/",
-        "/server/dashboard",
-        "/server/setup/server_admin",
-        "/server/setup/wizard"
+        ~p"/",
+        ~p"/server/dashboard",
+        ~p"/server/setup/server_admin",
+        ~p"/server/setup/wizard"
       ]
 
       for route <- protected_routes do
@@ -117,10 +117,11 @@ defmodule BitPalWeb.ServerSetupTest do
     end
 
     @tag server_setup_state: :completed
+    @tag do: true
     test "allowed routes when not logged in", %{conn: conn} do
       allowed_routes = [
-        "/users/log_in",
-        "/doc"
+        ~p"/users/log_in",
+        ~p"/doc"
       ]
 
       for route <- allowed_routes do
@@ -132,20 +133,20 @@ defmodule BitPalWeb.ServerSetupTest do
     @tag server_setup_state: :completed, login: true
     test "protected routes when logged in", %{conn: conn} do
       protected_routes = [
-        "/server/setup/server_admin"
+        ~p"/server/setup/server_admin"
       ]
 
       for route <- protected_routes do
         conn = get(conn, route)
-        assert redirected_to(conn) == "/server/setup/wizard"
+        assert redirected_to(conn) == ~p"/server/setup/wizard"
       end
     end
 
     @tag server_setup_state: :completed, login: true
     test "allowed routes when logged in", %{conn: conn} do
       allowed_routes = [
-        "/",
-        "/server/setup/wizard"
+        ~p"/",
+        ~p"/server/setup/wizard"
       ]
 
       for route <- allowed_routes do

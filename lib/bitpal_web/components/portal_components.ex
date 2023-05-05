@@ -1,4 +1,4 @@
-defmodule BitPalWeb.PortalComponent do
+defmodule BitPalWeb.PortalComponents do
   use BitPalWeb, :component
 
   def breadcrumbs(assigns) do
@@ -14,9 +14,9 @@ defmodule BitPalWeb.PortalComponent do
     """
   end
 
-  def dashboard_breadcrumbs(assigns) do
+  def dashboard_breadcrumbs(_assigns) do
     breadcrumbs(%{
-      breadcrumbs: [live_redirect("dashboard", to: Routes.dashboard_path(assigns.socket, :show))]
+      breadcrumbs: [live_redirect("dashboard", to: ~p"/")]
     })
   end
 
@@ -83,5 +83,34 @@ defmodule BitPalWeb.PortalComponent do
       </div>
     </div>
     """
+  end
+
+  def general_nav_link(label, %{store: store}) do
+    {label, ~p"/stores/#{store}/settings/general"}
+  end
+
+  def crypto_nav_link(currency_id, %{store: store}) do
+    label = "#{Money.Currency.name!(currency_id)} (#{currency_id})"
+    {label, ~p"/stores/#{store}/settings/crypto/#{currency_id}"}
+  end
+
+  def rates_nav_link(label, %{store: store}) do
+    {label, ~p"/stores/#{store}/settings/rates"}
+  end
+
+  def invoices_nav_link(label, %{store: store}) do
+    {label, ~p"/stores/#{store}/settings/rates"}
+  end
+
+  def access_tokens_nav_link(label, %{store: store}) do
+    {label, ~p"/stores/#{store}/settings/access_tokens"}
+  end
+
+  def backends_nav_link(label) do
+    {label, ~p"/server/settings/backends"}
+  end
+
+  def users_nav_link(label) do
+    {label, ~p"/server/settings/users"}
   end
 end

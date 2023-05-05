@@ -6,6 +6,7 @@ defmodule BitPal.ExchangeRate.CacheTest do
   @moduletag ttl: 100
 
   setup %{ttl: ttl} do
+    # credo:disable-for-next-line Credo.Check.Warning.UnsafeToAtom
     name = Ecto.UUID.generate() |> String.to_atom()
 
     pid =

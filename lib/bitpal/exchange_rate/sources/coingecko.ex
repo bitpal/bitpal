@@ -42,7 +42,7 @@ defmodule BitPal.ExchangeRate.Sources.Coingecko do
 
     fiat =
       body
-      |> Poison.decode!()
+      |> Jason.decode!()
       |> Enum.reduce([], fn id, acc ->
         with {:ok, currency_id} <- Currencies.cast(id),
              false <- Currencies.is_crypto(currency_id) do
@@ -69,7 +69,7 @@ defmodule BitPal.ExchangeRate.Sources.Coingecko do
     {:ok, body} = BitPalSettings.http_client().request_body(price_url(base, xquote))
 
     body
-    |> Poison.decode!()
+    |> Jason.decode!()
     |> Enum.reduce(%{}, fn {crypto_id, fiat}, acc ->
       fiat =
         Enum.reduce(fiat, %{}, fn {fiat_id, rate}, fiat_acc ->

@@ -121,7 +121,7 @@ defmodule BitPal.InvoiceUpdateTest do
           rates: new_rates
         })
 
-      assert "could not find rate BCH-USD in %{BCH: %{EUR: #Decimal<6.0>}}" in errors_on(
+      assert "could not find rate BCH-USD in %{BCH: %{EUR: Decimal.new(\"6.0\")}}" in errors_on(
                changeset
              ).rates
 
@@ -136,7 +136,7 @@ defmodule BitPal.InvoiceUpdateTest do
           rates: new_rates
         })
 
-      assert "could not find rate BCH-USD in %{XMR: %{USD: #Decimal<6.0>}}" in errors_on(
+      assert "could not find rate BCH-USD in %{XMR: %{USD: Decimal.new(\"6.0\")}}" in errors_on(
                changeset
              ).rates
     end
