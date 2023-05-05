@@ -34,7 +34,7 @@ defmodule BitPalWeb.StoreTransactionsLive do
 
   @impl true
   def render(assigns) do
-    render(BitPalWeb.StoreView, "transactions.html", assigns)
+    BitPalWeb.StoreHTML.transactions(assigns)
   end
 
   @impl true

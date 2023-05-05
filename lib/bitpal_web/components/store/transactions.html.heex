@@ -1,0 +1,30 @@
+<%= BitPalWeb.StoreHTML.bar(assigns) %>
+
+<section class="store-wrapper">
+  <%= if Enum.empty?(@txs) do %>
+    <div class="no-transactions">
+      There are no transactions here yet
+    </div>
+  <% else %>
+    <div class="info-table transactions">
+      <div class="header">
+        <span class="link"></span>
+        <span class="txid">Txid</span>
+        <span class="amount">Amount</span>
+        <span class="address-id">Address</span>
+        <span class="tx-status">Status</span>
+      </div>
+      <%= for tx <- @txs do %>
+        <div class="row">
+          <span class="link">
+            <%= live_invoice_link(id: tx.address.invoice.id, label: "Invoice") %>
+          </span>
+          <span class="txid"><%= tx.txid %></span>
+          <span class="amount"><%= money_to_string(tx.amount) %></span>
+          <span class="address-id"><%= tx.address_id %></span>
+          <%= tx_status(%{tx: tx}) %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</section>

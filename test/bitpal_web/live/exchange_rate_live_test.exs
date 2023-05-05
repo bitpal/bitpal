@@ -17,7 +17,7 @@ defmodule BitPalWeb.ExchangeRateLiveTest do
       rate2 = random_rate()
       ExchangeRates.update_exchange_rate(pair, rate2, :FACTORY, 1_000)
 
-      {:ok, view, html} = live(conn, Routes.exchange_rate_path(conn, :show))
+      {:ok, view, html} = live(conn, ~p"/rates")
 
       assert html =~ rate1 |> Decimal.to_string(:normal)
       assert html =~ rate2 |> Decimal.to_string(:normal)

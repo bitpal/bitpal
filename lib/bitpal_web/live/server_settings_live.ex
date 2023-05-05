@@ -9,8 +9,7 @@ defmodule BitPalWeb.ServerSettingsLive do
 
   @impl true
   def render(assigns) do
-    template = Atom.to_string(assigns.live_action) <> ".html"
-    render(BitPalWeb.ServerSettingsView, template, assigns)
+    apply(BitPalWeb.ServerSettingsView, assigns.live_action, [assigns])
   end
 
   @impl true
@@ -19,7 +18,7 @@ defmodule BitPalWeb.ServerSettingsLive do
       {:noreply,
        push_patch(
          socket,
-         to: Routes.server_settings_path(socket, :backends),
+         to: ~p"/server/settings/backends",
          replace: true
        )}
     else

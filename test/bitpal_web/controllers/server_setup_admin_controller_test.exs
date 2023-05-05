@@ -7,7 +7,7 @@ defmodule BitPalWeb.ServerSetupAdminControllerTest do
   describe "GET new" do
     @tag server_setup_state: :create_server_admin
     test "renders registration page", %{conn: conn} do
-      conn = get(conn, Routes.server_setup_admin_path(conn, :show))
+      conn = get(conn, ~p"/server/setup/server_admin")
       response = html_response(conn, 200)
       assert response =~ "Create server admin"
     end
@@ -19,18 +19,18 @@ defmodule BitPalWeb.ServerSetupAdminControllerTest do
       email = unique_user_email()
 
       conn =
-        post(conn, Routes.server_setup_admin_path(conn, :create), %{
+        post(conn, ~p"/server/setup/server_admin", %{
           "user" => valid_user_attributes(email: email)
         })
 
       assert get_session(conn, :user_token)
-      assert redirected_to(conn) == Routes.server_setup_path(conn, :wizard)
+      assert redirected_to(conn) == ~p"/server/setup/wizard"
     end
 
     @tag server_setup_state: :create_server_admin
     test "render errors for invalid data", %{conn: conn} do
       conn =
-        post(conn, Routes.server_setup_admin_path(conn, :create), %{
+        post(conn, ~p"/server/setup/server_admin", %{
           "user" => %{"email" => "with spaces", "password" => "too short"}
         })
 

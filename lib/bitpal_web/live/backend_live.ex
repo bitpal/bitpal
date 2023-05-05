@@ -1,5 +1,6 @@
 defmodule BitPalWeb.BackendLive do
   use BitPalWeb, :live_view
+  import BitPalWeb.BackendComponents
   alias BitPal.Backend
   alias BitPal.BackendEvents
   alias BitPal.BackendManager
@@ -31,7 +32,7 @@ defmodule BitPalWeb.BackendLive do
         {:noreply, socket}
 
       :error ->
-        {:noreply, push_redirect(socket, to: Routes.dashboard_path(socket, :show))}
+        {:noreply, push_redirect(socket, to: ~p"/")}
     end
   end
 
@@ -52,11 +53,6 @@ defmodule BitPalWeb.BackendLive do
       plugin: module,
       info: Backend.info(ref)
     )
-  end
-
-  @impl true
-  def render(assigns) do
-    render(BitPalWeb.BackendView, "show.html", assigns)
   end
 
   @impl true

@@ -1,0 +1,41 @@
+<.breadcrumbs {assigns} />
+
+<section class="title-bar">
+  <h1><%= @store.label %></h1>
+</section>
+
+<section class="store-nav-bar">
+  <nav>
+    <ul>
+      <li>
+        <%= active_live_link(
+          label: "Invoices",
+          to: ~p"/stores/#{@store}/invoices",
+          from: @uri
+        ) %>
+      </li>
+      <li>
+        <%= active_live_link(
+          label: "Addresses",
+          to: ~p"/stores/#{@store}/addresses",
+          from: @uri
+        ) %>
+      </li>
+      <li>
+        <%= active_live_link(
+          label: "Transactions",
+          to: ~p"/stores/#{@store}/transactions",
+          from: @uri
+        ) %>
+      </li>
+      <li>
+        <%= active_live_link(
+          label: "Settings",
+          to: ~p"/stores/#{@store}/settings/general",
+          match: ~p"/stores/#{@store}/settings",
+          from: @uri
+        ) %>
+      </li>
+    </ul>
+  </nav>
+</section>

@@ -1,5 +1,5 @@
 defmodule BitPalWeb.StoreLiveAuth do
-  import Phoenix.LiveView
+  use BitPalWeb, :live_auth
   alias BitPal.Accounts.Users
 
   def on_mount(:default, %{"store" => store_slug}, _session, socket) do

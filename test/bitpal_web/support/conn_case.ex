@@ -28,6 +28,7 @@ defmodule BitPalWeb.ConnCase do
     quote do
       use ExUnit.Case, unquote(params)
       use BitPal.CaseHelpers
+      use BitPalWeb, :verified_routes
 
       import BitPalWeb.ConnCase
       import Phoenix.ConnTest
@@ -35,7 +36,6 @@ defmodule BitPalWeb.ConnCase do
       import Plug.Conn
 
       alias BitPal.HandlerSubscriberCollector
-      alias BitPalWeb.Router.Helpers, as: Routes
 
       # The default endpoint for testing
       @endpoint BitPalWeb.Endpoint

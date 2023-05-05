@@ -18,8 +18,7 @@ defmodule BitPalWeb.ServerSetupLive do
 
   @impl true
   def render(assigns) do
-    template = Atom.to_string(assigns.state) <> ".html"
-    render(BitPalWeb.ServerSetupView, template, assigns)
+    apply(BitPalWeb.ServerSetupHTML, assigns.state, [assigns])
   end
 
   @impl true

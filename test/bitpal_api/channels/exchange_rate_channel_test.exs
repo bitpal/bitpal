@@ -98,7 +98,6 @@ defmodule BitPalApi.ExchangeRateChannelTest do
       )
     end
 
-    #
     test "get bad base", %{socket: socket} do
       ref = push(socket, "get", %{"base" => "XXX"})
 

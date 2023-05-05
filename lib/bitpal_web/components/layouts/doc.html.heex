@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <.live_title>
+      <%= assigns[:page_title] || "BitPal" %>
+    </.live_title>
+    <link phx-track-static rel="stylesheet" href={~p"/css/doc.css"} />
+    <script defer phx-track-static type="text/javascript" src={~p"/js/app.js"}>
+    </script>
+  </head>
+  <body class="doc-body">
+    <div class="main-wrapper">
+      <section class="left-sidebar">
+        <nav role="navigation">
+          <div class="header">
+            <div class="title"><%= link("BitPal", to: ~p"/doc") %></div>
+            <div class="version">
+              <span class="semver">v<%= version() %></span>
+              <%= commit_link(class: "commit") %>
+            </div>
+          </div>
+          <!--
+          Search
+
+          <div class="wrapper">
+            <h1>Browse</h1>
+
+            <ul>
+              <li><a href="#">Table of content</a></li>
+            </ul>
+          </div>
+          -->
+          <div class="wrapper">
+            <h1>You are here</h1>
+
+            <%= BitPalWeb.DocHTML.toc(entries: @entries) %>
+          </div>
+
+          <div class="wrapper">
+            <h1>Getting help</h1>
+
+            <div class="help-entry">
+              <h2><a href="#">FAQ</a></h2>
+              <p>Check out the FAQ for common questions and answers.</p>
+            </div>
+
+            <div class="help-entry">
+              <h2><a href="#">Table of content</a></h2>
+              <p>Good if you're looking for something specific</p>
+            </div>
+
+            <div class="help-entry">
+              <h2><a href="#">Issue tracker</a></h2>
+              <p>Found a bug or a problem with the documentation? Please let us know!</p>
+            </div>
+          </div>
+
+          <div class="wrapper">
+            <h1>Contribute</h1>
+
+            <ul>
+              <li><a href="https://github.com/bitpal/bitpal">Collaborate on GitHub</a></li>
+              <li><a href="https://demo.bitpal.dev/">Donate to BitPal</a></li>
+            </ul>
+          </div>
+        </nav>
+      </section>
+
+      <section class="main-content" role="main">
+        <%= @inner_content %>
+      </section>
+
+      <div class="right-sidebar">
+        <!--
+        <nav>
+          <a href="#">Sign in</a>
+        </nav>
+        -->
+      </div>
+    </div>
+    <!--
+    <footer>
+      <div class="footer-wrapper">
+        <nav class="column">
+          <h1>Learn More</h1>
+
+          <ul>
+            <li><a href="#">About BitPal</a></li>
+          </ul>
+        </nav>
+
+        <nav class="column">
+          <h1>Get involved</h1>
+
+          <ul>
+            <li><a href="#">Contribute to BitPal</a></li>
+            <li><a href="#">Submit a bug</a></li>
+            <li><a href="#">Report a security issue</a></li>
+          </ul>
+        </nav>
+
+        <nav class="column">
+          <h1>Follow</h1>
+
+          <ul>
+            <li><a href="#">GitHub</a></li>
+          </ul>
+        </nav>
+
+        <nav class="column">
+          <h1>Support</h1>
+
+          <ul>
+            <li><a href="#">Donate to BitPal</a></li>
+          </ul>
+        </nav>
+      </div>
+    </footer>
+        -->
+  </body>
+</html>

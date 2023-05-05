@@ -9,41 +9,41 @@ defmodule BitPalApi.InvoiceController do
 
   def create(conn, params, store) do
     invoice = InvoiceHandling.create(store, params)
-    render(conn, "show.json", invoice: invoice)
+    render(conn, :show, invoice: invoice)
   end
 
   def show(conn, %{"id" => id}, store) do
     invoice = InvoiceHandling.get(store, id)
-    render(conn, "show.json", invoice: invoice)
+    render(conn, :show, invoice: invoice)
   end
 
   def update(conn, params, store) do
     invoice = InvoiceHandling.update(store, params)
-    render(conn, "show.json", invoice: invoice)
+    render(conn, :show, invoice: invoice)
   end
 
   def delete(conn, %{"id" => id}, store) do
     invoice = InvoiceHandling.delete(store, id)
-    render(conn, "deleted.json", id: invoice.id)
+    render(conn, :deleted, id: invoice.id)
   end
 
   def finalize(conn, %{"id" => id}, store) do
     invoice = InvoiceHandling.finalize(store, id)
-    render(conn, "show.json", invoice: invoice)
+    render(conn, :show, invoice: invoice)
   end
 
   def pay(conn, %{"id" => id}, store) do
     invoice = InvoiceHandling.pay(store, id)
-    render(conn, "show.json", invoice: invoice)
+    render(conn, :show, invoice: invoice)
   end
 
   def void(conn, %{"id" => id}, store) do
     invoice = InvoiceHandling.void(store, id)
-    render(conn, "show.json", invoice: invoice)
+    render(conn, :show, invoice: invoice)
   end
 
   def index(conn, _params, store) do
     invoices = InvoiceHandling.all_invoices(store)
-    render(conn, "index.json", invoices: invoices)
+    render(conn, :index, invoices: invoices)
   end
 end

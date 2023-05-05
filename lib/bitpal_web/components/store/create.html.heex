@@ -1,0 +1,20 @@
+<.dashboard_breadcrumbs {assigns} />
+
+<section class="create-store">
+  <h2>Create store</h2>
+
+  <.form :let={f} for={@store_changeset} phx-submit="create_store" id="create_store">
+    <%= if @store_changeset.action do %>
+      <div class="alert alert-danger">
+        <p>Oops, something went wrong! Please check the errors below.</p>
+      </div>
+    <% end %>
+
+    <%= error_tag(f, :label) %>
+    <%= text_input(f, :label, placeholder: "Store label", required: true) %>
+
+    <div>
+      <%= submit("Create") %>
+    </div>
+  </.form>
+</section>

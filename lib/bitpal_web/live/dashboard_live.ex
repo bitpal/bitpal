@@ -1,5 +1,7 @@
 defmodule BitPalWeb.DashboardLive do
   use BitPalWeb, :live_view
+  import BitPalWeb.BackendComponents, only: [format_backend_status: 1]
+  import BitPalWeb.DashboardComponents
   alias BitPal.BackendEvents
   alias BitPal.BackendManager
   alias BitPal.Currencies
@@ -38,11 +40,6 @@ defmodule BitPalWeb.DashboardLive do
          store_changeset: Stores.create_changeset()
        )}
     end
-  end
-
-  @impl true
-  def render(assigns) do
-    render(BitPalWeb.DashboardView, "dashboard.html", assigns)
   end
 
   @impl true

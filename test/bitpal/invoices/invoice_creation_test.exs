@@ -80,7 +80,7 @@ defmodule InvoiceCreationTest do
                  )
                )
 
-      assert "could not find rate BCH-USD in %{BCH: %{EUR: #Decimal<1.1>}}" in errors_on(
+      assert "could not find rate BCH-USD in %{BCH: %{EUR: Decimal.new(\"1.1\")}}" in errors_on(
                changeset
              ).rates
     end
@@ -216,7 +216,7 @@ defmodule InvoiceCreationTest do
                  rates: %{BCH: %{SEK: Decimal.new("1.2")}}
                })
 
-      assert "could not find rate with USD in %{BCH: %{SEK: #Decimal<1.2>}}" in errors_on(
+      assert "could not find rate with USD in %{BCH: %{SEK: Decimal.new(\"1.2\")}}" in errors_on(
                changeset
              ).rates
 
@@ -227,7 +227,7 @@ defmodule InvoiceCreationTest do
                  rates: %{BCH: %{USD: Decimal.new("1.2")}}
                })
 
-      assert "could not find rate XMR-USD in %{BCH: %{USD: #Decimal<1.2>}}" in errors_on(
+      assert "could not find rate XMR-USD in %{BCH: %{USD: Decimal.new(\"1.2\")}}" in errors_on(
                changeset
              ).rates
     end

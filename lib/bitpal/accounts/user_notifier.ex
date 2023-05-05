@@ -60,7 +60,7 @@ defmodule BitPal.Accounts.UserNotifier do
   @doc """
   Deliver instructions to update a user email.
   """
-  def deliver_update_email_instructions(user, url) do
+  def deliver_user_update_email_instructions(user, url) do
     deliver(user.email, "Update email instructions", """
 
     ==============================

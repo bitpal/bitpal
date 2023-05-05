@@ -20,13 +20,13 @@ defmodule BitPalApi.ConnCase do
       use ExUnit.Case, unquote(params)
       use BitPal.CaseHelpers
       use BitPalFactory
+      use BitPalWeb, :verified_routes
       import Plug.Conn
       import Plug.BasicAuth
       import Phoenix.ConnTest
       import BitPalApi.ConnCase
       import BitPal.TestHelpers
       import BitPal.ConnTestHelpers
-      alias BitPalApi.Router.Helpers, as: Routes
       alias BitPal.DataCase
       alias BitPal.IntegrationCase
 

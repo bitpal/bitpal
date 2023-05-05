@@ -47,12 +47,11 @@ defmodule BitPal.MixProject do
     [
       {:ecto_sql, "~> 3.7"},
       {:eqrcode, "~> 0.1.7"},
-      {:httpoison, "~> 1.7"},
+      {:httpoison, "~> 2.1.0"},
       {:jason, "~> 1.0"},
       {:libsecp256k1, "~> 0.1.9"},
       {:money, "~> 1.8"},
       {:mox, "~> 1.0"},
-      {:poison, "~> 5.0"},
       {:postgrex, ">= 0.0.0"},
       {:typed_ecto_schema, "~> 0.2"},
       {:scribe, "~> 0.10"},
@@ -62,32 +61,30 @@ defmodule BitPal.MixProject do
       {:recase, "~> 0.7"},
 
       # Server docs
+      # FIXME lock at git hash
       {:nimble_publisher, git: "https://github.com/treeman/nimble_publisher.git"},
       {:makeup_elixir, ">= 0.0.0"},
-      {:floki, "~> 0.32.0"},
+      {:floki, "~> 0.34.2"},
 
       # Phoenix and web
       {:gettext, "~> 0.11"},
       {:master_proxy, "~> 0.1"},
-      {:phoenix, "~> 1.6.0"},
+      {:phoenix, "~> 1.7.2"},
       {:phoenix_ecto, "~> 4.4.0"},
-      {:phoenix_html, "~> 3.0"},
+      {:phoenix_html, "~> 3.3"},
       {:phoenix_inline_svg, "~> 1.4"},
-      {:phoenix_live_dashboard, "~> 0.6"},
+      {:phoenix_live_dashboard, "~> 0.7.2"},
       {:phoenix_live_reload, "~> 1.3", only: :dev},
-      {:phoenix_live_view, "~> 0.17.5"},
+      {:phoenix_live_view, "~> 0.18.18"},
       {:phoenix_pubsub, "~> 2.0"},
       {:plug_cowboy, "~> 2.5"},
-      {:argon2_elixir, "~> 2.0"},
+      {:argon2_elixir, "~> 3.1"},
       {:swoosh, "~> 1.0"},
       {:hackney, "~> 1.0"},
       {:dart_sass, "~> 0.2", runtime: Mix.env() == :dev},
       {:esbuild, "~> 0.2", runtime: Mix.env() == :dev},
-      # Still some unresolved conflict with some libs requiring 0.4, but it's really fine...
-      {:telemetry, "~> 1.0", override: true},
       {:telemetry_metrics, "~> 0.6.1"},
       {:telemetry_poller, "~> 1.0.0"},
-      {:heex_formatter, github: "feliperenan/heex_formatter"},
 
       # CI and tests
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
@@ -115,7 +112,7 @@ defmodule BitPal.MixProject do
         "compile --warnings-as-errors --all-warnings",
         "format --check-formatted --dry-run",
         "credo --all --strict",
-        # "sobelow --skip --exit",
+        "sobelow --skip --exit",
         "deps.audit",
         "hex.audit",
         "deps.unlock --check-unused",

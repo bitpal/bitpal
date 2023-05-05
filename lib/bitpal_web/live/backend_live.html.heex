@@ -1,0 +1,23 @@
+<.breadcrumbs {assigns} />
+
+<% info_to_display = [
+  {:version, "Version"},
+  {:blocks, "Processed blocks"},
+  {:difficulty, "Difficulty"},
+  {:verification_progress, "Verification progress"},
+  {:chain, "Chain"},
+  {:best_block_hash, "Chain tip block hash"}
+] %>
+
+<h1><%= Money.Currency.name!(@currency_id) %>(<%= @currency_id %>)</h1>
+
+<% rows = collect_rows(info_to_display, assigns) %>
+
+<.flex_table rows={rows} class="info-table" header={false}>
+  <:col :let={{name, _}}>
+    <%= name %>
+  </:col>
+  <:col :let={{_, val}}>
+    <%= val %>
+  </:col>
+</.flex_table>

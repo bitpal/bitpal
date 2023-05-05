@@ -8,10 +8,10 @@ defmodule BitPalWeb.DocController do
   end
 
   def show(conn, %{"id" => id}) do
-    render(conn, "show.html", entry: Entries.get_entry_by_id!(id), entries: Entries.all_entries())
+    render(conn, :show, entry: Entries.get_entry_by_id!(id), entries: Entries.all_entries())
   end
 
   def toc(conn, _params) do
-    render(conn, "toc.html", entries: Entries.all_entries())
+    render(conn, :toc, entries: Entries.all_entries())
   end
 end

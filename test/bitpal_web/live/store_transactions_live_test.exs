@@ -20,7 +20,7 @@ defmodule BitPalWeb.StoreTransacionsLiveTest do
         |> with_txs()
         |> Repo.preload(address: :tx_outputs)
 
-      {:ok, _view, html} = live(conn, Routes.store_transactions_path(conn, :show, store.slug))
+      {:ok, _view, html} = live(conn, ~p"/stores/#{store}/transactions")
       assert html =~ store.label |> html_string()
       assert html =~ invoice.address_id
     end
@@ -28,7 +28,7 @@ defmodule BitPalWeb.StoreTransacionsLiveTest do
 
   describe "update" do
     test "add tx", %{conn: conn, store: store, currency_id: currency_id} do
-      {:ok, view, html} = live(conn, Routes.store_transactions_path(conn, :show, store.slug))
+      {:ok, view, html} = live(conn, ~p"/stores/#{store}/transactions")
       assert html =~ "There are no transactions here yet"
 
       invoice =
@@ -63,7 +63,7 @@ defmodule BitPalWeb.StoreTransacionsLiveTest do
 
       BackendMock.tx_seen(invoice)
 
-      {:ok, view, _html} = live(conn, Routes.store_transactions_path(conn, :show, store.slug))
+      {:ok, view, _html} = live(conn, ~p"/stores/#{store}/transactions")
       render_eventually(view, "Unconfirmed", ".tx-status .unconfirmed")
 
       BackendMock.confirmed_in_new_block(invoice)
@@ -82,8 +82,7 @@ defmodule BitPalWeb.StoreTransacionsLiveTest do
         create_user()
         |> create_store()
 
-      {:error, {:redirect, %{to: "/"}}} =
-        live(conn, Routes.store_transactions_path(conn, :show, other_store))
+      {:error, {:redirect, %{to: "/"}}} = live(conn, ~p"/stores/#{other_store}/transactions")
     end
   end
 end

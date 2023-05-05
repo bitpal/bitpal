@@ -9,13 +9,13 @@ defmodule BitPalApi.TransactionController do
   end
 
   def index(conn, _params, current_store) do
-    render(conn, "index.json", txs: Stores.tx_outputs(current_store))
+    render(conn, :index, txs: Stores.tx_outputs(current_store))
   end
 
   def show(conn, %{"txid" => txid}, current_store) do
     case Transactions.fetch(txid, current_store) do
       {:ok, tx} ->
-        render(conn, "show.json", tx: tx)
+        render(conn, :show, tx: tx)
 
       _ ->
         raise NotFoundError, param: "txid"

@@ -75,6 +75,6 @@ defmodule BitPal.ExchangeRate.Sources.Coinbase do
 
   defp fetch_exchange_rates(currency) do
     {:ok, body} = BitPalSettings.http_client().request_body(@exchange_rates_url <> currency)
-    Poison.decode!(body)
+    Jason.decode!(body)
   end
 end

@@ -62,11 +62,6 @@ defmodule BitPalWeb.ExchangeRateLive do
   end
 
   @impl true
-  def render(assigns) do
-    render(BitPalWeb.ExchangeRateView, "show.html", assigns)
-  end
-
-  @impl true
   def handle_info({{:exchange_rate, :raw_update}, rates}, socket) do
     {:noreply, update_rates(rates, socket)}
   end

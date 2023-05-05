@@ -13,7 +13,7 @@ defmodule BitPalApi.CurrencyController do
          addresses <- Currencies.addresses(id, current_store),
          invoices <- Currencies.invoices(id, current_store),
          backend_status <- BackendManager.status(id) do
-      render(conn, "show.json",
+      render(conn, :show,
         currency_id: id,
         status: backend_status,
         addresses: addresses,
@@ -26,6 +26,6 @@ defmodule BitPalApi.CurrencyController do
   end
 
   def index(conn, _poroms, _current_store) do
-    render(conn, "index.json", currencies: BackendManager.currency_list())
+    render(conn, :index, currencies: BackendManager.currency_list())
   end
 end

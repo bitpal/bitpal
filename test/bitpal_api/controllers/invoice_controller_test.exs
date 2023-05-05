@@ -3,7 +3,7 @@ defmodule BitPalApi.InvoiceControllerTest do
   alias BitPal.BackendMock
   alias BitPal.ExchangeRates
   alias BitPal.Invoices
-  alias BitPal.ViewHelpers
+  alias BitPal.RenderHelpers
   alias BitPalSchemas.InvoiceRates
 
   describe "create" do
@@ -143,7 +143,7 @@ defmodule BitPalApi.InvoiceControllerTest do
       assert address != nil
       assert is_float(rate)
 
-      assert ViewHelpers.money_to_string(Money.new(payment_sub_amount, currency)) ==
+      assert RenderHelpers.money_to_string(Money.new(payment_sub_amount, currency)) ==
                payment_display
     end
 

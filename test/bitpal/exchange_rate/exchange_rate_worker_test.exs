@@ -155,7 +155,7 @@ defmodule BitPal.ExchangeRateWorkerTest do
   end
 
   describe "rate updates" do
-    @tag request_type: :pair, rates_count: 4, do: true
+    @tag request_type: :pair, rates_count: 4
     test "updates pair", %{worker: worker} do
       assert eventually(fn ->
                ExchangeRateWorker.rates(worker) ==
@@ -225,7 +225,6 @@ defmodule BitPal.ExchangeRateWorkerTest do
          },
          rates_refresh_rate: 30,
          subscribe: true
-    @tag do: true
     test "sends multi updates" do
       d1 = Decimal.from_float(1.0)
 
