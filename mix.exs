@@ -65,6 +65,9 @@ defmodule BitPal.MixProject do
       {:nimble_publisher, git: "https://github.com/treeman/nimble_publisher.git"},
       {:makeup_elixir, ">= 0.0.0"},
       {:floki, "~> 0.34.2"},
+      {:beam_notify, "~> 0.2.0"},
+      {:temp, "~> 0.4.7"},
+      {:jsonrpc2, "~> 2.0"},
 
       # Phoenix and web
       {:gettext, "~> 0.11"},

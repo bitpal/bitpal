@@ -19,6 +19,10 @@ defmodule BitPal.DevSeeds do
       currency_id: :BCH
     )
 
+    # address:
+    #   "496YrjKKenbYS6KCfPabsJ11pTkikW79ZDDrkPDTC79CSTdCoubgh3f5BrupzBvPLWXNjjNsY8smmFDYvgVRQDsmCT5FhCU",
+    # viewkey: "805b4f767bdc7774a5c5ae2b3b8981c53646fff952f92de1ff749cf922e26d0f"
+
     invalid_time =
       (System.system_time(:second) - 1_000) |> DateTime.from_unix!() |> DateTime.to_naive()
 

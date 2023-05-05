@@ -30,17 +30,17 @@ defmodule BitPal.BackendStatusSupervisor do
     set_status(currency_id, :ready)
   end
 
-  @spec set_recovering(Currency.id(), non_neg_integer, non_neg_integer) :: :ok
-  def set_recovering(currency_id, processed_height, target_height) do
+  @spec set_recovering(Currency.id(), {non_neg_integer, non_neg_integer}) :: :ok
+  def set_recovering(currency_id, {processed_height, target_height}) do
     set_status(
       currency_id,
-      {:recovering, processed_height, target_height}
+      {:recovering, {processed_height, target_height}}
     )
   end
 
-  @spec set_syncing(Currency.id(), float) :: :ok
-  def set_syncing(currency_id, progress) do
-    set_status(currency_id, {:syncing, progress})
+  @spec set_syncing(Currency.id(), float | {non_neg_integer, non_neg_integer}) :: :ok
+  def set_syncing(currency_id, sync_status) do
+    set_status(currency_id, {:syncing, sync_status})
   end
 
   @spec set_stopped(Currency.id(), Backend.stopped_reason()) :: :ok

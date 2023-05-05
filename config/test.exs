@@ -1,6 +1,7 @@
 import Config
 
-config :bitpal,
+config :bitpal, BitPal.BackendManager,
+  restart_timeout: 10,
   backends: []
 
 config :bitpal, BitPal.ExchangeRate,
@@ -57,12 +58,9 @@ config :bitpal, :BCH,
 config :bitpal, BitPalFactory, init: true
 config :bitpal, BitPal.InvoiceSupervisor, pass_parent_pid: true
 
-config :bitpal, BitPal.BackendManager, reconnect_timeout: 10
-
 config :ex_unit, assert_receive_timeout: 200
 
 config :logger, level: :warning
 # Can use this to hide GenServer shutdown errors, generated from our backend tests
 # when the backends are made to crash or killed after a local test.
-config :logger, level: :critical
 # config :logger, level: :error

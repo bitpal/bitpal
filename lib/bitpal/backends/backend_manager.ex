@@ -10,10 +10,6 @@ defmodule BitPal.BackendManager do
   alias Ecto.Adapters.SQL.Sandbox
   require Logger
 
-  # Maybe we could do something smarter in the future, like:
-  # 1 sec, 2 sec, 4 sec, 8 sec, 16 sec, 32 sec, 64 sec, ...
-  @reconnect_timeout Application.compile_env!(:bitpal, [__MODULE__, :reconnect_timeout])
-
   @type server_name :: atom | {:via, term, term} | pid
   @type backend_spec :: Supervisor.child_spec() | {module, term} | module
   @type backend_name :: atom
@@ -53,6 +49,24 @@ defmodule BitPal.BackendManager do
 
           {^currency_id, :restarting, _worker, _params} ->
             {:error, :starting}
+
+          _ ->
+            false
+        end) || {:error, :plugin_not_found}
+    end
+  end
+
+  @spec fetch_backend_module(server_name, Currency.id()) ::
+          {:ok, module} | {:error, :plugin_not_found}
+  def fetch_backend_module(server \\ __MODULE__, currency_id) do
+    case ProcessRegistry.get_process_value(Backend.via_tuple(currency_id)) do
+      {:ok, {_pid, module}} ->
+        {:ok, module}
+
+      {:error, :not_found} ->
+        Enum.find_value(Supervisor.which_children(backend_supervisor(server)), fn
+          {^currency_id, _status, _worker, [module | _rest]} ->
+            {:ok, module}
 
           _ ->
             false
@@ -299,10 +313,12 @@ defmodule BitPal.BackendManager do
         {:ok, pid} ->
           {:noreply, monitor(pid, currency_id, state)}
 
-        _ ->
+        err ->
+          IO.inspect(err)
           {:noreply, state}
       end
     else
+      IO.puts("disabled")
       {:noreply, state}
     end
   end
@@ -325,13 +341,13 @@ defmodule BitPal.BackendManager do
   def handle_info({:DOWN, ref, :process, _pid, reason = {:shutdown, _}}, state) do
     # Controlled shut down due to some error after init is successful, probably a connection error.
     # Because it's some connection error, we'll reconnect after a timeout.
-    {:noreply, handle_down(state, ref, reason, delayed_restart: true)}
+    {:noreply, handle_down(state, ref, reason, delayed_restart: true, log_error: true)}
   end
 
   @impl true
   def handle_info({:DOWN, ref, :process, _pid, reason = {:error, _error}}, state) do
     # We crashed but handled it manually. The supervisor will restart directly.
-    {:noreply, handle_down(state, ref, reason, log_error: true)}
+    {:noreply, handle_down(state, ref, reason, delayed_restart: true, log_error: true)}
   end
 
   @impl true
@@ -340,7 +356,9 @@ defmodule BitPal.BackendManager do
     Logger.error("unhandled backend crash: #{inspect(reason)}")
 
     error_reason = if is_atom(reason), do: reason, else: :unknown
-    {:noreply, handle_down(state, ref, {:error, error_reason}, log_error: true)}
+
+    {:noreply,
+     handle_down(state, ref, {:error, error_reason}, delayed_restart: true, log_error: true)}
   end
 
   @impl true
@@ -354,14 +372,17 @@ defmodule BitPal.BackendManager do
 
     if opts[:log_error] do
       Logger.error("Backend for #{currency_id} crashed with code #{inspect(reason)}")
-      Logger.error("ref: #{inspect(ref)} manager: #{inspect(self())}")
     end
 
     if currency_id != :unknown do
       BackendStatusSupervisor.set_down(currency_id, reason)
 
       if opts[:delayed_restart] do
-        Process.send_after(self(), {:restart_backend_if_enabled, currency_id}, @reconnect_timeout)
+        Process.send_after(
+          self(),
+          {:restart_backend_if_enabled, currency_id},
+          BackendSettings.restart_timeout()
+        )
       end
     end
 
@@ -383,7 +404,7 @@ defmodule BitPal.BackendManager do
       Sandbox.allow(BitPal.Repo, parent, self())
     end
 
-    backends = Map.get(opts, :backends, BitPalSettings.currency_backends())
+    backends = Map.get(opts, :backends, BackendSettings.backends())
 
     {:ok, backend_supervisor} =
       Supervisor.start_link(backends, strategy: :one_for_one, max_restarts: 50, max_seconds: 5)

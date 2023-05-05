@@ -76,6 +76,8 @@ defmodule BitPal.Backend.Flowee do
 
   @impl true
   def handle_continue(:init, opts) do
+    Logger.info("Starting Flowee backend")
+
     BackendStatusSupervisor.set_starting(@bch)
 
     state =
@@ -301,7 +303,7 @@ defmodule BitPal.Backend.Flowee do
         hashes
       )
 
-      BackendStatusSupervisor.set_recovering(@bch, processed_height, target_height)
+      BackendStatusSupervisor.set_recovering(@bch, {processed_height, target_height})
 
       state
       |> Map.put(:recover_target, target_height)
@@ -317,7 +319,7 @@ defmodule BitPal.Backend.Flowee do
       state
       |> Map.delete(:recover_target)
     else
-      BackendStatusSupervisor.set_recovering(@bch, current_height, target_height)
+      BackendStatusSupervisor.set_recovering(@bch, {current_height, target_height})
 
       Protocol.send_get_block(
         state.hub_connection,
@@ -340,7 +342,7 @@ defmodule BitPal.Backend.Flowee do
        ) do
     if progress < 0.9999 do
       # No, we need to wait for it... Poll it for updates.
-      Process.send_after(self(), :send_blockchain_info, state[:sync_check_interval])
+      Process.send_after(self(), :send_blockchain_info, state.sync_check_interval)
 
       BackendStatusSupervisor.set_syncing(@bch, progress)
     else
