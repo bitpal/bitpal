@@ -14,20 +14,11 @@ config :money, :custom_currencies, %{
   XMR: %{name: "Monero", exponent: 12, symbol: "XMR"}
 }
 
-config :master_proxy,
-  # any Cowboy options are allowed
-  http: [:inet6, port: 4000],
-  # https: [:inet6, port: 4443],
-  backends: [
-    %{
-      host: ~r{^api\.*.*$},
-      phoenix_endpoint: BitPalApi.Endpoint
-    },
-    %{
-      host: ~r/^.*$/,
-      phoenix_endpoint: BitPalWeb.Endpoint
-    }
-  ]
+config :main_proxy,
+  http: [:inet6, port: 4000]
+
+# Needs a ssl keyfile
+# https: [:inet6, port: 4443],
 
 config :bitpal, :ecto_repos, [BitPal.Repo]
 
@@ -42,7 +33,8 @@ config :bitpal, BitPalApi.Endpoint,
     layout: false
   ],
   pubsub_server: BitPalApi.PubSub,
-  live_view: [signing_salt: "L/r2fqOc"]
+  live_view: [signing_salt: "L/r2fqOc"],
+  server: false
 
 config :bitpal, BitPalWeb.Endpoint,
   url: [host: "localhost"],
@@ -52,7 +44,8 @@ config :bitpal, BitPalWeb.Endpoint,
     layout: false
   ],
   pubsub_server: BitPalWeb.PubSub,
-  live_view: [signing_salt: "SIw7qWuU"]
+  live_view: [signing_salt: "SIw7qWuU"],
+  server: false
 
 # Configures Elixir's Logger
 config :logger, :console,

@@ -35,7 +35,6 @@ defmodule BitPalApi do
       use BitPalApi.Errors
       import BitPalApi.ChannelHelpers
       import BitPalApi.ApiHelpers
-      # alias BitPalApi.InvoiceView
     end
   end
 

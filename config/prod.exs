@@ -6,30 +6,20 @@ config :bitpal,
 config :bitpal, BitPal.ExchangeRate, backends: [BitPal.ExchangeRate.Kraken]
 
 config :bitpal, BitPalApi.Endpoint,
-  http: [
-    port: 4001,
-    transport_options: [socket_opts: [:inet6]]
-  ],
   force_ssl: [
     host: nil,
     rewrite_on: [:x_forwarded_port, :x_forwarded_proto],
     hsts: true
   ],
-  server: true
+  server: false
 
 config :bitpal, BitPalWeb.Endpoint,
-  url: [host: "example.com", port: 80],
-  cache_static_manifest: "priv/static/cache_manifest.json",
-  http: [
-    port: 4002,
-    transport_options: [socket_opts: [:inet6]]
-  ],
   force_ssl: [
     host: nil,
     rewrite_on: [:x_forwarded_port, :x_forwarded_proto],
     hsts: true
   ],
-  server: true
+  server: false
 
 # Do not print debug messages in production
 config :logger, level: :info

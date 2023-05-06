@@ -9,7 +9,7 @@ defmodule BitPalApi.InvoiceControllerTest do
   describe "create" do
     test "standard fields", %{conn: conn} do
       conn =
-        post(conn, "/v1/invoices", %{
+        post(conn, "/api/v1/invoices", %{
           priceSubAmount: 120,
           priceCurrency: "USD",
           description: "My awesome invoice",
@@ -40,7 +40,7 @@ defmodule BitPalApi.InvoiceControllerTest do
 
     test "with fiat priceSubAmount", %{conn: conn} do
       conn =
-        post(conn, "/v1/invoices", %{
+        post(conn, "/api/v1/invoices", %{
           priceSubAmount: 120,
           priceCurrency: "USD"
         })
@@ -58,7 +58,7 @@ defmodule BitPalApi.InvoiceControllerTest do
 
     test "create with fiat price", %{conn: conn} do
       conn =
-        post(conn, "/v1/invoices", %{
+        post(conn, "/api/v1/invoices", %{
           price: "1.20",
           priceCurrency: "USD"
         })
@@ -77,7 +77,7 @@ defmodule BitPalApi.InvoiceControllerTest do
 
     test "with crypto priceSubAmount", %{conn: conn} do
       conn =
-        post(conn, "/v1/invoices", %{
+        post(conn, "/api/v1/invoices", %{
           priceSubAmount: 1_200,
           priceCurrency: "BCH"
         })
@@ -95,7 +95,7 @@ defmodule BitPalApi.InvoiceControllerTest do
 
     test "with crypto price", %{conn: conn} do
       conn =
-        post(conn, "/v1/invoices", %{
+        post(conn, "/api/v1/invoices", %{
           price: "1.2",
           priceCurrency: "BCH"
         })
@@ -115,7 +115,7 @@ defmodule BitPalApi.InvoiceControllerTest do
       currency = Atom.to_string(currency_id)
 
       conn =
-        post(conn, "/v1/invoices", %{
+        post(conn, "/api/v1/invoices", %{
           price: "1.2",
           priceCurrency: "USD",
           paymentCurrency: currency,
@@ -150,7 +150,7 @@ defmodule BitPalApi.InvoiceControllerTest do
     test "invoice creation fail", %{conn: conn} do
       {_, _, response} =
         assert_error_sent(402, fn ->
-          post(conn, "/v1/invoices", %{})
+          post(conn, "/api/v1/invoices", %{})
         end)
 
       assert %{
@@ -165,7 +165,7 @@ defmodule BitPalApi.InvoiceControllerTest do
 
       {_, _, response} =
         assert_error_sent(402, fn ->
-          post(conn, "/v1/invoices", %{
+          post(conn, "/api/v1/invoices", %{
             price: "fail"
           })
         end)
@@ -185,7 +185,7 @@ defmodule BitPalApi.InvoiceControllerTest do
     setup [:setup_draft]
 
     test "finalize", %{conn: conn, invoice: invoice} do
-      conn = post(conn, "/v1/invoices/#{invoice.id}/finalize")
+      conn = post(conn, "/api/v1/invoices/#{invoice.id}/finalize")
 
       id = invoice.id
       currency = Atom.to_string(invoice.payment_currency_id)
@@ -204,20 +204,20 @@ defmodule BitPalApi.InvoiceControllerTest do
     end
 
     test "get invoice", %{conn: conn, invoice_id: id, currency_id: currency_id} do
-      conn = get(conn, "/v1/invoices/#{id}")
+      conn = get(conn, "/api/v1/invoices/#{id}")
       currency = Atom.to_string(currency_id)
       assert %{"id" => ^id, "paymentCurrency" => ^currency} = json_response(conn, 200)
     end
 
     test "delete", %{conn: conn, invoice_id: id} do
-      conn = delete(conn, "/v1/invoices/#{id}")
+      conn = delete(conn, "/api/v1/invoices/#{id}")
       assert %{"id" => ^id, "deleted" => true} = json_response(conn, 200)
     end
 
     test "cannot mark a draft as paid", %{conn: conn, invoice_id: id} do
       {_, _, response} =
         assert_error_sent(402, fn ->
-          post(conn, "/v1/invoices/#{id}/pay")
+          post(conn, "/api/v1/invoices/#{id}/pay")
         end)
 
       assert %{
@@ -230,7 +230,7 @@ defmodule BitPalApi.InvoiceControllerTest do
     test "cannot void a draft", %{conn: conn, invoice_id: id} do
       {_, _, response} =
         assert_error_sent(402, fn ->
-          post(conn, "/v1/invoices/#{id}/void")
+          post(conn, "/api/v1/invoices/#{id}/void")
         end)
 
       assert %{
@@ -242,7 +242,7 @@ defmodule BitPalApi.InvoiceControllerTest do
 
     test "update price", %{conn: conn, invoice: invoice} do
       conn =
-        post(conn, "/v1/invoices/#{invoice.id}", %{
+        post(conn, "/api/v1/invoices/#{invoice.id}", %{
           price: 7.0,
           priceCurrency: "EUR"
         })
@@ -266,7 +266,7 @@ defmodule BitPalApi.InvoiceControllerTest do
       assert invoice.payment_currency_id == nil
 
       conn =
-        post(conn, "/v1/invoices/#{invoice.id}", %{
+        post(conn, "/api/v1/invoices/#{invoice.id}", %{
           priceSubAmount: 1_000_000,
           priceCurrency: "DGC"
         })
@@ -289,7 +289,7 @@ defmodule BitPalApi.InvoiceControllerTest do
 
       {_, _, response} =
         assert_error_sent(402, fn ->
-          post(conn, "/v1/invoices/#{invoice.id}", %{
+          post(conn, "/api/v1/invoices/#{invoice.id}", %{
             priceSubAmount: 1_000_000,
             priceCurrency: "DGC"
           })
@@ -310,7 +310,7 @@ defmodule BitPalApi.InvoiceControllerTest do
     test "if price is specified, need priceCurrency", %{conn: conn, invoice: invoice} do
       {_, _, response} =
         assert_error_sent(402, fn ->
-          post(conn, "/v1/invoices/#{invoice.id}", %{
+          post(conn, "/api/v1/invoices/#{invoice.id}", %{
             price: 7.0
           })
         end)
@@ -327,7 +327,7 @@ defmodule BitPalApi.InvoiceControllerTest do
     test "if priceSubAmount is specified, need priceCurrency", %{conn: conn, invoice: invoice} do
       {_, _, response} =
         assert_error_sent(402, fn ->
-          post(conn, "/v1/invoices/#{invoice.id}", %{
+          post(conn, "/api/v1/invoices/#{invoice.id}", %{
             priceSubAmount: 700
           })
         end)
@@ -347,7 +347,7 @@ defmodule BitPalApi.InvoiceControllerTest do
     } do
       {_, _, response} =
         assert_error_sent(402, fn ->
-          post(conn, "/v1/invoices/#{invoice.id}", %{
+          post(conn, "/api/v1/invoices/#{invoice.id}", %{
             priceCurrency: "EUR"
           })
         end)
@@ -368,7 +368,7 @@ defmodule BitPalApi.InvoiceControllerTest do
       currency = Atom.to_string(currency_id)
 
       conn =
-        post(conn, "/v1/invoices/#{invoice.id}", %{
+        post(conn, "/api/v1/invoices/#{invoice.id}", %{
           paymentCurrency: currency
         })
 
@@ -396,7 +396,7 @@ defmodule BitPalApi.InvoiceControllerTest do
     test "validates priceCurrency", %{conn: conn, invoice_id: id} do
       {_, _, response} =
         assert_error_sent(402, fn ->
-          post(conn, "/v1/invoices/#{id}", %{
+          post(conn, "/api/v1/invoices/#{id}", %{
             price: 1.0,
             priceCurrency: "XXX"
           })
@@ -414,7 +414,7 @@ defmodule BitPalApi.InvoiceControllerTest do
     test "validates paymentCurrency", %{conn: conn, invoice_id: id} do
       {_, _, response} =
         assert_error_sent(402, fn ->
-          post(conn, "/v1/invoices/#{id}", %{
+          post(conn, "/api/v1/invoices/#{id}", %{
             paymentCurrency: "XXX"
           })
         end)
@@ -430,7 +430,7 @@ defmodule BitPalApi.InvoiceControllerTest do
 
     test "update meta fields", %{conn: conn, invoice_id: id} do
       conn =
-        post(conn, "/v1/invoices/#{id}", %{
+        post(conn, "/api/v1/invoices/#{id}", %{
           description: "My awesome invoice",
           email: "test@bitpal.dev",
           orderId: "id:123",
@@ -458,7 +458,7 @@ defmodule BitPalApi.InvoiceControllerTest do
     test "cannot delete a finalized invoice", %{conn: conn, invoice_id: id} do
       {_, _, response} =
         assert_error_sent(402, fn ->
-          delete(conn, "/v1/invoices/#{id}")
+          delete(conn, "/api/v1/invoices/#{id}")
         end)
 
       assert %{
@@ -475,7 +475,7 @@ defmodule BitPalApi.InvoiceControllerTest do
 
       paid_amount = paid.amount
 
-      conn = get(conn, "/v1/invoices/#{id}")
+      conn = get(conn, "/api/v1/invoices/#{id}")
 
       assert %{
                "paidDisplay" => "0.3 " <> _,
@@ -488,12 +488,12 @@ defmodule BitPalApi.InvoiceControllerTest do
     setup [:setup_uncollectable]
 
     test "pay an uncollectable invoice", %{conn: conn, invoice_id: id} do
-      conn = post(conn, "/v1/invoices/#{id}/pay")
+      conn = post(conn, "/api/v1/invoices/#{id}/pay")
       assert %{"id" => ^id, "status" => "paid"} = json_response(conn, 200)
     end
 
     test "void an uncollectable invoice", %{conn: conn, invoice_id: id} do
-      conn = post(conn, "/v1/invoices/#{id}/void")
+      conn = post(conn, "/api/v1/invoices/#{id}/void")
       assert %{"id" => ^id, "status" => "void"} = json_response(conn, 200)
     end
   end
@@ -502,12 +502,12 @@ defmodule BitPalApi.InvoiceControllerTest do
     id = "not-found"
 
     for f <- [
-          fn -> get(conn, "/v1/invoices/#{id}") end,
-          fn -> post(conn, "/v1/invoices/#{id}", %{"amount" => "2.0"}) end,
-          fn -> delete(conn, "/v1/invoices/#{id}") end,
-          fn -> post(conn, "/v1/invoices/#{id}/finalize") end,
-          fn -> post(conn, "/v1/invoices/#{id}/pay") end,
-          fn -> post(conn, "/v1/invoices/#{id}/void") end
+          fn -> get(conn, "/api/v1/invoices/#{id}") end,
+          fn -> post(conn, "/api/v1/invoices/#{id}", %{"amount" => "2.0"}) end,
+          fn -> delete(conn, "/api/v1/invoices/#{id}") end,
+          fn -> post(conn, "/api/v1/invoices/#{id}/finalize") end,
+          fn -> post(conn, "/api/v1/invoices/#{id}/pay") end,
+          fn -> post(conn, "/api/v1/invoices/#{id}/void") end
         ] do
       {_, _, response} = assert_error_sent(404, f)
 
@@ -524,12 +524,12 @@ defmodule BitPalApi.InvoiceControllerTest do
     id = create_invoice().id
 
     for f <- [
-          fn -> get(conn, "/v1/invoices/#{id}") end,
-          fn -> post(conn, "/v1/invoices/#{id}", %{"amount" => "2.0"}) end,
-          fn -> delete(conn, "/v1/invoices/#{id}") end,
-          fn -> post(conn, "/v1/invoices/#{id}/finalize") end,
-          fn -> post(conn, "/v1/invoices/#{id}/pay") end,
-          fn -> post(conn, "/v1/invoices/#{id}/void") end
+          fn -> get(conn, "/api/v1/invoices/#{id}") end,
+          fn -> post(conn, "/api/v1/invoices/#{id}", %{"amount" => "2.0"}) end,
+          fn -> delete(conn, "/api/v1/invoices/#{id}") end,
+          fn -> post(conn, "/api/v1/invoices/#{id}/finalize") end,
+          fn -> post(conn, "/api/v1/invoices/#{id}/pay") end,
+          fn -> post(conn, "/api/v1/invoices/#{id}/void") end
         ] do
       {_, _, response} = assert_error_sent(404, f)
 
@@ -547,14 +547,14 @@ defmodule BitPalApi.InvoiceControllerTest do
     id = create_invoice().id
 
     for f <- [
-          fn -> post(conn, "/v1/invoices/", %{"amount" => "1.0", "currency" => "BCH"}) end,
-          fn -> get(conn, "/v1/invoices/#{id}") end,
-          fn -> post(conn, "/v1/invoices/#{id}", %{"amount" => "2.0"}) end,
-          fn -> delete(conn, "/v1/invoices/#{id}") end,
-          fn -> post(conn, "/v1/invoices/#{id}/finalize") end,
-          fn -> post(conn, "/v1/invoices/#{id}/pay") end,
-          fn -> post(conn, "/v1/invoices/#{id}/void") end,
-          fn -> get(conn, "/v1/invoices") end
+          fn -> post(conn, "/api/v1/invoices/", %{"amount" => "1.0", "currency" => "BCH"}) end,
+          fn -> get(conn, "/api/v1/invoices/#{id}") end,
+          fn -> post(conn, "/api/v1/invoices/#{id}", %{"amount" => "2.0"}) end,
+          fn -> delete(conn, "/api/v1/invoices/#{id}") end,
+          fn -> post(conn, "/api/v1/invoices/#{id}/finalize") end,
+          fn -> post(conn, "/api/v1/invoices/#{id}/pay") end,
+          fn -> post(conn, "/api/v1/invoices/#{id}/void") end,
+          fn -> get(conn, "/api/v1/invoices") end
         ] do
       {_, _, response} = assert_error_sent(401, f)
 
@@ -573,7 +573,7 @@ defmodule BitPalApi.InvoiceControllerTest do
     # Invoices from other store should not show up
     _ = create_invoice(amount: 4)
 
-    conn = get(conn, "/v1/invoices")
+    conn = get(conn, "/api/v1/invoices")
     # Can sometimes be in another order, so sorting is necessary
     [id0, id1, id2] = Enum.sort([id0, id1, id2])
 

@@ -31,14 +31,14 @@ defmodule BitPalDoc.MarkdownTransformationTest do
     ~~~sh
     $ curl
     ~~~
-    {: parser="endpoint" header="GET /v1/invoices/:id"}
+    {: parser="endpoint" header="GET /api/v1/invoices/:id"}
     """
 
     assert process(input, &transform_extra_attrs/1) =~
              """
              <aside class="endpoint">
                <div class="header">
-             <a name="get/v1/invoices/id">GET /v1/invoices/:id</a>  </div>
+             <a name="get/api/v1/invoices/id">GET /api/v1/invoices/:id</a>  </div>
 
                <pre><code class="sh">$ curl</code></pre>
              </aside>
@@ -48,8 +48,8 @@ defmodule BitPalDoc.MarkdownTransformationTest do
   test "transform endpoints marker" do
     input = """
     ~~~
-    POST /v1/invoices
-    GET /v1/invoices/:id
+    POST /api/v1/invoices
+    GET /api/v1/invoices/:id
     ~~~
     {: parser="endpoints"}
     """
@@ -62,10 +62,10 @@ defmodule BitPalDoc.MarkdownTransformationTest do
                </div>
                <ul>
                  <li>
-             <a href="#post/v1/invoices">POST /v1/invoices</a>    </li>
+             <a href="#post/api/v1/invoices">POST /api/v1/invoices</a>    </li>
 
                  <li>
-             <a href="#get/v1/invoices/id">GET /v1/invoices/:id</a>    </li>
+             <a href="#get/api/v1/invoices/id">GET /api/v1/invoices/:id</a>    </li>
                </ul>
              </aside>
              """
@@ -77,11 +77,11 @@ defmodule BitPalDoc.MarkdownTransformationTest do
 
     input = """
     ~~~
-    POST /v1/invoices
-    GET /v1/invoices/:id
+    POST /api/v1/invoices
+    GET /api/v1/invoices/:id
     ~~~
     """
 
-    assert process_text(input) == "POST /v1/invoices\nGET /v1/invoices/:id"
+    assert process_text(input) == "POST /api/v1/invoices\nGET /api/v1/invoices/:id"
   end
 end

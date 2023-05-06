@@ -68,7 +68,7 @@ defmodule BitPal.MixProject do
 
       # Phoenix and web
       {:gettext, "~> 0.11"},
-      {:master_proxy, "~> 0.1"},
+      {:main_proxy, "~> 0.1"},
       {:phoenix, "~> 1.7.2"},
       {:phoenix_ecto, "~> 4.4.0"},
       {:phoenix_html, "~> 3.3"},
