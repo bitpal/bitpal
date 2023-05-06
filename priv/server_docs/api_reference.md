@@ -28,7 +28,7 @@ BitPal has standard [REST][rest-wiki] endpoints with human-friendly JSON-encoded
 
 > ~~~sh
 > # The trailing colon ignores the password
-> curl https://api.<your-ip>/v1/invoices/<invoice-id> \
+> curl https://api.<your-ip>/api/v1/invoices/<invoice-id> \
 >   -u <token>:
 > ~~~
 
@@ -57,24 +57,24 @@ Authentication is sent using [HTTP Basic Auth][http-auth]. Provide the API key a
 ## Invoices
 
 ~~~
-  POST /v1/invoices
-   GET /v1/invoices/:id
-  POST /v1/invoices/:id
-DELETE /v1/invoices/:id
-  POST /v1/invoices/:id/finalize
-  POST /v1/invoices/:id/pay
-  POST /v1/invoices/:id/void
-   GET /v1/invoices
+  POST /api/v1/invoices
+   GET /api/v1/invoices/:id
+  POST /api/v1/invoices/:id
+DELETE /api/v1/invoices/:id
+  POST /api/v1/invoices/:id/finalize
+  POST /api/v1/invoices/:id/pay
+  POST /api/v1/invoices/:id/void
+   GET /api/v1/invoices
 ~~~
 {: parser="endpoints"}
 
 ### Retrieve an invoice
 
 ~~~sh
-$ curl https://api.localhost:4000/v1/invoices/<some-id> \
+$ curl https://api.localhost:4000/api/v1/invoices/<some-id> \
     -u <your-token>:
 ~~~
-{: parser="endpoint" header="GET /v1/invoices/:id"}
+{: parser="endpoint" header="GET /api/v1/invoices/:id"}
 
 ~~~json
 {
@@ -101,24 +101,24 @@ $ curl https://api.localhost:4000/v1/invoices/<some-id> \
 ## Transactions
 
 ~~~
-   GET /v1/transactions/:txid
-   GET /v1/transactions
+   GET /api/v1/transactions/:txid
+   GET /api/v1/transactions
 ~~~
 {: parser="endpoints"}
 
 ## Exchange rates
 
 ~~~
-   GET /v1/rates/:basecurrency
-   GET /v1/rates/:basecurrency/:currency
+   GET /api/v1/rates/:basecurrency
+   GET /api/v1/rates/:basecurrency/:currency
 ~~~
 {: parser="endpoints"}
 
 ## Currencies
 
 ~~~
-   GET /v1/rates/:currencies
-   GET /v1/rates/:currencies/:id
+   GET /api/v1/rates/:currencies
+   GET /api/v1/rates/:currencies/:id
 ~~~
 {: parser="endpoints"}
 

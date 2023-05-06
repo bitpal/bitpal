@@ -16,7 +16,7 @@ defmodule BitPalApi.TransactionControllerTest do
     create_store()
     |> with_invoices(txs: :auto, payment_currency_id: currency_id)
 
-    conn = get(conn, "/v1/transactions/")
+    conn = get(conn, "/api/v1/transactions/")
     assert txs = json_response(conn, 200)
     assert length(txs) == 2
   end
@@ -26,7 +26,7 @@ defmodule BitPalApi.TransactionControllerTest do
     txid = tx.txid
     amount = tx.amount.amount
 
-    conn = get(conn, "/v1/transactions/#{txid}")
+    conn = get(conn, "/api/v1/transactions/#{txid}")
 
     assert %{"txid" => ^txid, "outputDisplay" => _, "outputSubAmount" => ^amount, "address" => _} =
              json_response(conn, 200)
@@ -35,7 +35,7 @@ defmodule BitPalApi.TransactionControllerTest do
   test "not found", %{conn: conn} do
     {_, _, response} =
       assert_error_sent(404, fn ->
-        get(conn, "/v1/transactions/not-found")
+        get(conn, "/api/v1/transactions/not-found")
       end)
 
     assert %{
@@ -53,7 +53,7 @@ defmodule BitPalApi.TransactionControllerTest do
 
     {_, _, response} =
       assert_error_sent(404, fn ->
-        get(conn, "/v1/transactions/#{txid}")
+        get(conn, "/api/v1/transactions/#{txid}")
       end)
 
     assert %{

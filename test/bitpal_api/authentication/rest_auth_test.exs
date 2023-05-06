@@ -3,20 +3,20 @@ defmodule BitPalApi.AuthTest do
 
   defp protected_requests do
     [
-      {:post, "/v1/invoices"},
-      {:get, "/v1/invoices/0"},
-      {:post, "/v1/invoices/0"},
-      {:delete, "/v1/invoices/0"},
-      {:post, "/v1/invoices/0/finalize"},
-      {:post, "/v1/invoices/0/pay"},
-      {:post, "/v1/invoices/0/void"},
-      {:get, "/v1/invoices"},
-      {:get, "/v1/transactions/0"},
-      {:get, "/v1/transactions"},
-      {:get, "/v1/rates/BCH"},
-      {:get, "/v1/rates/BCH/USD"},
-      {:get, "/v1/currencies"},
-      {:get, "/v1/currencies/BCH"}
+      {:post, "/api/v1/invoices"},
+      {:get, "/api/v1/invoices/0"},
+      {:post, "/api/v1/invoices/0"},
+      {:delete, "/api/v1/invoices/0"},
+      {:post, "/api/v1/invoices/0/finalize"},
+      {:post, "/api/v1/invoices/0/pay"},
+      {:post, "/api/v1/invoices/0/void"},
+      {:get, "/api/v1/invoices"},
+      {:get, "/api/v1/transactions/0"},
+      {:get, "/api/v1/transactions"},
+      {:get, "/api/v1/rates/BCH"},
+      {:get, "/api/v1/rates/BCH/USD"},
+      {:get, "/api/v1/currencies"},
+      {:get, "/api/v1/currencies/BCH"}
     ]
   end
 

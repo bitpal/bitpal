@@ -27,14 +27,15 @@ defmodule BitPal.Application do
             {BitPal.Cache, name: BitPal.RuntimeStorage, ttl_check_interval: false},
             id: BitPal.RuntimeStorage
           ),
-          BitPalApi.Endpoint,
-          BitPalWeb.Telemetry,
-          BitPalWeb.Endpoint,
           BitPal.InvoiceSupervisor,
           BitPal.BackendStatusSupervisor,
           BitPal.BackendManager,
           BitPal.ExchangeRateSupervisor,
-          BitPal.ServerSetup
+          BitPal.ServerSetup,
+          BitPal.Proxy,
+          BitPalApi.Endpoint,
+          BitPalWeb.Telemetry,
+          BitPalWeb.Endpoint
         ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: BitPal.Supervisor)

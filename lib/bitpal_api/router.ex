@@ -11,7 +11,7 @@ defmodule BitPalApi.Router do
     plug(BasicAuth)
   end
 
-  scope "/v1", BitPalApi do
+  scope "/api/v1", BitPalApi do
     pipe_through(:secure_api)
 
     post("/invoices", InvoiceController, :create)

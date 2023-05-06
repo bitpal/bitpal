@@ -8,7 +8,7 @@ defmodule BitPalApi.CurrencyControllerTest do
 
   @tag backends: @backends
   test "list available", %{conn: conn, currencies: currencies} do
-    conn = get(conn, "/v1/currencies")
+    conn = get(conn, "/api/v1/currencies")
     gotten_currencies = Enum.into(json_response(conn, 200), MapSet.new())
 
     # Note that we're testing this async, so there will be a lot more currency backends available
@@ -29,7 +29,7 @@ defmodule BitPalApi.CurrencyControllerTest do
     _ = create_invoice(address_id: :auto)
     _ = create_invoice(payment_currency_id: c1, address_id: :auto)
 
-    conn = get(conn, "/v1/currencies/#{c0}")
+    conn = get(conn, "/api/v1/currencies/#{c0}")
 
     c0s = to_string(c0)
 
