@@ -368,8 +368,11 @@ defmodule BitPal.Backend.FloweeTest do
                last == FloweeFixtures.get_block_690932_2()
            end)
 
+    # FIXME if this never pass, we get an "updating stale scruct" error.
+    # That should not happen!
+
     # At this point, Flowee should not report being ready.
-    assert {:recovering, 690_931, 690_933} = BackendManager.status(@currency)
+    assert {:recovering, {690_931, 690_933}} = BackendManager.status(@currency)
 
     # Give them an empty block 690932
     MockTCPClient.response(@client, FloweeFixtures.block_info_690932_reply())
@@ -381,7 +384,7 @@ defmodule BitPal.Backend.FloweeTest do
                FloweeFixtures.get_block_690933_reused_hashes()
            end)
 
-    assert {:recovering, 690_932, 690_933} = BackendManager.status(@currency)
+    assert {:recovering, {690_932, 690_933}} = BackendManager.status(@currency)
 
     # Give them the block 690933 with transactions.
     MockTCPClient.response(@client, FloweeFixtures.block_info_690933_reply())

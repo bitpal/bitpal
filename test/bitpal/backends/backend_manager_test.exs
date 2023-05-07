@@ -238,18 +238,18 @@ defmodule BackendManagerTest do
       assert eventually(fn -> BackendManager.status(manager, c2) == :ready end)
 
       BackendManager.stop_backend(manager, c1)
-      BackendStatusSupervisor.set_recovering(c2, 1, 2)
+      BackendStatusSupervisor.set_recovering(c2, {1, 2})
 
       assert eventually(fn -> BackendManager.status(manager, c1) == :stopped end)
 
       assert eventually(fn ->
-               BackendManager.status(manager, c2) == {:recovering, 1, 2}
+               BackendManager.status(manager, c2) == {:recovering, {1, 2}}
              end)
 
       list = BackendManager.status_list(manager)
       assert {^c0, {_, BackendMock}, :ready} = find_status(list, c0)
       assert {^c1, {:undefined, BackendMock}, :stopped} = find_status(list, c1)
-      assert {^c2, {_, BackendMock}, {:recovering, 1, 2}} = find_status(list, c2)
+      assert {^c2, {_, BackendMock}, {:recovering, {1, 2}}} = find_status(list, c2)
     end
 
     defp find_status(list, currency_id) do

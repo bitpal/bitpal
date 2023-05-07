@@ -1,6 +1,6 @@
 defmodule BitPal.Backend do
   @moduledoc """
-  The backend behaviour that all backend plugins must implement.
+  The backend behavior that all backend plugins must implement.
 
   # Init
 
@@ -12,7 +12,7 @@ defmodule BitPal.Backend do
 
   The `id` should represent the currency the plugin handles, and `restart` should use `:transient`.
 
-  # Restart behaviour
+  # Restart behavior
 
   During startup or shutdown the backend will be restarted depending on the return values
   (the process should specify `restart: :transient`):
@@ -45,19 +45,45 @@ defmodule BitPal.Backend do
           | :unknown
           | :plugin_not_found
   @type backend_info :: map()
+  @type backend_opts :: map()
 
-  @callback supported_currency(pid()) :: Currency.id()
-  @callback register(pid(), Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
+  @doc """
+  Get the supported currency of the backend.
+  """
+  @callback supported_currency(pid()) :: {:ok, Currency.id()} | {:error, term}
+
+  @doc """
+  Register a finalized invoice for the backend to track.
+
+  The backend is responsible for:
+  - Adding an address to the invoice.
+  - Start tracking the address and notify via `Transctions.seen()`, `Transactions.confirmed()`
+    and `Transactions.double_spent().
+  """
+  @callback register_invoice(pid(), Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
 
   @doc """
   Get the stored info of the backend.
   """
-  @callback info(pid()) :: backend_info() | nil
+  @callback info(pid()) :: {:ok, backend_info()} | {:error, term}
 
-  @callback configure(pid(), map()) :: :ok | {:error, term}
+  @doc """
+  Refresh backend info.
 
-  # FIXME implement these with macros
-  #
+  The refresh may be an async call, so no direct response is made here.
+  Instead the backend is expected to broadcast a {:backend, :info} event
+  when the info is updated.
+  """
+  @callback refresh_info(pid()) :: :ok | {:error, term}
+
+  @doc """
+  Send configuration options to the backend.
+  """
+  @callback configure(pid(), backend_opts()) :: :ok | {:error, term}
+
+  # FIXME implement these with macros?
+  # It's just a repeat of calling all callbacks and wrapping it in :not_found
+
   @spec supported_currency(backend_ref()) :: {:ok, Currency.id()} | {:error, :not_found}
   def supported_currency({pid, backend}) do
     try do
@@ -99,13 +125,79 @@ defmodule BitPal.Backend do
     ProcessRegistry.via_tuple({__MODULE__, currency_id})
   end
 
-  # FIXME use this to make it easier to implement backends?
-  # defmacro __using__(params) do
-  #   quote do
-  #     @behaviour BitPal.Backend
-  #     use GenServer
-  #
-  #     @currency_id Keyword.fetch!(unquote(params), :currency_id)
-  #   end
-  # end
+  # BackendMacro.def_call(:configure, :opts)
+
+  defmacro __using__(params) do
+    quote do
+      @behaviour BitPal.Backend
+      use GenServer
+      alias BitPal.Backend
+      alias BitPal.BackendEvents
+      alias BitPal.BackendStatusSupervisor
+      alias BitPal.ProcessRegistry
+
+      @currency_id Keyword.get(unquote(params), :currency_id)
+
+      @doc false
+      def start_link(opts) do
+        GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+      end
+
+      defoverridable start_link: 1
+
+      @doc false
+      def child_spec(opts) do
+        currency_id =
+          @currency_id || raise("currency_id is nil, then we must override child_spec/1")
+
+        opts =
+          opts
+          |> Keyword.put(:currency_id, currency_id)
+
+        %{
+          id: currency_id,
+          start: {__MODULE__, :start_link, [opts]},
+          restart: :transient
+        }
+      end
+
+      defoverridable child_spec: 1
+
+      @doc false
+      @impl GenServer
+      def init(opts) do
+        currency_id = Keyword.fetch!(opts, :currency_id)
+
+        Registry.register(
+          ProcessRegistry,
+          Backend.via_tuple(currency_id),
+          __MODULE__
+        )
+
+        # FIXME would be nice to just do this...
+        # BackendStatusSupervisor.set_starting(currency_id)
+
+        # Customization and enhancements should be done via continue
+        # so we don't block init().
+        {:ok, opts, {:continue, :init}}
+      end
+
+      defoverridable init: 1
+
+      @doc false
+      @impl Backend
+      def configure(_pid, _opts), do: :ok
+
+      defoverridable configure: 2
+
+      @doc false
+      @impl Backend
+      def supported_currency(_backend) do
+        {:ok,
+         @currency_id || raise("currency_id is nil, then we must override supported_currency/1")}
+      end
+
+      defoverridable supported_currency: 1
+    end
+  end
 end
