@@ -302,6 +302,9 @@ defmodule BackendManagerTest do
       end)
 
       assert BackendManager.backends(manager) |> Enum.count() == 2
+
+      # Manually remove backends to avoid the occasional Repo disconnected error.
+      BackendManager.remove_backends(manager)
     end
   end
 end

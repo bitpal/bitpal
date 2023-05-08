@@ -130,6 +130,7 @@ defmodule BitPal.InvoiceSupervisor do
 
   @spec terminate_handler(pid) :: :ok | {:error, :not_found}
   def terminate_handler(name \\ __MODULE__, pid) do
+    GenServer.stop(pid)
     DynamicSupervisor.terminate_child(name, pid)
   end
 

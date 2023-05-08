@@ -74,6 +74,18 @@ defmodule BitPal.BackendManager do
     end
   end
 
+  @spec fetch_backend_pid(server_name, Currency.id()) ::
+          {:ok, pid}
+          | {:error, :plugin_not_found}
+          | {:error, :stopped}
+          | {:error, :starting}
+  def fetch_backend_pid(server \\ __MODULE__, currency_id) do
+    case fetch_backend(server, currency_id) do
+      {:ok, {pid, _}} -> {:ok, pid}
+      err -> err
+    end
+  end
+
   @spec restart_backend(server_name, Currency.id()) :: {:ok, pid} | {:error, term}
   def restart_backend(server \\ __MODULE__, currency_id) do
     case Supervisor.restart_child(backend_supervisor(server), currency_id) do
@@ -148,16 +160,38 @@ defmodule BitPal.BackendManager do
 
   @spec remove_currency_backends(server_name, [Currency.id()]) :: :ok
   def remove_currency_backends(server \\ __MODULE__, currencies) when is_list(currencies) do
-    supervisor = backend_supervisor(server)
-
     Enum.each(currencies, fn id ->
-      remove_backend(supervisor, id)
+      remove_backend(server, id)
     end)
   end
 
-  defp remove_backend(supervisor, child_id) do
-    Supervisor.terminate_child(supervisor, child_id)
-    Supervisor.delete_child(supervisor, child_id)
+  @spec remove_backends(server_name) :: :ok
+  def remove_backends(server \\ __MODULE__) do
+    Enum.each(currencies(server), fn {id, _} ->
+      remove_backend(server, id)
+    end)
+  end
+
+  defp remove_backend(server, currency_id) do
+    supervisor = backend_supervisor(server)
+
+    # Manually stop the GenServer before removal to avoid Repo sandbox errors during testing.
+    # They're not critical, but in some rare cases they may cause cascading test errors
+    # which is super annoying to debug.
+    # This shouldn't be necessary in general when stopping a backend outside that particular
+    # case I don't think.
+    case fetch_backend_pid(server, currency_id) do
+      {:ok, pid} ->
+        # IO.puts("  stopping #{inspect(pid)}")
+        GenServer.stop(pid)
+
+      _ ->
+        # IO.puts("  backend stopped? #{currency_id}")
+        nil
+    end
+
+    Supervisor.terminate_child(supervisor, currency_id)
+    Supervisor.delete_child(supervisor, currency_id)
   end
 
   # Supervised backends
@@ -255,7 +289,7 @@ defmodule BitPal.BackendManager do
     Supervisor.which_children(supervisor)
     |> Enum.each(fn {child_id, pid, _, _} ->
       if !MapSet.member?(to_keep, pid) do
-        remove_backend(supervisor, child_id)
+        remove_backend(server, child_id)
       end
     end)
   end

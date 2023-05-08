@@ -94,6 +94,7 @@ defmodule BitPal.BackendStatusSupervisor do
     for currency_id <- currencies do
       case fetch_status_handler(currency_id) do
         {:ok, handler} ->
+          GenServer.stop(handler)
           DynamicSupervisor.terminate_child(__MODULE__, handler)
 
         _ ->
