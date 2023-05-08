@@ -23,7 +23,7 @@ defmodule BitPal.BackendMock do
   @type backend :: pid()
 
   @impl Backend
-  def register(backend, invoice) do
+  def register_invoice(backend, invoice) do
     GenServer.call(backend, {:register, invoice})
   end
 
@@ -31,7 +31,7 @@ defmodule BitPal.BackendMock do
   def supported_currency(pid) when is_pid(pid) do
     # Avoid GenServer calls, which is relevant if the backend is shut down instantly.
     # Only relevant for backends that have dynamically different currencies.
-    Cache.fetch!(BitPal.RuntimeStorage, pid)
+    {:ok, Cache.fetch!(BitPal.RuntimeStorage, pid)}
   end
 
   def supported_currency(backend) do
@@ -49,7 +49,7 @@ defmodule BitPal.BackendMock do
   end
 
   @impl Backend
-  def poll_info(_backend), do: :ok
+  def refresh_info(_backend), do: :ok
 
   def stop_with_error(backend, error) do
     GenServer.cast(backend, {:stop_with_error, error})
@@ -203,7 +203,7 @@ defmodule BitPal.BackendMock do
 
   @impl true
   def handle_call(:supported_currency, _, state) do
-    {:reply, state.currency_id, state}
+    {:reply, {:ok, state.currency_id}, state}
   end
 
   @impl true

@@ -22,10 +22,10 @@ defmodule BitPal.BackendManager do
 
   # Invoices
 
-  @spec register(server_name, Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
-  def register(server \\ __MODULE__, invoice) do
+  @spec register_invoice(server_name, Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
+  def register_invoice(server \\ __MODULE__, invoice) do
     case fetch_backend(server, invoice.payment_currency_id) do
-      {:ok, ref} -> Backend.register(ref, invoice)
+      {:ok, ref} -> Backend.register_invoice(ref, invoice)
       error -> error
     end
   end
@@ -141,9 +141,11 @@ defmodule BitPal.BackendManager do
 
       {:ok, pid} when is_pid(pid) ->
         try do
+          {:ok, currency_id} = backend.supported_currency(pid)
+
           GenServer.call(
             server,
-            {:backend_added, pid, backend.supported_currency(pid), Enum.into(opts, %{})}
+            {:backend_added, pid, currency_id, Enum.into(opts, %{})}
           )
 
           {:ok, {pid, backend}}

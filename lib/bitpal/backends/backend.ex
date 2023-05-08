@@ -81,52 +81,6 @@ defmodule BitPal.Backend do
   """
   @callback configure(pid(), backend_opts()) :: :ok | {:error, term}
 
-  # FIXME implement these with macros?
-  # It's just a repeat of calling all callbacks and wrapping it in :not_found
-
-  @spec supported_currency(backend_ref()) :: {:ok, Currency.id()} | {:error, :not_found}
-  def supported_currency({pid, backend}) do
-    try do
-      {:ok, backend.supported_currency(pid)}
-    catch
-      :exit, _reason -> {:error, :not_found}
-    end
-  end
-
-  @spec register(backend_ref(), Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
-  def register({pid, backend}, invoice) do
-    try do
-      backend.register(pid, invoice)
-    catch
-      :exit, _reason -> {:error, :not_found}
-    end
-  end
-
-  @spec info(backend_ref()) :: {:ok, backend_info | nil} | {:error, term}
-  def info({pid, backend}) do
-    try do
-      backend.info(pid)
-    catch
-      :exit, _reason -> {:error, :not_found}
-    end
-  end
-
-  @spec configure(backend_ref(), keyword()) :: :ok | {:error, term}
-  def configure({pid, backend}, opts) do
-    try do
-      backend.configure(pid, opts)
-    catch
-      :exit, _reason -> {:error, :not_found}
-    end
-  end
-
-  @spec via_tuple(Currency.id()) :: {:via, Registry, any}
-  def via_tuple(currency_id) do
-    ProcessRegistry.via_tuple({__MODULE__, currency_id})
-  end
-
-  # BackendMacro.def_call(:configure, :opts)
-
   defmacro __using__(params) do
     quote do
       @behaviour BitPal.Backend
@@ -200,4 +154,59 @@ defmodule BitPal.Backend do
       defoverridable supported_currency: 1
     end
   end
+
+  # FIXME implement these with macros?
+  # It's just a repeat of calling all callbacks and wrapping it in :not_found
+
+  @spec supported_currency(backend_ref()) :: {:ok, Currency.id()} | {:error, :not_found}
+  def supported_currency({pid, backend}) do
+    try do
+      backend.supported_currency(pid)
+    catch
+      :exit, _reason -> {:error, :not_found}
+    end
+  end
+
+  @spec register_invoice(backend_ref(), Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
+  def register_invoice({pid, backend}, invoice) do
+    try do
+      backend.register_invoice(pid, invoice)
+    catch
+      :exit, _reason -> {:error, :not_found}
+    end
+  end
+
+  @spec info(backend_ref()) :: {:ok, backend_info | nil} | {:error, term}
+  def info({pid, backend}) do
+    try do
+      backend.info(pid)
+    catch
+      :exit, _reason -> {:error, :not_found}
+    end
+  end
+
+  @spec refresh_info(backend_ref()) :: :ok | {:error, term}
+  def refresh_info({pid, backend}) do
+    try do
+      backend.refresh_info(pid)
+    catch
+      :exit, _reason -> {:error, :not_found}
+    end
+  end
+
+  @spec configure(backend_ref(), keyword()) :: :ok | {:error, term}
+  def configure({pid, backend}, opts) do
+    try do
+      backend.configure(pid, opts)
+    catch
+      :exit, _reason -> {:error, :not_found}
+    end
+  end
+
+  @spec via_tuple(Currency.id()) :: {:via, Registry, any}
+  def via_tuple(currency_id) do
+    ProcessRegistry.via_tuple({__MODULE__, currency_id})
+  end
+
+  # BackendMacro.def_call(:configure, :opts)
 end

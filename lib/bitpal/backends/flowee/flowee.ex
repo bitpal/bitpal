@@ -34,23 +34,13 @@ defmodule BitPal.Backend.Flowee do
     }
   end
 
-  @doc """
-  Start watching an "bitcoincash:..." address.
-  Mostly used for testing as addresses will be watced when an invoice is created.
-  """
-  def watch_address(address) do
-    GenServer.call(__MODULE__, {:watch, address})
-  end
-
-  # Returns the amount of satoshi to ask for. Note: This will be modified slightly so that the system
-  # is able to differentiate between different transactions.
   @impl Backend
-  def register(backend, invoice) do
+  def supported_currency(_backend), do: {:ok, @bch}
+
+  @impl Backend
+  def register_invoice(backend, invoice) do
     GenServer.call(backend, {:register, invoice})
   end
-
-  @impl Backend
-  def supported_currency(_backend), do: @bch
 
   @impl Backend
   def configure(_backend, _opts), do: :ok
@@ -59,7 +49,15 @@ defmodule BitPal.Backend.Flowee do
   def info(backend), do: GenServer.call(backend, :info)
 
   @impl Backend
-  def poll_info(backend), do: GenServer.call(backend, :poll_info)
+  def refresh_info(backend), do: GenServer.call(backend, :poll_info)
+
+  @doc """
+  Start watching an "bitcoincash:..." address.
+  Mostly used for testing as addresses will be watced when an invoice is created.
+  """
+  def watch_address(address) do
+    GenServer.call(__MODULE__, {:watch, address})
+  end
 
   # Sever API
 

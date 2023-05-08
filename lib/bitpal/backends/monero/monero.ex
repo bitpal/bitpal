@@ -27,18 +27,21 @@ defmodule BitPal.Backend.Monero do
   end
 
   @impl Backend
-  def register(backend, invoice) do
+  def register_invoice(backend, invoice) do
     GenServer.call(backend, {:register, invoice})
   end
 
   @impl Backend
-  def supported_currency(_backend), do: @xmr
+  def supported_currency(_backend), do: {:ok, @xmr}
 
   @impl Backend
   def configure(_backend, _opts), do: :ok
 
   @impl Backend
   def info(backend), do: GenServer.call(backend, :get_info)
+
+  @impl Backend
+  def refresh_info(_backend), do: :ok
 
   # Server API
 
