@@ -12,19 +12,19 @@ defmodule BitPal.Backend.Monero.DaemonRPC do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  def get_block_count() do
+  def get_block_count do
     call("get_block_count", %{})
   end
 
-  def get_version() do
+  def get_version do
     call("get_version", %{})
   end
 
-  def get_info() do
+  def get_info do
     call("get_info", %{})
   end
 
-  def sync_info() do
+  def sync_info do
     call("sync_info", %{})
   end
 
@@ -41,14 +41,14 @@ defmodule BitPal.Backend.Monero.DaemonRPC do
   # "--block-notify",
   # "#{Files.notify_path()} monero:block-notify %s"
 
-  defp async_call(method, params, task_supervisor) do
-    from = self()
-
-    Task.Supervisor.async_nolink(task_supervisor, fn ->
-      reply = call(method, params)
-      send(from, {method, reply})
-    end)
-  end
+  # defp async_call(method, params, task_supervisor) do
+  #   from = self()
+  #
+  #   Task.Supervisor.async_nolink(task_supervisor, fn ->
+  #     reply = call(method, params)
+  #     send(from, {method, reply})
+  #   end)
+  # end
 
   defp call(method, params) do
     HTTP.call(@url, method, params)

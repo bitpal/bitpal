@@ -91,7 +91,7 @@ defmodule BitPal.InvoiceHandler do
 
   @impl true
   def handle_continue(:finalize, state = %{invoice: invoice}) do
-    case BackendManager.register(invoice) do
+    case BackendManager.register_invoice(invoice) do
       {:ok, invoice} ->
         subscribe(invoice)
         invoice = Invoices.finalize!(invoice)

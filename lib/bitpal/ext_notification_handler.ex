@@ -1,8 +1,8 @@
 defmodule BitPal.ExtNotificationHandler do
   use GenServer
-  require Logger
   alias Phoenix.PubSub
   alias BitPal.Files
+  require Logger
 
   @pubsub BitPal.PubSub
 

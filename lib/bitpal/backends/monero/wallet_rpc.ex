@@ -41,16 +41,16 @@ defmodule BitPal.Backend.Monero.WalletRPC do
     ])
   end
 
-  @spec stop(Port.t()) :: true
+  @spec stop(port) :: true
   def stop(port) do
     close_wallet()
     Port.close(port)
   end
 
-  def create_account() do
+  def create_account do
   end
 
-  def get_accounts() do
+  def get_accounts do
     call("get_accounts", [])
   end
 
@@ -59,7 +59,7 @@ defmodule BitPal.Backend.Monero.WalletRPC do
   end
 
   @spec close_wallet() :: {:ok, any} | {:error, any}
-  def close_wallet() do
+  def close_wallet do
     call("close_wallet", [])
   end
 
@@ -102,7 +102,7 @@ defmodule BitPal.Backend.Monero.WalletRPC do
     call("get_transfer_by_txid", %{txid: txid, account_index: account_index})
   end
 
-  def validate_address() do
+  def validate_address do
   end
 
   defp call(method, params) do

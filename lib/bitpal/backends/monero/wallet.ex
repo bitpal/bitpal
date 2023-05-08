@@ -1,10 +1,10 @@
 defmodule BitPal.Backend.Monero.Wallet do
   use GenServer
-  require Logger
   alias BitPal.Files
-  alias BitPal.Invoice
-  alias BitPal.Backend.Monero.DaemonRPC
+  alias BitPalSchemas.Invoice
+  # alias BitPal.Backend.Monero.DaemonRPC
   alias BitPal.Backend.Monero.WalletRPC
+  require Logger
 
   # FIXME configurable what account we should pass our payments to?
   @account 0
@@ -28,7 +28,7 @@ defmodule BitPal.Backend.Monero.Wallet do
       {:ok,
        %{
          "address" => address,
-         "address_index" => address_index
+         "address_index" => _address_index
        }} = WalletRPC.create_address(@account)
 
       # FIXME track address index in db

@@ -1,13 +1,14 @@
 defmodule BitPal.Backend.Monero do
   @behaviour BitPal.Backend
   use GenServer
-  require Logger
   alias BitPal.Backend
   alias BitPal.ExtNotificationHandler
   alias BitPal.BackendEvents
   alias BitPal.BackendStatusSupervisor
-  alias BitPal.Backend.Monero.{DaemonRPC, Wallet}
+  alias BitPal.Backend.Monero.DaemonRPC
+  alias BitPal.Backend.Monero.Wallet
   alias BitPal.ProcessRegistry
+  require Logger
 
   @supervisor MoneroSupervisor
   @xmr :XMR

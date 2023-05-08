@@ -1,5 +1,5 @@
 defmodule BitPal.Security do
-  def strong_rand_string() do
+  def strong_rand_string do
     strong_rand_string(64)
   end
 
