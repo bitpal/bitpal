@@ -71,6 +71,10 @@ defmodule BitPal.Backend.Flowee do
       __MODULE__
     )
 
+    if log_level = opts[:log_level] do
+      Logger.put_process_level(self(), log_level)
+    end
+
     {:ok, opts, {:continue, :init}}
   end
 
@@ -162,6 +166,7 @@ defmodule BitPal.Backend.Flowee do
 
   @impl true
   def handle_call({:connection_error, error}, _from, state) do
+    Logger.error("Connection error from Flowee: #{inspect(error)}")
     {:stop, {:shutdown, {:connection, error}}, state}
   end
 
@@ -440,11 +445,10 @@ defmodule BitPal.Backend.Flowee do
         receive_messages(c)
 
       {:error, {:unknown_msg, unknown}} ->
-        Logger.warn("Unknown message received from Flowee #{inspect(unknown)}")
+        Logger.warn("Unknown message received from Flowee: #{inspect(unknown)}")
         receive_messages(c)
 
       {:error, error} ->
-        Logger.error("Fatal error from Flowee #{inspect(error)}")
         GenServer.call(__MODULE__, {:connection_error, error})
     end
   end

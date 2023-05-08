@@ -27,7 +27,9 @@ defmodule BitPal.Backend.FloweeTest do
 
     backends = [
       {BitPal.Backend.Flowee,
-       tcp_client: @client, ping_timeout: tags[:ping_timeout] || :timer.minutes(1)}
+       tcp_client: @client,
+       ping_timeout: tags[:ping_timeout] || :timer.minutes(1),
+       log_level: :alert}
     ]
 
     IntegrationCase.setup_integration(local_manager: true, backends: backends, async: false)

@@ -4,6 +4,7 @@ defmodule BitPal.RateLimiterTest do
   use ExUnit.Case, async: false
   import BitPal.TestHelpers
   alias BitPal.RateLimiter
+  require Logger
 
   defmodule Handler do
     use GenServer
@@ -111,7 +112,8 @@ defmodule BitPal.RateLimiterTest do
          timeframe: 100,
          timeframe_max_requests: 5,
          timeframe_unit: :milliseconds,
-         retry_timeout: Map.get(tags, :retry_timeout, 1_000)}
+         retry_timeout: Map.get(tags, :retry_timeout, 1_000),
+         log_level: :critical}
       )
 
     handler = start_supervised!(Handler)

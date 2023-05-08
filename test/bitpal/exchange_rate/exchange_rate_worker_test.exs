@@ -22,6 +22,7 @@ defmodule BitPal.ExchangeRateWorkerTest do
     if tags[:fail_first_supported] do
       MockSource
       |> expect(:supported, 1, fn ->
+        Logger.put_process_level(self(), :none)
         raise("BOOM!")
       end)
     end
@@ -61,6 +62,7 @@ defmodule BitPal.ExchangeRateWorkerTest do
     if tags[:fail_first_rates] do
       MockSource
       |> expect(:rates, 1, fn _ ->
+        Logger.put_process_level(self(), :none)
         raise("BOOM!")
       end)
     end
