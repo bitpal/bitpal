@@ -91,7 +91,11 @@ defmodule BitPal.IntegrationCase do
 
     start_supervised!(
       {BackendManager,
-       backends: backends, parent: self(), name: manager, enabled_state: enabled_state}
+       backends: backends,
+       parent: self(),
+       name: manager,
+       enabled_state: enabled_state,
+       log_level: :alert}
     )
 
     %{currencies: currencies, manager: manager}

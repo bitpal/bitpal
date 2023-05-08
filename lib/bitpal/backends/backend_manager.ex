@@ -314,11 +314,10 @@ defmodule BitPal.BackendManager do
           {:noreply, monitor(pid, currency_id, state)}
 
         err ->
-          IO.inspect(err)
+          Logger.debug("Error when restarting backend: #{inspect(err)}")
           {:noreply, state}
       end
     else
-      IO.puts("disabled")
       {:noreply, state}
     end
   end
@@ -353,7 +352,7 @@ defmodule BitPal.BackendManager do
   @impl true
   def handle_info({:DOWN, ref, :process, _pid, reason}, state) do
     # An unhandled crash, the supervisor will restart it directly.
-    Logger.error("unhandled backend crash: #{inspect(reason)}")
+    Logger.critical("unhandled backend crash: #{inspect(reason)}")
 
     error_reason = if is_atom(reason), do: reason, else: :unknown
 
@@ -402,6 +401,10 @@ defmodule BitPal.BackendManager do
   def handle_continue(:init, opts) do
     if parent = opts[:parent] do
       Sandbox.allow(BitPal.Repo, parent, self())
+    end
+
+    if log_level = opts[:log_level] do
+      Logger.put_process_level(self(), log_level)
     end
 
     backends = Map.get(opts, :backends, BackendSettings.backends())
