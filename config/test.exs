@@ -58,6 +58,8 @@ config :bitpal, :BCH,
 config :bitpal, BitPalFactory, init: true
 config :bitpal, BitPal.InvoiceSupervisor, pass_parent_pid: true
 
+config :bitpal, BitPal.BackendMock, log_level: :alert
+
 config :ex_unit, assert_receive_timeout: 200
 
 config :logger, level: :warning

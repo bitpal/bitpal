@@ -18,6 +18,8 @@ defmodule BitPal.BackendMock do
   alias BitPalSchemas.TxOutput
   alias Ecto.Adapters.SQL.Sandbox
 
+  @log_level Application.compile_env(:bitpal, [__MODULE__, :log_level], :error)
+
   @type backend :: pid()
 
   @impl Backend
@@ -125,6 +127,8 @@ defmodule BitPal.BackendMock do
       Backend.via_tuple(currency_id),
       __MODULE__
     )
+
+    Logger.put_process_level(self(), @log_level)
 
     Cache.put(BitPal.RuntimeStorage, self(), currency_id)
 
