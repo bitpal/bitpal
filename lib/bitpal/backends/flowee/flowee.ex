@@ -1,49 +1,28 @@
 defmodule BitPal.Backend.Flowee do
-  @behaviour BitPal.Backend
-  use GenServer
+  use BitPal.Backend, currency_id: :BCH
   alias BitPal.Addresses
-  alias BitPal.Backend
+  # alias BitPal.Backend
   alias BitPal.Backend.Flowee.Connection
   alias BitPal.Backend.Flowee.Connection.Binary
   alias BitPal.Backend.Flowee.Protocol
   alias BitPal.Backend.Flowee.Protocol.Message
-  alias BitPal.BackendEvents
-  alias BitPal.BackendStatusSupervisor
+  # alias BitPal.BackendEvents
+  # alias BitPal.BackendStatusSupervisor
   alias BitPal.BCH.Cashaddress
   alias BitPal.Blocks
   alias BitPal.Cache
   alias BitPal.Invoices
-  alias BitPal.ProcessRegistry
   alias BitPal.Transactions
   require Logger
 
   @cache BitPal.RuntimeStorage
-  @bch :BCH
 
   # Client API
-
-  def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
-  end
-
-  def child_spec(opts) do
-    %{
-      id: @bch,
-      start: {__MODULE__, :start_link, [opts]},
-      restart: :transient
-    }
-  end
-
-  @impl Backend
-  def supported_currency(_backend), do: {:ok, @bch}
 
   @impl Backend
   def register_invoice(backend, invoice) do
     GenServer.call(backend, {:register, invoice})
   end
-
-  @impl Backend
-  def configure(_backend, _opts), do: :ok
 
   @impl Backend
   def info(backend), do: GenServer.call(backend, :info)
@@ -62,25 +41,8 @@ defmodule BitPal.Backend.Flowee do
   # Sever API
 
   @impl true
-  def init(opts) do
-    Registry.register(
-      ProcessRegistry,
-      Backend.via_tuple(@bch),
-      __MODULE__
-    )
-
-    if log_level = opts[:log_level] do
-      Logger.put_process_level(self(), log_level)
-    end
-
-    {:ok, opts, {:continue, :init}}
-  end
-
-  @impl true
   def handle_continue(:init, opts) do
-    Logger.info("Starting Flowee backend")
-
-    BackendStatusSupervisor.set_starting(@bch)
+    Logger.notice("Starting Flowee backend")
 
     state =
       Enum.into(opts, %{})
@@ -109,7 +71,7 @@ defmodule BitPal.Backend.Flowee do
     enqueue_ping(state)
 
     # Supscribe to invoices we should be tracking
-    Enum.each(Addresses.all_active(@bch), fn address ->
+    Enum.each(Addresses.all_active(:BCH), fn address ->
       subscribe_addr(c, address)
     end)
 
@@ -212,7 +174,7 @@ defmodule BitPal.Backend.Flowee do
     # blocks in case we crash during recovery.
     # Even if we could skip this during recovery, it's a better user experience to save the recovery state
     # if we abort Flowee in the middle.
-    Blocks.set_block_height(@bch, height)
+    Blocks.set_block_height(:BCH, height)
 
     # NOTE if any tx is found, we should recheck open invoices.
     continue_block_recovery(state, height)
@@ -229,9 +191,9 @@ defmodule BitPal.Backend.Flowee do
   end
 
   defp handle_message(:new_block_on_chain, %{height: height}, state) do
-    Logger.debug("New #{@bch} block. Height is now: #{height}")
+    Logger.debug("New #{:BCH} block. Height is now: #{height}")
     # Save the block height. This means that during recovery, we don't have to examine this block.
-    Blocks.new_block(@bch, height)
+    Blocks.new_block(:BCH, height)
     state
   end
 
@@ -272,26 +234,26 @@ defmodule BitPal.Backend.Flowee do
   # Block recovery
 
   defp recover_blocks_if_needed(state = %{blockchain_info: %{blocks: height}}) do
-    case Blocks.fetch_block_height(@bch) do
+    case Blocks.fetch_block_height(:BCH) do
       {:ok, processed_height} when processed_height < height ->
         recover_blocks_between(state, processed_height, height)
 
       _ ->
         # No height yet, so nothing to recover.
-        Blocks.set_block_height(@bch, height)
+        Blocks.set_block_height(:BCH, height)
         state
     end
   end
 
   defp recover_blocks_between(state, processed_height, target_height) do
-    Logger.debug("#{@bch} recover blocks between #{processed_height} #{target_height}")
+    Logger.debug("#{:BCH} recover blocks between #{processed_height} #{target_height}")
 
-    active = Addresses.all_active(@bch)
+    active = Addresses.all_active(:BCH)
 
     if Enum.empty?(active) do
       # No addresses so nothing to recover.
-      Blocks.set_block_height(@bch, target_height)
-      BackendStatusSupervisor.set_ready(@bch)
+      Blocks.set_block_height(:BCH, target_height)
+      set_ready()
       state
     else
       # We have addresses, send a request and see if we missed something.
@@ -306,7 +268,7 @@ defmodule BitPal.Backend.Flowee do
         hashes
       )
 
-      BackendStatusSupervisor.set_recovering(@bch, {processed_height, target_height})
+      set_recovering({processed_height, target_height})
 
       state
       |> Map.put(:recover_target, target_height)
@@ -322,7 +284,7 @@ defmodule BitPal.Backend.Flowee do
       state
       |> Map.delete(:recover_target)
     else
-      BackendStatusSupervisor.set_recovering(@bch, {current_height, target_height})
+      set_recovering({current_height, target_height})
 
       Protocol.send_get_block(
         state.hub_connection,
@@ -347,10 +309,10 @@ defmodule BitPal.Backend.Flowee do
       # No, we need to wait for it... Poll it for updates.
       Process.send_after(self(), :send_blockchain_info, state.sync_check_interval)
 
-      BackendStatusSupervisor.set_syncing(@bch, progress)
+      set_syncing(progress)
     else
       if !state[:recover_target] do
-        BackendStatusSupervisor.sync_done(@bch)
+        sync_done()
       end
     end
 
@@ -366,7 +328,7 @@ defmodule BitPal.Backend.Flowee do
         with {:ok, address} <- fetch_hash_to_addr(address_hash),
              true <- Addresses.exists?(address) do
           # Also transform to expected values
-          [{address, Money.new(amount, @bch)}]
+          [{address, Money.new(amount, :BCH)}]
         else
           _ -> []
         end
@@ -378,7 +340,7 @@ defmodule BitPal.Backend.Flowee do
     Enum.flat_map(outputs, fn %{amount: amount, outputHash: hash} ->
       with {:ok, address} <- fetch_hash_to_addr(hash),
            true <- Addresses.exists?(address) do
-        [{address, Money.new(amount, @bch)}]
+        [{address, Money.new(amount, :BCH)}]
       else
         _ -> []
       end
@@ -416,7 +378,7 @@ defmodule BitPal.Backend.Flowee do
 
   defp subscribe_addr(conn, addr) do
     hash = create_addr_hash(addr)
-    Logger.debug("Subscribed to new #{@bch} wallet: " <> inspect(addr))
+    Logger.debug("Subscribed to new #{:BCH} wallet: " <> inspect(addr))
     Protocol.send_address_subscribe(conn, hash)
   end
 
@@ -431,7 +393,7 @@ defmodule BitPal.Backend.Flowee do
   end
 
   defp broadcast_info(state) do
-    BackendEvents.broadcast({{:backend, :info}, %{info: create_info(state), currency_id: @bch}})
+    BackendEvents.broadcast({{:backend, :info}, %{info: create_info(state), currency_id: :BCH}})
     state
   end
 

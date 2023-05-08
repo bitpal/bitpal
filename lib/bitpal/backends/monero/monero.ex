@@ -1,42 +1,18 @@
 defmodule BitPal.Backend.Monero do
-  @behaviour BitPal.Backend
-  use GenServer
-  alias BitPal.Backend
+  use BitPal.Backend, currency_id: :XMR
   alias BitPal.ExtNotificationHandler
-  alias BitPal.BackendEvents
-  alias BitPal.BackendStatusSupervisor
   alias BitPal.Backend.Monero.DaemonRPC
   alias BitPal.Backend.Monero.Wallet
-  alias BitPal.ProcessRegistry
   require Logger
 
   @supervisor MoneroSupervisor
-  @xmr :XMR
 
   # Client API
-
-  def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
-  end
-
-  def child_spec(opts) do
-    %{
-      id: @xmr,
-      start: {__MODULE__, :start_link, [opts]},
-      restart: :transient
-    }
-  end
 
   @impl Backend
   def register_invoice(backend, invoice) do
     GenServer.call(backend, {:register, invoice})
   end
-
-  @impl Backend
-  def supported_currency(_backend), do: {:ok, @xmr}
-
-  @impl Backend
-  def configure(_backend, _opts), do: :ok
 
   @impl Backend
   def info(backend), do: GenServer.call(backend, :get_info)
@@ -47,20 +23,8 @@ defmodule BitPal.Backend.Monero do
   # Server API
 
   @impl true
-  def init(opts) do
-    Registry.register(
-      ProcessRegistry,
-      Backend.via_tuple(@xmr),
-      __MODULE__
-    )
-
-    {:ok, opts, {:continue, :init}}
-  end
-
-  @impl true
   def handle_continue(:init, opts) do
-    Logger.info("Starting Monero backend")
-    BackendStatusSupervisor.set_starting(@xmr)
+    Logger.notice("Starting Monero backend")
 
     state =
       Enum.into(opts, %{})
@@ -158,7 +122,7 @@ defmodule BitPal.Backend.Monero do
   end
 
   defp update_sync(state, %{"synchronized" => true}) do
-    BackendStatusSupervisor.sync_done(@xmr)
+    sync_done()
     Process.send_after(self(), :update_info, state.daemon_check_interval)
     state
   end
@@ -168,13 +132,13 @@ defmodule BitPal.Backend.Monero do
          "target_height" => target_height,
          "height" => height
        }) do
-    BackendStatusSupervisor.set_syncing(@xmr, {height, target_height})
+    set_syncing({height, target_height})
     Process.send_after(self(), :update_info, state.sync_check_interval)
     state
   end
 
   defp store_daemon_info(state, info) do
-    BackendEvents.broadcast({{:backend, :info}, %{info: info, currency_id: @xmr}})
+    BackendEvents.broadcast({{:backend, :info}, %{info: info, currency_id: :XMR}})
     Map.put(state, :daemon_info, info)
   end
 

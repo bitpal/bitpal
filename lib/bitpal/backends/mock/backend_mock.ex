@@ -1,6 +1,5 @@
 defmodule BitPal.BackendMock do
   @behaviour BitPal.Backend
-
   use BitPalFactory
   use GenServer
   import BitPalSettings.ConfigHelpers

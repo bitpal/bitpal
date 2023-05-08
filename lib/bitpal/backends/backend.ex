@@ -90,7 +90,7 @@ defmodule BitPal.Backend do
       alias BitPal.BackendStatusSupervisor
       alias BitPal.ProcessRegistry
 
-      @currency_id Keyword.get(unquote(params), :currency_id)
+      @currency_id Keyword.fetch!(unquote(params), :currency_id)
 
       @doc false
       def start_link(opts) do
@@ -101,15 +101,12 @@ defmodule BitPal.Backend do
 
       @doc false
       def child_spec(opts) do
-        currency_id =
-          @currency_id || raise("currency_id is nil, then we must override child_spec/1")
-
         opts =
           opts
-          |> Keyword.put(:currency_id, currency_id)
+          |> Keyword.put(:currency_id, @currency_id)
 
         %{
-          id: currency_id,
+          id: @currency_id,
           start: {__MODULE__, :start_link, [opts]},
           restart: :transient
         }
@@ -120,16 +117,17 @@ defmodule BitPal.Backend do
       @doc false
       @impl GenServer
       def init(opts) do
-        currency_id = Keyword.fetch!(opts, :currency_id)
-
         Registry.register(
           ProcessRegistry,
-          Backend.via_tuple(currency_id),
+          Backend.via_tuple(@currency_id),
           __MODULE__
         )
 
-        # FIXME would be nice to just do this...
-        # BackendStatusSupervisor.set_starting(currency_id)
+        if log_level = opts[:log_level] do
+          Logger.put_process_level(self(), log_level)
+        end
+
+        BackendStatusSupervisor.set_starting(@currency_id)
 
         # Customization and enhancements should be done via continue
         # so we don't block init().
@@ -147,11 +145,18 @@ defmodule BitPal.Backend do
       @doc false
       @impl Backend
       def supported_currency(_backend) do
-        {:ok,
-         @currency_id || raise("currency_id is nil, then we must override supported_currency/1")}
+        {:ok, @currency_id}
       end
 
       defoverridable supported_currency: 1
+
+      # Helpers to make status updates easier
+      def set_starting, do: BackendStatusSupervisor.set_starting(@currency_id)
+      def set_ready, do: BackendStatusSupervisor.set_ready(@currency_id)
+      def set_recovering(state), do: BackendStatusSupervisor.set_recovering(@currency_id, state)
+      def set_syncing(state), do: BackendStatusSupervisor.set_syncing(@currency_id, state)
+      def set_stopped(reason), do: BackendStatusSupervisor.set_stopped(@currency_id, reason)
+      def sync_done, do: BackendStatusSupervisor.sync_done(@currency_id)
     end
   end
 
