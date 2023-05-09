@@ -41,7 +41,7 @@ npm-debug.log
 .elixir_ls
 
 # Ignore dev secrets file
-secrets.fish
+.secrets.fish
 
 # Temp things
 *~

@@ -3,11 +3,64 @@ defmodule BitPal.ExtNotificationHandlerTest do
   alias BitPal.ExtNotificationHandler
   alias BitPal.Files
 
-  test "Receive pubsub via external notify cmd" do
-    ExtNotificationHandler.subscribe("test_event")
-    # credo:disable-for-next-line
-    {"", 0} = System.cmd(Files.notify_path(), ["test_event", "123"])
+  setup tags do
+    %{event: Faker.Code.isbn()}
+  end
 
-    assert_receive {:notify, "test_event", ["123"]}
+  describe "extermal notify script" do
+    test "Receive pubsub via external notify cmd", %{event: event} do
+      ExtNotificationHandler.subscribe(event)
+
+      # credo:disable-for-next-line
+      {_, 0} = System.cmd(Files.notify_path(), [event, "123"], env: [{"MIX_ENV", "test"}])
+
+      assert_receive {:notify, event, ["123"]}
+    end
+  end
+
+  describe "handle notify message" do
+    test "Receive pubsub via handle_info", %{event: event} do
+      ExtNotificationHandler.subscribe(event)
+
+      send(ExtNotificationHandler, {:notify, [event, "123", "abc"], 0})
+
+      assert_receive {:notify, event, ["123", "abc"]}
+    end
+  end
+
+  describe "parse message" do
+    test "skip args that I'm not sure why they sometimes come with" do
+      assert {:ok, "event", ["1", "2"]} ==
+               ExtNotificationHandler.parse_message([
+                 "-p",
+                 "/tmp/bitpal_notify_socket",
+                 "event",
+                 "1",
+                 "2"
+               ])
+
+      assert {:ok, "event", ["1", "2"]} ==
+               ExtNotificationHandler.parse_message([
+                 "-p",
+                 "/tmp/bitpal_notify_socket",
+                 "--",
+                 "event",
+                 "1",
+                 "2"
+               ])
+
+      assert {:ok, "event", ["1", "2"]} ==
+               ExtNotificationHandler.parse_message([
+                 "event",
+                 "1",
+                 "2"
+               ])
+
+      assert {:ok, "event", ["1"]} ==
+               ExtNotificationHandler.parse_message([
+                 "event",
+                 "1"
+               ])
+    end
   end
 end
