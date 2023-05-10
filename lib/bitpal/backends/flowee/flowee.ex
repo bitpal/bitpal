@@ -1,13 +1,10 @@
 defmodule BitPal.Backend.Flowee do
   use BitPal.Backend, currency_id: :BCH
   alias BitPal.Addresses
-  # alias BitPal.Backend
   alias BitPal.Backend.Flowee.Connection
   alias BitPal.Backend.Flowee.Connection.Binary
   alias BitPal.Backend.Flowee.Protocol
   alias BitPal.Backend.Flowee.Protocol.Message
-  # alias BitPal.BackendEvents
-  # alias BitPal.BackendStatusSupervisor
   alias BitPal.BCH.Cashaddress
   alias BitPal.Blocks
   alias BitPal.Cache
@@ -20,8 +17,16 @@ defmodule BitPal.Backend.Flowee do
   # Client API
 
   @impl Backend
-  def register_invoice(backend, invoice) do
-    GenServer.call(backend, {:register, invoice})
+  def assign_address(_backend, invoice) do
+    Invoices.ensure_address(invoice, fn key ->
+      index = Addresses.next_address_index(key)
+      {:ok, %{address_id: Cashaddress.derive_address(key.data, index), address_index: index}}
+    end)
+  end
+
+  @impl Backend
+  def watch_invoice(backend, invoice) do
+    GenServer.call(backend, {:watch_invoice, invoice})
   end
 
   @impl Backend
@@ -29,14 +34,6 @@ defmodule BitPal.Backend.Flowee do
 
   @impl Backend
   def refresh_info(backend), do: GenServer.call(backend, :poll_info)
-
-  @doc """
-  Start watching an "bitcoincash:..." address.
-  Mostly used for testing as addresses will be watced when an invoice is created.
-  """
-  def watch_address(address) do
-    GenServer.call(__MODULE__, {:watch, address})
-  end
 
   # Sever API
 
@@ -88,24 +85,14 @@ defmodule BitPal.Backend.Flowee do
   end
 
   @impl true
-  def handle_call({:register, invoice}, _from, state) do
-    registered =
-      Invoices.ensure_address(invoice, fn %{key: xpub, index: address_index} ->
-        Cashaddress.derive_address(xpub, address_index)
-      end)
-
-    case registered do
-      {:ok, invoice} ->
-        {:reply, {:ok, invoice}, watch_address(invoice.address_id, state)}
-
-      err ->
-        {:reply, err, state}
-    end
+  def handle_call({:watch_invoice, invoice}, _, state = %{hub_connection: c}) do
+    subscribe_addr(c, invoice.address_id)
+    {:reply, :ok, state}
   end
 
   @impl true
-  def handle_call({:watch, address}, _, state) do
-    {:noreply, watch_address(address, state)}
+  def handle_call({:watch_invoice, _address}, _, state) do
+    {:reply, :ok, state}
   end
 
   @impl true
@@ -346,14 +333,6 @@ defmodule BitPal.Backend.Flowee do
       end
     end)
   end
-
-  # Start watching an address. "address" is a "bitcoincash:..." address.
-  defp watch_address(address, state = %{hub_connection: c}) do
-    subscribe_addr(c, address)
-    state
-  end
-
-  defp watch_address(_address, state), do: state
 
   defp fetch_hash_to_addr(address_hash) do
     Cache.fetch(@cache, {:bch_hash2addr, address_hash})

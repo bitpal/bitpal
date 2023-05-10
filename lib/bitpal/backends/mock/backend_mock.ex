@@ -22,8 +22,13 @@ defmodule BitPal.BackendMock do
   @type backend :: pid()
 
   @impl Backend
-  def register_invoice(backend, invoice) do
-    GenServer.call(backend, {:register, invoice})
+  def assign_address(backend, invoice) do
+    GenServer.call(backend, {:assign_address, invoice})
+  end
+
+  @impl Backend
+  def watch_invoice(backend, address) do
+    GenServer.call(backend, {:watch_invoice, address})
   end
 
   @impl Backend
@@ -211,14 +216,18 @@ defmodule BitPal.BackendMock do
   end
 
   @impl true
-  def handle_call({:register, invoice}, _from, state) do
+  def handle_call({:assign_address, invoice}, _from, state) do
     invoice = with_address(invoice, state)
+    {:reply, {:ok, invoice}, state}
+  end
 
+  @impl true
+  def handle_call({:watch_invoice, invoice}, _from, state) do
     if state.auto do
       setup_auto_invoice(invoice, state)
     end
 
-    {:reply, {:ok, invoice}, state}
+    {:reply, :ok, state}
   end
 
   @impl true

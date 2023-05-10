@@ -61,21 +61,19 @@ defmodule AddressTest do
   end
 
   describe "generate_address/2" do
-    test "generates", %{address_key: address_key} do
-      data = address_key.data
-
-      for i <- 0..3 do
-        {:ok, address} = Addresses.generate_address(address_key, &test_address_generator/1)
-        # Tests the compound of indata to the generator
-        assert "#{data}-#{i}-#{address_key.currency_id}" == address.id
-      end
+    defp test_address_generator(key) do
+      i = Addresses.next_address_index(key)
+      {:ok, %{address_id: "#{key.data}-#{i}-#{key.currency_id}", address_index: i}}
     end
 
-    test "generate multiple addresses", %{address_key: address_key} do
-      addresses = Addresses.generate_addresses!(address_key, &test_address_generator/1, 5)
+    test "generates", %{address_key: address_key} do
+      for i <- 0..3 do
+        {:ok, address} = Addresses.generate_address(address_key, &test_address_generator/1)
 
-      assert length(addresses) == 5
-      assert Addresses.next_address_index(address_key) == 5
+        assert address.address_index == i
+        # Tests the compound of indata to the generator
+        assert "#{address_key.data}-#{i}-#{address_key.currency_id}" == address.id
+      end
     end
   end
 
@@ -148,10 +146,6 @@ defmodule AddressTest do
       assert Enum.sort([open_address, processing_address]) ==
                Enum.sort(Addresses.all_active(currency_id))
     end
-  end
-
-  defp test_address_generator(%{key: key, index: i, currency_id: currency_id}) do
-    "#{key}-#{i}-#{currency_id}"
   end
 
   defp assign_address(address) do

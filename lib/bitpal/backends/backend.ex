@@ -27,6 +27,7 @@ defmodule BitPal.Backend do
   alias BitPal.ProcessRegistry
   alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
+  require Logger
 
   @type backend_ref() :: {pid(), module()}
   @type stopped_reason ::
@@ -52,15 +53,9 @@ defmodule BitPal.Backend do
   """
   @callback supported_currency(pid()) :: {:ok, Currency.id()} | {:error, term}
 
-  @doc """
-  Register a finalized invoice for the backend to track.
+  @callback assign_address(pid(), Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
 
-  The backend is responsible for:
-  - Adding an address to the invoice.
-  - Start tracking the address and notify via `Transctions.seen()`, `Transactions.confirmed()`
-    and `Transactions.double_spent().
-  """
-  @callback register_invoice(pid(), Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
+  @callback watch_invoice(pid(), Invoice.t()) :: :ok | {:error, term}
 
   @doc """
   Get the stored info of the backend.
@@ -160,22 +155,33 @@ defmodule BitPal.Backend do
     end
   end
 
-  # FIXME implement these with macros?
-  # It's just a repeat of calling all callbacks and wrapping it in :not_found
+  @spec register_invoice(backend_ref(), Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
+  def register_invoice(ref, invoice) do
+    with {:ok, invoice} <- assign_address(ref, invoice),
+         :ok <- watch_invoice(ref, invoice) do
+      {:ok, invoice}
+    else
+      err -> err
+    end
+  end
+
+  defp call({pid, backend}, fun, params) do
+    try do
+      apply(backend, fun, [pid | params])
+    catch
+      :exit, reason ->
+        Logger.debug("Exit from backend call: #{inspect(reason)}")
+        {:error, :not_found}
+    end
+  end
+
+  defp assign_address(ref, invoice), do: call(ref, :assign_address, [invoice])
+  defp watch_invoice(ref, invoice), do: call(ref, :watch_invoice, [invoice])
 
   @spec supported_currency(backend_ref()) :: {:ok, Currency.id()} | {:error, :not_found}
   def supported_currency({pid, backend}) do
     try do
       backend.supported_currency(pid)
-    catch
-      :exit, _reason -> {:error, :not_found}
-    end
-  end
-
-  @spec register_invoice(backend_ref(), Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
-  def register_invoice({pid, backend}, invoice) do
-    try do
-      backend.register_invoice(pid, invoice)
     catch
       :exit, _reason -> {:error, :not_found}
     end

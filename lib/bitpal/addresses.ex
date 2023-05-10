@@ -11,14 +11,11 @@ defmodule BitPal.Addresses do
   alias BitPalSchemas.TxOutput
   alias BitPalSettings.StoreSettings
   alias Ecto.Changeset
+  require Logger
 
   @type address_index :: non_neg_integer
-  @type address_generator_args :: %{
-          key: :string,
-          index: non_neg_integer,
-          currency_id: Currency.id()
-        }
-  @type address_generator :: (address_generator_args -> Address.id())
+  @type address_generator_res :: %{address_id: Address.id(), address_index: address_index}
+  @type address_generator :: (AddressKey.t() -> address_generator_res)
 
   # Retrieve
 
@@ -120,30 +117,13 @@ defmodule BitPal.Addresses do
   @spec generate_address(AddressKey.t(), address_generator) ::
           {:ok, Address.t()} | {:error, Changeset.t()}
   def generate_address(address_key, address_generator) do
-    address_index = next_address_index(address_key)
-    generate_and_register(address_key, address_generator, address_index)
-  end
+    case address_generator.(address_key) do
+      {:ok, %{address_id: address_id, address_index: address_index}} ->
+        register(address_key, address_id, address_index)
 
-  @spec generate_addresses!(AddressKey.t(), address_generator, non_neg_integer) :: [Address.t()]
-  def generate_addresses!(address_key, address_generator, count) do
-    start_index = next_address_index(address_key)
-
-    Enum.map(0..(count - 1), fn i ->
-      address_index = start_index + i
-      {:ok, address} = generate_and_register(address_key, address_generator, address_index)
-      address
-    end)
-  end
-
-  defp generate_and_register(address_key, address_generator, address_index) do
-    address_id =
-      address_generator.(%{
-        key: address_key.data,
-        index: address_index,
-        currency_id: address_key.currency_id
-      })
-
-    register(address_key, address_id, address_index)
+      {:error, error} ->
+        {:error, error}
+    end
   end
 
   @doc """

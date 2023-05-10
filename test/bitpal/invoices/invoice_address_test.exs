@@ -32,23 +32,23 @@ defmodule BitPal.InvoiceAddressTest do
       create_address_key(invoice)
 
       assert {:ok, one = %{address_id: "one"}} =
-               Invoices.ensure_address(invoice, fn _ ->
-                 "one"
+               Invoices.ensure_address(invoice, fn key ->
+                 {:ok, %{address_id: "one", address_index: Addresses.next_address_index(key)}}
                end)
 
       assert {:ok, ^one} =
-               Invoices.ensure_address(one, fn _ ->
-                 "xxx"
+               Invoices.ensure_address(one, fn key ->
+                 {:ok, %{address_id: "xxx", address_index: Addresses.next_address_index(key)}}
                end)
 
       assert {:error, _} =
-               Invoices.ensure_address(invoice, fn _ ->
-                 "one"
+               Invoices.ensure_address(invoice, fn key ->
+                 {:ok, %{address_id: "one", address_index: Addresses.next_address_index(key)}}
                end)
 
       assert {:ok, %{address_id: "two"}} =
-               Invoices.ensure_address(invoice, fn _ ->
-                 "two"
+               Invoices.ensure_address(invoice, fn key ->
+                 {:ok, %{address_id: "two", address_index: Addresses.next_address_index(key)}}
                end)
 
       {:ok, address_key} = Invoices.address_key(invoice)
@@ -57,8 +57,8 @@ defmodule BitPal.InvoiceAddressTest do
       create_invoice(payment_currency_id: invoice.payment_currency_id)
 
       assert {:ok, %{address_id: "three"}} =
-               Invoices.ensure_address(invoice, fn _ ->
-                 "three"
+               Invoices.ensure_address(invoice, fn key ->
+                 {:ok, %{address_id: "three", address_index: Addresses.next_address_index(key)}}
                end)
 
       assert Addresses.next_address_index(address_key) != ind
