@@ -204,6 +204,7 @@ defmodule BitPal.InvoiceHandler do
 
   @impl true
   def handle_info({:double_spend_timeout, txid}, state) do
+    # FIXME need to check with backend first
     state
     |> tx_processed(txid)
     |> try_into_paid()

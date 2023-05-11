@@ -127,8 +127,8 @@ defmodule BitPal.Currencies do
         end
 
       currency_id == :XMR ->
-        # When implementing XMR we need to do something here?
-        String.starts_with?(key, "xmr:test")
+        # FIXME When implementing XMR we need to do something here?
+        true
 
       true ->
         Logger.error("Unknown address key format for: #{currency_id} key: #{key}")

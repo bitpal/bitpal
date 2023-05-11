@@ -1,5 +1,13 @@
 import Config
 
+config :bitpal, BitPal.Backend.Monero,
+  net: :stagenet,
+  daemon_ip: "localhost",
+  daemon_port: 38_081,
+  wallet_port: 8332,
+  # To avoid running the monero-wallet-rpc binary
+  init_wallet: false
+
 config :bitpal, BitPal.BackendManager,
   restart_timeout: 10,
   backends: []

@@ -59,6 +59,7 @@ defmodule BitPal.MixProject do
       {:faker, "~> 0.16"},
       {:timex, "~> 3.0"},
       {:recase, "~> 0.7"},
+      {:muontrap, "~> 1.2"},
 
       # Server docs
       # FIXME lock at git hash

@@ -78,6 +78,15 @@ defmodule BitPal.Transactions do
 
   # Internal updates
 
+  # def set_info(txid, outputs, %{
+  #       double_spent: double_spent,
+  #       confirmed_height: height,
+  #       failed: failed
+  #     }) do
+  # end
+
+  # FIXME should be named unconfirmed?
+  # FIXME crashes if we use an address that doesn't exist
   @spec seen(TxOutput.txid(), outputs) :: :ok | :error
   def seen(txid, outputs) do
     insert(txid, outputs, {{:tx, :seen}, %{id: txid}})
@@ -93,6 +102,12 @@ defmodule BitPal.Transactions do
   @spec double_spent(TxOutput.txid(), outputs) :: :ok | :error
   def double_spent(txid, outputs) do
     update(txid, outputs, {{:tx, :double_spent}, %{id: txid}}, double_spent: true)
+  end
+
+  @spec failed(TxOutput.txid(), outputs) :: :ok | :error
+  def failed(txid, outputs) do
+    # TODO
+    :error
   end
 
   @spec reversed(TxOutput.txid(), outputs) :: :ok | :error

@@ -5,6 +5,7 @@ alias BitPal.ServerSetup
 alias BitPalSchemas.ExchangeRate
 
 Mox.defmock(BitPal.FloweeMock, for: BitPal.TCPClientAPI)
+Mox.defmock(BitPal.MoneroMock, for: BitPal.RPCClientAPI)
 Mox.defmock(BitPal.ExchangeRate.MockSource, for: BitPal.ExchangeRate.Source)
 Mox.defmock(BitPal.ExchangeRate.MockSource2, for: BitPal.ExchangeRate.Source)
 

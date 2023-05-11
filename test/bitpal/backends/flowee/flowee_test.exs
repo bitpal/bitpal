@@ -2,7 +2,6 @@ defmodule BitPal.Backend.FloweeTest do
   use ExUnit.Case, async: false
   use BitPal.CaseHelpers
   import Mox
-  import BitPal.MockTCPClient
   alias BitPal.Backend.FloweeFixtures
   alias BitPal.BackendEvents
   alias BitPal.BackendManager
@@ -18,7 +17,7 @@ defmodule BitPal.Backend.FloweeTest do
   setup :set_mox_from_context
 
   setup tags do
-    init_mock(@client)
+    MockTCPClient.init_mock(@client)
 
     # Some tests don't want to have the initialization automatically enabled.
     if Map.get(tags, :init_message, true) do

@@ -1,115 +1,114 @@
 defmodule BitPal.Backend.Monero.Wallet do
-  use GenServer
+  import BitPal.Backend.Monero.Settings
   alias BitPal.Files
-  alias BitPalSchemas.Invoice
-  # alias BitPal.Backend.Monero.DaemonRPC
-  alias BitPal.Backend.Monero.WalletRPC
   require Logger
 
-  # FIXME configurable what account we should pass our payments to?
-  @account 0
+  # FIXME renome rpc to rpc
 
-  # FIXME state we need to hold in a database:
-  # account_index
-  # unused subaddresses
-  # current subaddress index
-  # address associeated wath an invoice
+  @rpc_password ""
 
-  def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  @doc """
+  A child spec for running monero-wallet-rpc under supervision.
+  It will open an existing wallet or create one if it doesn't exist.
+  """
+  def executable_child_spec do
+    {MuonTrap.Daemon, [executable(), executable_options()]}
   end
 
-  @spec register_address(Invoice.t()) :: Invoice.t()
-  def register_address(invoice) do
-    # First check if there's an address associated with the invoice
-    if false do
-      invoice
+  defp executable do
+    System.find_executable("monero-wallet-rpc")
+  end
+
+  defp executable_options do
+    wallet_file = Files.wallet_file(:monero, net())
+
+    if File.exists?(wallet_file) do
+      open_wallet_args(wallet_file)
     else
-      {:ok,
-       %{
-         "address" => address,
-         "address_index" => _address_index
-       }} = WalletRPC.create_address(@account)
-
-      # FIXME track address index in db
-
-      %{invoice | address: address}
+      create_wallet_args(wallet_file)
     end
   end
 
-  # Server API
-
-  @impl true
-  def init(_opts) do
-    Process.flag(:trap_exit, true)
-
-    filename = Files.wallet_file(:monero)
-
-    # FIXME move to address key storage
-    address =
-      "496YrjKKenbYS6KCfPabsJ11pTkikW79ZDDrkPDTC79CSTdCoubgh3f5BrupzBvPLWXNjjNsY8smmFDYvgVRQDsmCT5FhCU"
-
-    viewkey = "805b4f767bdc7774a5c5ae2b3b8981c53646fff952f92de1ff749cf922e26d0f"
-
-    port =
-      if File.exists?(filename) do
-        open_wallet(filename)
-      else
-        generate_wallet(filename, address, viewkey)
-      end
-
-    Port.monitor(port)
-
-    {:ok, %{port: port}}
-  end
-
-  @impl true
-  def handle_info({_port, {:data, _msg}}, state) do
-    # Silence output from daemon
-    # IO.puts(msg)
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_info({:DOWN, _monitor, :port, _port, _reason}, state) do
-    Logger.error("Monero wallet RPC unexpectedly closed!")
-    {:stop, :error, state}
-  end
-
-  @impl true
-  def terminate(reason, %{port: port}) do
-    Logger.info("Closing Monero wallet #{inspect(reason)}")
-    WalletRPC.stop(port)
-    :normal
-  end
-
-  defp open_wallet(filename) do
+  defp open_wallet_args(wallet_file) do
     Logger.info("Opening Monero wallet")
-    Logger.info("  filename: #{filename}")
-    WalletRPC.open_wallet(filename)
+    Logger.info("  filename: #{wallet_file}")
+
+    ["--wallet-file", wallet_file] ++ common_options()
   end
 
-  defp generate_wallet(filename, address, viewkey) do
-    Logger.info("Generating new Monero wallet")
-    Logger.info("  filename: #{filename}")
-    Logger.info("  address: #{address}")
-    Logger.info("  viewkey: #{viewkey}")
+  defp create_wallet_args(wallet_file) do
+    viewkey = "1a651458fee485016e19274e3ad7cb0e7de8158e159dff9462febc91fc25410a"
 
-    {fd, json_path} = Temp.open!("monero-wallet.json")
+    address =
+      "53SgPM7frd9M3BneMJ6VtW19dLXQVkNTdMxT6o1K9zQGMgdXwE1D62KHShZH3amVZMNVQDb9kPEJw6HuMxb96jSSBXAM5Ru"
+
+    restore_height = 1_349_159
+
+    # Use --generate-from-json to launch wallet-rpc with a new wallet file
+    {fd, json_file} = Temp.open!("monero-wallet.json")
 
     :ok =
       IO.write(
         fd,
-        Jason.encode!(%{address: address, viewkey: viewkey, version: 1, filename: filename})
+        Jason.encode!(%{
+          address: address,
+          viewkey: viewkey,
+          version: 1,
+          filename: wallet_file,
+          scan_from_height: restore_height
+        })
       )
 
     :ok = File.close(fd)
-    File.rm(json_path)
+    # FIXME should cleanup temp file later
+    # File.rm(json_path)
 
-    File.mkdir_p!(Path.dirname(filename))
-    WalletRPC.generate_from_json(json_path)
+    Logger.info("Generating new Monero wallet")
+    Logger.info("  filename: #{wallet_file}")
+    Logger.info("  address: #{address}")
+    Logger.info("  viewkey: #{viewkey}")
+    Logger.info("  restore_height: #{restore_height}")
+
+    File.mkdir_p!(Path.dirname(wallet_file))
+    ["--generate-from-json", json_file] ++ common_options()
   end
 
-  # defp account_exists?(account) do
-  # end
+  defp common_options do
+    [
+      "--stagenet",
+      "--daemon-address",
+      "#{daemon_ip()}:#{daemon_port()}",
+      "--rpc-bind-port",
+      "#{wallet_port()}",
+      "--disable-rpc-login",
+      "--log-file",
+      "/var/log/monero/bitpal.log",
+      "--log-level",
+      "2",
+      "--password",
+      @rpc_password,
+      "--trusted-daemon",
+      # "--non-interactive",
+      "--tx-notify",
+      "#{Files.notify_path()} monero:tx-notify %s"
+    ]
+  end
 end
+
+# Not sure if it's better to use MuonTrap or Port:
+# @spec stop(module, port) :: true
+# def stop(client, port) do
+#   close_wallet(client)
+#   Port.close(port)
+# end
+
+# defp start(args) do
+#   Port.open({:spawn_executable, Files.process_monitor_path()}, [
+#     :binary,
+#     args:
+#       [
+#         System.find_executable("monero-wallet-rpc")
+#         | wallet_executable_options()
+#       ] ++ args
+#   ])
+# end

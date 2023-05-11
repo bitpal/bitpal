@@ -3,6 +3,7 @@ defmodule BitPalSettings do
 
   # Tests
 
+  # FIXME do the same with tcp and rpc clients?
   @spec http_client :: module
   def http_client do
     Application.get_env(:bitpal, :http_client, BitPal.HTTPClient)

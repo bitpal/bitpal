@@ -103,7 +103,7 @@ defmodule BitPal.Backend do
         %{
           id: @currency_id,
           start: {__MODULE__, :start_link, [opts]},
-          restart: :transient
+          restart: opts[:restart] || :transient
         }
       end
 

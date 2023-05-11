@@ -388,7 +388,7 @@ defmodule BitPal.BackendManager do
   @impl true
   def handle_info({:DOWN, ref, :process, _pid, reason}, state) do
     # An unhandled crash, the supervisor will restart it directly.
-    Logger.critical("unhandled backend crash: #{inspect(reason)}")
+    Logger.alert("unhandled backend crash: #{inspect(reason)}")
 
     error_reason = if is_atom(reason), do: reason, else: :unknown
 
@@ -398,7 +398,7 @@ defmodule BitPal.BackendManager do
 
   @impl true
   def handle_info({:EXIT, _pid, reason}, state) do
-    Logger.warn("unhandled backend EXIT: #{inspect(reason)}")
+    Logger.error("unhandled backend EXIT: #{inspect(reason)}")
     {:noreply, state}
   end
 
@@ -406,7 +406,7 @@ defmodule BitPal.BackendManager do
     currency_id = monitored_currency_id(ref, state)
 
     if opts[:log_error] do
-      Logger.error("Backend for #{currency_id} crashed with code #{inspect(reason)}")
+      Logger.critical("Backend for #{currency_id} crashed with code #{inspect(reason)}")
     end
 
     if currency_id != :unknown do

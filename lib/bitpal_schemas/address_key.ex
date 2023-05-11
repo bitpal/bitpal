@@ -4,6 +4,12 @@ defmodule BitPalSchemas.AddressKey do
   alias BitPalSchemas.Currency
   alias BitPalSchemas.CurrencySettings
 
+  # FIXME for monero, we need to store
+  # - account
+  # - viewkey
+  # - primary address
+  #
+  # Should differentiate between that and an xpub
   typed_schema "address_keys" do
     field(:data, :string)
     timestamps()

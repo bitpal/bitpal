@@ -1,10 +1,6 @@
 defmodule BitPal.Backend.Monero.DaemonRPC do
-  use GenServer
-  alias JSONRPC2.Clients.HTTP
-
-  # FIXME configurable
-  @port "18081"
-  @url "http://localhost:#{@port}/json_rpc"
+  import BitPal.Backend.Monero.Settings
+  require Logger
 
   # Client API
 
@@ -12,34 +8,46 @@ defmodule BitPal.Backend.Monero.DaemonRPC do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  def get_block_count do
-    call("get_block_count", %{})
+  def get_block_count(client) do
+    call(client, "get_block_count")
   end
 
-  def get_version do
-    call("get_version", %{})
+  def get_version(client) do
+    call(client, "get_version")
   end
 
-  def get_info do
-    call("get_info", %{})
+  def get_info(client) do
+    call(client, "get_info")
   end
 
-  def sync_info do
-    call("sync_info", %{})
+  def sync_info(client) do
+    call(client, "sync_info")
   end
+
+  # def launch_params do
+  #   [
+  #     System.find_executable("monerod")
+  #     | daemon_executable_options()
+  #   ]
+  #   |> Enum.join(" ")
+  # end
+  #
+  # def daemon_executable_options do
+  #   [
+  #     "--stagenet",
+  #     "--reorg-notify",
+  #     "#{Files.notify_path()} monero:reorg-notify %s",
+  #     "--block-notify",
+  #     "#{Files.notify_path()} monero:block-notify %s"
+  #   ]
+  # end
 
   # Server API
 
-  @impl true
-  def init(init_args) do
-    {:ok, init_args}
-  end
-
-  # monerod should be run with these args:
-  # "--reorg-notify",
-  # "#{Files.notify_path()} monero:reorg-notify %s"
-  # "--block-notify",
-  # "#{Files.notify_path()} monero:block-notify %s"
+  # @impl true
+  # def init(init_args) do
+  #   {:ok, init_args}
+  # end
 
   # defp async_call(method, params, task_supervisor) do
   #   from = self()
@@ -50,7 +58,9 @@ defmodule BitPal.Backend.Monero.DaemonRPC do
   #   end)
   # end
 
-  defp call(method, params) do
-    HTTP.call(@url, method, params)
+  defp call(client, method, params \\ %{}) do
+    Logger.notice("#{client} #{method}  #{inspect(params)}")
+
+    client.call(daemon_uri(), method, params)
   end
 end

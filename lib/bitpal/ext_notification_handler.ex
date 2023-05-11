@@ -39,9 +39,9 @@ defmodule BitPal.ExtNotificationHandler do
 
   @impl true
   def handle_info({:notify, msg, _rest}, state) do
-    Logger.debug("notify received: #{inspect(msg)}")
+    Logger.notice("notify received: #{inspect(msg)}")
 
-    case parse_message(msg) |> dbg() do
+    case parse_message(msg) do
       {:ok, event, params} ->
         broadcast(event, params)
 

@@ -15,9 +15,9 @@ defmodule BitPal.Files do
   #   Temp.mkdir!(opts)
   # end
 
-  @spec wallet_file(atom) :: Path.t()
-  def wallet_file(coin) do
-    Path.join(coin_dir(coin), "wallet")
+  @spec wallet_file(atom, atom) :: Path.t()
+  def wallet_file(coin, net) do
+    Path.join(coin_dir(coin), "#{net}-wallet")
   end
 
   @spec coin_dir(atom) :: Path.t()

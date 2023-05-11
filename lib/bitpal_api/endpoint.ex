@@ -10,7 +10,7 @@ defmodule BitPalApi.Endpoint do
     signing_salt: "Naw2rZvg"
   ]
 
-  socket("/socket", BitPalApi.StoreSocket,
+  socket("/api/socket", BitPalApi.StoreSocket,
     websocket: [connect_info: [:x_headers]],
     longpoll: false
   )

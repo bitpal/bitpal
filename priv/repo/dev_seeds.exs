@@ -18,10 +18,12 @@ defmodule BitPal.DevSeeds do
         "xpub6C23JpFE6ABbBudoQfwMU239R5Bm6QGoigtLq1BD3cz3cC6DUTg89H3A7kf95GDzfcTis1K1m7ypGuUPmXCaCvoxDKbeNv6wRBEGEnt1NV7",
       currency_id: :BCH
     )
-
-    # address:
-    #   "496YrjKKenbYS6KCfPabsJ11pTkikW79ZDDrkPDTC79CSTdCoubgh3f5BrupzBvPLWXNjjNsY8smmFDYvgVRQDsmCT5FhCU",
-    # viewkey: "805b4f767bdc7774a5c5ae2b3b8981c53646fff952f92de1ff749cf922e26d0f"
+    # For now skip viewkey and account registration. May change it in the future.
+    |> with_address_key(
+      data:
+        "53SgPM7frd9M3BneMJ6VtW19dLXQVkNTdMxT6o1K9zQGMgdXwE1D62KHShZH3amVZMNVQDb9kPEJw6HuMxb96jSSBXAM5Ru",
+      currency_id: :XMR
+    )
 
     invalid_time =
       (System.system_time(:second) - 1_000) |> DateTime.from_unix!() |> DateTime.to_naive()
