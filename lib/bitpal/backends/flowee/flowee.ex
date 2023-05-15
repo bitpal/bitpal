@@ -154,14 +154,17 @@ defmodule BitPal.Backend.Flowee do
   defp handle_message(:get_block_reply, %{height: height, transactions: transactions}, state) do
     # Look at all transactions.
     Enum.each(transactions, fn %{outputs: outputs, txid: txid} ->
-      Transactions.confirmed(binary_to_string(txid), filter_info_outputs(outputs), height)
+      Transactions.update(binary_to_string(txid),
+        outputs: filter_info_outputs(outputs),
+        height: height
+      )
     end)
 
     # Now, we can save that we have processed this block. If we do it any earlier, we might miss
     # blocks in case we crash during recovery.
     # Even if we could skip this during recovery, it's a better user experience to save the recovery state
     # if we abort Flowee in the middle.
-    Blocks.set_block_height(:BCH, height)
+    Blocks.set_height(:BCH, height)
 
     # NOTE if any tx is found, we should recheck open invoices.
     continue_block_recovery(state, height)
@@ -194,17 +197,25 @@ defmodule BitPal.Backend.Flowee do
   # as long as it is not accepted into a block.
   # If we have `height` then the transaction is confirmed, otherwise it's in the mempool.
   defp handle_message(:transaction_found, %{txid: txid, height: height, outputs: outputs}, state) do
-    Transactions.confirmed(binary_to_string(txid), filter_tx_outputs(outputs), height)
+    Transactions.update(binary_to_string(txid),
+      height: height,
+      outputs: filter_tx_outputs(outputs)
+    )
+
     state
   end
 
   defp handle_message(:transaction_found, %{txid: txid, outputs: outputs}, state) do
-    Transactions.seen(binary_to_string(txid), filter_tx_outputs(outputs))
+    Transactions.update(binary_to_string(txid), outputs: filter_tx_outputs(outputs))
     state
   end
 
   defp handle_message(:double_spend_found, %{txid: txid, outputs: outputs}, state) do
-    Transactions.double_spent(binary_to_string(txid), filter_tx_outputs(outputs))
+    Transactions.update(binary_to_string(txid),
+      outputs: filter_tx_outputs(outputs),
+      double_spent: true
+    )
+
     state
   end
 
@@ -221,13 +232,13 @@ defmodule BitPal.Backend.Flowee do
   # Block recovery
 
   defp recover_blocks_if_needed(state = %{blockchain_info: %{blocks: height}}) do
-    case Blocks.fetch_block_height(:BCH) do
+    case Blocks.fetch_height(:BCH) do
       {:ok, processed_height} when processed_height < height ->
         recover_blocks_between(state, processed_height, height)
 
       _ ->
         # No height yet, so nothing to recover.
-        Blocks.set_block_height(:BCH, height)
+        Blocks.set_height(:BCH, height)
         state
     end
   end
@@ -239,7 +250,7 @@ defmodule BitPal.Backend.Flowee do
 
     if Enum.empty?(active) do
       # No addresses so nothing to recover.
-      Blocks.set_block_height(:BCH, target_height)
+      Blocks.set_height(:BCH, target_height)
       set_ready()
       state
     else

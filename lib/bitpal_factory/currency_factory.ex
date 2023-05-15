@@ -1,4 +1,5 @@
 defmodule BitPalFactory.CurrencyFactory do
+  alias BitPal.Blocks
   alias BitPal.Currencies
   alias BitPalFactory.CurrencyCounter
   alias BitPalSchemas.Currency
@@ -46,15 +47,15 @@ defmodule BitPalFactory.CurrencyFactory do
   def block_height(currency_id, opts \\ %{}) do
     min_height = opts[:min]
 
-    case Currencies.fetch_height(currency_id) do
+    case Blocks.fetch_height(currency_id) do
       :error ->
         height = Faker.random_between(min_height || 1, 100_000)
-        Currencies.set_height!(currency_id, height)
+        Blocks.set_height(currency_id, height)
         height
 
       {:ok, height} ->
         if min_height && height < min_height do
-          Currencies.set_height!(currency_id, min_height)
+          Blocks.set_height(currency_id, min_height)
           min_height
         else
           height

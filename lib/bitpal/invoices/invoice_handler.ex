@@ -12,6 +12,11 @@ defmodule BitPal.InvoiceHandler do
   alias Ecto.Adapters.SQL.Sandbox
   require Logger
 
+  # FIXME
+  # - We should store block_height to prevent race conditions where we might
+  #   miss sending out a processing message.
+  # - Why is the first message missing?
+
   @type handler :: pid
 
   # Client API
@@ -119,18 +124,18 @@ defmodule BitPal.InvoiceHandler do
     subscribe(invoice)
 
     # Should always have a block since we're trying to recover
-    block_height = Blocks.fetch_block_height!(invoice.payment_currency_id)
+    block_height = Blocks.fetch_height!(invoice.payment_currency_id)
     invoice = Invoices.update_info_from_txs(invoice, block_height)
 
     txs =
-      Enum.map(invoice.tx_outputs, fn tx ->
-        if tx.confirmed_height == nil do
-          send_double_spend_timeout(tx.txid, state)
+      Transactions.to_address(invoice.address_id)
+      |> Map.new(fn tx ->
+        if invoice.required_confirmations == 0 && tx.height == 0 do
+          send_double_spend_timeout(tx.id, state)
         end
 
-        {tx.txid, tx.confirmed_height}
+        {tx.id, tx.height}
       end)
-      |> Enum.into(%{})
 
     state
     |> Map.put(:block_height, block_height)
@@ -142,7 +147,7 @@ defmodule BitPal.InvoiceHandler do
   end
 
   @impl true
-  def handle_info({{:tx, :seen}, %{id: txid}}, state) do
+  def handle_info({{:tx, :pending}, %{id: txid}}, state) do
     block_height = state.block_height
     invoice = Invoices.update_info_from_txs(state.invoice, block_height)
     state = put_tx_to_process(state, txid, nil)
@@ -253,8 +258,8 @@ defmodule BitPal.InvoiceHandler do
     end
   end
 
-  def handle_info({{:block, :set_height}, _params}, state) do
-    {:noreply, state}
+  def handle_info({{:block, :set_height}, %{height: height}}, state) do
+    {:noreply, Map.put(state, :block_height, height)}
   end
 
   @impl true
@@ -317,9 +322,9 @@ defmodule BitPal.InvoiceHandler do
           true
 
         {_tx_id, confirmed_height} ->
-          block_height - confirmed_height + 1 < required_confirmations
+          Transactions.calc_confirmations(confirmed_height, block_height) < required_confirmations
       end)
-      |> Enum.into(%{})
+      |> Map.new()
 
     Map.put(state, :processing_txs, to_process)
   end

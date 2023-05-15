@@ -23,6 +23,7 @@ defmodule BitPalApi.Router do
     post("/invoices/:id/void", InvoiceController, :void)
     get("/invoices", InvoiceController, :index)
 
+    # FIXME these needs to be updated
     get("/transactions/:txid", TransactionController, :show)
     get("/transactions", TransactionController, :index)
 
@@ -30,6 +31,7 @@ defmodule BitPalApi.Router do
     get("/rates/:base", ExchangeRateController, :base)
     get("/rates/:base/:quote", ExchangeRateController, :pair)
 
+    # FIXME these needs to be updated
     get("/currencies", CurrencyController, :index)
     get("/currencies/:id", CurrencyController, :show)
   end

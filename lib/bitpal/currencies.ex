@@ -5,7 +5,6 @@ defmodule BitPal.Currencies do
   alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.Store
-  alias Ecto.Changeset
   require Logger
 
   @type height :: non_neg_integer()
@@ -74,32 +73,6 @@ defmodule BitPal.Currencies do
   @spec ensure_exists!(Currency.id()) :: :ok
   def ensure_exists!(id) when is_atom(id) do
     Repo.insert!(%Currency{id: id}, on_conflict: :nothing)
-  end
-
-  @spec set_height!(Currency.id(), height) :: :ok
-  def set_height!(id, height) do
-    case Repo.get(Currency, id) do
-      nil -> %Currency{id: id}
-      currency -> currency
-    end
-    |> Changeset.change(block_height: height)
-    |> Repo.insert_or_update!()
-  end
-
-  @spec fetch_height!(Currency.id()) :: height | nil
-  def fetch_height!(id) do
-    from(c in Currency, where: c.id == ^id, select: c.block_height)
-    |> Repo.one!()
-  end
-
-  @spec fetch_height(Currency.id()) :: {:ok, height} | :error
-  def fetch_height(id) do
-    case fetch_height!(id) do
-      nil -> :error
-      height -> {:ok, height}
-    end
-  rescue
-    _ -> :error
   end
 
   @spec cast(atom | String.t()) :: {:ok, Currency.id()} | :error

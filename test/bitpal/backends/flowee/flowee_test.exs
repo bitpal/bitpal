@@ -55,13 +55,13 @@ defmodule BitPal.Backend.FloweeTest do
 
   test "new block" do
     assert eventually(fn ->
-             Blocks.fetch_block_height(@currency) == {:ok, 690_637}
+             Blocks.fetch_height(@currency) == {:ok, 690_637}
            end)
 
     MockTCPClient.response(@client, FloweeFixtures.new_block())
 
     assert eventually(fn ->
-             Blocks.fetch_block_height(@currency) == {:ok, 690_638}
+             Blocks.fetch_height(@currency) == {:ok, 690_638}
            end)
   end
 
@@ -354,7 +354,7 @@ defmodule BitPal.Backend.FloweeTest do
 
     # Simulate the state stored in the DB:
     # We are now at height 690933, but we have only registered up to 690_931
-    Blocks.set_block_height(@currency, 690_931)
+    Blocks.set_height(@currency, 690_931)
 
     # Now, we tell Flowee the current block height. It will try to recover
     # and ask for the missing blocks.

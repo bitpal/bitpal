@@ -51,6 +51,7 @@ defmodule BitPal.MixProject do
       {:jason, "~> 1.0"},
       {:libsecp256k1, "~> 0.1.9"},
       {:money, "~> 1.8"},
+      # {:ex_money, "~> 5.0"},
       {:mox, "~> 1.0"},
       {:postgrex, ">= 0.0.0"},
       {:typed_ecto_schema, "~> 0.2"},

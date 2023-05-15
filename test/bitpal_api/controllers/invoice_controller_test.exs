@@ -93,6 +93,7 @@ defmodule BitPalApi.InvoiceControllerTest do
              } = json_response(conn, 200)
     end
 
+    @tag do: true
     test "with crypto price", %{conn: conn} do
       conn =
         post(conn, "/api/v1/invoices", %{

@@ -8,6 +8,7 @@ defmodule BitPalFactory.TransactionFactory do
   alias BitPalSchemas.Address
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.Store
+  alias BitPalSchemas.Transaction
   alias BitPalSchemas.TxOutput
 
   @spec unique_txid :: String.t()
@@ -38,10 +39,16 @@ defmodule BitPalFactory.TransactionFactory do
   defp create_tx(address_id, currency_id, params) when is_binary(address_id) do
     txid = params[:txid] || unique_txid()
     amount = params[:amount] || create_money(currency_id)
+    outputs = params[:outputs] || [%TxOutput{address_id: address_id, amount: amount}]
 
-    %TxOutput{address_id: address_id, txid: txid, amount: amount}
+    %Transaction{id: txid, currency_id: currency_id}
     |> change()
-    |> cast(Enum.into(params, %{}), [:double_spent, :confirmed_height])
+    |> cast(Enum.into(params, %{}), [
+      :height,
+      :failed,
+      :double_spent
+    ])
+    |> put_assoc(:outputs, outputs)
     |> Repo.insert!()
   end
 

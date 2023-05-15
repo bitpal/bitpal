@@ -17,12 +17,14 @@ defmodule BitPalFactory.TransactionFactoryTest do
       invoice = create_invoice()
 
       attrs = %{
-        txid: "my-id",
         double_spent: true,
-        confirmed_height: 1337
+        failed: true,
+        height: 1337
       }
 
-      tx = create_tx(invoice, attrs)
+      tx = create_tx(invoice, Map.put(attrs, :txid, "my-id"))
+
+      assert tx.id == "my-id"
 
       for {key, val} <- attrs do
         assert Map.fetch!(tx, key) == val, "#{key} not updated"
@@ -32,17 +34,15 @@ defmodule BitPalFactory.TransactionFactoryTest do
     test "assoc address" do
       address = create_address()
       tx = create_tx(address)
-      assert tx.address_id == address.id
+      output = hd(tx.outputs) |> Repo.preload(:invoice)
+      assert output.address_id == address.id
     end
 
     test "assoc invoice" do
       invoice = create_invoice()
-
-      tx =
-        create_tx(invoice)
-        |> Repo.preload(:invoice)
-
-      assert tx.invoice.id == invoice.id
+      tx = create_tx(invoice)
+      output = hd(tx.outputs) |> Repo.preload(:invoice)
+      assert output.invoice.id == invoice.id
     end
   end
 
@@ -52,6 +52,7 @@ defmodule BitPalFactory.TransactionFactoryTest do
         Stream.repeatedly(fn ->
           create_invoice(tags)
           |> with_txs(tx_count: tags[:tx_count])
+          |> Repo.preload([:tx_outputs, :transactions])
         end)
         |> Enum.take(tags[:count] || 3)
 
@@ -61,8 +62,6 @@ defmodule BitPalFactory.TransactionFactoryTest do
     @tag status: :draft
     test "draft", %{invoices: invoices} do
       for invoice <- invoices do
-        invoice = invoice |> Repo.preload(:tx_outputs, force: true)
-
         # No txs allowed for drafts
         assert Enum.empty?(invoice.tx_outputs)
         assert invoice.address_id == nil
@@ -73,6 +72,7 @@ defmodule BitPalFactory.TransactionFactoryTest do
     test "open invoice", %{invoices: invoices} do
       for invoice <- invoices do
         assert is_binary(invoice.address_id)
+        assert Enum.count(invoice.transactions) == 1
         assert Enum.count(invoice.tx_outputs) == 1
         assert invoice.amount_paid != nil
         assert Invoices.target_amount_reached?(invoice) == :underpaid
@@ -136,7 +136,7 @@ defmodule BitPalFactory.TransactionFactoryTest do
       for invoice <- invoices do
         assert is_binary(invoice.address_id)
         assert InvoiceStatus.reason(invoice.status) == :double_spent
-        [tx] = invoice.tx_outputs
+        [tx] = invoice.transactions
         assert tx.double_spent
         assert Invoices.target_amount_reached?(invoice) == :ok
       end
@@ -162,7 +162,6 @@ defmodule BitPalFactory.TransactionFactoryTest do
       for invoice <- invoices do
         assert is_binary(invoice.address_id)
         assert InvoiceStatus.reason(invoice.status) == nil
-        assert invoice.confirmations_due == 0
         assert Enum.count(invoice.tx_outputs) > 0
         assert Invoices.target_amount_reached?(invoice) in [:overpaid, :ok]
       end

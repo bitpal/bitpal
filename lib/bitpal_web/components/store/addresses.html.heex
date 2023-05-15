@@ -35,7 +35,7 @@
                 <% tx_count > 1 -> %>
                   <%= tx_count %>transactions
                 <% tx_count == 1 -> %>
-                  <%= hd(address.tx_outputs).txid %>
+                  <%= hd(address.tx_outputs).transaction_id %>
                 <% true -> %>
               <% end %>
             </span>

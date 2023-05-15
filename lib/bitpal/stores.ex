@@ -10,7 +10,6 @@ defmodule BitPal.Stores do
   alias BitPalSchemas.CurrencySettings
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.Store
-  alias BitPalSchemas.TxOutput
   alias BitPalSchemas.User
   alias Ecto.Changeset
 
@@ -134,15 +133,15 @@ defmodule BitPal.Stores do
     user.stores
   end
 
-  @spec tx_outputs(Store.id()) :: [TxOutput.t()]
-  def tx_outputs(store_id) do
-    from(t in TxOutput,
-      left_join: i in Invoice,
-      on: t.address_id == i.address_id,
-      where: i.store_id == ^store_id
-    )
-    |> Repo.all()
-  end
+  # @spec tx_outputs(Store.id()) :: [TxOutput.t()]
+  # def tx_outputs(store_id) do
+  #   from(t in TxOutput,
+  #     left_join: i in Invoice,
+  #     on: t.address_id == i.address_id,
+  #     where: i.store_id == ^store_id
+  #   )
+  #   |> Repo.all()
+  # end
 
   @spec all_addresses(Store.id() | Store.t()) :: [Address.t()]
   def all_addresses(store = %Store{}) do

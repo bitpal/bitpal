@@ -8,6 +8,7 @@ defmodule BackendMockTest do
     @tag backends: [
            {BackendMock, auto: true, time_until_tx_seen: 10, time_between_blocks: 5}
          ]
+    @tag do: true
     test "auto confirms", %{currency_id: currency_id} do
       {:ok, _inv1, stub1, _invoice_handler} =
         HandlerSubscriberCollector.create_invoice(
@@ -34,9 +35,9 @@ defmodule BackendMockTest do
 
       assert [
                {{:invoice, :finalized}, _},
-               {{:invoice, :processing}, _},
-               {{:invoice, :processing}, _},
-               {{:invoice, :processing}, _},
+               {{:invoice, :processing}, %{confirmations_due: 3}},
+               {{:invoice, :processing}, %{confirmations_due: 2}},
+               {{:invoice, :processing}, %{confirmations_due: 1}},
                {{:invoice, :paid}, _}
              ] = HandlerSubscriberCollector.received(stub3)
     end
@@ -82,15 +83,15 @@ defmodule BackendMockTest do
       assert BackendManager.stop_backend(currency_id) == :ok
       assert eventually(fn -> BackendManager.status(currency_id) == :stopped end)
 
-      height = Blocks.fetch_block_height!(currency_id)
+      height = Blocks.fetch_height!(currency_id)
 
       Process.sleep(21)
-      assert Blocks.fetch_block_height!(currency_id) == height
+      assert Blocks.fetch_height!(currency_id) == height
 
       assert {:ok, _} = BackendManager.restart_backend(currency_id)
 
       assert eventually(fn ->
-               Blocks.fetch_block_height!(currency_id) > height
+               Blocks.fetch_height!(currency_id) > height
              end)
     end
   end

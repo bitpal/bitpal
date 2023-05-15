@@ -1,19 +1,26 @@
 defmodule BitPalApi.TransactionJSON do
   use BitPalApi, :json
-  alias BitPalSchemas.TxOutput
 
   def index(%{txs: txs}) do
-    Enum.map(txs, fn tx -> show(%{tx: tx}) end)
+    Enum.map(txs, fn tx_info -> show(tx_info) end)
   end
 
-  def show(%{tx: tx = %TxOutput{}}) do
+  def show(%{
+        txid: txid,
+        height: height,
+        failed: failed,
+        double_spent: double_spent,
+        amount: amount,
+        address_id: address_id
+      }) do
     %{
-      txid: tx.txid,
-      outputDisplay: money_to_string(tx.amount),
-      outputSubAmount: tx.amount.amount,
-      address: tx.address_id
+      txid: txid,
+      outputDisplay: money_to_string(amount),
+      outputSubAmount: amount.amount,
+      address: address_id,
+      double_spent: double_spent,
+      failed: failed
     }
-    |> put_unless_nil(:confirmed_height, tx.confirmed_height)
-    |> put_unless_nil(:double_spent, tx.double_spent)
+    |> put_unless(:height, height, 0)
   end
 end

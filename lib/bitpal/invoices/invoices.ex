@@ -14,6 +14,7 @@ defmodule BitPal.Invoices do
   alias BitPalSchemas.Address
   alias BitPalSchemas.AddressKey
   alias BitPalSchemas.Invoice
+  alias BitPalSchemas.Transaction
   alias BitPalSchemas.InvoiceRates
   alias BitPalSchemas.InvoiceStatus
   alias BitPalSchemas.Store
@@ -130,7 +131,7 @@ defmodule BitPal.Invoices do
           | {:error, :no_block_height}
           | {:error, Changeset.t()}
   def pay_unchecked(invoice = %Invoice{}) do
-    with {:ok, height} <- Blocks.fetch_block_height(invoice.payment_currency_id),
+    with {:ok, height} <- Blocks.fetch_height(invoice.payment_currency_id),
          invoice <- update_info_from_txs(invoice, height),
          {:ok, invoice} <- transition(invoice, :paid) do
       broadcast_paid(invoice)
@@ -228,17 +229,6 @@ defmodule BitPal.Invoices do
   @spec finalized?(Invoice.t()) :: boolean
   def finalized?(invoice) do
     invoice.status != :draft
-  end
-
-  @spec one_tx_output(Invoice.t()) :: {:ok, TxOutput.t()} | :error
-  def one_tx_output(invoice) do
-    invoice = Repo.preload(invoice, :tx_outputs)
-
-    if tx = List.first(invoice.tx_outputs) do
-      {:ok, tx}
-    else
-      :error
-    end
   end
 
   # Internal updates
@@ -439,36 +429,18 @@ defmodule BitPal.Invoices do
     end
   end
 
-  @spec confirmations_until_paid(Invoice.t()) :: non_neg_integer
-  def confirmations_until_paid(invoice) do
-    curr_height = Blocks.fetch_block_height!(invoice.payment_currency_id)
-
-    max_height =
-      from(t in TxOutput,
-        where: t.address_id == ^invoice.address_id,
-        select: max(t.confirmed_height)
-      )
-      |> Repo.one()
-
-    max(invoice.required_confirmations - (curr_height - max_height) - 1, 0)
-  rescue
-    _ -> invoice.required_confirmations
-  end
-
   @spec update_info_from_txs(Invoice.t()) :: Invoice.t()
   def update_info_from_txs(invoice = %{payment_currency_id: nil}) do
     invoice
   end
 
   def update_info_from_txs(invoice) do
-    curr_height = Blocks.fetch_block_height!(invoice.payment_currency_id)
+    curr_height = Blocks.get_height(invoice.payment_currency_id)
     update_info_from_txs(invoice, curr_height)
   end
 
   @spec update_info_from_txs(Invoice.t(), non_neg_integer) :: Invoice.t()
   def update_info_from_txs(invoice, block_height) do
-    invoice = Repo.preload(invoice, :tx_outputs, force: true)
-
     %{
       invoice
       | amount_paid: calculate_amount_paid(invoice),
@@ -478,26 +450,55 @@ defmodule BitPal.Invoices do
 
   @spec calculate_amount_paid(Invoice.t()) :: Money.t()
   def calculate_amount_paid(invoice) do
-    invoice.tx_outputs
-    |> Enum.reduce(Money.new(0, invoice.payment_currency_id), fn tx, sum ->
-      Money.add(tx.amount, sum)
-    end)
+    Addresses.amount_paid(invoice.address_id, invoice.payment_currency_id)
+  end
+
+  @spec calculate_confirmations_due(Invoice.t()) :: non_neg_integer
+  def calculate_confirmations_due(invoice) do
+    curr_height = Blocks.get_height(invoice.payment_currency_id)
+    calculate_confirmations_due(invoice, curr_height)
   end
 
   @spec calculate_confirmations_due(Invoice.t(), non_neg_integer) :: non_neg_integer
-  def calculate_confirmations_due(%Invoice{required_confirmations: 0}, _height) do
+  def calculate_confirmations_due(%Invoice{required_confirmations: 0}, _) do
     0
   end
 
-  def calculate_confirmations_due(invoice, height) do
-    invoice.tx_outputs
-    |> Enum.reduce(0, fn
-      tx, max_confs ->
-        max(
-          invoice.required_confirmations - Transactions.num_confirmations(tx, height),
-          max_confs
-        )
-    end)
+  def calculate_confirmations_due(%Invoice{required_confirmations: required}, nil) do
+    required
+  end
+
+  def calculate_confirmations_due(invoice, block_height) do
+    max(invoice.required_confirmations - num_confirmations(invoice, block_height), 0)
+  end
+
+  @spec num_confirmations(Invoice.t()) :: non_neg_integer
+  def num_confirmations(invoice) do
+    curr_height = Blocks.fetch_height!(invoice.payment_currency_id)
+    num_confirmations(invoice, curr_height)
+  end
+
+  @spec num_confirmations(Invoice.t(), non_neg_integer | nil) :: non_neg_integer
+  def num_confirmations(%Invoice{address_id: nil}, _), do: 0
+
+  def num_confirmations(invoice, block_height) do
+    case from(t in Transaction,
+           left_join: out in TxOutput,
+           on: out.transaction_id == t.id,
+           where: out.address_id == ^invoice.address_id,
+           # If any tx has height == 0, then we should treat it as no confirmations.
+           select: fragment("
+              CASE
+                WHEN (?) = 0 THEN 0
+                ELSE (?)
+              END
+           ", min(t.height), min(^block_height - t.height + 1))
+         )
+         |> Repo.one() do
+      nil -> 0
+      x when x < 0 -> 0
+      x -> x
+    end
   end
 
   # Broadcasting
@@ -518,7 +519,7 @@ defmodule BitPal.Invoices do
        %{
          id: invoice.id,
          status: invoice.status,
-         txs: invoice.tx_outputs
+         txs: Transactions.address_tx_info(invoice.address_id)
        }
        |> RenderHelpers.put_unless_nil(:confirmations_due, confirmations_due)}
     )
@@ -532,7 +533,7 @@ defmodule BitPal.Invoices do
          id: invoice.id,
          status: invoice.status,
          amount_paid: invoice.amount_paid,
-         txs: invoice.tx_outputs
+         txs: Transactions.address_tx_info(invoice.address_id)
        }}
     )
   end
@@ -545,7 +546,7 @@ defmodule BitPal.Invoices do
          id: invoice.id,
          status: invoice.status,
          amount_paid: invoice.amount_paid,
-         txs: invoice.tx_outputs
+         txs: Transactions.address_tx_info(invoice.address_id)
        }}
     )
   end
@@ -558,7 +559,7 @@ defmodule BitPal.Invoices do
          id: invoice.id,
          status: invoice.status,
          amount_paid: invoice.amount_paid,
-         txs: invoice.tx_outputs
+         txs: Transactions.address_tx_info(invoice.address_id)
        }}
     )
   end

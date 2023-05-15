@@ -184,11 +184,9 @@ defmodule BitPal.BackendManager do
     # case I don't think.
     case fetch_backend_pid(server, currency_id) do
       {:ok, pid} ->
-        # IO.puts("  stopping #{inspect(pid)}")
         GenServer.stop(pid)
 
       _ ->
-        # IO.puts("  backend stopped? #{currency_id}")
         nil
     end
 
@@ -388,7 +386,7 @@ defmodule BitPal.BackendManager do
   @impl true
   def handle_info({:DOWN, ref, :process, _pid, reason}, state) do
     # An unhandled crash, the supervisor will restart it directly.
-    Logger.alert("unhandled backend crash: #{inspect(reason)}")
+    Logger.error("unhandled backend crash: #{inspect(reason)}")
 
     error_reason = if is_atom(reason), do: reason, else: :unknown
 

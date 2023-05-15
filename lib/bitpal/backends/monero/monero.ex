@@ -159,13 +159,13 @@ defmodule BitPal.Backend.Monero do
     outputs = [{address, Money.new(amount, :XMR)}]
 
     if height == 0 do
-      Transactions.unconfirmed(txid, outputs)
+      Transactions.update(txid, outputs: outputs)
     else
-      Transactions.confirmed(txid, outputs, height)
+      Transactions.update(txid, outputs: outputs, height: height)
     end
 
     if double_spend_seen do
-      Transactions.double_spent(txid, outputs)
+      Transactions.update(txid, outputs: outputs)
     end
 
     # TODO update failed txs

@@ -99,15 +99,22 @@ defmodule BitPal.Repo.Migrations.NewBeginning do
     create unique_index(:addresses, [:address_index, :address_key_id])
     create index(:addresses, :address_key_id)
 
-    create table(:tx_outputs) do
-      add :txid, :string, null: false
-      add :amount, :money_with_currency, null: false
-      add :confirmed_height, :integer
-      add :double_spent, :boolean
-      add :address_id, references(:addresses, type: :string), null: false
+    create table(:transactions, primary_key: false) do
+      add :id, :string, primary_key: true
+      add :height, :integer, null: false
+      add :failed, :boolean, null: false
+      add :double_spent, :boolean, null: false
+      add :currency_id, references(:currencies, type: :string, size: 8), null: false
+      timestamps(updated_at: false)
     end
 
-    create index(:tx_outputs, :txid)
+    create unique_index(:transactions, :id)
+
+    create table(:tx_outputs) do
+      add :amount, :money_with_currency, null: false
+      add :address_id, references(:addresses, type: :string), null: false
+      add :transaction_id, references(:transactions, type: :string), null: false
+    end
 
     create table(:backend_settings) do
       add :enabled, :boolean, null: false

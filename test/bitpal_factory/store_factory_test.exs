@@ -73,7 +73,7 @@ defmodule BitPalFactory.StoreFactoryTest do
       if have_txs do
         tx_count =
           Enum.reduce(store.invoices, 0, fn invoice, sum ->
-            sum + Enum.count(invoice.tx_outputs)
+            sum + Enum.count(Repo.preload(invoice, :tx_outputs).tx_outputs)
           end)
 
         assert tx_count > 0

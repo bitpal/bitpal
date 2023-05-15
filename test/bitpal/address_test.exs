@@ -148,6 +148,54 @@ defmodule AddressTest do
     end
   end
 
+  describe "amount_paid/1" do
+    test "sums different transactions", %{currency_id: currency_id} do
+      address = create_address(currency_id: currency_id)
+      other_address = create_address(currency_id: currency_id)
+
+      # FIXME use create_tx() instead
+
+      # one tx with one output to address
+      assert {:ok, _tx} =
+               Transactions.update(unique_txid(),
+                 outputs: [{address.id, Money.new(2, currency_id)}]
+               )
+
+      # one tx with one output to address and one to something else
+      assert {:ok, _tx} =
+               Transactions.update(unique_txid(),
+                 outputs: [
+                   {address.id, Money.new(3, currency_id)},
+                   {other_address.id, Money.new(5, currency_id)}
+                 ]
+               )
+
+      # one tx with two outputs to address
+      assert {:ok, _tx} =
+               Transactions.update(unique_txid(),
+                 outputs: [
+                   {address.id, Money.new(7, currency_id)},
+                   {address.id, Money.new(11, currency_id)}
+                 ]
+               )
+
+      # one tx with one output to another address
+      assert {:ok, _tx} =
+               Transactions.update(unique_txid(),
+                 outputs: [
+                   {other_address.id, Money.new(13, currency_id)}
+                 ]
+               )
+
+      assert Addresses.amount_paid(address) == Money.new(23, currency_id)
+    end
+
+    test "default to 0", %{currency_id: currency_id} do
+      address = create_address(currency_id: currency_id)
+      assert Addresses.amount_paid(address) == Money.new(0, currency_id)
+    end
+  end
+
   defp assign_address(address) do
     invoice = create_invoice(status: :draft)
     assert {:ok, _} = Invoices.assign_address(invoice, address)

@@ -9,7 +9,6 @@ defmodule BitPal.BackendMock do
   alias BitPal.BlockchainEvents
   alias BitPal.Blocks
   alias BitPal.Cache
-  alias BitPal.Invoices
   alias BitPal.ProcessRegistry
   alias BitPal.Transactions
   alias BitPalSchemas.Currency
@@ -233,15 +232,27 @@ defmodule BitPal.BackendMock do
   @impl true
   def handle_call({:tx_seen, invoice}, _from, state) do
     txid = unique_txid()
-    :ok = Transactions.seen(txid, [{invoice.address_id, invoice.expected_payment}])
+
+    {:ok, _} =
+      Transactions.update(txid, outputs: [{invoice.address_id, invoice.expected_payment}])
+
     {:reply, txid, state}
   end
 
   @impl true
   def handle_call({:doublespend, invoice}, _from, state) do
-    {:ok, tx} = Invoices.one_tx_output(invoice)
-    :ok = Transactions.double_spent(tx.txid, [{invoice.address_id, tx.amount}])
-    {:reply, tx.txid, state}
+    {:ok, tx} =
+      case Transactions.to_address(invoice.address_id) do
+        [] ->
+          Transactions.update(unique_txid(),
+            outputs: [{invoice.address_id, invoice.expected_payment}]
+          )
+
+        [tx | _rest] ->
+          Transactions.update(tx.id, double_spent: true)
+      end
+
+    {:reply, tx.id, state}
   end
 
   @impl true
@@ -280,7 +291,9 @@ defmodule BitPal.BackendMock do
 
   @impl true
   def handle_info({:auto_tx_seen, invoice}, state) do
-    :ok = Transactions.seen(unique_txid(), [{invoice.address_id, invoice.expected_payment}])
+    {:ok, _} =
+      Transactions.update(unique_txid(), outputs: [{invoice.address_id, invoice.expected_payment}])
+
     {:noreply, append_auto_confirm(state, invoice)}
   end
 
@@ -364,14 +377,18 @@ defmodule BitPal.BackendMock do
   end
 
   defp confirm_transactions(invoice, state) do
-    txid =
-      case Invoices.one_tx_output(invoice) do
-        {:ok, tx} -> tx.txid
-        _ -> unique_txid()
-      end
+    existing = Transactions.to_address(invoice.address_id)
 
-    :ok =
-      Transactions.confirmed(txid, [{invoice.address_id, invoice.expected_payment}], state.height)
+    if Enum.empty?(existing) do
+      Transactions.update(unique_txid(),
+        height: state.height,
+        outputs: [{invoice.address_id, invoice.expected_payment}]
+      )
+    else
+      for tx <- existing do
+        {:ok, _} = Transactions.update(tx.id, height: state.height)
+      end
+    end
 
     state
   end

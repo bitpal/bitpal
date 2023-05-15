@@ -30,7 +30,7 @@ defmodule BitPal.Addresses do
     from(a in Address,
       left_join: t in TxOutput,
       on: t.address_id == a.id,
-      where: t.txid == ^txid,
+      where: t.transaction_id == ^txid,
       select: a
     )
     |> Repo.all()
@@ -40,6 +40,12 @@ defmodule BitPal.Addresses do
   def exists?(address_id) do
     from(a in Address, where: a.id == ^address_id)
     |> Repo.exists?()
+  end
+
+  @spec filter_exists([String.t()]) :: [String.t()]
+  def filter_exists(addresses) do
+    from(a in Address, where: a.id in ^addresses)
+    |> Repo.all()
   end
 
   @spec all_active(Currency.id()) :: [Address.t()]
@@ -66,6 +72,25 @@ defmodule BitPal.Addresses do
     |> Invoices.with_status(:open)
     |> Invoices.with_address(address_id)
     |> Repo.exists?()
+  end
+
+  @spec amount_paid(Address.t()) :: Money.t()
+  def amount_paid(%Address{id: id, currency_id: currency_id}) do
+    amount_paid(id, currency_id)
+  end
+
+  def amount_paid(nil, currency_id) do
+    Money.new(0, currency_id)
+  end
+
+  def amount_paid(address_id, currency_id) do
+    # When we migrate to `ex_money`, this should be possible
+    # from(out in TxOutput, where: out.address_id == ^address_id)
+    # |> Repo.aggregate(:sum, :amount)
+
+    from(out in TxOutput, where: out.address_id == ^address_id)
+    |> Repo.all()
+    |> Enum.reduce(Money.new(0, currency_id), fn x, acc -> Money.add(x.amount, acc) end)
   end
 
   # Update

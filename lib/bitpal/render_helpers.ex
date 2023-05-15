@@ -10,6 +10,11 @@ defmodule BitPal.RenderHelpers do
     Map.put(map, key, fun.(val))
   end
 
+  def put_unless_false(map, key, val), do: put_unless(map, key, val, false)
+
+  def put_unless(map, _key, val, val), do: map
+  def put_unless(map, key, val, _skip), do: Map.put(map, key, val)
+
   def put_unless_empty(map, key, val) do
     if Enum.empty?(val) do
       map

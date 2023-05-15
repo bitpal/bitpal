@@ -232,7 +232,7 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
     assert [
              {{:invoice, :finalized}, _},
-             {{:invoice, :underpaid}, %{amount_paid: ^paid, txs: [_]}}
+             {{:invoice, :underpaid}, %{amount_paid: ^paid}}
            ] = HandlerSubscriberCollector.received(stub)
 
     paid2 = Money.parse!(0.7, currency_id)
@@ -243,9 +243,9 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
     assert [
              {{:invoice, :finalized}, _},
-             {{:invoice, :underpaid}, %{amount_paid: ^paid, txs: [_]}},
+             {{:invoice, :underpaid}, %{amount_paid: ^paid}},
              {{:invoice, :processing}, %{status: {:processing, :verifying}}},
-             {{:invoice, :paid}, %{amount_paid: ^fully_paid, txs: [_, _]}}
+             {{:invoice, :paid}, %{amount_paid: ^fully_paid}}
            ] = HandlerSubscriberCollector.received(stub)
   end
 
@@ -269,10 +269,10 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
     assert [
              {{:invoice, :finalized}, _},
-             {{:invoice, :underpaid}, %{amount_paid: ^amount1, txs: [_]}},
-             {{:invoice, :overpaid}, %{amount_paid: ^total_paid, txs: [_, _]}},
+             {{:invoice, :underpaid}, %{amount_paid: ^amount1}},
+             {{:invoice, :overpaid}, %{amount_paid: ^total_paid}},
              {{:invoice, :processing}, %{status: {:processing, :verifying}}},
-             {{:invoice, :paid}, %{amount_paid: ^total_paid, txs: [_, _]}}
+             {{:invoice, :paid}, %{amount_paid: ^total_paid}}
            ] = HandlerSubscriberCollector.received(stub)
   end
 end
