@@ -4,6 +4,10 @@ defmodule BitPalFactory.CurrencyFactory do
   alias BitPalFactory.CurrencyCounter
   alias BitPalSchemas.Currency
 
+  def unique_block_id do
+    :crypto.hash(:sha256, to_string(System.unique_integer())) |> Base.encode16()
+  end
+
   @spec unique_currency_id :: Currency.id()
   def unique_currency_id do
     CurrencyCounter.next_currency_id()
@@ -50,12 +54,12 @@ defmodule BitPalFactory.CurrencyFactory do
     case Blocks.fetch_height(currency_id) do
       :error ->
         height = Faker.random_between(min_height || 1, 100_000)
-        Blocks.set_height(currency_id, height)
+        Blocks.new(currency_id, height, unique_block_id())
         height
 
       {:ok, height} ->
         if min_height && height < min_height do
-          Blocks.set_height(currency_id, min_height)
+          Blocks.new(currency_id, height, unique_block_id())
           min_height
         else
           height

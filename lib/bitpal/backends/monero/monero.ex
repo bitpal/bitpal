@@ -101,8 +101,7 @@ defmodule BitPal.Backend.Monero do
   end
 
   @impl true
-  def handle_info({:notify, "monero:tx-notify", msg}, state) do
-    [txid] = msg
+  def handle_info({:notify, "monero:tx-notify", [txid]}, state) do
     update_tx(txid, state)
     {:noreply, state}
   end
@@ -116,12 +115,20 @@ defmodule BitPal.Backend.Monero do
   end
 
   @impl true
-  def handle_info({:notify, "monero:reorg-notify", msg}, state) do
-    Logger.warn("reorg detected!: #{inspect(msg)}")
+  def handle_info({:notify, "monero:reorg-notify", [new_height, split_height]}, state) do
+    Logger.warn("reorg detected!: new_height: #{new_height} split_height: #{split_height}")
 
-    # Must check if any previously confirmed invoice is affected
+    # Recheck all transactions that may be affected by the reorg.
+    unless Blocks.reorg(:XMR, new_height, split_height) == :no_reorg do
+      for tx <- Transactions.above_or_equal_height(:XMR, split_height) do
+        update_tx(tx.id, state)
+      end
+    end
 
-    {:noreply, state}
+    case get_info(state) do
+      {:ok, state} -> {:noreply, state}
+      {:error, error} -> {:stop, {:shutdown, error}, state}
+    end
   end
 
   @impl true
@@ -195,15 +202,12 @@ defmodule BitPal.Backend.Monero do
   #   state
   # end
 
-  defp update_height(state, %{"height" => new_height}) do
-    Blocks.set_height(:XMR, new_height)
-
-    for tx <- Transactions.pending(:XMR) do
-      update_tx(tx.id, state)
+  defp update_height(state, %{"height" => height, "top_block_hash" => hash}) do
+    unless Blocks.new(:XMR, height, hash) == :not_updated do
+      for tx <- Transactions.pending(:XMR) do
+        update_tx(tx.id, state)
+      end
     end
-
-    # FIXME only if the height is more than the previous
-    # if it's less, then we need to find more txs
 
     state
   end

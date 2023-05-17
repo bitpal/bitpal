@@ -164,7 +164,7 @@ defmodule BitPal.Backend.Flowee do
     # blocks in case we crash during recovery.
     # Even if we could skip this during recovery, it's a better user experience to save the recovery state
     # if we abort Flowee in the middle.
-    Blocks.set_height(:BCH, height)
+    Blocks.new(:BCH, height)
 
     # NOTE if any tx is found, we should recheck open invoices.
     continue_block_recovery(state, height)
@@ -183,7 +183,7 @@ defmodule BitPal.Backend.Flowee do
   defp handle_message(:new_block_on_chain, %{height: height}, state) do
     Logger.debug("New #{:BCH} block. Height is now: #{height}")
     # Save the block height. This means that during recovery, we don't have to examine this block.
-    Blocks.new_block(:BCH, height)
+    Blocks.new(:BCH, height)
     state
   end
 
@@ -238,7 +238,7 @@ defmodule BitPal.Backend.Flowee do
 
       _ ->
         # No height yet, so nothing to recover.
-        Blocks.set_height(:BCH, height)
+        Blocks.new(:BCH, height)
         state
     end
   end
@@ -250,7 +250,7 @@ defmodule BitPal.Backend.Flowee do
 
     if Enum.empty?(active) do
       # No addresses so nothing to recover.
-      Blocks.set_height(:BCH, target_height)
+      Blocks.new(:BCH, target_height)
       set_ready()
       state
     else

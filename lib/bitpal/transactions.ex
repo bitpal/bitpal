@@ -77,8 +77,8 @@ defmodule BitPal.Transactions do
     |> Repo.all()
   end
 
-  @spec above_height(Currency.id(), non_neg_integer) :: [Transaction.t()]
-  def above_height(currency_id, height) do
+  @spec above_or_equal_height(Currency.id(), non_neg_integer) :: [Transaction.t()]
+  def above_or_equal_height(currency_id, height) do
     from(t in Transaction,
       where: t.currency_id == ^currency_id and t.height >= ^height
     )
@@ -303,81 +303,4 @@ defmodule BitPal.Transactions do
       )
     end)
   end
-
-  # OLD
-  #
-  # # FIXME should be named unconfirmed?
-  # # FIXME crashes if we use an address that doesn't exist
-  # @spec seen(Transaction.txid(), outputs) :: :ok | :error
-  # def seen(txid, outputs) do
-  #   insert(txid, outputs, {{:tx, :seen}, %{id: txid}})
-  # end
-  #
-  # @spec confirmed(Transaction.txid(), outputs, height) :: :ok | :error
-  # def confirmed(txid, outputs, height) do
-  #   update_old(txid, outputs, {{:tx, :confirmed}, %{id: txid, height: height}}, height: height)
-  # end
-  #
-  # @spec double_spent(Transaction.txid(), outputs) :: :ok | :error
-  # def double_spent(txid, outputs) do
-  #   update_old(txid, outputs, {{:tx, :double_spent}, %{id: txid}}, double_spent: true)
-  # end
-  #
-  # @spec failed(Transaction.txid(), outputs) :: :ok | :error
-  # def failed(txid, outputs) do
-  #   # TODO
-  #   :error
-  # end
-  #
-  # @spec reversed(Transaction.txid(), outputs) :: :ok | :error
-  # def reversed(txid, outputs) do
-  #   update_old(txid, outputs, {{:tx, :reversed}, %{id: txid}}, height: nil)
-  # end
-  #
-  # @spec update_old(Transaction.txid(), outputs, AddressEvents.msg(), keyword) :: :ok | :error
-  # defp update_old(txid, outputs, msg, changes) do
-  #   output_count = Enum.count(outputs)
-  #
-  #   case Repo.update_all(from(t in TxOutput, where: t.txid == ^txid, update: [set: ^changes]), []) do
-  #     {^output_count, _} ->
-  #       broadcast(outputs, msg)
-  #
-  #     _ ->
-  #       insert(txid, outputs, msg, changes)
-  #   end
-  # end
-  #
-  # @spec insert(Transaction.txid(), outputs, AddressEvents.msg(), keyword) :: :ok | :error
-  # defp insert(txid, outputs, msg, extra \\ []) do
-  #   output_count = Enum.count(outputs)
-  #
-  #   case Repo.insert_all(
-  #          TxOutput,
-  #          Enum.map(outputs, fn {address_id, amount} ->
-  #            %{
-  #              txid: txid,
-  #              address_id: address_id,
-  #              amount: amount
-  #            }
-  #            |> Map.merge(Enum.into(extra, %{}))
-  #          end)
-  #        ) do
-  #     {^output_count, _} ->
-  #       broadcast(outputs, msg)
-  #
-  #     err ->
-  #       Logger.error("Failed to insert tx #{txid}: #{inspect(err)}")
-  #       :error
-  #   end
-  # end
-
-  # Broadcasting
-
-  # defp broadcast_old(outputs, msg) do
-  #   outputs
-  #   |> Enum.uniq_by(fn {address, _} -> address end)
-  #   |> Enum.each(fn {address_id, _} ->
-  #     AddressEvents.broadcast(address_id, msg)
-  #   end)
-  # end
 end

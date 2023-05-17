@@ -1,8 +1,9 @@
 defmodule BitPal.Backend.MoneroFixtures do
-  # monerod fixtures
+  alias BitPalFactory.CurrencyFactory
 
   def get_info(opts \\ []) do
     height = opts[:height] || 1_349_905
+    hash = opts[:hash] || CurrencyFactory.unique_block_id()
 
     {:ok,
      %{
@@ -40,7 +41,7 @@ defmodule BitPal.Backend.MoneroFixtures do
        "cumulative_difficulty_top64" => 0,
        "height" => height,
        "testnet" => false,
-       "top_block_hash" => "4f1956d469d895ca100ad3606a7003776c730ea3553b521c0ee41e9ef3101d6b",
+       "top_block_hash" => hash,
        "difficulty_top64" => 0,
        "grey_peerlist_size" => 998,
        "block_weight_limit" => 600_000,

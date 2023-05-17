@@ -52,7 +52,7 @@ defmodule BitPalWeb.StoreTransacionsLiveTest do
     test "update tx confirmed height", %{conn: conn, store: store, currency_id: currency_id} do
       height = Faker.random_between(0, 1_000)
 
-      :ok = Blocks.set_height(currency_id, height)
+      :ok = Blocks.new(currency_id, height)
 
       invoice =
         create_invoice(

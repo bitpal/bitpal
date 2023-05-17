@@ -247,24 +247,6 @@ defmodule BitPal.InvoiceHandler do
   end
 
   @impl true
-  def handle_info({{:block, :set_height}, %{height: height}}, state = %{processing_txs: txs}) do
-    state = Map.put(state, :block_height, height)
-
-    if state.invoice.required_confirmations > 0 do
-      state
-      |> broadcast_processed_if_needed()
-      |> clear_processed_txs(txs)
-      |> try_into_paid()
-    else
-      {:noreply, state}
-    end
-  end
-
-  def handle_info({{:block, :set_height}, %{height: height}}, state) do
-    {:noreply, Map.put(state, :block_height, height)}
-  end
-
-  @impl true
   def handle_info(info, state) do
     Logger.warn("unhandled info/state in InvoiceHandler #{inspect(info)} #{inspect(state)}")
     {:noreply, state}

@@ -225,7 +225,7 @@ defmodule BitPal.Backend.FloweeTest do
 
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_1_conf())
     # Manually set blocks to avoid having to find fixtures for all things
-    Blocks.new_block(@currency, 690_933)
+    Blocks.new(@currency, 690_933)
 
     HandlerSubscriberCollector.await_msg(stub1, {:invoice, :paid})
     HandlerSubscriberCollector.await_msg(stub2, {:invoice, :paid})
@@ -269,7 +269,7 @@ defmodule BitPal.Backend.FloweeTest do
     # Confirm the first transaction.
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_1_conf())
     # Manually set blocks to avoid having to find fixtures for all things
-    Blocks.new_block(@currency, 690_933)
+    Blocks.new(@currency, 690_933)
 
     HandlerSubscriberCollector.await_msg(stub1, {:invoice, :finalized})
     HandlerSubscriberCollector.await_msg(stub2, {:invoice, :paid})
@@ -291,7 +291,7 @@ defmodule BitPal.Backend.FloweeTest do
     # And confirm.
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_a_1_conf())
     # Manually set blocks to avoid having to find fixtures for all things
-    Blocks.new_block(@currency, 690_934)
+    Blocks.new(@currency, 690_934)
 
     HandlerSubscriberCollector.await_msg(stub1, {:invoice, :paid})
 
@@ -354,7 +354,7 @@ defmodule BitPal.Backend.FloweeTest do
 
     # Simulate the state stored in the DB:
     # We are now at height 690933, but we have only registered up to 690_931
-    Blocks.set_height(@currency, 690_931)
+    Blocks.new(@currency, 690_931)
 
     # Now, we tell Flowee the current block height. It will try to recover
     # and ask for the missing blocks.

@@ -48,7 +48,7 @@ defmodule BitPal.InvoiceTransactionsTest do
 
   describe "num_confirmations" do
     test "no confirmation", %{invoice: invoice, address: address, currency_id: currency_id} do
-      Blocks.set_height(currency_id, 14)
+      Blocks.new(currency_id, 14)
       create_tx(address, height: 0)
       create_tx(address, height: 10)
       create_tx(address, height: 11)
@@ -57,7 +57,7 @@ defmodule BitPal.InvoiceTransactionsTest do
     end
 
     test "gets min", %{invoice: invoice, address: address, currency_id: currency_id} do
-      Blocks.set_height(currency_id, 14)
+      Blocks.new(currency_id, 14)
       create_tx(address, height: 9)
       create_tx(address, height: 10)
       create_tx(address, height: 11)
@@ -69,7 +69,7 @@ defmodule BitPal.InvoiceTransactionsTest do
       invoice: invoice,
       currency_id: currency_id
     } do
-      Blocks.set_height(currency_id, 14)
+      Blocks.new(currency_id, 14)
       assert Invoices.num_confirmations(invoice) == 0
     end
   end
@@ -117,7 +117,7 @@ defmodule BitPal.InvoiceTransactionsTest do
 
     assert 5 == Invoices.calculate_confirmations_due(invoice)
 
-    Blocks.set_height(currency_id, 1)
+    Blocks.new(currency_id, 1)
 
     assert {:ok, _} =
              Transactions.update(txid0, outputs: [{address.id, Money.parse!(0.2, currency_id)}])
@@ -127,7 +127,7 @@ defmodule BitPal.InvoiceTransactionsTest do
     Transactions.update(txid0, outputs: [{address.id, Money.parse!(0.2, currency_id)}], height: 1)
     assert 4 == Invoices.calculate_confirmations_due(invoice)
 
-    Blocks.new_block(currency_id, 2)
+    Blocks.new(currency_id, 2)
     assert 3 == Invoices.calculate_confirmations_due(invoice)
 
     assert {:ok, _} =
@@ -138,13 +138,13 @@ defmodule BitPal.InvoiceTransactionsTest do
 
     assert 4 == Invoices.calculate_confirmations_due(invoice)
 
-    Blocks.new_block(currency_id, 3)
+    Blocks.new(currency_id, 3)
     assert 3 == Invoices.calculate_confirmations_due(invoice)
-    Blocks.new_block(currency_id, 4)
-    Blocks.new_block(currency_id, 5)
-    Blocks.new_block(currency_id, 6)
+    Blocks.new(currency_id, 4)
+    Blocks.new(currency_id, 5)
+    Blocks.new(currency_id, 6)
     assert 0 == Invoices.calculate_confirmations_due(invoice)
-    Blocks.new_block(currency_id, 7)
+    Blocks.new(currency_id, 7)
     assert 0 == Invoices.calculate_confirmations_due(invoice)
   end
 end

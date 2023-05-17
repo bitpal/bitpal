@@ -345,7 +345,7 @@ defmodule BitPal.BackendMock do
 
   defp incr_height(state) do
     height = state.height + 1
-    :ok = Blocks.new_block(state.currency_id, height)
+    Blocks.new(state.currency_id, height, unique_block_id())
 
     %{state | height: height}
     |> auto_confirm_invoices
