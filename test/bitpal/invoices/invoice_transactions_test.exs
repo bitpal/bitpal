@@ -8,7 +8,7 @@ defmodule BitPal.InvoiceTransactionsTest do
     expected_payment = Money.parse!(amount, currency_id)
 
     invoice =
-      Map.take(tags, [:amount, :required_confirmations])
+      Map.take(tags, [:required_confirmations])
       |> Map.merge(%{
         address_id: :auto,
         expected_payment: expected_payment

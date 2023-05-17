@@ -93,7 +93,6 @@ defmodule BitPalApi.InvoiceControllerTest do
              } = json_response(conn, 200)
     end
 
-    @tag do: true
     test "with crypto price", %{conn: conn} do
       conn =
         post(conn, "/api/v1/invoices", %{
@@ -567,12 +566,12 @@ defmodule BitPalApi.InvoiceControllerTest do
   end
 
   test "show all invoices", %{conn: conn} do
-    id0 = create_invoice(conn, amount: 1).id
-    id1 = create_invoice(conn, amount: 2).id
-    id2 = create_invoice(conn, amount: 3, status: :open).id
+    id0 = create_invoice(conn).id
+    id1 = create_invoice(conn).id
+    id2 = create_invoice(conn, status: :open).id
 
     # Invoices from other store should not show up
-    _ = create_invoice(amount: 4)
+    _ = create_invoice()
 
     conn = get(conn, "/api/v1/invoices")
     # Can sometimes be in another order, so sorting is necessary

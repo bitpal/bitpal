@@ -34,6 +34,7 @@ defmodule BitPal.Blocks do
     end
   end
 
+  # FIXME combine all the below
   @spec new_block(currency_id, height) :: :ok
   def new_block(currency_id, height) do
     update_height(currency_id, height)

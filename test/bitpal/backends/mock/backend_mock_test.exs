@@ -8,20 +8,17 @@ defmodule BackendMockTest do
     @tag backends: [
            {BackendMock, auto: true, time_until_tx_seen: 10, time_between_blocks: 5}
          ]
-    @tag do: true
     test "auto confirms", %{currency_id: currency_id} do
       {:ok, _inv1, stub1, _invoice_handler} =
         HandlerSubscriberCollector.create_invoice(
           payment_currency_id: currency_id,
-          required_confirmations: 1,
-          amount: 1.0
+          required_confirmations: 1
         )
 
       {:ok, _inv3, stub3, _invoice_handler} =
         HandlerSubscriberCollector.create_invoice(
           payment_currency_id: currency_id,
-          required_confirmations: 3,
-          amount: 3.0
+          required_confirmations: 3
         )
 
       HandlerSubscriberCollector.await_msg(stub1, {:invoice, :paid})

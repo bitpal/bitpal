@@ -28,14 +28,6 @@ defmodule BitPal.Invoices do
 
   @spec register(Store.id(), map) :: {:ok, Invoice.t()} | {:error, Changeset.t()}
   def register(store_id, params) do
-    if params[:currency_id] do
-      raise "trying to set currency_id!"
-    end
-
-    if params[:amount] do
-      raise "trying to set amount!"
-    end
-
     res =
       %Invoice{store_id: store_id, status: :draft}
       |> change_validation(params)
@@ -57,14 +49,6 @@ defmodule BitPal.Invoices do
   @spec update(Invoice.t(), map) ::
           {:ok, Invoice.t()} | {:error, :finalized} | {:error, Changeset.t()}
   def update(invoice, params) do
-    if params[:currency_id] do
-      raise "trying to set currency_id!"
-    end
-
-    if params[:amount] do
-      raise "trying to set amount!"
-    end
-
     if finalized?(invoice) do
       {:error, :finalized}
     else

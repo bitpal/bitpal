@@ -117,7 +117,6 @@ defmodule BitPalWeb.ServerSetupTest do
     end
 
     @tag server_setup_state: :completed
-    @tag do: true
     test "allowed routes when not logged in", %{conn: conn} do
       allowed_routes = [
         ~p"/users/log_in",

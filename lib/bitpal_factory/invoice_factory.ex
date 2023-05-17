@@ -27,10 +27,6 @@ defmodule BitPalFactory.InvoiceFactory do
   def valid_invoice_attributes(attrs \\ %{}) do
     required_confirmations = attrs[:required_confirmations] || Faker.random_between(0, 3)
 
-    if attrs[:currency_id] do
-      raise "trying to set currency_id!"
-    end
-
     Enum.into(
       attrs,
       %{
