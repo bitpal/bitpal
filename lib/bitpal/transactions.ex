@@ -69,6 +69,22 @@ defmodule BitPal.Transactions do
     |> Repo.all()
   end
 
+  @spec pending(Currency.id()) :: [Transaction.t()]
+  def pending(currency_id) do
+    from(t in Transaction,
+      where: t.currency_id == ^currency_id and t.height == 0
+    )
+    |> Repo.all()
+  end
+
+  @spec above_height(Currency.id(), non_neg_integer) :: [Transaction.t()]
+  def above_height(currency_id, height) do
+    from(t in Transaction,
+      where: t.currency_id == ^currency_id and t.height >= ^height
+    )
+    |> Repo.all()
+  end
+
   @spec address_tx_info(Address.id()) :: InvoiceEvents.txs()
   def address_tx_info(address_id) do
     # When we can aggregate money with sql using ex_money, we can rewrite this

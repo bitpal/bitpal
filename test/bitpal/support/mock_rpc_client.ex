@@ -77,7 +77,7 @@ defmodule BitPal.MockRPCClient do
       state
       |> Map.update!(:responses, fn responses ->
         Map.update(responses, method, [fun], fn method_responses ->
-          Enum.reverse([fun | method_responses])
+          method_responses ++ [fun]
         end)
       end)
 

@@ -1,5 +1,6 @@
 defmodule BitPal.Backend.Monero do
   use BitPal.Backend, currency_id: :XMR
+  alias BitPal.Blocks
   alias BitPal.ExtNotificationHandler
   alias BitPal.Backend.Monero.DaemonRPC
   alias BitPal.Backend.Monero.Wallet
@@ -12,11 +13,6 @@ defmodule BitPal.Backend.Monero do
   # FIXME configurable what account we should pass our payments to
   @account 0
   @init_wallet Application.compile_env(:bitpal, [BitPal.Backend.Monero, :init_wallet], true)
-
-  # TODO
-  # 1. Assign address
-  # 2. Watch address
-  # Make the above work, and we're basically "done"
 
   # Client API
 
@@ -54,8 +50,8 @@ defmodule BitPal.Backend.Monero do
 
   @impl true
   def handle_continue(:info, state) do
-    case DaemonRPC.get_info(state.rpc_client) do
-      {:ok, info} -> {:noreply, update_daemon_info(info, state), {:continue, :init_wallet}}
+    case get_info(state) do
+      {:ok, state} -> {:noreply, state, {:continue, :init_wallet}}
       {:error, error} -> {:stop, {:shutdown, error}, state}
     end
   end
@@ -98,43 +94,25 @@ defmodule BitPal.Backend.Monero do
 
   @impl true
   def handle_info(:update_info, state) do
-    case DaemonRPC.get_info(state.rpc_client) do
-      {:ok, info} -> {:noreply, update_daemon_info(info, state)}
+    case get_info(state) do
+      {:ok, state} -> {:noreply, state}
       {:error, error} -> {:stop, {:shutdown, error}, state}
     end
   end
 
   @impl true
   def handle_info({:notify, "monero:tx-notify", msg}, state) do
-    IO.puts("tx seen: #{inspect(msg)}")
     [txid] = msg
-
-    {:ok, %{"transfer" => txinfo}} =
-      WalletRPC.get_transfer_by_txid(state.rpc_client, txid, @account)
-
-    update_tx_info(txinfo)
-
+    update_tx(txid, state)
     {:noreply, state}
   end
 
   @impl true
-  def handle_info({:notify, "monero:block-notify", msg}, state) do
-    IO.puts("block seen: #{inspect(msg)}")
-
-    # 1. get_info
-    #    Update block height
-    # 2. for all pending invoices
-    #      get_transfers(invoice addresses)
-    #         in: confirmed transactions (?)
-    #         pool / pending: 0 conf? / seen
-    #         failed: oops!
-    #           examine double_spend_seen, confirmations, height (0 if not mined) in the above
-    #
-    #
-
-    # Check if we have any pending invoice without a confirmation, poll them for info and see if they're conf
-
-    {:noreply, state}
+  def handle_info({:notify, "monero:block-notify", _msg}, state) do
+    case get_info(state) do
+      {:ok, state} -> {:noreply, state}
+      {:error, error} -> {:stop, {:shutdown, error}, state}
+    end
   end
 
   @impl true
@@ -146,7 +124,20 @@ defmodule BitPal.Backend.Monero do
     {:noreply, state}
   end
 
+  @impl true
+  def handle_info({:update_tx, txid}, state) do
+    update_tx(txid, state)
+    {:noreply, state}
+  end
+
   # Internal impl
+
+  defp update_tx(txid, state) do
+    {:ok, %{"transfer" => txinfo}} =
+      WalletRPC.get_transfer_by_txid(state.rpc_client, txid, @account)
+
+    update_tx_info(txinfo)
+  end
 
   defp update_tx_info(%{
          "address" => address,
@@ -154,44 +145,66 @@ defmodule BitPal.Backend.Monero do
          "double_spend_seen" => double_spend_seen,
          "height" => height,
          "txid" => txid,
-         "type" => _type
+         "type" => type
        }) do
     outputs = [{address, Money.new(amount, :XMR)}]
 
-    if height == 0 do
-      Transactions.update(txid, outputs: outputs)
-    else
-      Transactions.update(txid, outputs: outputs, height: height)
-    end
+    Transactions.update(txid,
+      outputs: outputs,
+      height: height,
+      double_spent: double_spend_seen,
+      failed: type == "failed"
+    )
 
-    if double_spend_seen do
-      Transactions.update(txid, outputs: outputs)
-    end
-
-    # TODO update failed txs
-    # type "in" "out" "pending" "failed" "pool"
     :ok
+  end
+
+  @spec get_info(map) :: {:ok, map} | {:error, term}
+  defp get_info(state) do
+    case DaemonRPC.get_info(state.rpc_client) do
+      {:ok, info} -> {:ok, update_daemon_info(info, state)}
+      {:error, error} -> {:error, error}
+    end
   end
 
   defp update_daemon_info(info, state) do
     state
     |> update_sync(info)
+    |> update_height(info)
     |> store_daemon_info(info)
   end
 
-  defp update_sync(state, %{"synchronized" => true}) do
-    sync_done()
-    Process.send_after(self(), :update_info, state.daemon_check_interval)
+  defp update_sync(state, _) do
+    # TODO update sync status
     state
   end
 
-  defp update_sync(state, %{
-         "synchronized" => false,
-         "target_height" => target_height,
-         "height" => height
-       }) do
-    set_syncing({height, target_height})
-    Process.send_after(self(), :update_info, state.sync_check_interval)
+  # defp update_sync(state, %{"synchronized" => true}) do
+  #   sync_done()
+  #   Process.send_after(self(), :update_info, state.daemon_check_interval)
+  #   state
+  # end
+  #
+  # defp update_sync(state, %{
+  #        "synchronized" => false,
+  #        "target_height" => target_height,
+  #        "height" => height
+  #      }) do
+  #   set_syncing({height, target_height})
+  #   Process.send_after(self(), :update_info, state.sync_check_interval)
+  #   state
+  # end
+
+  defp update_height(state, %{"height" => new_height}) do
+    Blocks.set_height(:XMR, new_height)
+
+    for tx <- Transactions.pending(:XMR) do
+      update_tx(tx.id, state)
+    end
+
+    # FIXME only if the height is more than the previous
+    # if it's less, then we need to find more txs
+
     state
   end
 

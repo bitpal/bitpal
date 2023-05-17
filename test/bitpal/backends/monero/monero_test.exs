@@ -2,12 +2,13 @@ defmodule BitPal.Backend.MoneroTest do
   use ExUnit.Case, async: false
   use BitPal.CaseHelpers
   import Mox
-  alias BitPal.MockRPCClient
   alias BitPal.Backend.Monero
   alias BitPal.Backend.MoneroFixtures
-  alias BitPal.IntegrationCase
-  alias BitPal.HandlerSubscriberCollector
+  alias BitPal.Blocks
   alias BitPal.ExtNotificationHandler
+  alias BitPal.HandlerSubscriberCollector
+  alias BitPal.IntegrationCase
+  alias BitPal.MockRPCClient
 
   @currency :XMR
   @client BitPal.MoneroMock
@@ -19,7 +20,7 @@ defmodule BitPal.Backend.MoneroTest do
     MockRPCClient.init_mock(@client)
 
     MockRPCClient.expect(@client, "get_info", fn _ ->
-      MoneroFixtures.get_info()
+      MoneroFixtures.get_info(height: 10)
     end)
 
     backends = [
@@ -27,6 +28,10 @@ defmodule BitPal.Backend.MoneroTest do
     ]
 
     res = IntegrationCase.setup_integration(local_manager: true, backends: backends, async: false)
+
+    eventually(fn ->
+      Blocks.fetch_height(@currency) == {:ok, 10}
+    end)
 
     store = create_store()
 
@@ -52,6 +57,24 @@ defmodule BitPal.Backend.MoneroTest do
       create_invoice(params)
     else
       HandlerSubscriberCollector.create_invoice(params)
+    end
+  end
+
+  describe "blocks" do
+    test "increase block height" do
+      assert eventually(fn ->
+               Blocks.fetch_height(@currency) == {:ok, 10}
+             end)
+
+      MockRPCClient.expect(@client, "get_info", fn _ ->
+        MoneroFixtures.get_info(height: 11)
+      end)
+
+      send(ExtNotificationHandler, {:notify, ["monero:block-notify", "block-id"], 0})
+
+      assert eventually(fn ->
+               Blocks.fetch_height(@currency) == {:ok, 11}
+             end)
     end
   end
 
@@ -83,13 +106,14 @@ defmodule BitPal.Backend.MoneroTest do
   end
 
   describe "transaction acceptance" do
-    @tag skip: true
     test "0-conf acceptance", %{store: store, manager: manager} do
+      amount = 123_000_000
+
       {:ok, _inv, stub, _handler} =
         test_invoice(
           store: store,
           required_confirmations: 0,
-          amount: 0.1,
+          price: Money.new(amount, :XMR),
           double_spend_timeout: 1,
           status: :open,
           manager: manager
@@ -98,7 +122,7 @@ defmodule BitPal.Backend.MoneroTest do
       txid = MoneroFixtures.txid()
 
       MockRPCClient.expect(@client, "get_transfer_by_txid", fn %{txid: ^txid, account_index: 0} ->
-        MoneroFixtures.get_transfer_by_txid()
+        MoneroFixtures.get_transfer_by_txid(height: 0, amount: amount)
       end)
 
       send(ExtNotificationHandler, {:notify, ["monero:tx-notify", txid], 0})
@@ -112,13 +136,46 @@ defmodule BitPal.Backend.MoneroTest do
              ] = HandlerSubscriberCollector.received(stub)
     end
 
-    @tag skip: true
     test "confirmation acceptance, confirmed at first sight", %{store: store, manager: manager} do
+      amount = 123_000_000
+
       {:ok, _inv, stub, _handler} =
         test_invoice(
           store: store,
           required_confirmations: 1,
-          amount: 0.1,
+          price: Money.new(amount, :XMR),
+          status: :open,
+          manager: manager
+        )
+
+      txid = MoneroFixtures.txid()
+
+      MockRPCClient.expect(@client, "get_transfer_by_txid", fn %{txid: ^txid, account_index: 0} ->
+        MoneroFixtures.get_transfer_by_txid(height: 10, amount: amount)
+      end)
+
+      send(ExtNotificationHandler, {:notify, ["monero:tx-notify", txid], 0})
+
+      HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
+
+      assert [
+               {{:invoice, :finalized}, _},
+               {{:invoice, :processing}, _},
+               {{:invoice, :paid}, _}
+             ] = HandlerSubscriberCollector.received(stub)
+    end
+
+    test "confirmation acceptance, seen first then multiple confirmations", %{
+      store: store,
+      manager: manager
+    } do
+      amount = 123_000_000
+
+      {:ok, _inv, stub, _handler} =
+        test_invoice(
+          store: store,
+          required_confirmations: 3,
+          price: Money.new(amount, :XMR),
           status: :open,
           manager: manager
         )
@@ -126,55 +183,63 @@ defmodule BitPal.Backend.MoneroTest do
       txid = MoneroFixtures.txid()
 
       # First we see an unconfirmed tx
+
       MockRPCClient.expect(@client, "get_transfer_by_txid", fn %{txid: ^txid, account_index: 0} ->
-        MoneroFixtures.get_transfer_by_txid()
+        MoneroFixtures.get_transfer_by_txid(amount: amount, height: 0)
       end)
 
       send(ExtNotificationHandler, {:notify, ["monero:tx-notify", txid], 0})
+
+      # Then issue block and mark tx as included in the block
+
+      MockRPCClient.expect(@client, "get_info", fn _ ->
+        MoneroFixtures.get_info(height: 11)
+      end)
+
+      MockRPCClient.expect(@client, "get_transfer_by_txid", fn %{txid: ^txid, account_index: 0} ->
+        MoneroFixtures.get_transfer_by_txid(amount: amount, height: 11)
+      end)
+
+      send(ExtNotificationHandler, {:notify, ["monero:block-notify", "b0"], 0})
+
+      # Then more blocks
+
+      MockRPCClient.expect(@client, "get_info", fn _ ->
+        MoneroFixtures.get_info(height: 12)
+      end)
+
+      send(ExtNotificationHandler, {:notify, ["monero:block-notify", "b1"], 0})
+
+      MockRPCClient.expect(@client, "get_info", fn _ ->
+        MoneroFixtures.get_info(height: 13)
+      end)
+
+      send(ExtNotificationHandler, {:notify, ["monero:block-notify", "b2"], 0})
 
       HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
 
       assert [
                {{:invoice, :finalized}, _},
-               {{:invoice, :processing}, _},
+               {{:invoice, :processing}, %{confirmations_due: 3}},
+               {{:invoice, :processing}, %{confirmations_due: 2}},
+               {{:invoice, :processing}, %{confirmations_due: 1}},
                {{:invoice, :paid}, _}
              ] = HandlerSubscriberCollector.received(stub)
     end
-
-    test "confirmation acceptance, multiple confirmations", %{store: store, manager: manager} do
-    end
-
-    test "confirmation acceptance, seen first then marks as confirmed", %{
-      store: store,
-      manager: manager
-    } do
-    end
   end
 
-  # When tx-notify:
-  # - Update tx
-  #
-  # When block-notify:
-  # - poll info, updates transactions
-  #
+  # TODO
+  # - initial sync 
+  # - recovery
+  # - reorgs
+  # - regular saving of wallet
+
   # When reorg-notify:
   # - fetch all txs with affected heights
   # - recheck them
   #
-  # Poll info
-  # - Update block height
-  #   If new unseen height, update similar to block-notify
-  #   - get_transfers
-  #     update all transactions seen there
   #
-  # When we see a new block, save the wallet
 
-  # test "transaction 0-conf acceptance", %{store: store, manager: manager} do
-  # end
-  #
-  # test "transaction confirmation acceptance", %{store: store} do
-  # end
-  #
   # @tag init_message: false
   # test "wait for daemon to become ready" do
   # end

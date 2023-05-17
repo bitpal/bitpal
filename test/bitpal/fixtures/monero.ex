@@ -1,7 +1,9 @@
 defmodule BitPal.Backend.MoneroFixtures do
   # monerod fixtures
 
-  def get_info do
+  def get_info(opts \\ []) do
+    height = opts[:height] || 1_349_905
+
     {:ok,
      %{
        "stagenet" => true,
@@ -36,7 +38,7 @@ defmodule BitPal.Backend.MoneroFixtures do
        "block_weight_median" => 300_000,
        "height_without_bootstrap" => 1_349_905,
        "cumulative_difficulty_top64" => 0,
-       "height" => 1_349_905,
+       "height" => height,
        "testnet" => false,
        "top_block_hash" => "4f1956d469d895ca100ad3606a7003776c730ea3553b521c0ee41e9ef3101d6b",
        "difficulty_top64" => 0,
@@ -50,14 +52,17 @@ defmodule BitPal.Backend.MoneroFixtures do
      }}
   end
 
-  def get_block_count do
-    {:ok, %{"count" => 1_349_983, "status" => "OK", "untrusted" => false}}
+  def get_block_count(opts \\ []) do
+    height = opts[:height] || 1_349_905
+    {:ok, %{"count" => height, "status" => "OK", "untrusted" => false}}
   end
 
-  def get_version do
+  def get_version(opts \\ []) do
+    height = opts[:height] || 1_349_905
+
     {:ok,
      %{
-       "current_height" => 1_349_983,
+       "current_height" => height,
        "hard_forks" => [
          %{"height" => 1, "hf_version" => 1},
          %{"height" => 32_000, "hf_version" => 2},
@@ -83,11 +88,13 @@ defmodule BitPal.Backend.MoneroFixtures do
      }}
   end
 
-  def sync_info do
+  def sync_info(opts \\ []) do
+    height = opts[:height] || 1_349_905
+
     {:ok,
      %{
        "credits" => 0,
-       "height" => 1_349_983,
+       "height" => height,
        "next_needed_pruning_seed" => 0,
        "overview" => "[]",
        "peers" => []
@@ -239,50 +246,35 @@ defmodule BitPal.Backend.MoneroFixtures do
     "b768029959c15b59330a838bfae1e85adc3f8c812ea1133f5f19f61ab649b666"
   end
 
-  def get_transfer_by_txid do
+  def get_transfer_by_txid(opts \\ []) do
+    amount = opts[:amount] || 10_000_000
+    height = opts[:height] || 1_349_905
+
     # %{account_index: 0, txid: "b768029959c15b59330a838bfae1e85adc3f8c812ea1133f5f19f61ab649b666"}
+    transfer = %{
+      "address" =>
+        "7BSZWuzWzdC21DUUe7GsP633YjU9B5VjpA6mngJxLykBhWJy3Zye6QrE8kx2jZHbzDGJFM1qwKyscBKj9toScSF76Bz6qPg",
+      "amount" => amount,
+      "amounts" => [amount],
+      "double_spend_seen" => false,
+      "fee" => 204_880_000,
+      "height" => height,
+      "locked" => true,
+      "note" => "",
+      "payment_id" => "0000000000000000",
+      "subaddr_index" => %{"major" => 0, "minor" => 7},
+      "subaddr_indices" => [%{"major" => 0, "minor" => 7}],
+      "suggested_confirmations_threshold" => 4,
+      "timestamp" => 1_683_802_938,
+      "txid" => "b768029959c15b59330a838bfae1e85adc3f8c812ea1133f5f19f61ab649b666",
+      "type" => "pool",
+      "unlock_time" => 0
+    }
+
     {:ok,
      %{
-       "transfer" => %{
-         "address" =>
-           "7BSZWuzWzdC21DUUe7GsP633YjU9B5VjpA6mngJxLykBhWJy3Zye6QrE8kx2jZHbzDGJFM1qwKyscBKj9toScSF76Bz6qPg",
-         "amount" => 10_000_000_000_000,
-         "amounts" => [10_000_000_000_000],
-         "double_spend_seen" => false,
-         "fee" => 204_880_000,
-         "height" => 0,
-         "locked" => true,
-         "note" => "",
-         "payment_id" => "0000000000000000",
-         "subaddr_index" => %{"major" => 0, "minor" => 7},
-         "subaddr_indices" => [%{"major" => 0, "minor" => 7}],
-         "suggested_confirmations_threshold" => 4,
-         "timestamp" => 1_683_802_938,
-         "txid" => "b768029959c15b59330a838bfae1e85adc3f8c812ea1133f5f19f61ab649b666",
-         "type" => "pool",
-         "unlock_time" => 0
-       },
-       "transfers" => [
-         %{
-           "address" =>
-             "7BSZWuzWzdC21DUUe7GsP633YjU9B5VjpA6mngJxLykBhWJy3Zye6QrE8kx2jZHbzDGJFM1qwKyscBKj9toScSF76Bz6qPg",
-           "amount" => 10_000_000_000_000,
-           "amounts" => [10_000_000_000_000],
-           "double_spend_seen" => false,
-           "fee" => 204_880_000,
-           "height" => 0,
-           "locked" => true,
-           "note" => "",
-           "payment_id" => "0000000000000000",
-           "subaddr_index" => %{"major" => 0, "minor" => 7},
-           "subaddr_indices" => [%{"major" => 0, "minor" => 7}],
-           "suggested_confirmations_threshold" => 4,
-           "timestamp" => 1_683_802_938,
-           "txid" => "b768029959c15b59330a838bfae1e85adc3f8c812ea1133f5f19f61ab649b666",
-           "type" => "pool",
-           "unlock_time" => 0
-         }
-       ]
+       "transfer" => transfer,
+       "transfers" => [transfer]
      }}
   end
 

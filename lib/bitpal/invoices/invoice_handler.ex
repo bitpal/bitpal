@@ -12,11 +12,6 @@ defmodule BitPal.InvoiceHandler do
   alias Ecto.Adapters.SQL.Sandbox
   require Logger
 
-  # FIXME
-  # - We should store block_height to prevent race conditions where we might
-  #   miss sending out a processing message.
-  # - Why is the first message missing?
-
   @type handler :: pid
 
   # Client API
@@ -81,7 +76,12 @@ defmodule BitPal.InvoiceHandler do
 
     state =
       Keyword.take(opts, [:double_spend_timeout])
-      |> Enum.into(%{block_height: 0, invoice_id: invoice_id})
+      # - We store block_height to prevent race conditions where we might
+      #   miss sending out a processing message.
+      |> Enum.into(%{
+        block_height: Blocks.get_height(invoice.payment_currency_id),
+        invoice_id: invoice_id
+      })
       |> Map.put_new_lazy(:double_spend_timeout, fn -> Invoices.double_spend_timeout(invoice) end)
       |> Map.put(:invoice, invoice)
 
@@ -175,6 +175,7 @@ defmodule BitPal.InvoiceHandler do
   @impl true
   def handle_info({{:tx, :confirmed}, %{id: txid, height: height}}, state) do
     block_height = state.block_height
+
     invoice = Invoices.update_info_from_txs(state.invoice, block_height)
     new_tx? = !processing_tx?(state, txid)
 
@@ -251,6 +252,7 @@ defmodule BitPal.InvoiceHandler do
 
     if state.invoice.required_confirmations > 0 do
       state
+      |> broadcast_processed_if_needed()
       |> clear_processed_txs(txs)
       |> try_into_paid()
     else
