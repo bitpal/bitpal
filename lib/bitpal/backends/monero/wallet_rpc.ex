@@ -4,7 +4,7 @@ defmodule BitPal.Backend.Monero.WalletRPC do
   require Logger
 
   def get_accounts(client) do
-    call(client, "get_accounts", [])
+    call(client, "get_accounts")
   end
 
   def get_address(client, account_index, subaddress_indices \\ []) do
@@ -13,12 +13,12 @@ defmodule BitPal.Backend.Monero.WalletRPC do
 
   @spec close_wallet(module) :: {:ok, any} | {:error, any}
   def close_wallet(client) do
-    call(client, "close_wallet", [])
+    call(client, "close_wallet")
   end
 
   @spec store(module) :: {:ok, any} | {:error, any}
   def store(client) do
-    call(client, "store", [])
+    call(client, "store")
   end
 
   @spec create_address(module, non_neg_integer) :: {:ok, any} | {:error, any}

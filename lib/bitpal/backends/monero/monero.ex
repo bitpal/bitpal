@@ -39,6 +39,7 @@ defmodule BitPal.Backend.Monero do
   @impl true
   def handle_continue(:init, opts) do
     Logger.notice("Starting Monero backend")
+    Process.flag(:trap_exit, true)
 
     state =
       Enum.into(opts, %{
@@ -183,6 +184,16 @@ defmodule BitPal.Backend.Monero do
     {:noreply, update_sync(state)}
   end
 
+  @impl true
+  def terminate(reason, state) do
+    # Try to save our progress when process aborts for some reason.
+    WalletRPC.store(state.rpc_client)
+    reason
+  rescue
+    _ ->
+      reason
+  end
+
   # Internal impl
 
   defp update_tx(txid, state) do
@@ -232,6 +243,10 @@ defmodule BitPal.Backend.Monero do
   defp update_height(state, %{"height" => height, "top_block_hash" => hash}) do
     unless Blocks.new(:XMR, height, hash) == :not_updated do
       update_active_addresses(state)
+
+      # Not sure if this is overkill, but we should store wallet progress periodically to
+      # not have to do a slow resync on restart.
+      WalletRPC.store(state.rpc_client)
     end
 
     state
@@ -282,14 +297,10 @@ defmodule BitPal.Backend.Monero do
         ExtNotificationHandler.subscribe("monero:block-notify")
         ExtNotificationHandler.subscribe("monero:reorg-notify")
 
-        # We should poll regularly even though we also use notifications.
-        Process.send_after(self(), :update_info, state.daemon_check_interval)
-
         {:ok, state} = get_info(state)
 
-        # FIXME save wallet here
-        # We should also make a terminate function that stores the wallet
-        # and some recurring task to store it as well
+        # We should poll regularly even though we also use notifications.
+        Process.send_after(self(), :update_info, state.daemon_check_interval)
 
         sync_done()
 

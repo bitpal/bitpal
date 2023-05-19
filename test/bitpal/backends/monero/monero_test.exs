@@ -22,6 +22,10 @@ defmodule BitPal.Backend.MoneroTest do
   setup tags do
     MockRPCClient.init_mock(@client, missing_call_reply: tags[:missing_call_reply])
 
+    MockRPCClient.stub(@client, "store", fn _ ->
+      {:ok, %{}}
+    end)
+
     BackendEvents.subscribe(@currency)
 
     if Map.get(tags, :init_backend, true) do
