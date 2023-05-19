@@ -67,8 +67,8 @@ defmodule BitPal.Backend.Flowee do
     # Start sending pings
     enqueue_ping(state)
 
-    # Supscribe to invoices we should be tracking
-    Enum.each(Addresses.all_active(:BCH), fn address ->
+    # Subscribe to invoices we should be tracking
+    Enum.each(Addresses.all_active_ids(:BCH), fn address ->
       subscribe_addr(c, address)
     end)
 
@@ -246,7 +246,7 @@ defmodule BitPal.Backend.Flowee do
   defp recover_blocks_between(state, processed_height, target_height) do
     Logger.debug("#{:BCH} recover blocks between #{processed_height} #{target_height}")
 
-    active = Addresses.all_active(:BCH)
+    active = Addresses.all_active_ids(:BCH)
 
     if Enum.empty?(active) do
       # No addresses so nothing to recover.

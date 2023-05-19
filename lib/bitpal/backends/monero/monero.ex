@@ -5,14 +5,15 @@ defmodule BitPal.Backend.Monero do
   alias BitPal.Backend.Monero.DaemonRPC
   alias BitPal.Backend.Monero.Wallet
   alias BitPal.Backend.Monero.WalletRPC
-  alias BitPal.Invoices
+  alias BitPal.Addresses
   alias BitPal.Transactions
+  alias BitPal.Invoices
   require Logger
 
   @supervisor MoneroSupervisor
   # FIXME configurable what account we should pass our payments to
   @account 0
-  @init_wallet Application.compile_env(:bitpal, [BitPal.Backend.Monero, :init_wallet], true)
+  @start_wallet Application.compile_env(:bitpal, [BitPal.Backend.Monero, :init_wallet], true)
 
   # Client API
 
@@ -40,28 +41,44 @@ defmodule BitPal.Backend.Monero do
     Logger.notice("Starting Monero backend")
 
     state =
-      Enum.into(opts, %{})
-      |> Map.put_new(:rpc_client, BitPal.RPCClient)
-      |> Map.put_new(:sync_check_interval, 1_000)
-      |> Map.put_new(:daemon_check_interval, 30_000)
+      Enum.into(opts, %{
+        rpc_client: BitPal.RPCClient,
+        reconnect_timeout: 1_000,
+        sync_check_interval: 1_000,
+        daemon_check_interval: 30_000
+      })
 
-    {:noreply, state, {:continue, :info}}
+    {:noreply, state, {:continue, :connect_daemon}}
   end
 
   @impl true
-  def handle_continue(:info, state) do
-    case get_info(state) do
-      {:ok, state} -> {:noreply, state, {:continue, :init_wallet}}
-      {:error, error} -> {:stop, {:shutdown, error}, state}
+  def handle_continue(:connect_daemon, state) do
+    case DaemonRPC.get_version(state.rpc_client) do
+      {:ok, %{"version" => version}} ->
+        state =
+          state
+          |> Map.put(:daemon_version, version)
+          |> Map.delete(:connect_attempt)
+
+        {:noreply, state, {:continue, :start_wallet}}
+
+      {:error, error} ->
+        attempt = state[:connect_attempt] || 0
+
+        if attempt > 10 do
+          {:stop, {:shutdown, error}, state}
+        else
+          Process.sleep(state.reconnect_timeout)
+          {:noreply, Map.put(state, :connect_attempt, attempt + 1), {:continue, :connect_daemon}}
+        end
     end
   end
 
-  def handle_continue(:init_wallet, state) do
-    ExtNotificationHandler.subscribe("monero:tx-notify")
-    ExtNotificationHandler.subscribe("monero:block-notify")
-    ExtNotificationHandler.subscribe("monero:reorg-notify")
-
-    if @init_wallet do
+  @impl true
+  def handle_continue(:start_wallet, state) do
+    if @start_wallet do
+      # During testing we don't want to launch an external command.
+      # Could mock this I guess, but this is the single place it's needed so this was easier.
       Supervisor.start_link(
         [
           Wallet.executable_child_spec()
@@ -71,7 +88,35 @@ defmodule BitPal.Backend.Monero do
       )
     end
 
-    {:noreply, state}
+    {:noreply, state, {:continue, :connect_wallet}}
+  end
+
+  @impl true
+  def handle_continue(:connect_wallet, state) do
+    case WalletRPC.get_version(state.rpc_client) do
+      {:ok, %{"version" => version}} ->
+        state =
+          state
+          |> Map.put(:wallet_version, version)
+          |> Map.delete(:connect_attempt)
+
+        {:noreply, state, {:continue, :finalize_setup}}
+
+      {:error, error} ->
+        attempt = state[:connect_attempt] || 0
+
+        if attempt > 10 do
+          {:stop, {:shutdown, error}, state}
+        else
+          Process.sleep(state.reconnect_timeout)
+          {:noreply, Map.put(state, :connect_attempt, attempt + 1), {:continue, :connect_wallet}}
+        end
+    end
+  end
+
+  @impl true
+  def handle_continue(:finalize_setup, state) do
+    {:noreply, update_sync(state)}
   end
 
   @impl true
@@ -94,24 +139,23 @@ defmodule BitPal.Backend.Monero do
 
   @impl true
   def handle_info(:update_info, state) do
-    case get_info(state) do
-      {:ok, state} -> {:noreply, state}
-      {:error, error} -> {:stop, {:shutdown, error}, state}
-    end
+    {:ok, state} = get_info(state)
+    Process.send_after(self(), :update_info, state.daemon_check_interval)
+    {:noreply, state}
   end
 
   @impl true
   def handle_info({:notify, "monero:tx-notify", [txid]}, state) do
+    Logger.info("tx notify: #{txid}")
     update_tx(txid, state)
     {:noreply, state}
   end
 
   @impl true
-  def handle_info({:notify, "monero:block-notify", _msg}, state) do
-    case get_info(state) do
-      {:ok, state} -> {:noreply, state}
-      {:error, error} -> {:stop, {:shutdown, error}, state}
-    end
+  def handle_info({:notify, "monero:block-notify", msg}, state) do
+    Logger.info("block notify: #{inspect(msg)}")
+    {:ok, state} = get_info(state)
+    {:noreply, state}
   end
 
   @impl true
@@ -119,16 +163,13 @@ defmodule BitPal.Backend.Monero do
     Logger.warn("reorg detected!: new_height: #{new_height} split_height: #{split_height}")
 
     # Recheck all transactions that may be affected by the reorg.
+    # Maybe this should be refactored out from backends?
     unless Blocks.reorg(:XMR, new_height, split_height) == :no_reorg do
-      for tx <- Transactions.above_or_equal_height(:XMR, split_height) do
-        update_tx(tx.id, state)
-      end
+      # NOTE It's possible that we'll miss already paid transactions if we only check active addresses.
+      update_active_addresses(state)
     end
 
-    case get_info(state) do
-      {:ok, state} -> {:noreply, state}
-      {:error, error} -> {:stop, {:shutdown, error}, state}
-    end
+    {:noreply, state}
   end
 
   @impl true
@@ -137,13 +178,21 @@ defmodule BitPal.Backend.Monero do
     {:noreply, state}
   end
 
+  @impl true
+  def handle_info(:update_sync, state) do
+    {:noreply, update_sync(state)}
+  end
+
   # Internal impl
 
   defp update_tx(txid, state) do
-    {:ok, %{"transfer" => txinfo}} =
-      WalletRPC.get_transfer_by_txid(state.rpc_client, txid, @account)
+    case WalletRPC.get_transfer_by_txid(state.rpc_client, txid, @account) do
+      {:ok, %{"transfer" => txinfo}} ->
+        update_tx_info(txinfo)
 
-    update_tx_info(txinfo)
+      error ->
+        Logger.error("Failed to get tx: `#{txid}`: #{inspect(error)}")
+    end
   end
 
   defp update_tx_info(%{
@@ -176,45 +225,92 @@ defmodule BitPal.Backend.Monero do
 
   defp update_daemon_info(info, state) do
     state
-    |> update_sync(info)
     |> update_height(info)
     |> store_daemon_info(info)
   end
 
-  defp update_sync(state, _) do
-    # TODO update sync status
-    state
-  end
-
-  # defp update_sync(state, %{"synchronized" => true}) do
-  #   sync_done()
-  #   Process.send_after(self(), :update_info, state.daemon_check_interval)
-  #   state
-  # end
-  #
-  # defp update_sync(state, %{
-  #        "synchronized" => false,
-  #        "target_height" => target_height,
-  #        "height" => height
-  #      }) do
-  #   set_syncing({height, target_height})
-  #   Process.send_after(self(), :update_info, state.sync_check_interval)
-  #   state
-  # end
-
   defp update_height(state, %{"height" => height, "top_block_hash" => hash}) do
     unless Blocks.new(:XMR, height, hash) == :not_updated do
-      for tx <- Transactions.pending(:XMR) do
-        update_tx(tx.id, state)
-      end
+      update_active_addresses(state)
     end
 
     state
   end
 
+  defp update_active_addresses(state) do
+    address_indices =
+      Enum.map(Addresses.all_active(:XMR), fn a ->
+        a.address_index
+      end)
+
+    {:ok, res} = WalletRPC.get_transfers(state.rpc_client, @account, address_indices)
+    update_txs(res["in"])
+    update_txs(res["pending"])
+    update_txs(res["failed"])
+    update_txs(res["pool"])
+  end
+
+  defp update_txs(txs) when is_list(txs) do
+    for tx <- txs do
+      update_tx_info(tx)
+    end
+  end
+
+  defp update_txs(_), do: nil
+
   defp store_daemon_info(state, info) do
     BackendEvents.broadcast({{:backend, :info}, %{info: info, currency_id: :XMR}})
     Map.put(state, :daemon_info, info)
+  end
+
+  defp update_sync(state) do
+    {:ok, %{"height" => wallet_height}} = WalletRPC.get_height(state.rpc_client)
+
+    {:ok, %{"height" => daemon_height, "target_height" => target_height}} =
+      DaemonRPC.sync_info(state.rpc_client)
+
+    cond do
+      target_height == 0 && wallet_height == daemon_height ->
+        # We're all synced up
+
+        # Wait until wallet and daemon are connected before we accept notifies.
+        # Protects against race conditions where we try to make RPC calls that will
+        # fail because they aren't ready yet.
+        # Since we do this in continue that won't happen anyway, but this way we ignore
+        # notifies that we shouldn't act on anyway.
+        ExtNotificationHandler.subscribe("monero:tx-notify")
+        ExtNotificationHandler.subscribe("monero:block-notify")
+        ExtNotificationHandler.subscribe("monero:reorg-notify")
+
+        # We should poll regularly even though we also use notifications.
+        Process.send_after(self(), :update_info, state.daemon_check_interval)
+
+        {:ok, state} = get_info(state)
+
+        # FIXME save wallet here
+        # We should also make a terminate function that stores the wallet
+        # and some recurring task to store it as well
+
+        sync_done()
+
+        state
+
+      target_height == 0 ->
+        # Daemon is synced, but wallet is not
+        set_syncing({wallet_height, daemon_height})
+
+        Process.send_after(self(), :update_sync, state.sync_check_interval)
+
+        state
+
+      true ->
+        # Daemon isn't synced
+        set_syncing({min(wallet_height, daemon_height), target_height})
+
+        Process.send_after(self(), :update_sync, state.sync_check_interval)
+
+        state
+    end
   end
 
   defp create_info(state) do

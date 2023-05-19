@@ -250,6 +250,15 @@ defmodule BitPal.BackendManager do
       {:ok, _backend} ->
         BackendStatusSupervisor.get_status(currency_id)
 
+      # Should check status supervisor here again, as sometimes
+      # the backend has stopped/crashed and can't be found by the supervisor
+      # but the status handler holds the stopped error status.
+      {:error, :plugin_not_found} ->
+        case BackendStatusSupervisor.get_status(currency_id) do
+          :unknown -> :plugin_not_found
+          status -> status
+        end
+
       {:error, status} ->
         status
     end

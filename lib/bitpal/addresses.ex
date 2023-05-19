@@ -48,8 +48,8 @@ defmodule BitPal.Addresses do
     |> Repo.all()
   end
 
-  @spec all_active(Currency.id()) :: [Address.t()]
-  def all_active(currency_id) do
+  @spec all_active_ids(Currency.id()) :: [Address.id()]
+  def all_active_ids(currency_id) do
     Invoice
     |> Invoices.with_status([:open, :processing])
     |> Invoices.with_currency(currency_id)
@@ -57,8 +57,18 @@ defmodule BitPal.Addresses do
     |> Repo.all()
   end
 
-  @spec all_open(Currency.id()) :: [Address.t()]
-  def all_open(currency_id) do
+  @spec all_active(Currency.id()) :: [Address.t()]
+  def all_active(currency_id) do
+    Invoice
+    |> Invoices.with_status([:open, :processing])
+    |> Invoices.with_currency(currency_id)
+    |> join(:inner, [i], a in Address, on: a.id == i.address_id)
+    |> select([i, a], a)
+    |> Repo.all()
+  end
+
+  @spec all_open_ids(Currency.id()) :: [Address.id()]
+  def all_open_ids(currency_id) do
     Invoice
     |> Invoices.with_status(:open)
     |> Invoices.with_currency(currency_id)

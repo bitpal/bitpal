@@ -131,11 +131,20 @@ defmodule AddressTest do
       }
     end
 
-    test "all_open/1", %{
+    test "all_open_ids/1", %{
       currency_id: currency_id,
       open_address: open_address
     } do
-      assert [open_address] == Addresses.all_open(currency_id)
+      assert [open_address] == Addresses.all_open_ids(currency_id)
+    end
+
+    test "all_active_ids/1", %{
+      currency_id: currency_id,
+      open_address: open_address,
+      processing_address: processing_address
+    } do
+      assert Enum.sort([open_address, processing_address]) ==
+               Enum.sort(Addresses.all_active_ids(currency_id))
     end
 
     test "all_active/1", %{
@@ -144,7 +153,9 @@ defmodule AddressTest do
       processing_address: processing_address
     } do
       assert Enum.sort([open_address, processing_address]) ==
-               Enum.sort(Addresses.all_active(currency_id))
+               Addresses.all_active(currency_id)
+               |> Enum.map(fn a -> a.id end)
+               |> Enum.sort()
     end
   end
 

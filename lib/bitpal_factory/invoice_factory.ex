@@ -5,6 +5,7 @@ defmodule BitPalFactory.InvoiceFactory do
   """
   import BitPalFactory.UtilFactory
   import Ecto.Changeset
+  alias BitPalFactory.TransactionFactory
   alias BitPalFactory.ExchangeRateFactory
   alias BitPal.Currencies
   alias BitPal.Addresses
@@ -371,7 +372,9 @@ defmodule BitPalFactory.InvoiceFactory do
   @spec ensure_consistency(Invoice.t()) :: Invoice.t()
   defp ensure_consistency(invoice) do
     if !invoice.address_id && Invoices.finalized?(invoice) do
-      create_address(invoice)
+      invoice
+      |> create_address()
+      |> TransactionFactory.with_txs()
     else
       invoice
     end

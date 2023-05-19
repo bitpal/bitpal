@@ -2,19 +2,25 @@ defmodule BitPal.MockRPCClient do
   use GenServer
   import ExUnit.Assertions
   import ExUnit.Callbacks
-  import Mox
+  alias Mox
 
-  def init_mock(name) do
-    client = start_supervised!({__MODULE__, name: name})
+  # TODO need to have a "stub" call as well
+
+  def init_mock(name, opts \\ []) do
+    client = start_supervised!({__MODULE__, Keyword.merge(opts, [{:name, name}])})
 
     name
-    |> stub(:call, fn _url, method, params ->
+    |> Mox.stub(:call, fn _url, method, params ->
       call(client, method, params)
     end)
   end
 
   def expect(c, method, fun) do
     GenServer.call(c, {:expect, method, fun})
+  end
+
+  def stub(c, method, fun) do
+    GenServer.call(c, {:stub, method, fun})
   end
 
   def verify!(c) do
@@ -45,29 +51,41 @@ defmodule BitPal.MockRPCClient do
   end
 
   @impl GenServer
-  def init(_args) do
-    {:ok, %{calls: [], responses: %{}}}
+  def init(opts) do
+    {:ok, %{calls: [], expected: %{}, stubs: %{}, missing_call_reply: opts[:missing_call_reply]}}
   end
 
   @impl GenServer
   def handle_call({:call, method, params}, _pid, state) do
-    method_responses = Map.get(state.responses, method)
+    method_expected = Map.get(state.expected, method)
 
-    if !method_responses || Enum.empty?(method_responses) do
-      raise "Missing response for call: #{method} #{inspect(params)}"
+    cond do
+      method_expected && Enum.any?(method_expected) ->
+        [call_fun | rest] = method_expected
+        expected = Map.put(state.expected, method, rest)
+        calls = [{method, params} | state.calls]
+        response = call_fun.(params)
+
+        {:reply, response, %{state | expected: expected, calls: calls}}
+
+      stub = Map.get(state.stubs, method) ->
+        calls = [{method, params} | state.calls]
+
+        response = stub.(params)
+
+        {:reply, response, %{state | calls: calls}}
+
+      reply = state[:missing_call_reply] ->
+        {:reply, reply, state}
+
+      true ->
+        raise "Missing response for call: #{method} #{inspect(params)}"
     end
-
-    [call_fun | rest] = method_responses
-    responses = Map.put(state.responses, method, rest)
-    calls = [{method, params} | state.calls]
-    response = call_fun.(params)
-
-    {:reply, response, %{state | responses: responses, calls: calls}}
   end
 
   @impl GenServer
   def handle_call(:verify!, _, state) do
-    assert Enum.empty?(state.responses), "unused responses: #{inspect(state.responses)}"
+    assert Enum.empty?(state.expected), "unused expected: #{inspect(state.expected)}"
     {:reply, :ok, state}
   end
 
@@ -75,10 +93,22 @@ defmodule BitPal.MockRPCClient do
   def handle_call({:expect, method, fun}, _, state) do
     state =
       state
-      |> Map.update!(:responses, fn responses ->
-        Map.update(responses, method, [fun], fn method_responses ->
-          method_responses ++ [fun]
+      |> Map.update!(:expected, fn expected ->
+        Map.update(expected, method, [fun], fn method_expected ->
+          # credo:disable-for-next-line
+          method_expected ++ [fun]
         end)
+      end)
+
+    {:reply, :ok, state}
+  end
+
+  @impl GenServer
+  def handle_call({:stub, method, fun}, _, state) do
+    state =
+      state
+      |> Map.update!(:stubs, fn stubs ->
+        Map.put(stubs, method, fun)
       end)
 
     {:reply, :ok, state}

@@ -1,9 +1,10 @@
 defmodule BitPal.Transactions do
   import Ecto.Changeset
-  import Ecto.Query, only: [from: 2]
+  import Ecto.Query
   alias BitPal.AddressEvents
   alias BitPal.Blocks
   alias BitPal.Repo
+  alias BitPal.Invoices
   alias BitPal.Stores
   alias BitPal.Addresses
   alias BitPalSchemas.Address
@@ -69,19 +70,14 @@ defmodule BitPal.Transactions do
     |> Repo.all()
   end
 
-  @spec pending(Currency.id()) :: [Transaction.t()]
-  def pending(currency_id) do
-    from(t in Transaction,
-      where: t.currency_id == ^currency_id and t.height == 0
-    )
-    |> Repo.all()
-  end
-
-  @spec above_or_equal_height(Currency.id(), non_neg_integer) :: [Transaction.t()]
-  def above_or_equal_height(currency_id, height) do
-    from(t in Transaction,
-      where: t.currency_id == ^currency_id and t.height >= ^height
-    )
+  @spec active(Currency.id()) :: [Transaction.t()]
+  def active(currency_id) do
+    Invoice
+    |> Invoices.with_status([:open, :processing])
+    |> Invoices.with_currency(currency_id)
+    |> join(:inner, [i], out in TxOutput, on: out.address_id == i.address_id)
+    |> join(:inner, [i, out], t in Transaction, on: out.transaction_id == t.id)
+    |> select([i, out, t], t)
     |> Repo.all()
   end
 

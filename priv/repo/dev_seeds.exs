@@ -25,18 +25,19 @@ defmodule BitPal.DevSeeds do
       currency_id: :XMR
     )
 
-    invalid_time =
-      (System.system_time(:second) - 1_000) |> DateTime.from_unix!() |> DateTime.to_naive()
-
-    create_store(user: user, label: "Store with random data")
-    |> with_token(
-      last_accessed: NaiveDateTime.utc_now(),
-      valid_until: invalid_time
-    )
-    |> with_token(
-      valid_until: NaiveDateTime.utc_now() |> NaiveDateTime.add(60 * 60 * 24 * 30, :second)
-    )
-    |> with_invoices(invoice_count: 100, payment_currencies: [:XMR, :BCH], txs: :auto)
+    # These aren't valid addresses or transactions.
+    #
+    # invalid_time =
+    #   (System.system_time(:second) - 1_000) |> DateTime.from_unix!() |> DateTime.to_naive()
+    # create_store(user: user, label: "Store with random data")
+    # |> with_token(
+    #   last_accessed: NaiveDateTime.utc_now(),
+    #   valid_until: invalid_time
+    # )
+    # |> with_token(
+    #   valid_until: NaiveDateTime.utc_now() |> NaiveDateTime.add(60 * 60 * 24 * 30, :second)
+    # )
+    # |> with_invoices(invoice_count: 100, payment_currencies: [:XMR, :BCH], txs: :auto)
 
     ServerSetup.store_state(0, :completed)
   end

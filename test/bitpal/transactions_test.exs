@@ -17,6 +17,7 @@ defmodule BitPal.TransactionsTest do
         %{
           address: address,
           address_id: address.id,
+          currency_id: address.currency_id,
           txid: unique_txid(),
           amount: create_money(address.currency_id)
         }
@@ -271,6 +272,40 @@ defmodule BitPal.TransactionsTest do
              ] =
                Transactions.address_tx_info(address.id)
                |> Enum.sort_by(fn info -> info.height end)
+    end
+  end
+
+  describe "active/1" do
+    test "get active transactions", %{currency_id: currency_id} do
+      _draft = create_invoice(payment_currency_id: currency_id, status: :draft)
+
+      open =
+        create_invoice(payment_currency_id: currency_id, status: :open)
+        |> Repo.preload(:transactions)
+
+      processing =
+        create_invoice(payment_currency_id: currency_id, status: :processing)
+        |> Repo.preload(:transactions)
+
+      _paid = create_invoice(payment_currency_id: currency_id, status: :paid)
+
+      _double_spent =
+        create_invoice(payment_currency_id: currency_id, status: {:uncollectible, :double_spent})
+
+      expected =
+        (open.transactions ++ processing.transactions)
+        |> MapSet.new(fn t -> t.id end)
+
+      # At least one tx should exist in the processing invoice, and maybe some in the open invoice.
+      assert Enum.any?(expected)
+
+      active = Transactions.active(currency_id)
+
+      assert Enum.count(expected) == Enum.count(active)
+
+      for x <- active do
+        assert MapSet.member?(expected, x.id)
+      end
     end
   end
 end

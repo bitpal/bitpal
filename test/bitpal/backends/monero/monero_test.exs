@@ -4,6 +4,9 @@ defmodule BitPal.Backend.MoneroTest do
   import Mox
   alias BitPal.Backend.Monero
   alias BitPal.Backend.MoneroFixtures
+  alias BitPal.BackendManager
+  alias BitPal.BackendStatusSupervisor
+  alias BitPal.BackendEvents
   alias BitPal.Blocks
   alias BitPal.ExtNotificationHandler
   alias BitPal.HandlerSubscriberCollector
@@ -16,28 +19,68 @@ defmodule BitPal.Backend.MoneroTest do
   setup :set_mox_from_context
   setup :verify_on_exit!
 
-  setup _tags do
-    MockRPCClient.init_mock(@client)
+  setup tags do
+    MockRPCClient.init_mock(@client, missing_call_reply: tags[:missing_call_reply])
+
+    BackendEvents.subscribe(@currency)
+
+    if Map.get(tags, :init_backend, true) do
+      if Map.get(tags, :init_messages, true) do
+        init_messages()
+      end
+
+      res = init_backend(tags)
+
+      store = create_store()
+
+      res
+      |> Map.put(:store, store)
+      |> Map.put(:address_key, get_or_create_address_key(store.id, @currency))
+    else
+      %{}
+    end
+  end
+
+  defp init_messages do
+    height = 10
+
+    # Yeah it's confusing that we have the same mock function for both wallets and daemons...
+    MockRPCClient.expect(@client, "get_version", fn _ ->
+      MoneroFixtures.daemon_get_version()
+    end)
+
+    MockRPCClient.expect(@client, "get_version", fn _ ->
+      MoneroFixtures.wallet_get_version()
+    end)
+
+    MockRPCClient.expect(@client, "get_height", fn _ ->
+      MoneroFixtures.get_height(height: height)
+    end)
+
+    MockRPCClient.expect(@client, "sync_info", fn _ ->
+      MoneroFixtures.sync_info(height: height)
+    end)
 
     MockRPCClient.expect(@client, "get_info", fn _ ->
-      MoneroFixtures.get_info(height: 10)
+      MoneroFixtures.get_info(height: height)
     end)
 
+    MockRPCClient.stub(@client, "get_transfers", fn _ ->
+      MoneroFixtures.get_transfers()
+    end)
+  end
+
+  defp init_backend(tags) do
     backends = [
-      {BitPal.Backend.Monero, rpc_client: @client, log_level: :all, restart: :temporary}
+      {BitPal.Backend.Monero,
+       rpc_client: @client,
+       log_level: tags[:log_level] || :all,
+       restart: tags[:restart] || :temporary,
+       reconnect_timeout: 10,
+       sync_check_interval: 10}
     ]
 
-    res = IntegrationCase.setup_integration(local_manager: true, backends: backends, async: false)
-
-    eventually(fn ->
-      Blocks.fetch_height(@currency) == {:ok, 10}
-    end)
-
-    store = create_store()
-
-    res
-    |> Map.put(:store, store)
-    |> Map.put(:address_key, get_or_create_address_key(store.id, @currency))
+    IntegrationCase.setup_integration(local_manager: true, backends: backends, async: false)
   end
 
   defp test_invoice(params) do
@@ -57,6 +100,100 @@ defmodule BitPal.Backend.MoneroTest do
       create_invoice(params)
     else
       HandlerSubscriberCollector.create_invoice(params)
+    end
+  end
+
+  describe "setup and sync" do
+    @tag missing_call_reply: {:error, :connerror}, init_backend: false
+    test "successful setup with sync reporting" do
+      BackendStatusSupervisor.configure_status_handler(@currency, %{rate_limit: 1})
+
+      # Connection with daemon
+      MockRPCClient.expect(@client, "get_version", fn _ ->
+        MoneroFixtures.daemon_get_version()
+      end)
+
+      # Connection with wallet
+      MockRPCClient.expect(@client, "get_version", fn _ ->
+        MoneroFixtures.wallet_get_version()
+      end)
+
+      # Initial sync request
+      MockRPCClient.expect(@client, "get_height", fn _ ->
+        MoneroFixtures.get_height(height: 10)
+      end)
+
+      MockRPCClient.expect(@client, "sync_info", fn _ ->
+        MoneroFixtures.sync_info(height: 10, target_height: 20)
+      end)
+
+      # Daemon has synced, but not the wallet
+      MockRPCClient.expect(@client, "get_height", fn _ ->
+        MoneroFixtures.get_height(height: 15)
+      end)
+
+      MockRPCClient.expect(@client, "sync_info", fn _ ->
+        MoneroFixtures.sync_info(height: 20, target_height: 0)
+      end)
+
+      # Wallet has also synced
+      MockRPCClient.expect(@client, "get_height", fn _ ->
+        MoneroFixtures.get_height(height: 20)
+      end)
+
+      MockRPCClient.expect(@client, "sync_info", fn _ ->
+        MoneroFixtures.sync_info(height: 20, target_height: 0)
+      end)
+
+      MockRPCClient.stub(@client, "get_transfers", fn _ ->
+        MoneroFixtures.get_transfers()
+      end)
+
+      MockRPCClient.expect(@client, "get_info", fn _ ->
+        MoneroFixtures.get_info(height: 21)
+      end)
+
+      init_backend(%{})
+
+      assert_receive {{:backend, :status}, %{status: :starting}}
+      assert_receive {{:backend, :status}, %{status: {:syncing, {10, 20}}}}
+      assert_receive {{:backend, :status}, %{status: {:syncing, {15, 20}}}}
+      assert_receive {{:backend, :status}, %{status: :ready}}
+
+      # Sets block height from get_info
+      eventually(fn ->
+        Blocks.fetch_height(@currency) == {:ok, 21}
+      end)
+    end
+
+    @tag missing_call_reply: {:error, :connerror}, init_messages: false
+    test "stops after init if we can't connect" do
+      assert eventually(fn ->
+               BackendManager.status(@currency) == {:stopped, {:shutdown, :connerror}}
+             end)
+    end
+
+    @tag restart: :transient, log_level: :critical
+    test "restart after closed connection" do
+      assert eventually(fn ->
+               BackendManager.status(@currency) == :ready
+             end)
+
+      MockRPCClient.expect(@client, "get_info", fn _ ->
+        {:error, :econnerror}
+      end)
+
+      init_messages()
+
+      send(ExtNotificationHandler, {:notify, ["monero:block-notify", "block-id"], 0})
+
+      assert_receive {{:backend, :status},
+                      %{
+                        status: {:stopped, {:error, :unknown}},
+                        currency_id: @currency
+                      }}
+
+      assert_receive {{:backend, :status}, %{status: :starting, currency_id: @currency}}
     end
   end
 
@@ -171,7 +308,7 @@ defmodule BitPal.Backend.MoneroTest do
     } do
       amount = 123_000_000
 
-      {:ok, _inv, stub, _handler} =
+      {:ok, inv, stub, _handler} =
         test_invoice(
           store: store,
           required_confirmations: 3,
@@ -196,8 +333,13 @@ defmodule BitPal.Backend.MoneroTest do
         MoneroFixtures.get_info(height: 11)
       end)
 
-      MockRPCClient.expect(@client, "get_transfer_by_txid", fn %{txid: ^txid, account_index: 0} ->
-        MoneroFixtures.get_transfer_by_txid(amount: amount, height: 11)
+      MockRPCClient.expect(@client, "get_transfers", fn %{
+                                                          account_index: 0,
+                                                          subaddr_indices: _indices
+                                                        } ->
+        MoneroFixtures.get_transfers([
+          %{txid: txid, address: inv.address_id, amount: amount, height: 11}
+        ])
       end)
 
       send(ExtNotificationHandler, {:notify, ["monero:block-notify", "b0"], 0})
@@ -229,34 +371,7 @@ defmodule BitPal.Backend.MoneroTest do
   end
 
   # TODO
-  # - initial sync 
   # - recovery
   # - reorgs
   # - regular saving of wallet
-
-  # When reorg-notify:
-  # - fetch all txs with affected heights
-  # - recheck them
-  #
-  #
-
-  # @tag init_message: false
-  # test "wait for daemon to become ready" do
-  # end
-  #
-  # @tag init_message: false
-  # test "make sure recovery works", %{store: store} do
-  # end
-  #
-  # test "restart after closed connection" do
-  # end
-  #
-  # test "handle reorg" do
-  # end
-  #
-  # test "handle double spend" do
-  # end
-  #
-  # test "updates info" do
-  # end
 end

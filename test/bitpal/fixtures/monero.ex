@@ -58,51 +58,48 @@ defmodule BitPal.Backend.MoneroFixtures do
     {:ok, %{"count" => height, "status" => "OK", "untrusted" => false}}
   end
 
-  def get_version(opts \\ []) do
-    height = opts[:height] || 1_349_905
-
-    {:ok,
-     %{
-       "current_height" => height,
-       "hard_forks" => [
-         %{"height" => 1, "hf_version" => 1},
-         %{"height" => 32_000, "hf_version" => 2},
-         %{"height" => 33_000, "hf_version" => 3},
-         %{"height" => 34_000, "hf_version" => 4},
-         %{"height" => 35_000, "hf_version" => 5},
-         %{"height" => 36_000, "hf_version" => 6},
-         %{"height" => 37_000, "hf_version" => 7},
-         %{"height" => 176_456, "hf_version" => 8},
-         %{"height" => 177_176, "hf_version" => 9},
-         %{"height" => 269_000, "hf_version" => 10},
-         %{"height" => 269_720, "hf_version" => 11},
-         %{"height" => 454_721, "hf_version" => 12},
-         %{"height" => 675_405, "hf_version" => 13},
-         %{"height" => 676_125, "hf_version" => 14},
-         %{"height" => 1_151_000, "hf_version" => 15},
-         %{"height" => 1_151_720, "hf_version" => 16}
-       ],
-       "release" => false,
-       "status" => "OK",
-       "untrusted" => false,
-       "version" => 196_619
-     }}
+  def daemon_get_version do
+    {
+      :ok,
+      %{
+        "release" => false,
+        "status" => "OK",
+        "untrusted" => false,
+        "version" => 196_613
+      }
+    }
   end
 
   def sync_info(opts \\ []) do
     height = opts[:height] || 1_349_905
+    target_height = opts[:target_height] || 0
 
     {:ok,
      %{
        "credits" => 0,
        "height" => height,
        "next_needed_pruning_seed" => 0,
-       "overview" => "[]",
-       "peers" => []
+       "overview" => "[mooooooooo.oooo..]",
+       "peers" => [],
+       "spans" => [],
+       "status" => "OK",
+       "target_height" => target_height,
+       "top_hash" => "",
+       "untrusted" => false
      }}
   end
 
   # monero-wallet-rpc fixtures
+
+  def wallet_get_version do
+    {:ok, %{"version" => 65539}}
+  end
+
+  def get_height(opts \\ []) do
+    height = opts[:height] || 1_349_905
+
+    {:ok, %{"height" => height}}
+  end
 
   def create_address(index) do
     addresses = [
@@ -247,14 +244,18 @@ defmodule BitPal.Backend.MoneroFixtures do
     "b768029959c15b59330a838bfae1e85adc3f8c812ea1133f5f19f61ab649b666"
   end
 
-  def get_transfer_by_txid(opts \\ []) do
+  defp txinfo(opts) do
     amount = opts[:amount] || 10_000_000
     height = opts[:height] || 1_349_905
 
-    # %{account_index: 0, txid: "b768029959c15b59330a838bfae1e85adc3f8c812ea1133f5f19f61ab649b666"}
-    transfer = %{
-      "address" =>
-        "7BSZWuzWzdC21DUUe7GsP633YjU9B5VjpA6mngJxLykBhWJy3Zye6QrE8kx2jZHbzDGJFM1qwKyscBKj9toScSF76Bz6qPg",
+    address =
+      opts[:address] ||
+        "7BSZWuzWzdC21DUUe7GsP633YjU9B5VjpA6mngJxLykBhWJy3Zye6QrE8kx2jZHbzDGJFM1qwKyscBKj9toScSF76Bz6qPg"
+
+    txid = opts[:txid] || "b768029959c15b59330a838bfae1e85adc3f8c812ea1133f5f19f61ab649b666"
+
+    %{
+      "address" => address,
       "amount" => amount,
       "amounts" => [amount],
       "double_spend_seen" => false,
@@ -267,21 +268,32 @@ defmodule BitPal.Backend.MoneroFixtures do
       "subaddr_indices" => [%{"major" => 0, "minor" => 7}],
       "suggested_confirmations_threshold" => 4,
       "timestamp" => 1_683_802_938,
-      "txid" => "b768029959c15b59330a838bfae1e85adc3f8c812ea1133f5f19f61ab649b666",
+      "txid" => txid,
       "type" => "pool",
       "unlock_time" => 0
     }
+  end
+
+  def get_transfer_by_txid(opts \\ []) do
+    txinfo = txinfo(opts)
 
     {:ok,
      %{
-       "transfer" => transfer,
-       "transfers" => [transfer]
+       "transfer" => txinfo,
+       "transfers" => [txinfo]
      }}
   end
 
   def get_address(index) do
     {:ok, addresses} = get_address()
     {:ok, Enum.at(addresses["addresses"], index)}
+  end
+
+  def get_transfers(txs \\ []) do
+    {:ok,
+     %{
+       "in" => Enum.map(txs, &txinfo/1)
+     }}
   end
 
   # https://community.rino.io/faucet/stagenet/
@@ -408,14 +420,3 @@ defmodule BitPal.Backend.MoneroFixtures do
   #    ]
   #  }}
 end
-
-# get_info
-#
-# get_version
-#  %{
-#    "release" => false,
-#    "status" => "OK",
-#    "untrusted" => false,
-#    "version" => 196613
-#  }
-#
