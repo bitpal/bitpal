@@ -330,6 +330,9 @@ defmodule BitPal.InvoiceUpdateTest do
 
       x = Invoices.timeout!(invoice)
       assert x.status == {:uncollectible, :timed_out}
+
+      x = Invoices.failed!(invoice)
+      assert x.status == {:uncollectible, :failed}
     end
 
     @tag status: {:uncollectible, :expired}

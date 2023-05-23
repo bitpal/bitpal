@@ -320,7 +320,7 @@ defmodule BitPalFactory.InvoiceFactory do
     invoice
     |> change_status(invoice_params)
     |> change_address(params)
-    |> ensure_consistency()
+    |> ensure_consistency(params)
   end
 
   @spec finalize_and_track(Invoice.t()) :: Invoice.t()
@@ -369,14 +369,29 @@ defmodule BitPalFactory.InvoiceFactory do
     invoice
   end
 
-  @spec ensure_consistency(Invoice.t()) :: Invoice.t()
-  defp ensure_consistency(invoice) do
+  @spec ensure_consistency(Invoice.t(), keyword | map) :: Invoice.t()
+  defp ensure_consistency(invoice, opts) do
+    invoice
+    |> ensure_address()
+    |> with_txs(opts)
+  end
+
+  defp ensure_address(invoice) do
     if !invoice.address_id && Invoices.finalized?(invoice) do
       invoice
       |> create_address()
-      |> TransactionFactory.with_txs()
     else
       invoice
+    end
+  end
+
+  defp with_txs(invoice, opts) do
+    if opts[:txs] do
+      invoice
+      |> TransactionFactory.with_txs(opts)
+    else
+      invoice
+      |> Repo.preload(:transactions)
     end
   end
 

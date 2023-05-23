@@ -280,17 +280,21 @@ defmodule BitPal.TransactionsTest do
       _draft = create_invoice(payment_currency_id: currency_id, status: :draft)
 
       open =
-        create_invoice(payment_currency_id: currency_id, status: :open)
+        create_invoice(payment_currency_id: currency_id, status: :open, txs: :auto)
         |> Repo.preload(:transactions)
 
       processing =
-        create_invoice(payment_currency_id: currency_id, status: :processing)
+        create_invoice(payment_currency_id: currency_id, status: :processing, txs: :auto)
         |> Repo.preload(:transactions)
 
-      _paid = create_invoice(payment_currency_id: currency_id, status: :paid)
+      _paid = create_invoice(payment_currency_id: currency_id, status: :paid, txs: :auto)
 
       _double_spent =
-        create_invoice(payment_currency_id: currency_id, status: {:uncollectible, :double_spent})
+        create_invoice(
+          payment_currency_id: currency_id,
+          status: {:uncollectible, :double_spent},
+          txs: :auto
+        )
 
       expected =
         (open.transactions ++ processing.transactions)

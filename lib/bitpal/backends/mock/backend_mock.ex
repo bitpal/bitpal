@@ -4,6 +4,7 @@ defmodule BitPal.BackendMock do
   use GenServer
   import BitPalSettings.ConfigHelpers
   alias BitPal.Backend
+  alias BitPal.Repo
   alias BitPal.BackendManager
   alias BitPal.BackendStatusSupervisor
   alias BitPal.BlockchainEvents
@@ -104,6 +105,24 @@ defmodule BitPal.BackendMock do
   @spec issue_blocks(Currency.id() | Invoice.t(), non_neg_integer, non_neg_integer) :: :ok
   def issue_blocks(ref, block_count, time_between_blocks \\ 0) do
     GenServer.call(server(ref), {:issue_blocks, block_count, time_between_blocks})
+  end
+
+  @spec reverse_block(Currency.id() | Invoice.t(), keyword) :: :ok
+  def reverse_block(ref, opts \\ []) do
+    GenServer.call(server(ref), {:reverse_block, opts})
+  end
+
+  @spec set_height(Currency.id() | Invoice.t(), non_neg_integer) :: :ok
+  def set_height(ref, height) do
+    GenServer.call(server(ref), {:set_height, height})
+  end
+
+  @doc """
+  Reorgs the block with the invoice, and increases the block height but without the tx included.
+  """
+  @spec reverse(Invoice.t(), keyword) :: :ok
+  def reverse(invoice, opts \\ []) do
+    GenServer.call(server(invoice), {:reverse, invoice, opts})
   end
 
   defp via_tuple(currency_id) do
@@ -242,7 +261,7 @@ defmodule BitPal.BackendMock do
   @impl true
   def handle_call({:doublespend, invoice}, _from, state) do
     {:ok, tx} =
-      case Transactions.to_address(invoice.address_id) do
+      case Repo.preload(invoice, :transactions, force: true).transactions do
         [] ->
           Transactions.update(unique_txid(),
             outputs: [{invoice.address_id, invoice.expected_payment}]
@@ -269,6 +288,49 @@ defmodule BitPal.BackendMock do
   end
 
   @impl true
+  def handle_call({:set_height, height}, _from, state) do
+    Blocks.new(state.currency_id, height, unique_block_id())
+    {:reply, :ok, %{state | height: height}}
+  end
+
+  @impl true
+  def handle_call({:reverse, invoice, opts}, _from, state) do
+    txs = Repo.preload(invoice, :transactions).transactions
+
+    min_tx_height =
+      txs
+      |> Enum.map(fn t -> t.height end)
+      |> Enum.min()
+
+    split_height = opts[:split_height] || min_tx_height - 1
+
+    if split_height <= 0 do
+      {:reply, :ok, state}
+    else
+      new_height = opts[:new_height] || state.height + 1
+
+      Blocks.reorg(invoice.payment_currency_id, new_height, split_height)
+
+      tx_height = opts[:tx_height] || 0
+
+      for tx <- txs do
+        Transactions.update(tx.id, height: tx_height, reorg: true)
+      end
+
+      {:reply, :ok, %{state | height: new_height}}
+    end
+  end
+
+  @impl true
+  def handle_call({:reverse_block, opts}, _from, state) do
+    new_height = opts[:new_height] || state.height - 1
+    split_height = opts[:split_height] || state.height
+    Blocks.reorg(state.currency_id, new_height, split_height)
+
+    {:reply, :ok, %{state | height: new_height}}
+  end
+
+  @impl true
   def handle_cast({:stop_with_error, error}, state) do
     {:stop, {:error, error}, state}
   end
@@ -284,8 +346,13 @@ defmodule BitPal.BackendMock do
   end
 
   @impl true
-  def handle_info({{:block, _}, %{height: height}}, state) do
+  def handle_info({{:block, :new}, %{height: height}}, state) do
     # Allows us to set block height in tests after initiolizing backend.
+    {:noreply, %{state | height: height}}
+  end
+
+  @impl true
+  def handle_info({{:block, :reorg}, %{new_height: height}}, state) do
     {:noreply, %{state | height: height}}
   end
 
@@ -377,7 +444,7 @@ defmodule BitPal.BackendMock do
   end
 
   defp confirm_transactions(invoice, state) do
-    existing = Transactions.to_address(invoice.address_id)
+    existing = Repo.preload(invoice, :transactions, force: true).transactions
 
     if Enum.empty?(existing) do
       Transactions.update(unique_txid(),

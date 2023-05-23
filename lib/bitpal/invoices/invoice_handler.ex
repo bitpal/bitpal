@@ -6,9 +6,7 @@ defmodule BitPal.InvoiceHandler do
   alias BitPal.Blocks
   alias BitPal.Invoices
   alias BitPal.ProcessRegistry
-  alias BitPal.Transactions
   alias BitPalSchemas.Invoice
-  alias BitPalSchemas.TxOutput
   alias Ecto.Adapters.SQL.Sandbox
   require Logger
 
@@ -80,7 +78,9 @@ defmodule BitPal.InvoiceHandler do
       #   miss sending out a processing message.
       |> Enum.into(%{
         block_height: Blocks.get_height(invoice.payment_currency_id),
-        invoice_id: invoice_id
+        invoice_id: invoice_id,
+        double_spend_timeouts: MapSet.new(),
+        txs_seen: MapSet.new()
       })
       |> Map.put_new_lazy(:double_spend_timeout, fn -> Invoices.double_spend_timeout(invoice) end)
       |> Map.put(:invoice, invoice)
@@ -128,7 +128,7 @@ defmodule BitPal.InvoiceHandler do
     invoice = Invoices.update_info_from_txs(invoice, block_height)
 
     txs =
-      Transactions.to_address(invoice.address_id)
+      invoice.transactions
       |> Map.new(fn tx ->
         if invoice.required_confirmations == 0 && tx.height == 0 do
           send_double_spend_timeout(tx.id, state)
@@ -141,114 +141,141 @@ defmodule BitPal.InvoiceHandler do
     |> Map.put(:block_height, block_height)
     |> Map.delete(:invoice_id)
     |> Map.put(:invoice, invoice)
-    |> ensure_invoice_is_processing(txs)
-    |> clear_processed_txs(txs)
+    |> txs_seen(txs)
+    |> ensure_processing!(txs)
     |> try_into_paid()
   end
 
   @impl true
   def handle_info({{:tx, :pending}, %{id: txid}}, state) do
-    block_height = state.block_height
-    invoice = Invoices.update_info_from_txs(state.invoice, block_height)
-    state = put_tx_to_process(state, txid, nil)
+    new_tx? = !MapSet.member?(state.txs_seen, txid)
+
+    state =
+      state
+      |> tx_seen(txid)
+      |> update_invoice_info()
 
     # For 0-conf, clear txn after a short timeout from the processing waiting list,
     # regardless of if we've paid enough or not as that's a separate check.
-    if invoice.required_confirmations == 0 do
+    if state.invoice.required_confirmations == 0 do
       send_double_spend_timeout(txid, state)
     end
 
-    case Invoices.target_amount_reached?(invoice) do
+    case Invoices.target_amount_reached?(state.invoice) do
       :underpaid ->
-        Invoices.broadcast_underpaid(invoice)
-        {:noreply, %{state | invoice: invoice}}
+        if new_tx?, do: Invoices.broadcast_underpaid(state.invoice)
+        {:noreply, state}
 
       :overpaid ->
-        Invoices.broadcast_overpaid(invoice)
-        {:noreply, %{state | invoice: ensure_processing!(invoice)}}
+        if new_tx?, do: Invoices.broadcast_overpaid(state.invoice)
+        {:noreply, ensure_processing!(state)}
 
       :ok ->
-        {:noreply, %{state | invoice: ensure_processing!(invoice)}}
+        {:noreply, ensure_processing!(state)}
     end
   end
 
   @impl true
-  def handle_info({{:tx, :confirmed}, %{id: txid, height: height}}, state) do
-    block_height = state.block_height
-
-    invoice = Invoices.update_info_from_txs(state.invoice, block_height)
-    new_tx? = !processing_tx?(state, txid)
-
-    state =
-      if Transactions.calc_confirmations(height, block_height) >= invoice.required_confirmations do
-        tx_processed(state, txid)
-      else
-        put_tx_to_process(state, txid, height)
-      end
+  def handle_info({{:tx, :confirmed}, %{id: txid}}, state) do
+    new_tx? = !MapSet.member?(state.txs_seen, txid)
 
     # There's a race condition here where we may sometimes update the confirmed_height of a tx
     # before receiving the `new_block` message, but sometimes not. Therefore we need to broadcast
     # a processing message from either `tx_confirmed` or `new_block`.
-    broadcast_processed_if_needed(state)
+    state =
+      state
+      |> tx_seen(txid)
+      |> update_invoice_info()
+      |> broadcast_processed_if_needed()
 
-    case Invoices.target_amount_reached?(invoice) do
+    case Invoices.target_amount_reached?(state.invoice) do
       :underpaid ->
-        if new_tx?, do: Invoices.broadcast_underpaid(invoice)
-        {:noreply, %{state | invoice: invoice}}
+        if new_tx?, do: Invoices.broadcast_underpaid(state.invoice)
+        {:noreply, state}
 
       :overpaid ->
-        if new_tx?, do: Invoices.broadcast_overpaid(invoice)
+        if new_tx?, do: Invoices.broadcast_overpaid(state.invoice)
 
-        %{state | invoice: ensure_processing!(invoice)}
+        state
+        |> ensure_processing!()
         |> try_into_paid()
 
       :ok ->
-        %{state | invoice: ensure_processing!(invoice)}
+        state
+        |> ensure_processing!()
         |> try_into_paid()
     end
   end
 
   @impl true
-  def handle_info({:double_spend_timeout, txid}, state) do
-    # FIXME need to check with backend first
-    state
-    |> tx_processed(txid)
-    |> try_into_paid()
-  end
-
-  @impl true
-  def handle_info({{:tx, :double_spent}, _txid}, state) do
+  def handle_info({{:tx, :double_spent}, _tx}, state) do
     invoice = Invoices.double_spent!(state.invoice)
     {:noreply, %{state | invoice: invoice}}
   end
 
   @impl true
   def handle_info({{:tx, :reversed}, _tx}, state) do
-    # NOTE Need to handle reversals
+    state =
+      state
+      |> update_invoice_info()
+      |> broadcast_processed_if_needed()
+
     {:noreply, state}
   end
 
   @impl true
-  def handle_info({{:block, :new}, %{height: height}}, state = %{processing_txs: txs}) do
-    state = Map.put(state, :block_height, height)
+  def handle_info({{:tx, :failed}, _tx}, state) do
+    Invoices.failed!(state.invoice)
+    {:stop, :normal, state}
+  end
 
-    if state.invoice.required_confirmations > 0 do
-      state
-      |> broadcast_processed_if_needed()
-      |> clear_processed_txs(txs)
-      |> try_into_paid()
+  @impl true
+  def handle_info({:double_spend_timeout, txid}, state) do
+    state
+    |> with_double_spend_timeout(txid)
+    |> update_invoice_info()
+    |> try_into_paid()
+  end
+
+  @impl true
+  def handle_info({{:block, :new}, %{height: height}}, state) do
+    state
+    |> Map.put(:block_height, height)
+    |> update_invoice_info()
+    |> broadcast_processed_if_needed()
+    |> try_into_paid()
+  end
+
+  def handle_info(
+        {{:block, :reorg}, %{new_height: new_height, split_height: split_height}},
+        state
+      ) do
+    state = Map.put(state, :block_height, new_height)
+
+    # Only broadcast invoice info if all transaction are unaffected by the reorg (# conf might change).
+    # Otherwise wait for a {:tx, :confirmed} or {:tx, :reversed} message that the backend must send,
+    # and the broadcast will be done there instead.
+    # This is because we can't know if the transaction will still be confirmed here,
+    # and the backend won't send out a message for transactions that are confirmed in previous blocks.
+    #
+    # split_height refers to the last untouched block, so we can update txs on that block and below.
+    if state.invoice.required_confirmations > 0 &&
+         Enum.any?(state.invoice.transactions) &&
+         Invoices.all_txs_below_height?(state.invoice, split_height + 1) do
+      state =
+        state
+        |> update_invoice_info()
+        |> broadcast_processed_if_needed()
+
+      {:noreply, state}
     else
       {:noreply, state}
     end
   end
 
-  def handle_info({{:block, :new}, %{height: height}}, state) do
-    {:noreply, Map.put(state, :block_height, height)}
-  end
-
   @impl true
   def handle_info(info, state) do
-    Logger.warn("unhandled info/state in InvoiceHandler #{inspect(info)} #{inspect(state)}")
+    Logger.error("unhandled info/state in InvoiceHandler #{inspect(info)} #{inspect(state)}")
     {:noreply, state}
   end
 
@@ -262,71 +289,40 @@ defmodule BitPal.InvoiceHandler do
     :ok = BlockchainEvents.subscribe(invoice.payment_currency_id)
   end
 
-  defp ensure_invoice_is_processing(state, txs) do
-    if map_size(txs) > 0 && state.invoice.status == :open do
-      %{state | invoice: ensure_processing!(state.invoice)}
+  defp ensure_processing!(state, txs) do
+    if map_size(txs) > 0 do
+      ensure_processing!(state)
     else
       state
     end
   end
 
-  def ensure_processing!(invoice = %Invoice{status: {:processing, _}}), do: invoice
-  def ensure_processing!(invoice), do: Invoices.process!(invoice)
+  def ensure_processing!(state) do
+    if state.invoice.status == :open do
+      invoice = Invoices.process!(state.invoice)
 
-  defp put_tx_to_process(state, txid, confirmed_height) do
-    Map.update(state, :processing_txs, %{txid => confirmed_height}, fn waiting ->
-      Map.put(waiting, txid, confirmed_height)
-    end)
-  end
-
-  defp tx_processed(state = %{processing_txs: txs}, txid) do
-    Map.put(
-      state,
-      :processing_txs,
-      Map.delete(txs, txid)
-    )
-  end
-
-  defp tx_processed(state, _txid), do: state
-
-  defp processing_tx?(%{processing_txs: txs}, txid) do
-    Map.has_key?(txs, txid)
-  end
-
-  defp processing_tx?(_state, _txid), do: false
-
-  @spec clear_processed_txs(map, %{TxOutput.txid() => TxOutput.height()}) :: map
-  defp clear_processed_txs(state, txs) when map_size(txs) > 0 do
-    block_height = state.block_height
-    required_confirmations = state.invoice.required_confirmations
-
-    to_process =
-      Enum.filter(txs, fn
-        {_tx_id, nil} ->
-          true
-
-        {_tx_id, confirmed_height} ->
-          Transactions.calc_confirmations(confirmed_height, block_height) < required_confirmations
-      end)
-      |> Map.new()
-
-    Map.put(state, :processing_txs, to_process)
-  end
-
-  defp clear_processed_txs(state, _txs), do: state
-
-  defp broadcast_processed_if_needed(state = %{invoice: %Invoice{status: {:processing, _}}}) do
-    prev = state.invoice.confirmations_due
-    invoice = Invoices.update_info_from_txs(state.invoice, state.block_height)
-
-    # We only send a 0 confirmations due notice if it's confirmed in the same block the tx is discovered.
-    # This handles a multiple confirmations case, so clients gets live updates when the required confs
-    # decreases.
-    if invoice.confirmations_due != prev && invoice.confirmations_due > 0 do
-      Invoices.broadcast_processing(invoice)
+      state
+      |> Map.merge(%{
+        invoice: invoice,
+        prev_processing_broadcat: processing_broadcast_key(invoice)
+      })
+    else
+      state
     end
+  end
 
-    Map.put(state, :invoice, invoice)
+  defp broadcast_processed_if_needed(
+         state = %{invoice: invoice = %Invoice{status: {:processing, _}}}
+       ) do
+    prev_broadcast = state[:prev_processing_broadcat]
+    curr_broadcast = processing_broadcast_key(invoice)
+
+    if processing_broadcast_key(invoice) != prev_broadcast && invoice.confirmations_due > 0 do
+      Invoices.broadcast_processing(invoice)
+      Map.put(state, :prev_processing_broadcat, curr_broadcast)
+    else
+      state
+    end
   end
 
   defp broadcast_processed_if_needed(state), do: state
@@ -335,18 +331,75 @@ defmodule BitPal.InvoiceHandler do
     Process.send_after(self(), {:double_spend_timeout, txid}, state.double_spend_timeout)
   end
 
-  defp try_into_paid(state = %{invoice: invoice}) do
-    done? =
-      Enum.empty?(Map.get(state, :processing_txs, %{})) &&
-        Invoices.target_amount_reached?(invoice) != :underpaid
+  defp with_double_spend_timeout(state, txid) do
+    Map.update!(state, :double_spend_timeouts, fn timeouts ->
+      MapSet.put(timeouts, txid)
+    end)
+  end
 
-    if done? do
-      state = Map.put(state, :invoice, Invoices.pay!(invoice))
+  defp txs_seen(state, txs) do
+    Map.update!(state, :txs_seen, fn seen ->
+      MapSet.union(seen, MapSet.new(txs, fn {txid, _} -> txid end))
+    end)
+  end
 
+  defp tx_seen(state, txid) do
+    Map.update!(state, :txs_seen, fn seen -> MapSet.put(seen, txid) end)
+  end
+
+  defp update_invoice_info(state) do
+    %{state | invoice: Invoices.update_info_from_txs(state.invoice, state.block_height)}
+  end
+
+  defp try_into_paid(state) do
+    if has_paid?(state.invoice, state.double_spend_timeouts) do
+      Invoices.pay!(state.invoice)
       {:stop, :normal, state}
     else
       {:noreply, state}
     end
+  end
+
+  defp has_paid?(invoice, double_spend_timeouts) do
+    has_conf? = has_confirmations?(invoice)
+    double_spend? = has_double_spend_timeouts?(invoice, double_spend_timeouts)
+    amount? = target_amount_reached?(invoice)
+
+    has_conf? && double_spend? && amount?
+  end
+
+  defp has_confirmations?(invoice) do
+    invoice.confirmations_due == 0
+  end
+
+  defp has_double_spend_timeouts?(%{required_confirmations: required}, _) when required > 0 do
+    true
+  end
+
+  defp has_double_spend_timeouts?(invoice, timeouts) do
+    required_timeouts =
+      invoice.transactions
+      |> Enum.filter(fn tx -> tx.height == 0 end)
+      |> MapSet.new(fn tx -> tx.id end)
+
+    MapSet.subset?(required_timeouts, timeouts)
+  end
+
+  defp target_amount_reached?(invoice) do
+    Invoices.target_amount_reached?(invoice) != :underpaid
+  end
+
+  defp processing_broadcast_key(invoice) do
+    tx_info =
+      invoice.transactions
+      |> Enum.sort_by(fn tx -> tx.id end)
+      |> Enum.map(fn tx ->
+        [tx.height, tx.failed, tx.double_spent]
+      end)
+      |> List.flatten()
+
+    [invoice.confirmations_due | tx_info]
+    |> Enum.join(":")
   end
 
   @spec via_tuple(Invoice.id()) :: {:via, Registry, any}

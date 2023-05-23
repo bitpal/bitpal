@@ -84,25 +84,6 @@ defmodule BitPal.Addresses do
     |> Repo.exists?()
   end
 
-  @spec amount_paid(Address.t()) :: Money.t()
-  def amount_paid(%Address{id: id, currency_id: currency_id}) do
-    amount_paid(id, currency_id)
-  end
-
-  def amount_paid(nil, currency_id) do
-    Money.new(0, currency_id)
-  end
-
-  def amount_paid(address_id, currency_id) do
-    # When we migrate to `ex_money`, this should be possible
-    # from(out in TxOutput, where: out.address_id == ^address_id)
-    # |> Repo.aggregate(:sum, :amount)
-
-    from(out in TxOutput, where: out.address_id == ^address_id)
-    |> Repo.all()
-    |> Enum.reduce(Money.new(0, currency_id), fn x, acc -> Money.add(x.amount, acc) end)
-  end
-
   # Update
 
   @spec register(AddressKey.t(), Address.id(), address_index) ::

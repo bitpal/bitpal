@@ -60,16 +60,6 @@ defmodule BitPal.Transactions do
     Repo.all(Transaction)
   end
 
-  @spec to_address(Address.id()) :: [Transaction.t()]
-  def to_address(address_id) do
-    from(t in Transaction,
-      left_join: out in TxOutput,
-      on: out.transaction_id == t.id,
-      where: out.address_id == ^address_id
-    )
-    |> Repo.all()
-  end
-
   @spec active(Currency.id()) :: [Transaction.t()]
   def active(currency_id) do
     Invoice
@@ -160,8 +150,11 @@ defmodule BitPal.Transactions do
     case update_changeset(existing, params)
          |> Repo.update() do
       {:ok, updated} ->
+        # During reorg, force through :confirmed message even if it's on the same height as previous.
+        reorg? = params[:reorg]
+
         cond do
-          updated == existing ->
+          !reorg? && updated == existing ->
             nil
 
           updated.double_spent && !existing.double_spent ->
@@ -183,7 +176,10 @@ defmodule BitPal.Transactions do
           updated.height != existing.height ->
             # Confirmed height changed. That's weird, but may happen after a reorg.
             # Just resend the confirmed message, I don't think we need a new :reorg message just for this?
-            broadcast(updated, {:tx, :confirmed})
+            broadcast(updated, {:tx, :confirmed}, height: updated.height)
+
+          reorg? ->
+            broadcast(updated, {:tx, :confirmed}, height: updated.height)
 
           true ->
             Logger.error("Unknown update")

@@ -14,11 +14,9 @@ defmodule BitPal.Invoices do
   alias BitPalSchemas.Address
   alias BitPalSchemas.AddressKey
   alias BitPalSchemas.Invoice
-  alias BitPalSchemas.Transaction
   alias BitPalSchemas.InvoiceRates
   alias BitPalSchemas.InvoiceStatus
   alias BitPalSchemas.Store
-  alias BitPalSchemas.TxOutput
   alias BitPalSettings.StoreSettings
   alias Ecto.Changeset
   require Decimal
@@ -201,6 +199,13 @@ defmodule BitPal.Invoices do
     end
   end
 
+  @spec all_txs_below_height?(Invoice.t(), non_neg_integer()) :: boolean()
+  def all_txs_below_height?(invoice, height) do
+    Enum.all?(Repo.preload(invoice, :transactions).transactions, fn tx ->
+      tx.height != 0 && tx.height < height
+    end)
+  end
+
   @spec all_open() :: [Invoice.t()]
   def all_open do
     Invoice
@@ -258,6 +263,12 @@ defmodule BitPal.Invoices do
   def expire!(invoice) do
     # Timeout can be calculated from transaction timestamp
     mark_uncollectible!(invoice, :expired)
+  end
+
+  @spec failed!(Invoice.t()) :: Invoice.t()
+  def failed!(invoice) do
+    # One or more tx failed
+    mark_uncollectible!(invoice, :failed)
   end
 
   @spec cancel!(Invoice.t()) :: Invoice.t()
@@ -425,6 +436,8 @@ defmodule BitPal.Invoices do
 
   @spec update_info_from_txs(Invoice.t(), non_neg_integer) :: Invoice.t()
   def update_info_from_txs(invoice, block_height) do
+    invoice = Repo.preload(invoice, [:transactions, :tx_outputs], force: true)
+
     %{
       invoice
       | amount_paid: calculate_amount_paid(invoice),
@@ -434,7 +447,10 @@ defmodule BitPal.Invoices do
 
   @spec calculate_amount_paid(Invoice.t()) :: Money.t()
   def calculate_amount_paid(invoice) do
-    Addresses.amount_paid(invoice.address_id, invoice.payment_currency_id)
+    invoice.tx_outputs
+    |> Enum.reduce(Money.new(0, invoice.payment_currency_id), fn x, acc ->
+      Money.add(x.amount, acc)
+    end)
   end
 
   @spec calculate_confirmations_due(Invoice.t()) :: non_neg_integer
@@ -466,23 +482,15 @@ defmodule BitPal.Invoices do
   def num_confirmations(%Invoice{address_id: nil}, _), do: 0
 
   def num_confirmations(invoice, block_height) do
-    case from(t in Transaction,
-           left_join: out in TxOutput,
-           on: out.transaction_id == t.id,
-           where: out.address_id == ^invoice.address_id,
-           # If any tx has height == 0, then we should treat it as no confirmations.
-           select: fragment("
-              CASE
-                WHEN (?) = 0 THEN 0
-                ELSE (?)
-              END
-           ", min(t.height), min(^block_height - t.height + 1))
-         )
-         |> Repo.one() do
-      nil -> 0
-      x when x < 0 -> 0
-      x -> x
-    end
+    invoice.transactions
+    |> Enum.map(fn tx ->
+      if tx.height == 0 do
+        0
+      else
+        max(block_height - tx.height + 1, 0)
+      end
+    end)
+    |> Enum.min(fn -> 0 end)
   end
 
   # Broadcasting

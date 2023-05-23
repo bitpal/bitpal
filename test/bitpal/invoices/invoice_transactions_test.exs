@@ -42,7 +42,7 @@ defmodule BitPal.InvoiceTransactionsTest do
       assert Repo.preload(out, :invoice).invoice.id == invoice.id
     end
 
-    invoice = invoice |> Repo.preload(:tx_outputs)
+    invoice = invoice |> Repo.preload(:tx_outputs, force: true)
     assert Enum.count(invoice.tx_outputs) == 2
   end
 
@@ -62,6 +62,7 @@ defmodule BitPal.InvoiceTransactionsTest do
       create_tx(address, height: 10)
       create_tx(address, height: 11)
 
+      invoice = Repo.preload(invoice, :transactions, force: true)
       assert Invoices.num_confirmations(invoice) == 4
     end
 
@@ -125,6 +126,8 @@ defmodule BitPal.InvoiceTransactionsTest do
     assert 5 == Invoices.calculate_confirmations_due(invoice)
 
     Transactions.update(txid0, outputs: [{address.id, Money.parse!(0.2, currency_id)}], height: 1)
+
+    invoice = Repo.preload(invoice, :transactions, force: true)
     assert 4 == Invoices.calculate_confirmations_due(invoice)
 
     Blocks.new(currency_id, 2)
@@ -136,6 +139,7 @@ defmodule BitPal.InvoiceTransactionsTest do
                height: 2
              )
 
+    invoice = Repo.preload(invoice, :transactions, force: true)
     assert 4 == Invoices.calculate_confirmations_due(invoice)
 
     Blocks.new(currency_id, 3)

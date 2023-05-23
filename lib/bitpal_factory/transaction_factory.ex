@@ -53,13 +53,27 @@ defmodule BitPalFactory.TransactionFactory do
   end
 
   @spec with_txs(Invoice.t(), map | keyword) :: Invoice.t()
-  def with_txs(invoice, opts \\ %{})
+  def with_txs(invoice, opts \\ %{}) do
+    case opts[:txs] do
+      txs when is_list(txs) ->
+        _txs = Enum.map(txs, fn tx -> create_tx(invoice, tx) end)
 
-  def with_txs(invoice = %Invoice{status: :draft}, _opts) do
+      _ ->
+        generate_txs(invoice, opts)
+    end
+
+    invoice
+    |> update_info_from_txs()
+  end
+
+  @spec generate_txs(Invoice.t(), map | keyword) :: Invoice.t()
+  def generate_txs(invoice, opts \\ %{})
+
+  def generate_txs(invoice = %Invoice{status: :draft}, _opts) do
     invoice |> update_info_from_txs()
   end
 
-  def with_txs(invoice = %Invoice{status: :open}, opts) do
+  def generate_txs(invoice = %Invoice{status: :open}, opts) do
     tx_count = opts[:tx_count] || pick([{90, 0}, {9, 1}, {1, 2}])
 
     _txids =
@@ -71,7 +85,7 @@ defmodule BitPalFactory.TransactionFactory do
     invoice |> update_info_from_txs()
   end
 
-  def with_txs(invoice = %Invoice{status: {:processing, _}}, _opts) do
+  def generate_txs(invoice = %Invoice{status: {:processing, _}}, _opts) do
     create_tx(invoice,
       amount: paid_or_overpaid_amount(invoice)
     )
@@ -79,17 +93,17 @@ defmodule BitPalFactory.TransactionFactory do
     invoice |> update_info_from_txs()
   end
 
-  def with_txs(invoice = %Invoice{status: {_, :expired}}, _opts) do
+  def generate_txs(invoice = %Invoice{status: {_, :expired}}, _opts) do
     # No txs here, invoice was started but was never paid.
     invoice |> update_info_from_txs()
   end
 
-  def with_txs(invoice = %Invoice{status: {_, :canceled}}, _opts) do
+  def generate_txs(invoice = %Invoice{status: {_, :canceled}}, _opts) do
     # No txs here, invoice was canceled.
     invoice |> update_info_from_txs()
   end
 
-  def with_txs(invoice = %Invoice{status: {_, :timed_out}}, _opts) do
+  def generate_txs(invoice = %Invoice{status: {_, :timed_out}}, _opts) do
     if invoice.required_confirmations > 0 do
       # One tx here that didn't confirm.
       create_tx(invoice, amount: invoice.expected_payment)
@@ -98,20 +112,20 @@ defmodule BitPalFactory.TransactionFactory do
     invoice |> update_info_from_txs()
   end
 
-  def with_txs(invoice = %Invoice{status: {_, :double_spent}}, _opts) do
+  def generate_txs(invoice = %Invoice{status: {_, :double_spent}}, _opts) do
     # One tx that was double spent.
     create_tx(invoice, amount: invoice.expected_payment, double_spent: true)
     invoice |> update_info_from_txs()
   end
 
-  def with_txs(invoice = %Invoice{status: :void}, _opts) do
+  def generate_txs(invoice = %Invoice{status: :void}, _opts) do
     # Vaid may have the same status_reasons as above, but can also be from open.
     # Having no txs is fine for this case.
     invoice |> update_info_from_txs()
   end
 
   # Paid may also be overpaid
-  def with_txs(invoice = %Invoice{status: :paid}, _opts) do
+  def generate_txs(invoice = %Invoice{status: :paid}, _opts) do
     amount =
       case pick([{75, :paid}, {25, :overpaid}]) do
         :paid ->

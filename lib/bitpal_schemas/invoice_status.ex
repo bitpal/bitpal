@@ -4,8 +4,8 @@ defmodule BitPalSchemas.InvoiceStatus do
 
   The type is represented by either an atom or a tuple of atoms, for example:
 
-  - :open
-  - {:uncollectible, :expired}
+  - `:open`
+  - `{:uncollectible, :expired}`
 
   And persists this as a map in the db.
 
@@ -14,44 +14,47 @@ defmodule BitPalSchemas.InvoiceStatus do
 
   The definition of the status and status_reason is as follows:
 
-  - :draft
+  - `:draft`
     The invoice has been created, but all fields (except the primary key) can still be changed.
 
-  - :open
+  - `:open`
     The invoice has been finalized, and is now awaiting payment.
     When finalizing the invoice the payment currency will be fixed and cannot be changed.
     An address will be generated and will be watched for payments that will be counted
     towards the invoice.
 
-  - :processing
+  - `:processing`
     The invoice has received the payment but it's not considered paid yet.
 
     See `status_reason`:
-    - :verifying
+    - `:verifying`
       The tx(s) are being verified for 0-conf security.
-    - :confirming
+    - `:confirming`
       The tx(s) are waiting for additional confirmations.
       See `confirmations_due` for how many confirmations are left before it's considered paid.
 
-  - :uncollectible
+  - `:uncollectible`
     The payment couldn't be processed.
 
     See `status_reason`:
-    - :expired
+    - `:expired`
       No tx was seen and the invoice timed out.
-    - :canceled
+    - `:canceled`
       The payee canceled the payment.
-    - :double_spent
+    - `:double_spent`
       A double spend was detected and the invoice payment was canceled.
-    - :timed_out
+    - `:timed_out`
       A payment was seen, but it wasn't confirmed fast enough so the invoice timed out.
+    - `:failed`
+      The tx was accepted but for some reason it's not valid.
+      For example if an unreasonable unlock time is set for Monero.
 
-  - :void
+  - `:void`
     The invoice was canceled by the merchant.
     `status_reason` will retain it's previous value, so you can void an uncollectible invoice
     and still see that it was timed out for example.
 
-  - :paid
+  - :`paid`
     The invoice was fully paid.
 
     See `@valid_combinations`.
@@ -66,7 +69,7 @@ defmodule BitPalSchemas.InvoiceStatus do
   @type status :: :draft | :open | :processing | :uncollectible | :void | :paid
 
   @type processing_reason :: :verifying | :confirming
-  @type uncollectible_reason :: :expired | :canceled | :timed_out | :double_spent
+  @type uncollectible_reason :: :expired | :canceled | :timed_out | :double_spent | :failed
   @type status_reason :: processing_reason() | uncollectible_reason() | nil
 
   @type t ::
@@ -83,8 +86,17 @@ defmodule BitPalSchemas.InvoiceStatus do
     :draft => nil,
     :open => nil,
     :processing => [:verifying, :confirming],
-    :uncollectible => [:expired, :canceled, :timed_out, :double_spent],
-    :void => [:verifying, :confirming, :expired, :canceled, :timed_out, :double_spent, nil],
+    :uncollectible => [:expired, :canceled, :timed_out, :double_spent, :failed],
+    :void => [
+      :verifying,
+      :confirming,
+      :expired,
+      :canceled,
+      :timed_out,
+      :double_spent,
+      :failed,
+      nil
+    ],
     :paid => nil
   }
 

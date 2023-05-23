@@ -188,7 +188,6 @@ defmodule BitPal.Backend.FloweeTest do
            ] = HandlerSubscriberCollector.received(stub2)
   end
 
-  @tag double_spend_timeout: 1
   test "single tx 1-conf to multiple monitored addresses", %{store: store} do
     {:ok, _invoice, stub1, _invoice_handler} =
       test_invoice(
@@ -308,17 +307,17 @@ defmodule BitPal.Backend.FloweeTest do
     # Send it an incomplete startup message to get it going.
     MockTCPClient.response(@client, FloweeFixtures.blockchain_verifying_info_reply())
 
-    # Wait a bit to let it act.
-    :timer.sleep(10)
-
     # It should not be ready yet, Flowee is still preparing.
-    assert {:syncing, _} = BackendManager.status(@currency)
+    assert eventually(fn ->
+             {:syncing, _} = BackendManager.status(@currency)
+           end)
 
     # Give it a new message, now it should be done!
     MockTCPClient.response(@client, FloweeFixtures.blockchain_info_reply())
     assert eventually(fn -> BackendManager.status(@currency) == :ready end)
   end
 
+  @tag double_spend_timeout: 1
   @tag init_message: false
   test "make sure recovery works", %{store: store} do
     # During startup it will ask for blockchain info.
