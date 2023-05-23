@@ -4,6 +4,7 @@ defmodule BitPal.Backend.Monero do
   alias BitPal.ExtNotificationHandler
   alias BitPal.Backend.Monero.DaemonRPC
   alias BitPal.Backend.Monero.Wallet
+  alias BitPal.Backend.Monero.Settings
   alias BitPal.Backend.Monero.WalletRPC
   alias BitPal.Addresses
   alias BitPal.Transactions
@@ -11,9 +12,10 @@ defmodule BitPal.Backend.Monero do
   require Logger
 
   @supervisor MoneroSupervisor
-  # FIXME configurable what account we should pass our payments to
-  @account 0
   @start_wallet Application.compile_env(:bitpal, [BitPal.Backend.Monero, :init_wallet], true)
+
+  # FIXME configurable
+  @account 0
 
   # Client API
 
@@ -212,18 +214,47 @@ defmodule BitPal.Backend.Monero do
          "double_spend_seen" => double_spend_seen,
          "height" => height,
          "txid" => txid,
-         "type" => type
+         "type" => type,
+         "unlock_time" => unlock_time
        }) do
     outputs = [{address, Money.new(amount, :XMR)}]
+
+    reasonable_unlock = reasonable_unlock_time?(unlock_time)
 
     Transactions.update(txid,
       outputs: outputs,
       height: height,
       double_spent: double_spend_seen,
-      failed: type == "failed"
+      failed: type == "failed" || !reasonable_unlock
     )
 
     :ok
+  end
+
+  # unlock_time not set
+  def reasonable_unlock_time?(0) do
+    true
+  end
+
+  # Integer values less than 500,000,000 are interpreted as absolute block height.
+  def reasonable_unlock_time?(unlock_time) when unlock_time < 500_000_000 do
+    unlock_time <= Blocks.fetch_height!(:XMR) + Settings.acceptable_unlock_time_blocks()
+  end
+
+  # Values greater than or equal to 500,000,000 are interpreted as an absolute Unix epoch timestamp.
+  def reasonable_unlock_time?(unlock_time) when unlock_time >= 500_000_000 do
+    last_valid =
+      NaiveDateTime.utc_now()
+      |> NaiveDateTime.truncate(:second)
+      |> NaiveDateTime.add(Settings.acceptable_unlock_time_minutes(), :minute)
+
+    unlock_dt = NaiveDateTime.add(~N[1970-01-01 00:00:00], unlock_time)
+
+    NaiveDateTime.compare(unlock_dt, last_valid) != :gt
+  rescue
+    _ ->
+      # Very large integer values cannot be converted to a datetime and will crash "add"
+      false
   end
 
   @spec get_info(map) :: {:ok, map} | {:error, term}

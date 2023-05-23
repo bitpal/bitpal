@@ -12,6 +12,15 @@ defmodule BitPal.Backend.Monero.Settings do
     "http://localhost:#{wallet_port()}/json_rpc"
   end
 
+  def acceptable_unlock_time_blocks do
+    # We expect one block every 2 minutes
+    Kernel.trunc(acceptable_unlock_time_minutes() / 2.0)
+  end
+
+  def acceptable_unlock_time_minutes do
+    24 * 60
+  end
+
   # FIXME make more general
   defp fetch_config!(key) when is_atom(key) do
     config()[key] || raise "Missing Monero config for key `#{key}`"

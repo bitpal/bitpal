@@ -253,6 +253,7 @@ defmodule BitPal.Backend.MoneroFixtures do
         "7BSZWuzWzdC21DUUe7GsP633YjU9B5VjpA6mngJxLykBhWJy3Zye6QrE8kx2jZHbzDGJFM1qwKyscBKj9toScSF76Bz6qPg"
 
     txid = opts[:txid] || "b768029959c15b59330a838bfae1e85adc3f8c812ea1133f5f19f61ab649b666"
+    unlock_time = opts[:unlock_time] || 0
 
     %{
       "address" => address,
@@ -270,7 +271,7 @@ defmodule BitPal.Backend.MoneroFixtures do
       "timestamp" => 1_683_802_938,
       "txid" => txid,
       "type" => "pool",
-      "unlock_time" => 0
+      "unlock_time" => unlock_time
     }
   end
 

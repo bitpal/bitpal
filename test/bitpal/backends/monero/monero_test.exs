@@ -3,11 +3,13 @@ defmodule BitPal.Backend.MoneroTest do
   use BitPal.CaseHelpers
   import Mox
   alias BitPal.Backend.Monero
+  alias BitPal.Backend.Monero.Settings
   alias BitPal.Backend.MoneroFixtures
   alias BitPal.BackendManager
   alias BitPal.BackendStatusSupervisor
   alias BitPal.BackendEvents
   alias BitPal.Blocks
+  alias BitPal.DataCase
   alias BitPal.ExtNotificationHandler
   alias BitPal.HandlerSubscriberCollector
   alias BitPal.IntegrationCase
@@ -20,13 +22,13 @@ defmodule BitPal.Backend.MoneroTest do
   setup :verify_on_exit!
 
   setup tags do
+    BackendEvents.subscribe(@currency)
+
     MockRPCClient.init_mock(@client, missing_call_reply: tags[:missing_call_reply])
 
     MockRPCClient.stub(@client, "store", fn _ ->
       {:ok, %{}}
     end)
-
-    BackendEvents.subscribe(@currency)
 
     if Map.get(tags, :init_backend, true) do
       if Map.get(tags, :init_messages, true) do
@@ -371,6 +373,63 @@ defmodule BitPal.Backend.MoneroTest do
                {{:invoice, :processing}, %{confirmations_due: 1}},
                {{:invoice, :paid}, _}
              ] = HandlerSubscriberCollector.received(stub)
+    end
+  end
+
+  describe "unlock_times" do
+    @tag init_backend: false
+    test "reasonable_unlock_time?" do
+      DataCase.setup_db(async: false)
+      Blocks.new(:XMR, 100)
+
+      valid_block_count = Settings.acceptable_unlock_time_blocks()
+
+      assert Monero.reasonable_unlock_time?(0)
+      assert Monero.reasonable_unlock_time?(100)
+
+      assert Monero.reasonable_unlock_time?(100 + valid_block_count)
+      assert !Monero.reasonable_unlock_time?(101 + valid_block_count)
+
+      valid_minutes = Settings.acceptable_unlock_time_minutes()
+
+      seconds_since_epoch =
+        NaiveDateTime.utc_now()
+        |> NaiveDateTime.truncate(:second)
+        |> NaiveDateTime.diff(~N[1970-01-01 00:00:00])
+
+      assert Monero.reasonable_unlock_time?(500_000_000)
+      assert Monero.reasonable_unlock_time?(seconds_since_epoch)
+      assert Monero.reasonable_unlock_time?(seconds_since_epoch + valid_minutes * 60)
+      assert !Monero.reasonable_unlock_time?(seconds_since_epoch + valid_minutes * 60 + 1)
+      assert !Monero.reasonable_unlock_time?(999_999_999_999)
+    end
+
+    test "fail tx with unreasonable unlock time", %{store: store, manager: manager} do
+      amount = 123_000_000
+
+      {:ok, inv, stub, _handler} =
+        test_invoice(
+          store: store,
+          required_confirmations: 0,
+          price: Money.new(amount, :XMR),
+          double_spend_timeout: 1,
+          status: :open,
+          manager: manager
+        )
+
+      txid = MoneroFixtures.txid()
+
+      MockRPCClient.expect(@client, "get_transfer_by_txid", fn %{txid: ^txid, account_index: 0} ->
+        MoneroFixtures.get_transfer_by_txid(
+          height: 0,
+          amount: amount,
+          unlock_time: 999_999_999_999
+        )
+      end)
+
+      send(ExtNotificationHandler, {:notify, ["monero:tx-notify", txid], 0})
+
+      HandlerSubscriberCollector.await_msg(stub, {:invoice, :uncollectible})
     end
   end
 
