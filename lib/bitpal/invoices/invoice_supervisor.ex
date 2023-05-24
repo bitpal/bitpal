@@ -55,7 +55,7 @@ defmodule BitPal.InvoiceSupervisor do
       name,
       {
         InvoiceHandler,
-        manager_name: opts[:manager_name],
+        manager: opts[:manager],
         parent: opts[:parent],
         invoice_id: invoice.id,
         double_spend_timeout:

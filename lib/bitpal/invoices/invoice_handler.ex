@@ -73,7 +73,7 @@ defmodule BitPal.InvoiceHandler do
     invoice = Invoices.fetch!(invoice_id)
 
     state =
-      Keyword.take(opts, [:double_spend_timeout])
+      Keyword.take(opts, [:double_spend_timeout, :manager])
       # - We store block_height to prevent race conditions where we might
       #   miss sending out a processing message.
       |> Enum.into(%{
@@ -96,7 +96,7 @@ defmodule BitPal.InvoiceHandler do
 
   @impl true
   def handle_continue(:finalize, state = %{invoice: invoice}) do
-    case BackendManager.register_invoice(invoice) do
+    case BackendManager.register_invoice(state.manager, invoice) do
       {:ok, invoice} ->
         subscribe(invoice)
         invoice = Invoices.finalize!(invoice)
@@ -112,10 +112,10 @@ defmodule BitPal.InvoiceHandler do
         Logger.error("""
         Failed to register invoice with backend #{inspect(err)}
         Wanted currency: #{invoice.payment_currency_id}
-        Supported currencies by the backends: #{inspect(BackendManager.currency_list())}
+        Supported currencies by the backends: #{inspect(BackendManager.currency_list(state.manager))}
         """)
 
-        {:stop, {:shutdown, err}}
+        {:stop, :shutdown, state}
     end
   end
 
