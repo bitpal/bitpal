@@ -169,7 +169,7 @@ defmodule BitPal.Backend.Monero do
     # Maybe this should be refactored out from backends?
     unless Blocks.reorg(:XMR, new_height, split_height) == :no_reorg do
       # NOTE It's possible that we'll miss already paid transactions if we only check active addresses.
-      update_active_addresses(state)
+      update_active_addresses(state, reorg: true)
     end
 
     {:noreply, state}
@@ -208,15 +208,18 @@ defmodule BitPal.Backend.Monero do
     end
   end
 
-  defp update_tx_info(%{
-         "address" => address,
-         "amount" => amount,
-         "double_spend_seen" => double_spend_seen,
-         "height" => height,
-         "txid" => txid,
-         "type" => type,
-         "unlock_time" => unlock_time
-       }) do
+  defp update_tx_info(
+         %{
+           "address" => address,
+           "amount" => amount,
+           "double_spend_seen" => double_spend_seen,
+           "height" => height,
+           "txid" => txid,
+           "type" => type,
+           "unlock_time" => unlock_time
+         },
+         opts \\ []
+       ) do
     outputs = [{address, Money.new(amount, :XMR)}]
 
     reasonable_unlock = reasonable_unlock_time?(unlock_time)
@@ -225,7 +228,8 @@ defmodule BitPal.Backend.Monero do
       outputs: outputs,
       height: height,
       double_spent: double_spend_seen,
-      failed: type == "failed" || !reasonable_unlock
+      failed: type == "failed" || !reasonable_unlock,
+      reorg: Keyword.get(opts, :reorg, false)
     )
 
     :ok
@@ -258,21 +262,21 @@ defmodule BitPal.Backend.Monero do
   end
 
   @spec get_info(map) :: {:ok, map} | {:error, term}
-  defp get_info(state) do
+  defp get_info(state, opts \\ []) do
     case DaemonRPC.get_info(state.rpc_client) do
-      {:ok, info} -> {:ok, update_daemon_info(info, state)}
+      {:ok, info} -> {:ok, update_daemon_info(info, state, opts)}
       {:error, error} -> {:error, error}
     end
   end
 
-  defp update_daemon_info(info, state) do
+  defp update_daemon_info(info, state, opts) do
     state
-    |> update_height(info)
+    |> update_height(info, opts)
     |> store_daemon_info(info)
   end
 
-  defp update_height(state, %{"height" => height, "top_block_hash" => hash}) do
-    unless Blocks.new(:XMR, height, hash) == :not_updated do
+  defp update_height(state, %{"height" => height, "top_block_hash" => hash}, opts) do
+    if Blocks.new(:XMR, height, hash) != :not_updated || opts[:force_address_check] do
       update_active_addresses(state)
 
       # Not sure if this is overkill, but we should store wallet progress periodically to
@@ -283,26 +287,27 @@ defmodule BitPal.Backend.Monero do
     state
   end
 
-  defp update_active_addresses(state) do
+  defp update_active_addresses(state, opts \\ []) do
     address_indices =
       Enum.map(Addresses.all_active(:XMR), fn a ->
         a.address_index
       end)
 
     {:ok, res} = WalletRPC.get_transfers(state.rpc_client, @account, address_indices)
-    update_txs(res["in"])
-    update_txs(res["pending"])
-    update_txs(res["failed"])
-    update_txs(res["pool"])
+
+    update_txs(res["in"], opts)
+    update_txs(res["pending"], opts)
+    update_txs(res["failed"], opts)
+    update_txs(res["pool"], opts)
   end
 
-  defp update_txs(txs) when is_list(txs) do
+  defp update_txs(txs, opts) when is_list(txs) do
     for tx <- txs do
-      update_tx_info(tx)
+      update_tx_info(tx, opts)
     end
   end
 
-  defp update_txs(_), do: nil
+  defp update_txs(_, _), do: nil
 
   defp store_daemon_info(state, info) do
     BackendEvents.broadcast({{:backend, :info}, %{info: info, currency_id: :XMR}})
@@ -328,7 +333,7 @@ defmodule BitPal.Backend.Monero do
         ExtNotificationHandler.subscribe("monero:block-notify")
         ExtNotificationHandler.subscribe("monero:reorg-notify")
 
-        {:ok, state} = get_info(state)
+        {:ok, state} = get_info(state, force_address_check: true)
 
         # We should poll regularly even though we also use notifications.
         Process.send_after(self(), :update_info, state.daemon_check_interval)
