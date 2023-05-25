@@ -39,7 +39,7 @@ defmodule BitPal.ExtNotificationHandler do
 
   @impl true
   def handle_info({:notify, msg, _rest}, state) do
-    Logger.notice("notify received: #{inspect(msg)}")
+    Logger.debug("notify received: #{inspect(msg)}")
 
     case parse_message(msg) do
       {:ok, event, params} ->
@@ -58,7 +58,7 @@ defmodule BitPal.ExtNotificationHandler do
   end
 
   def parse_message(msg) do
-    # We should normally receive a message with an event followed by some porams, 
+    # We should normally receive a message with an event followed by some porams,
     # but it's somehow possible to get sent the extra options as well.
     # Just filter them out.
     msg

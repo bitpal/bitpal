@@ -58,8 +58,6 @@ defmodule BitPal.Backend.Monero.Wallet do
       )
 
     :ok = File.close(fd)
-    # FIXME should cleanup temp file later
-    # File.rm(json_path)
 
     Logger.info("Generating new Monero wallet")
     Logger.info("  filename: #{wallet_file}")
@@ -92,21 +90,3 @@ defmodule BitPal.Backend.Monero.Wallet do
     ]
   end
 end
-
-# Not sure if it's better to use MuonTrap or Port:
-# @spec stop(module, port) :: true
-# def stop(client, port) do
-#   close_wallet(client)
-#   Port.close(port)
-# end
-
-# defp start(args) do
-#   Port.open({:spawn_executable, Files.process_monitor_path()}, [
-#     :binary,
-#     args:
-#       [
-#         System.find_executable("monero-wallet-rpc")
-#         | wallet_executable_options()
-#       ] ++ args
-#   ])
-# end
