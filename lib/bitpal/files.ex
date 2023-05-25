@@ -1,20 +1,4 @@
 defmodule BitPal.Files do
-  # @spec open_tmp_file(Temp.options()) :: {File.io_device(), Path.t()}
-  # @spec open!(options, pid | nil) :: Path.t | {File.io_device, Path.t} | no_return
-  # def open_tmp_file(opts \\ nil) do
-  #   Temp.open!(opts)
-  # end
-  #
-  # @spec tmp_file(Temp.options()) :: Path.t()
-  # def tmp_file(opts \\ nil) do
-  #   Temp.path!(opts)
-  # end
-  #
-  # @spec tmp_dir(Temp.options()) :: Path.t()
-  # def tmp_dir(opts \\ nil) do
-  #   Temp.mkdir!(opts)
-  # end
-
   @spec wallet_file(atom, atom) :: Path.t()
   def wallet_file(coin, net) do
     Path.join(coin_dir(coin), "#{net}-wallet")
@@ -44,7 +28,6 @@ defmodule BitPal.Files do
   def notify_socket do
     # Must be the same as in notify.sh
     "/tmp/bitpal_notify_socket"
-    # Path.join(data_dir(), "notify_socket")
   end
 
   @spec data_dir :: Path.t()

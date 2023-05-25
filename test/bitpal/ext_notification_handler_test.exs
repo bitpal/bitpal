@@ -8,7 +8,7 @@ defmodule BitPal.ExtNotificationHandlerTest do
     %{event: Faker.Code.isbn()}
   end
 
-  describe "extermal notify script" do
+  describe "external notify script" do
     test "Receive pubsub via external notify cmd", %{event: event} do
       ExtNotificationHandler.subscribe(event)
 
