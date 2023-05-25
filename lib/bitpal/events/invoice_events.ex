@@ -4,10 +4,11 @@ defmodule BitPal.InvoiceEvents do
   """
 
   alias BitPal.EventHelpers
+  alias BitPalSchemas.Address
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.InvoiceStatus
+  alias BitPalSchemas.Transaction
 
-  @type tx :: Transaction.t()
   @type txinfo :: %{
           txid: Transaction.id(),
           height: Transaction.height(),

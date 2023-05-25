@@ -2,12 +2,14 @@ defmodule BitPal.Transactions do
   import Ecto.Changeset
   import Ecto.Query
   alias BitPal.AddressEvents
-  alias BitPal.Blocks
-  alias BitPal.Repo
-  alias BitPal.Invoices
-  alias BitPal.Stores
   alias BitPal.Addresses
+  alias BitPal.Blocks
+  alias BitPal.InvoiceEvents
+  alias BitPal.Invoices
+  alias BitPal.Repo
+  alias BitPal.Stores
   alias BitPalSchemas.Address
+  alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.Store
   alias BitPalSchemas.Transaction
@@ -20,7 +22,7 @@ defmodule BitPal.Transactions do
 
   # External
 
-  @spec fetch(Transaction.txid()) :: {:ok, Transaction.t()} | {:error, :not_found}
+  @spec fetch(Transaction.id()) :: {:ok, Transaction.t()} | {:error, :not_found}
   def fetch(txid) do
     if tx = Repo.get_by(Transaction, id: txid) do
       {:ok, tx}
@@ -31,7 +33,7 @@ defmodule BitPal.Transactions do
     _ -> {:error, :not_found}
   end
 
-  @spec fetch(Transaction.txid(), Store.id()) :: {:ok, Transaction.t()} | {:error, :not_found}
+  @spec fetch(Transaction.id(), Store.id()) :: {:ok, Transaction.t()} | {:error, :not_found}
   def fetch(txid, store_id) do
     tx =
       from(t in Transaction,
