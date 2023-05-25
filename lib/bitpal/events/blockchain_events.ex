@@ -8,10 +8,6 @@ defmodule BitPal.BlockchainEvents do
       {{:block, :new}, %{currency_id: Currency.id(), height: height}}
       | {{:block, :reorg},
          %{currency_id: Currency.id(), new_height: height, split_height: height}},
-    # {{:block, :set_height}, %{currency_id: Currency.id(), height: height}}
-    # | {{:block, :new}, %{currency_id: Currency.id(), height: height}}
-    # | {{:block, :reversed}, %{currency_id: Currency.id(), height: height}}
-
     @spec(subscribe(Currency.id()) :: :ok | {:error, term})
   )
   def subscribe(id) do

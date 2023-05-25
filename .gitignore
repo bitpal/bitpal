@@ -45,5 +45,6 @@ npm-debug.log
 
 # Temp things
 *~
+monero-wallet-cli.log
 
 *.login

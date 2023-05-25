@@ -115,17 +115,6 @@ defmodule BitPal.MockTCPClient do
     {:reply, state.sent, state}
   end
 
-  # FIXME are these really unused?
-  # @impl GenServer
-  # def handle_call(:send_ok, _, state) do
-  #   {:reply, :ok, Map.delete(state, :send_error)}
-  # end
-  #
-  # @impl GenServer
-  # def handle_call(:send_error, _, state) do
-  #   {:reply, :ok, Map.put(state, :send_error, true)}
-  # end
-
   @impl GenServer
   def handle_info(
         :reply,
