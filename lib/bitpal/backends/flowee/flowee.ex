@@ -30,6 +30,12 @@ defmodule BitPal.Backend.Flowee do
   end
 
   @impl Backend
+  def update_address(_backend, _invoice) do
+    # Shouldn't be necessary as we're subscribing to addresses and getting notifications?
+    :ok
+  end
+
+  @impl Backend
   def info(backend), do: GenServer.call(backend, :info)
 
   @impl Backend

@@ -31,6 +31,11 @@ defmodule BitPal.Backend.Monero do
   end
 
   @impl Backend
+  def update_address(backend, invoice) do
+    GenServer.call(backend, {:update_address, invoice})
+  end
+
+  @impl Backend
   def info(backend), do: GenServer.call(backend, :get_info)
 
   @impl Backend
@@ -136,6 +141,12 @@ defmodule BitPal.Backend.Monero do
   end
 
   @impl true
+  def handle_call({:update_address, invoice}, _from, state) do
+    check_address(state, invoice.address)
+    {:reply, :ok, state}
+  end
+
+  @impl true
   def handle_call(:get_info, _from, state) do
     {:reply, create_info(state), state}
   end
@@ -169,7 +180,7 @@ defmodule BitPal.Backend.Monero do
     # Maybe this should be refactored out from backends?
     unless Blocks.reorg(:XMR, new_height, split_height) == :no_reorg do
       # NOTE It's possible that we'll miss already paid transactions if we only check active addresses.
-      update_active_addresses(state, reorg: true)
+      check_active_addresses(state, reorg: true)
     end
 
     {:noreply, state}
@@ -277,7 +288,7 @@ defmodule BitPal.Backend.Monero do
 
   defp update_height(state, %{"height" => height, "top_block_hash" => hash}, opts) do
     if Blocks.new(:XMR, height, hash) != :not_updated || opts[:force_address_check] do
-      update_active_addresses(state)
+      check_active_addresses(state)
 
       # Not sure if this is overkill, but we should store wallet progress periodically to
       # not have to do a slow resync on restart.
@@ -287,12 +298,20 @@ defmodule BitPal.Backend.Monero do
     state
   end
 
-  defp update_active_addresses(state, opts \\ []) do
+  defp check_address(state, address) do
+    get_transfers(state, [address.address_index])
+  end
+
+  defp check_active_addresses(state, opts \\ []) do
     address_indices =
       Enum.map(Addresses.all_active(:XMR), fn a ->
         a.address_index
       end)
 
+    get_transfers(state, address_indices, opts)
+  end
+
+  defp get_transfers(state, address_indices, opts \\ []) do
     {:ok, res} = WalletRPC.get_transfers(state.rpc_client, @account, address_indices)
 
     update_txs(res["in"], opts)

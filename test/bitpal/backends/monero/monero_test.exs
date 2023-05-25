@@ -15,6 +15,7 @@ defmodule BitPal.Backend.MoneroTest do
   alias BitPal.IntegrationCase
   alias BitPal.MockRPCClient
   alias BitPalFactory.CurrencyFactory
+  alias BitPalFactory.TransactionFactory
 
   @currency :XMR
   @client BitPal.MoneroMock
@@ -23,6 +24,10 @@ defmodule BitPal.Backend.MoneroTest do
   setup :verify_on_exit!
 
   setup tags do
+    # So... For some reason on_exit is delayed, which messes up the next tests
+    # as there's some handler that hasn't stopped...
+    IntegrationCase.remove_invoice_handlers([:XMR])
+
     BackendEvents.subscribe(@currency)
 
     MockRPCClient.init_mock(@client, missing_call_reply: tags[:missing_call_reply])
@@ -99,7 +104,9 @@ defmodule BitPal.Backend.MoneroTest do
     params =
       Enum.into(params, %{
         payment_currency_id: @currency,
-        status: :draft
+        status: :draft,
+        required_confirmations: 1,
+        restart: :transient
       })
 
     if params.status != :draft do
@@ -136,7 +143,8 @@ defmodule BitPal.Backend.MoneroTest do
   end
 
   defp notify_tx(opts) do
-    txid = opts[:txid] || MoneroFixtures.txid()
+    opts = Keyword.put_new_lazy(opts, :txid, &TransactionFactory.unique_txid/0)
+    txid = Keyword.fetch!(opts, :txid)
 
     MockRPCClient.expect(@client, "get_transfer_by_txid", fn %{txid: ^txid, account_index: 0} ->
       MoneroFixtures.get_transfer_by_txid(opts)
@@ -294,7 +302,29 @@ defmodule BitPal.Backend.MoneroTest do
           manager: manager
         )
 
-      notify_tx(height: 0, amount: inv.expected_payment.amount)
+      txid = TransactionFactory.unique_txid()
+
+      # For checking before accepting 0-conf
+      MockRPCClient.expect(@client, "get_transfers", fn %{
+                                                          account_index: 0,
+                                                          subaddr_indices: _
+                                                        } ->
+        MoneroFixtures.get_transfers([
+          %{
+            txid: txid,
+            address: inv.address_id,
+            amount: inv.expected_payment.amount,
+            height: 0
+          }
+        ])
+      end)
+
+      notify_tx(
+        txid: txid,
+        height: 0,
+        amount: inv.expected_payment.amount,
+        address: inv.address_id
+      )
 
       HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
 
@@ -302,6 +332,51 @@ defmodule BitPal.Backend.MoneroTest do
                {{:invoice, :finalized}, _},
                {{:invoice, :processing}, _},
                {{:invoice, :paid}, _}
+             ] = HandlerSubscriberCollector.received(stub)
+    end
+
+    test "reject 0-conf after double-check", %{store: store, manager: manager} do
+      {:ok, inv, stub, _handler} =
+        test_invoice(
+          store: store,
+          required_confirmations: 0,
+          payment_currency: :XMR,
+          double_spend_timeout: 1,
+          status: :open,
+          manager: manager
+        )
+
+      txid = TransactionFactory.unique_txid()
+
+      # For checking before accepting 0-conf
+      MockRPCClient.expect(@client, "get_transfers", fn %{
+                                                          account_index: 0,
+                                                          subaddr_indices: [1]
+                                                        } ->
+        MoneroFixtures.get_transfers([
+          %{
+            txid: txid,
+            address: inv.address_id,
+            amount: inv.expected_payment.amount,
+            height: 0,
+            double_spend: true
+          }
+        ])
+      end)
+
+      notify_tx(
+        txid: txid,
+        height: 0,
+        amount: inv.expected_payment.amount,
+        address: inv.address_id
+      )
+
+      HandlerSubscriberCollector.await_msg(stub, {:invoice, :uncollectible})
+
+      assert [
+               {{:invoice, :finalized}, _},
+               {{:invoice, :processing}, _},
+               {{:invoice, :uncollectible}, %{status: {_, :double_spent}}}
              ] = HandlerSubscriberCollector.received(stub)
     end
 
@@ -315,7 +390,7 @@ defmodule BitPal.Backend.MoneroTest do
           manager: manager
         )
 
-      notify_tx(height: 10, amount: inv.expected_payment.amount)
+      notify_tx(height: 10, amount: inv.expected_payment.amount, address: inv.address_id)
 
       HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
 
@@ -339,11 +414,9 @@ defmodule BitPal.Backend.MoneroTest do
           manager: manager
         )
 
-      txid = MoneroFixtures.txid()
-
       # First we see an unconfirmed tx
 
-      notify_tx(amount: inv.expected_payment.amount, height: 0)
+      txid = notify_tx(amount: inv.expected_payment.amount, height: 0, address: inv.address_id)
 
       # Then issue block and mark tx as included in the block
 
@@ -414,10 +487,12 @@ defmodule BitPal.Backend.MoneroTest do
           manager: manager
         )
 
-      txid = MoneroFixtures.txid()
+      txid = TransactionFactory.unique_txid()
 
       MockRPCClient.expect(@client, "get_transfer_by_txid", fn %{txid: ^txid, account_index: 0} ->
         MoneroFixtures.get_transfer_by_txid(
+          txid: txid,
+          address: inv.address_id,
           height: 0,
           amount: inv.expected_payment.amount,
           unlock_time: 999_999_999_999
@@ -451,7 +526,7 @@ defmodule BitPal.Backend.MoneroTest do
                {{:invoice, :finalized}, _}
              ] = HandlerSubscriberCollector.received(stub)
 
-      txid = MoneroFixtures.txid()
+      txid = TransactionFactory.unique_txid()
 
       init_messages(
         txs: [
@@ -459,6 +534,20 @@ defmodule BitPal.Backend.MoneroTest do
         ],
         block_hash: "block-hash"
       )
+
+      MockRPCClient.expect(@client, "get_transfers", fn %{
+                                                          account_index: 0,
+                                                          subaddr_indices: [1]
+                                                        } ->
+        MoneroFixtures.get_transfers([
+          %{
+            txid: txid,
+            address: inv.address_id,
+            amount: inv.expected_payment.amount,
+            height: 0
+          }
+        ])
+      end)
 
       BackendManager.restart_backend(manager, :XMR)
 
@@ -490,7 +579,7 @@ defmodule BitPal.Backend.MoneroTest do
                {{:invoice, :finalized}, _}
              ] = HandlerSubscriberCollector.received(stub)
 
-      txid = MoneroFixtures.txid()
+      txid = TransactionFactory.unique_txid()
 
       init_messages(
         txs: [
@@ -535,7 +624,7 @@ defmodule BitPal.Backend.MoneroTest do
                {{:invoice, :finalized}, _}
              ] = HandlerSubscriberCollector.received(stub)
 
-      txid = MoneroFixtures.txid()
+      txid = TransactionFactory.unique_txid()
 
       init_messages(
         txs: [
@@ -576,7 +665,7 @@ defmodule BitPal.Backend.MoneroTest do
           manager: manager
         )
 
-      txid = notify_tx(height: 10, amount: inv.expected_payment.amount)
+      txid = notify_tx(height: 10, amount: inv.expected_payment.amount, address: inv.address_id)
       increase_block(height: 11)
       increase_block(height: 12)
 
@@ -607,7 +696,6 @@ defmodule BitPal.Backend.MoneroTest do
              ] = HandlerSubscriberCollector.received(stub)
     end
 
-    @tag do: true
     test "reorg that reverses pending tx", %{manager: manager, store: store} do
       {:ok, inv, stub, _handler} =
         test_invoice(
@@ -619,7 +707,7 @@ defmodule BitPal.Backend.MoneroTest do
         )
 
       increase_block(height: 11)
-      txid = notify_tx(height: 11, amount: inv.expected_payment.amount)
+      txid = notify_tx(height: 11, amount: inv.expected_payment.amount, address: inv.address_id)
 
       # Reorg tx and make it unconfirmed
 

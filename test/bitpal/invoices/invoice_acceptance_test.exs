@@ -330,7 +330,6 @@ defmodule BitPal.InvoiceAcceptanceTest do
              ] = HandlerSubscriberCollector.received(stub)
     end
 
-    @tag do: true
     test "reverse tx on split height", %{currency_id: currency_id} do
       BackendMock.set_height(currency_id, 10)
 

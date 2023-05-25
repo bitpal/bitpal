@@ -44,9 +44,6 @@ defmodule BitPal.Backend.Monero.WalletRPC do
     })
   end
 
-  # get_transfers, gets a ton of things at the same time
-  # also a bunch of other options
-  # FIXME need to verify `unlock_time` otherwise funds might be inaccessible!
   def get_transfers(client, account_index, subaddress_indices \\ []) do
     call(
       client,
@@ -62,7 +59,6 @@ defmodule BitPal.Backend.Monero.WalletRPC do
     )
   end
 
-  # FIXME need to verify `unlock_time` otherwise funds might be inaccessible!
   @spec get_transfer_by_txid(module, String.t(), non_neg_integer) ::
           {:ok, any} | {:error, any}
   def get_transfer_by_txid(client, txid, account_index) do

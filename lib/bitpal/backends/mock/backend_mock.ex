@@ -27,8 +27,13 @@ defmodule BitPal.BackendMock do
   end
 
   @impl Backend
-  def watch_invoice(backend, address) do
-    GenServer.call(backend, {:watch_invoice, address})
+  def watch_invoice(backend, invoice) do
+    GenServer.call(backend, {:watch_invoice, invoice})
+  end
+
+  @impl Backend
+  def update_address(_backend, _invoice) do
+    :ok
   end
 
   @impl Backend

@@ -3,8 +3,6 @@ defmodule BitPal.Backend.Monero.Wallet do
   alias BitPal.Files
   require Logger
 
-  # FIXME renome rpc to rpc
-
   @rpc_password ""
 
   @doc """

@@ -30,6 +30,14 @@ defmodule BitPal.BackendManager do
     end
   end
 
+  @spec update_address(server_name, Invoice.t()) :: :ok | {:error, term}
+  def update_address(server \\ __MODULE__, invoice) do
+    case fetch_backend(server, invoice.payment_currency_id) do
+      {:ok, ref} -> Backend.update_address(ref, invoice)
+      error -> error
+    end
+  end
+
   # Backends
 
   @spec fetch_backend(server_name, Currency.id()) ::

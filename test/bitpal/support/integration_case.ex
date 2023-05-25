@@ -65,6 +65,7 @@ defmodule BitPal.IntegrationCase do
 
       # It would be best if we could shut down the local manager after removing invoice handlers,
       # but maybe it's fine to have the local manager only for cases without invoices?
+      # Don't remove backends for these as the local manager will be killed before this point.
       if !tags[:local_manager] do
         remove_backends(res.currencies)
       end
@@ -89,6 +90,8 @@ defmodule BitPal.IntegrationCase do
 
     manager = CaseHelpers.unique_server_name()
 
+    # NOTE if we start this under a supervisor instead, then we can do cleanup in on_exit
+    # in an orderly manner
     start_supervised!(
       {BackendManager,
        backends: backends,

@@ -240,26 +240,21 @@ defmodule BitPal.Backend.MoneroFixtures do
      }}
   end
 
-  def txid do
-    "b768029959c15b59330a838bfae1e85adc3f8c812ea1133f5f19f61ab649b666"
-  end
-
   defp txinfo(opts) do
+    opts = Map.new(opts)
+
     amount = opts[:amount] || 10_000_000
     height = opts[:height] || 1_349_905
-
-    address =
-      opts[:address] ||
-        "7BSZWuzWzdC21DUUe7GsP633YjU9B5VjpA6mngJxLykBhWJy3Zye6QrE8kx2jZHbzDGJFM1qwKyscBKj9toScSF76Bz6qPg"
-
-    txid = opts[:txid] || "b768029959c15b59330a838bfae1e85adc3f8c812ea1133f5f19f61ab649b666"
+    double_spend = opts[:double_spend] || false
     unlock_time = opts[:unlock_time] || 0
+    address = Map.fetch!(opts, :address)
+    txid = Map.fetch!(opts, :txid)
 
     %{
       "address" => address,
       "amount" => amount,
       "amounts" => [amount],
-      "double_spend_seen" => false,
+      "double_spend_seen" => double_spend,
       "fee" => 204_880_000,
       "height" => height,
       "locked" => true,

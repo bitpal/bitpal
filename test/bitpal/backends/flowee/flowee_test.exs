@@ -17,6 +17,8 @@ defmodule BitPal.Backend.FloweeTest do
   setup :set_mox_from_context
 
   setup tags do
+    IntegrationCase.remove_invoice_handlers([@currency])
+
     MockTCPClient.init_mock(@client)
 
     # Some tests don't want to have the initialization automatically enabled.

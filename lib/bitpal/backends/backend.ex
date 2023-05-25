@@ -53,9 +53,21 @@ defmodule BitPal.Backend do
   """
   @callback supported_currency(pid()) :: {:ok, Currency.id()} | {:error, term}
 
+  @doc """
+  Assign an address to the invoice.
+  """
   @callback assign_address(pid(), Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
 
+  @doc """
+  Start watching the invoice for transaction updates.
+  """
   @callback watch_invoice(pid(), Invoice.t()) :: :ok | {:error, term}
+
+  @doc """
+  Update information about an invoice.
+  Should issue updates of all transactions to that address.
+  """
+  @callback update_address(pid(), Invoice.t()) :: :ok | {:error, term}
 
   @doc """
   Get the stored info of the backend.
@@ -155,15 +167,37 @@ defmodule BitPal.Backend do
     end
   end
 
+  # Forwarding functions
+
   @spec register_invoice(backend_ref(), Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
   def register_invoice(ref, invoice) do
     with {:ok, invoice} <- assign_address(ref, invoice),
          :ok <- watch_invoice(ref, invoice) do
       {:ok, invoice}
     else
-      err -> err
+      err ->
+        Logger.alert("Failed to register invoice: #{invoice.id}")
+        err
     end
   end
+
+  defp assign_address(ref, invoice), do: call(ref, :assign_address, [invoice])
+  defp watch_invoice(ref, invoice), do: call(ref, :watch_invoice, [invoice])
+
+  @spec update_address(backend_ref(), Invoice.t()) :: :ok | {:error, term}
+  def update_address(ref, invoice), do: call(ref, :update_address, [invoice])
+
+  @spec supported_currency(backend_ref()) :: {:ok, Currency.id()} | {:error, :not_found}
+  def supported_currency(ref), do: call(ref, :supported_currency, [])
+
+  @spec info(backend_ref()) :: {:ok, backend_info | nil} | {:error, term}
+  def info(ref), do: call(ref, :info, [])
+
+  @spec refresh_info(backend_ref()) :: :ok | {:error, term}
+  def refresh_info(ref), do: call(ref, :refresh_info, [])
+
+  @spec configure(backend_ref(), keyword()) :: :ok | {:error, term}
+  def configure(ref, opts), do: call(ref, :configure, [opts])
 
   defp call({pid, backend}, fun, params) do
     try do
@@ -175,49 +209,8 @@ defmodule BitPal.Backend do
     end
   end
 
-  defp assign_address(ref, invoice), do: call(ref, :assign_address, [invoice])
-  defp watch_invoice(ref, invoice), do: call(ref, :watch_invoice, [invoice])
-
-  @spec supported_currency(backend_ref()) :: {:ok, Currency.id()} | {:error, :not_found}
-  def supported_currency({pid, backend}) do
-    try do
-      backend.supported_currency(pid)
-    catch
-      :exit, _reason -> {:error, :not_found}
-    end
-  end
-
-  @spec info(backend_ref()) :: {:ok, backend_info | nil} | {:error, term}
-  def info({pid, backend}) do
-    try do
-      backend.info(pid)
-    catch
-      :exit, _reason -> {:error, :not_found}
-    end
-  end
-
-  @spec refresh_info(backend_ref()) :: :ok | {:error, term}
-  def refresh_info({pid, backend}) do
-    try do
-      backend.refresh_info(pid)
-    catch
-      :exit, _reason -> {:error, :not_found}
-    end
-  end
-
-  @spec configure(backend_ref(), keyword()) :: :ok | {:error, term}
-  def configure({pid, backend}, opts) do
-    try do
-      backend.configure(pid, opts)
-    catch
-      :exit, _reason -> {:error, :not_found}
-    end
-  end
-
   @spec via_tuple(Currency.id()) :: {:via, Registry, any}
   def via_tuple(currency_id) do
     ProcessRegistry.via_tuple({__MODULE__, currency_id})
   end
-
-  # BackendMacro.def_call(:configure, :opts)
 end

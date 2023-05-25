@@ -59,7 +59,8 @@ defmodule BitPal.InvoiceSupervisor do
         parent: opts[:parent],
         invoice_id: invoice.id,
         double_spend_timeout:
-          opts[:double_spend_timeout] || Invoices.double_spend_timeout(invoice)
+          opts[:double_spend_timeout] || Invoices.double_spend_timeout(invoice),
+        restart: opts[:restart] || :transient
       }
     )
   end

@@ -24,7 +24,7 @@ defmodule BitPal.InvoiceHandler do
     %{
       id: invoice_id,
       start: {BitPal.InvoiceHandler, :start_link, [opts]},
-      restart: :transient
+      restart: opts[:restart] || :transient
     }
   end
 
@@ -225,14 +225,15 @@ defmodule BitPal.InvoiceHandler do
 
   @impl true
   def handle_info({{:tx, :failed}, _tx}, state) do
-    Invoices.failed!(state.invoice)
-    {:stop, :normal, state}
+    invoice = Invoices.failed!(state.invoice)
+    {:stop, :normal, %{state | invoice: invoice}}
   end
 
   @impl true
   def handle_info({:double_spend_timeout, txid}, state) do
     state
     |> with_double_spend_timeout(txid)
+    |> issue_address_update()
     |> update_invoice_info()
     |> try_into_paid()
   end
@@ -351,21 +352,33 @@ defmodule BitPal.InvoiceHandler do
     %{state | invoice: Invoices.update_info_from_txs(state.invoice, state.block_height)}
   end
 
+  defp issue_address_update(state) do
+    :ok = BackendManager.update_address(state.invoice)
+    state
+  end
+
   defp try_into_paid(state) do
-    if has_paid?(state.invoice, state.double_spend_timeouts) do
-      Invoices.pay!(state.invoice)
-      {:stop, :normal, state}
+    if accept_payment?(state.invoice, state.double_spend_timeouts) do
+      invoice = Invoices.pay!(state.invoice)
+      {:stop, :normal, %{state | invoice: invoice}}
     else
       {:noreply, state}
     end
   end
 
-  defp has_paid?(invoice, double_spend_timeouts) do
-    has_conf? = has_confirmations?(invoice)
-    double_spend? = has_double_spend_timeouts?(invoice, double_spend_timeouts)
-    amount? = target_amount_reached?(invoice)
+  defp accept_payment?(invoice, double_spend_timeouts) do
+    has_confirmations?(invoice) &&
+      target_amount_reached?(invoice) &&
+      valid_txs?(invoice) &&
+      has_double_spend_timeouts?(invoice, double_spend_timeouts)
+  end
 
-    has_conf? && double_spend? && amount?
+  defp valid_txs?(invoice) do
+    # For a tx to be valid it must not be `failed`,
+    # and a 0-conf cannot be double spent (but a confirmed tx can be).
+    Enum.all?(invoice.transactions, fn tx ->
+      (tx.height != 0 || !tx.double_spent) && !tx.failed
+    end)
   end
 
   defp has_confirmations?(invoice) do

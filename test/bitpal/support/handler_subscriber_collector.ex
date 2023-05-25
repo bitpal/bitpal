@@ -101,7 +101,8 @@ defmodule BitPal.HandlerSubscriberCollector do
     manager_opts = %{
       parent: state.parent,
       double_spend_timeout: opts[:double_spend_timeout],
-      manager: opts[:manager] || BitPal.BackendManager
+      manager: opts[:manager] || BitPal.BackendManager,
+      restart: opts[:restart] || :transient
     }
 
     if Invoices.finalized?(invoice) do

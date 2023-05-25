@@ -11,9 +11,6 @@ defmodule BitPal.Application do
 
   @impl true
   def start(_type, _args) do
-    # FIXME needed?
-    # BitPal.Currencies.configure_money()
-
     children =
       factory() ++
         [

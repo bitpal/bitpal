@@ -4,8 +4,6 @@ defmodule BitPal.MockRPCClient do
   import ExUnit.Callbacks
   alias Mox
 
-  # TODO need to have a "stub" call as well
-
   def init_mock(name, opts \\ []) do
     client = start_supervised!({__MODULE__, Keyword.merge(opts, [{:name, name}])})
 
