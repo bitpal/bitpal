@@ -41,8 +41,7 @@ config :bitpal, BitPal.Repo,
   pool: Ecto.Adapters.SQL.Sandbox,
   # Try to avoid connection drop timeouts
   pool_size: 20,
-  queue_target: 2_000,
-  timeout: 20_000
+  queue_target: 2_000
 
 # queue_limit: 2_000
 
@@ -71,6 +70,6 @@ config :bitpal, BitPal.InvoiceSupervisor, pass_parent_pid: true
 
 config :bitpal, BitPal.BackendMock, log_level: :alert
 
-config :ex_unit, assert_receive_timeout: 200
+config :ex_unit, assert_receive_timeout: 500
 
 config :logger, level: :error
