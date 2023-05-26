@@ -1,10 +1,10 @@
-defmodule AddressTest do
-  use BitPal.IntegrationCase, async: true
+defmodule BitPal.AddressTest do
+  use BitPal.DataCase, async: true
   alias BitPal.Addresses
   alias BitPal.Invoices
 
-  setup tags do
-    currency_id = Map.fetch!(tags, :currency_id)
+  setup _tags do
+    currency_id = unique_currency_id()
     store = create_store()
     address_key = create_address_key(store: store, currency_id: currency_id)
     %{store: store, address_key: address_key, currency_id: currency_id}
@@ -61,9 +61,12 @@ defmodule AddressTest do
   end
 
   describe "generate_address/2" do
+    defp key_data_id(%{xpub: xpub}), do: xpub
+    defp key_data_id(%{viewkey: viewkey}), do: viewkey
+
     defp test_address_generator(key) do
       i = Addresses.next_address_index(key)
-      {:ok, %{address_id: "#{key.data}-#{i}-#{key.currency_id}", address_index: i}}
+      {:ok, %{address_id: "#{key_data_id(key.data)}-#{i}-#{key.currency_id}", address_index: i}}
     end
 
     test "generates", %{address_key: address_key} do
@@ -72,7 +75,7 @@ defmodule AddressTest do
 
         assert address.address_index == i
         # Tests the compound of indata to the generator
-        assert "#{address_key.data}-#{i}-#{address_key.currency_id}" == address.id
+        assert "#{key_data_id(address_key.data)}-#{i}-#{address_key.currency_id}" == address.id
       end
     end
   end

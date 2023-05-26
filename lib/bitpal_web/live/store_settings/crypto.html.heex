@@ -3,7 +3,13 @@
     <%= Money.Currency.name!(@currency_id) %>(<%= @currency_id %>)
   </:header>
   <div class="crypto-settings">
-    <.form :let={f} for={@address_key_changeset} phx-submit="address_key" class="address-key-form">
+    <.form
+      :let={f}
+      as={:address_key}
+      for={@address_key_changeset}
+      phx-submit="address_key"
+      class="address-key-form"
+    >
       <%= case @address_key_changeset.action do %>
         <% :success -> %>
           <div class="alert success">
@@ -17,16 +23,42 @@
           <%= nil %>
       <% end %>
 
-      <%= error_tag(f, :data) %>
-      <%= label(f, :data, "Xpub") %>
-      <%= textarea(f, :data,
-        class: "address-key-input",
-        required: true,
-        placeholder: "Enter an xpub"
-      ) %>
+      <%= if BitPal.Currencies.has_xpub?(@currency_id) do %>
+        <%= error_tag(f, :xpub) %>
+        <%= label(f, :xpub, "xpub") %>
+        <%= textarea(f, :xpub,
+          class: "xpub-input",
+          required: true,
+          placeholder: "Enter an xpub"
+        ) %>
+      <% else %>
+        <%= error_tag(f, :viewkey) %>
+        <%= label(f, :viewkey, "viewkey") %>
+        <%= textarea(f, :viewkey,
+          class: "viewkey-input",
+          required: true,
+          placeholder: "Enter a viewkey"
+        ) %>
 
+        <%= error_tag(f, :address) %>
+        <%= label(f, :address, "primary address") %>
+        <%= textarea(f, :address,
+          class: "address-input",
+          required: true,
+          placeholder: "Enter a primary address"
+        ) %>
+
+        <%!-- We haven't implemented account switching just yet --%>
+        <%= error_tag(f, :account) %>
+        <%= label(f, :account, "account") %>
+        <%= textarea(f, :account,
+          class: "address-input",
+          required: true,
+          placeholder: "Enter "
+        ) %>
+      <% end %>
       <div>
-        <%= submit("Update xpub") %>
+        <%= submit("Update") %>
       </div>
     </.form>
 

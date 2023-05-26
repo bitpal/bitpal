@@ -3,7 +3,7 @@ defmodule BitPalSchemas.InvoiceStatusTest do
   alias BitPalSchemas.InvoiceStatus
 
   describe "casts" do
-    test "stright up valid casts" do
+    test "straight up valid casts" do
       ok = [
         :draft,
         :paid,
@@ -13,6 +13,7 @@ defmodule BitPalSchemas.InvoiceStatusTest do
         {:uncollectible, :canceled},
         {:uncollectible, :timed_out},
         {:uncollectible, :double_spent},
+        {:uncollectible, :failed},
         :void,
         {:void, :expired},
         {:void, :canceled},
@@ -20,6 +21,7 @@ defmodule BitPalSchemas.InvoiceStatusTest do
         {:void, :timed_out},
         {:void, :verifying},
         {:void, :confirming},
+        {:void, :failed},
         :draft,
         :paid
       ]

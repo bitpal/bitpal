@@ -88,28 +88,25 @@ defmodule BitPal.Currencies do
     _ -> :error
   end
 
-  def valid_address_key?(currency_id, key) when is_binary(key) do
-    cond do
-      is_test_currency?(currency_id) ->
-        key != ""
-
-      has_xpub?(currency_id) ->
-        case key do
-          "xpub" <> _ -> true
-          _ -> false
-        end
-
-      currency_id == :XMR ->
-        # FIXME When implementing XMR we need to do something here?
-        true
-
-      true ->
-        Logger.error("Unknown address key format for: #{currency_id} key: #{key}")
-        true
-    end
+  def valid_address_key?(currency_id, %{xpub: "xpub" <> _rest}) do
+    has_xpub?(currency_id)
   end
 
-  def valid_address_key?(_, _), do: false
+  def valid_address_key?(currency_id, %{xpub: _xpub}) do
+    is_test_currency?(currency_id)
+  end
+
+  def valid_address_key?(:XMR, %{viewkey: _viewkey}) do
+    true
+  end
+
+  def valid_address_key?(currency_id, %{viewkey: _viewkey}) do
+    is_test_currency?(currency_id)
+  end
+
+  def valid_address_key?(currency_id, key) do
+    false
+  end
 
   def has_xpub?(:XMR), do: false
   def has_xpub?(_), do: true

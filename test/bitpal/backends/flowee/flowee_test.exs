@@ -40,7 +40,7 @@ defmodule BitPal.Backend.FloweeTest do
   defp test_invoice(params) do
     params
     |> Enum.into(%{
-      address_key: @xpub,
+      address_key: %{xpub: @xpub},
       price: Money.parse!(Keyword.fetch!(params, :amount), @currency)
     })
     |> HandlerSubscriberCollector.create_invoice()

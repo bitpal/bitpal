@@ -14,14 +14,19 @@ defmodule BitPal.DevSeeds do
       data: "SFMyNTY.g2gDYQFuBgDWhevRegFiAAFRgA.fuiV-GbJoBUmKaSS5PW776HyeFh30-L9pgvn7wuQWKk"
     )
     |> with_address_key(
-      data:
-        "xpub6C23JpFE6ABbBudoQfwMU239R5Bm6QGoigtLq1BD3cz3cC6DUTg89H3A7kf95GDzfcTis1K1m7ypGuUPmXCaCvoxDKbeNv6wRBEGEnt1NV7",
+      data: %{
+        xpub:
+          "xpub6C23JpFE6ABbBudoQfwMU239R5Bm6QGoigtLq1BD3cz3cC6DUTg89H3A7kf95GDzfcTis1K1m7ypGuUPmXCaCvoxDKbeNv6wRBEGEnt1NV7"
+      },
       currency_id: :BCH
     )
-    # For now skip viewkey and account registration. May change it in the future.
     |> with_address_key(
-      data:
-        "53SgPM7frd9M3BneMJ6VtW19dLXQVkNTdMxT6o1K9zQGMgdXwE1D62KHShZH3amVZMNVQDb9kPEJw6HuMxb96jSSBXAM5Ru",
+      data: %{
+        address:
+          "53SgPM7frd9M3BneMJ6VtW19dLXQVkNTdMxT6o1K9zQGMgdXwE1D62KHShZH3amVZMNVQDb9kPEJw6HuMxb96jSSBXAM5Ru",
+        viewkey: "1a651458fee485016e19274e3ad7cb0e7de8158e159dff9462febc91fc25410a",
+        account: 0
+      },
       currency_id: :XMR
     )
 

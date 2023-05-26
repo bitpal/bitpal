@@ -20,7 +20,7 @@ defmodule BitPal.Backend.Flowee do
   def assign_address(_backend, invoice) do
     Invoices.ensure_address(invoice, fn key ->
       index = Addresses.next_address_index(key)
-      {:ok, %{address_id: Cashaddress.derive_address(key.data, index), address_index: index}}
+      {:ok, %{address_id: Cashaddress.derive_address(key.data.xpub, index), address_index: index}}
     end)
   end
 

@@ -234,10 +234,10 @@ defmodule BitPalFactory.InvoiceFactoryTest do
 
     test "specify xpub", %{store: store} do
       xpub = "xpubtest"
-      invoice = create_invoice(store: store, address_key: xpub, unique_currency: true)
+      invoice = create_invoice(store: store, address_key: %{xpub: xpub}, unique_currency: true)
       address_key = StoreSettings.fetch_address_key!(store.id, invoice.payment_currency_id)
 
-      assert address_key.data == xpub
+      assert address_key.data == %{xpub: xpub}
       {:ok, got_address_key} = Invoices.address_key(invoice)
       assert got_address_key.id == address_key.id
     end

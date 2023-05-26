@@ -63,6 +63,7 @@ defmodule BitPal.Repo.Migrations.NewBeginning do
     create table(:currencies, primary_key: false) do
       add :id, :string, size: 8, primary_key: true
       add :block_height, :integer
+      add :top_block_hash, :string
     end
 
     create unique_index(:currencies, :id)
@@ -78,13 +79,18 @@ defmodule BitPal.Repo.Migrations.NewBeginning do
     create unique_index(:currency_settings, [:store_id, :currency_id])
 
     create table(:address_keys) do
-      add :data, :string, null: false
+      add :data, :map, null: false
       add :currency_id, references(:currencies, type: :string, size: 8), null: false
       add :currency_settings_id, references(:currency_settings)
       timestamps()
     end
 
-    create unique_index(:address_keys, :data)
+    execute("CREATE UNIQUE INDEX address_keys_xpub_idx ON address_keys((data->'xpub'));")
+
+    execute(
+      "CREATE UNIQUE INDEX address_keys_viewkey_idx ON address_keys((data->'viewkey'), (data->'address'), (data->'account'));"
+    )
+
     create index(:address_keys, :currency_settings_id)
 
     create table(:addresses, primary_key: false) do

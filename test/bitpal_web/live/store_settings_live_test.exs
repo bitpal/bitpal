@@ -144,17 +144,17 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
     test "set xpub", %{conn: conn, store: store, currency_id: currency_id} do
       {:ok, view, _html} = live(conn, ~p"/stores/#{store}/settings/crypto/#{currency_id}")
 
-      xpub = unique_address_key_id()
+      xpub = unique_address_key_xpub().xpub
 
       rendered =
         view
         |> element("form.address-key-form")
-        |> render_submit(%{"address_key" => %{data: xpub}})
+        |> render_submit(%{"address_key" => %{xpub: xpub}})
 
       assert rendered =~ xpub
       assert rendered =~ "Key updated"
 
-      assert {:ok, %AddressKey{data: ^xpub}} =
+      assert {:ok, %AddressKey{data: %{xpub: ^xpub}}} =
                StoreSettings.fetch_address_key(store.id, currency_id)
     end
 
@@ -164,7 +164,7 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
       rendered =
         view
         |> element("form", "xpub")
-        |> render_submit(%{"address_key" => %{data: ""}})
+        |> render_submit(%{"address_key" => %{xpub: ""}})
 
       assert rendered =~ "Failed to update key"
       assert {:error, :not_found} = StoreSettings.fetch_address_key(store.id, currency_id)
