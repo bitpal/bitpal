@@ -30,10 +30,10 @@
             <%= case address.address_key.data do %>
               <% %{xpub: xpub} -> %>
                 <span class="xpub"><%= xpub %></span>
-              <% %{viewkey: viewkey, address: address, account: account} -> %>
-                <span class="viewkey"><%= viewkey %></span>
-                <span class="address"><%= address %></span>
-                <span class="account"><%= account %></span>
+              <% %{viewkey: viewkey, address: _address, account: _account} -> %>
+                <span class="xpub"><%= viewkey %></span>
+                <%!-- <span class="address"><%= address %></span> --%>
+                <%!-- <span class="account"><%= account %></span> --%>
             <% end %>
             <span class="xpub-index"><%= address.address_index %></span>
             <span class="txs">

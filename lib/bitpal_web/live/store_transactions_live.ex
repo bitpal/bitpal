@@ -1,9 +1,9 @@
 defmodule BitPalWeb.StoreTransactionsLive do
   use BitPalWeb, :live_view
+  alias BitPal.Transactions
   alias BitPal.AddressEvents
   alias BitPal.StoreEvents
   alias BitPal.Stores
-  alias BitPalSchemas.TxOutput
   alias BitPalWeb.StoreLiveAuth
 
   on_mount StoreLiveAuth
@@ -14,7 +14,7 @@ defmodule BitPalWeb.StoreTransactionsLive do
 
     addresses =
       Stores.all_addresses(store.id)
-      |> Repo.preload(tx_outputs: [address: :invoice])
+      |> Repo.preload(:transactions, tx_outputs: [address: :invoice])
 
     if connected?(socket) do
       for address <- addresses do
@@ -26,7 +26,7 @@ defmodule BitPalWeb.StoreTransactionsLive do
 
     txs =
       Enum.flat_map(addresses, fn address ->
-        address.tx_outputs
+        address.transactions
       end)
 
     {:ok, assign(socket, store: store, txs: txs)}
@@ -58,22 +58,14 @@ defmodule BitPalWeb.StoreTransactionsLive do
   end
 
   @impl true
-  def handle_info({{:tx, :seen}, %{id: txid}}, socket) do
-    if tx = Repo.get_by(TxOutput, txid: txid) do
-      tx = Repo.preload(tx, address: :invoice)
-      {:noreply, assign(socket, txs: [tx | socket.assigns.txs])}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
   def handle_info({{:tx, _status}, %{id: txid}}, socket) do
-    if tx = Repo.get_by(TxOutput, txid: txid) do
-      tx = Repo.preload(tx, address: :invoice)
-      {:noreply, update_tx(tx, socket)}
-    else
-      {:noreply, socket}
+    case Transactions.fetch(txid) do
+      {:ok, tx} ->
+        tx = Repo.preload(tx, :outputs)
+        {:noreply, update_tx(tx, socket)}
+
+      _ ->
+        {:noreply, socket}
     end
   end
 

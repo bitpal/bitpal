@@ -35,6 +35,7 @@ defmodule BitPal.Backend.Monero.Wallet do
   end
 
   defp create_wallet_args(wallet_file) do
+    # FIXME specify in config somewhere
     viewkey = "1a651458fee485016e19274e3ad7cb0e7de8158e159dff9462febc91fc25410a"
 
     address =

@@ -8,7 +8,6 @@ defmodule BitPalFactory.SettingsFactory do
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.Store
   alias BitPalSettings.StoreSettings
-  alias BitPal.Crypto.Base58
 
   @spec store_settings_update_params(keyword | map) :: map
   def store_settings_update_params(params \\ %{}) do

@@ -99,7 +99,7 @@ defmodule BitPalWeb.PortalComponents do
   end
 
   def invoices_nav_link(label, %{store: store}) do
-    {label, ~p"/stores/#{store}/settings/rates"}
+    {label, ~p"/stores/#{store}/settings/invoices"}
   end
 
   def access_tokens_nav_link(label, %{store: store}) do

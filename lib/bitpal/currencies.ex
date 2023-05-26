@@ -104,7 +104,7 @@ defmodule BitPal.Currencies do
     is_test_currency?(currency_id)
   end
 
-  def valid_address_key?(currency_id, key) do
+  def valid_address_key?(_currency_id, _key) do
     false
   end
 

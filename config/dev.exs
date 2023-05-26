@@ -11,12 +11,12 @@ config :bitpal, BitPal.BackendManager,
   restart_timeout: 3_000,
   backends: [
     # BitPal.Backend.Flowee,
-    BitPal.Backend.Monero
+    # BitPal.Backend.Monero
     # This uses a completely unique currency that's only used for testing.
     # {BitPal.BackendMock, auto: true, time_between_blocks: 2_000, sync_time: 10_000}
     # These specifies currencies directly.
     # {BitPal.BackendMock, auto: true, time_between_blocks: 10 * 60 * 1_000, currency_id: :BCH},
-    # {BitPal.BackendMock, auto: true, time_between_blocks: 3 * 60 * 1_000, currency_id: :XMR}
+    {BitPal.BackendMock, auto: true, time_between_blocks: 3 * 60 * 1_000, currency_id: :XMR}
   ]
 
 config :bitpal, BitPal.ExchangeRate,
@@ -65,7 +65,8 @@ config :bitpal, BitPal.Repo,
   database: "bitpal_dev",
   hostname: "localhost",
   show_sensitive_data_on_connection_error: true,
-  pool_size: 10
+  pool_size: 20,
+  queue_target: 100
 
 config :bitpal, BitPalApi.Endpoint,
   http: [port: 4001],

@@ -7,7 +7,6 @@ defmodule BitPalWeb.StoreSettingsLive do
   alias BitPal.Repo
   alias BitPal.Stores
   alias BitPalSchemas.AccessToken
-  alias BitPalSchemas.AddressKey
   alias BitPalSchemas.CurrencySettings
   alias BitPalSettings.StoreSettings
   alias BitPalWeb.StoreLiveAuth
