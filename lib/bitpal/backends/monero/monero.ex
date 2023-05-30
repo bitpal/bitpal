@@ -1,21 +1,12 @@
 defmodule BitPal.Backend.Monero do
   use BitPal.Backend, currency_id: :XMR
-  alias BitPal.Blocks
-  alias BitPal.ExtNotificationHandler
   alias BitPal.Backend.Monero.DaemonRPC
   alias BitPal.Backend.Monero.Wallet
-  alias BitPal.Backend.Monero.Settings
-  alias BitPal.Backend.Monero.WalletRPC
-  alias BitPal.Addresses
-  alias BitPal.Transactions
-  alias BitPal.Invoices
+  alias BitPal.Backend.Monero.WalletSupervisor
+  alias BitPal.Blocks
+  alias BitPal.ExtNotificationHandler
+  alias BitPal.Stores
   require Logger
-
-  @supervisor MoneroSupervisor
-  @start_wallet Application.compile_env(:bitpal, [BitPal.Backend.Monero, :init_wallet], true)
-
-  # FIXME configurable
-  @account 0
 
   # Client API
 
@@ -68,7 +59,7 @@ defmodule BitPal.Backend.Monero do
           |> Map.put(:daemon_version, version)
           |> Map.delete(:connect_attempt)
 
-        {:noreply, state, {:continue, :start_wallet}}
+        {:noreply, state, {:continue, :init_wallets}}
 
       {:error, error} ->
         attempt = state[:connect_attempt] || 0
@@ -83,43 +74,17 @@ defmodule BitPal.Backend.Monero do
   end
 
   @impl true
-  def handle_continue(:start_wallet, state) do
-    if @start_wallet do
-      # During testing we don't want to launch an external command.
-      # Could mock this I guess, but this is the single place it's needed so this was easier.
-      Supervisor.start_link(
-        [
-          Wallet.executable_child_spec()
-        ],
-        strategy: :one_for_one,
-        name: @supervisor
-      )
+  def handle_continue(:init_wallets, state) do
+    WalletSupervisor.start_link(Map.take(state, [:log_level]) |> Enum.into([]))
+
+    # We must start wallets for all stores that have an open invoice,
+    # in order to recover transactions that may have happened while
+    # the wallet was offline.
+    for store <- Stores.with_open_invoice_currency(:XMR) do
+      WalletSupervisor.ensure_wallet(store.id, wallet_opts(state))
     end
 
-    {:noreply, state, {:continue, :connect_wallet}}
-  end
-
-  @impl true
-  def handle_continue(:connect_wallet, state) do
-    case WalletRPC.get_version(state.rpc_client) do
-      {:ok, %{"version" => version}} ->
-        state =
-          state
-          |> Map.put(:wallet_version, version)
-          |> Map.delete(:connect_attempt)
-
-        {:noreply, state, {:continue, :finalize_setup}}
-
-      {:error, error} ->
-        attempt = state[:connect_attempt] || 0
-
-        if attempt > 10 do
-          {:stop, {:shutdown, error}, state}
-        else
-          Process.sleep(state.reconnect_timeout)
-          {:noreply, Map.put(state, :connect_attempt, attempt + 1), {:continue, :connect_wallet}}
-        end
-    end
+    {:noreply, state, {:continue, :finalize_setup}}
   end
 
   @impl true
@@ -127,22 +92,37 @@ defmodule BitPal.Backend.Monero do
     {:noreply, update_sync(state)}
   end
 
+  # I'm not sure about this actually...
+  # This only gets options from the backend process
+  # while serializing all requests.
+
   @impl true
   def handle_call({:assign_address, invoice}, _from, state) do
     res =
-      Invoices.ensure_address(invoice, fn _key ->
-        {:ok, %{"address" => address, "address_index" => index}} =
-          WalletRPC.create_address(state.rpc_client, @account)
+      case WalletSupervisor.ensure_wallet(
+             invoice.store_id,
+             wallet_opts(state)
+           ) do
+        {:ok, wallet} ->
+          Wallet.assign_address(wallet, invoice)
 
-        {:ok, %{address_id: address, address_index: index}}
-      end)
+        err ->
+          err
+      end
 
     {:reply, res, state}
   end
 
   @impl true
   def handle_call({:update_address, invoice}, _from, state) do
-    check_address(state, invoice.address)
+    case WalletSupervisor.fetch_wallet(invoice.store_id) do
+      {:ok, wallet} ->
+        Wallet.update_address(wallet, invoice)
+
+      err ->
+        err
+    end
+
     {:reply, :ok, state}
   end
 
@@ -153,42 +133,22 @@ defmodule BitPal.Backend.Monero do
 
   @impl true
   def handle_info(:update_info, state) do
-    {:ok, state} = get_info(state)
+    {:ok, state} = update_info(state)
     Process.send_after(self(), :update_info, state.daemon_check_interval)
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_info({:notify, "monero:tx-notify", [txid]}, state) do
-    Logger.info("tx notify: #{txid}")
-    update_tx(txid, state)
     {:noreply, state}
   end
 
   @impl true
   def handle_info({:notify, "monero:block-notify", msg}, state) do
     Logger.info("block notify: #{inspect(msg)}")
-    {:ok, state} = get_info(state)
+    {:ok, state} = update_info(state)
     {:noreply, state}
   end
 
   @impl true
   def handle_info({:notify, "monero:reorg-notify", [new_height, split_height]}, state) do
     Logger.warn("reorg detected!: new_height: #{new_height} split_height: #{split_height}")
-
-    # Recheck all transactions that may be affected by the reorg.
-    # Maybe this should be refactored out from backends?
-    unless Blocks.reorg(:XMR, new_height, split_height) == :no_reorg do
-      # NOTE It's possible that we'll miss already paid transactions if we only check active addresses.
-      check_active_addresses(state, reorg: true)
-    end
-
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_info({:update_tx, txid}, state) do
-    update_tx(txid, state)
+    Blocks.reorg(:XMR, new_height, split_height)
     {:noreply, state}
   end
 
@@ -198,135 +158,36 @@ defmodule BitPal.Backend.Monero do
   end
 
   @impl true
-  def terminate(reason, state) do
-    # Try to save our progress when process aborts for some reason.
-    WalletRPC.store(state.rpc_client)
-    reason
-  rescue
-    _ ->
-      reason
+  def terminate(reason, _state) do
+    # Ensure that all wallets are closed together with the backend,
+    # which isn't always a guarantee.
+    try do
+      DynamicSupervisor.stop(WalletSupervisor, reason)
+    catch
+      :exit, _ -> :ok
+    end
   end
 
   # Internal impl
 
-  defp update_tx(txid, state) do
-    case WalletRPC.get_transfer_by_txid(state.rpc_client, txid, @account) do
-      {:ok, %{"transfer" => txinfo}} ->
-        update_tx_info(txinfo)
-
-      error ->
-        Logger.error("Failed to get tx: `#{txid}`: #{inspect(error)}")
-    end
-  end
-
-  defp update_tx_info(
-         %{
-           "address" => address,
-           "amount" => amount,
-           "double_spend_seen" => double_spend_seen,
-           "height" => height,
-           "txid" => txid,
-           "type" => type,
-           "unlock_time" => unlock_time
-         },
-         opts \\ []
-       ) do
-    outputs = [{address, Money.new(amount, :XMR)}]
-
-    reasonable_unlock = reasonable_unlock_time?(unlock_time)
-
-    Transactions.update(txid,
-      outputs: outputs,
-      height: height,
-      double_spent: double_spend_seen,
-      failed: type == "failed" || !reasonable_unlock,
-      reorg: Keyword.get(opts, :reorg, false)
-    )
-
-    :ok
-  end
-
-  # unlock_time not set
-  def reasonable_unlock_time?(0) do
-    true
-  end
-
-  # Integer values less than 500,000,000 are interpreted as absolute block height.
-  def reasonable_unlock_time?(unlock_time) when unlock_time < 500_000_000 do
-    unlock_time <= Blocks.fetch_height!(:XMR) + Settings.acceptable_unlock_time_blocks()
-  end
-
-  # Values greater than or equal to 500,000,000 are interpreted as an absolute Unix epoch timestamp.
-  def reasonable_unlock_time?(unlock_time) when unlock_time >= 500_000_000 do
-    last_valid =
-      NaiveDateTime.utc_now()
-      |> NaiveDateTime.truncate(:second)
-      |> NaiveDateTime.add(Settings.acceptable_unlock_time_minutes(), :minute)
-
-    unlock_dt = NaiveDateTime.add(~N[1970-01-01 00:00:00], unlock_time)
-
-    NaiveDateTime.compare(unlock_dt, last_valid) != :gt
-  rescue
-    _ ->
-      # Very large integer values cannot be converted to a datetime and will crash "add"
-      false
-  end
-
-  @spec get_info(map) :: {:ok, map} | {:error, term}
-  defp get_info(state, opts \\ []) do
+  @spec update_info(map) :: {:ok, map} | {:error, term}
+  defp update_info(state) do
     case DaemonRPC.get_info(state.rpc_client) do
-      {:ok, info} -> {:ok, update_daemon_info(info, state, opts)}
+      {:ok, info} -> {:ok, update_daemon_info(info, state)}
       {:error, error} -> {:error, error}
     end
   end
 
-  defp update_daemon_info(info, state, opts) do
+  defp update_daemon_info(info, state) do
     state
-    |> update_height(info, opts)
+    |> update_height(info)
     |> store_daemon_info(info)
   end
 
-  defp update_height(state, %{"height" => height, "top_block_hash" => hash}, opts) do
-    if Blocks.new(:XMR, height, hash) != :not_updated || opts[:force_address_check] do
-      check_active_addresses(state)
-
-      # Not sure if this is overkill, but we should store wallet progress periodically to
-      # not have to do a slow resync on restart.
-      WalletRPC.store(state.rpc_client)
-    end
-
+  defp update_height(state, %{"height" => height, "top_block_hash" => hash}) do
+    Blocks.new(:XMR, height, hash)
     state
   end
-
-  defp check_address(state, address) do
-    get_transfers(state, [address.address_index])
-  end
-
-  defp check_active_addresses(state, opts \\ []) do
-    address_indices =
-      Enum.map(Addresses.all_active(:XMR), fn a ->
-        a.address_index
-      end)
-
-    get_transfers(state, address_indices, opts)
-  end
-
-  defp get_transfers(state, address_indices, opts \\ []) do
-    {:ok, res} = WalletRPC.get_transfers(state.rpc_client, @account, address_indices)
-
-    update_txs(res["in"], opts)
-    update_txs(res["pending"], opts)
-    update_txs(res["failed"], opts)
-    update_txs(res["pool"], opts)
-  end
-
-  defp update_txs(txs, opts) when is_list(txs) do
-    for tx <- txs do
-      update_tx_info(tx, opts)
-    end
-  end
-
-  defp update_txs(_, _), do: nil
 
   defp store_daemon_info(state, info) do
     BackendEvents.broadcast({{:backend, :info}, %{info: info, currency_id: :XMR}})
@@ -334,49 +195,38 @@ defmodule BitPal.Backend.Monero do
   end
 
   defp update_sync(state) do
-    {:ok, %{"height" => wallet_height}} = WalletRPC.get_height(state.rpc_client)
-
     {:ok, %{"height" => daemon_height, "target_height" => target_height}} =
       DaemonRPC.sync_info(state.rpc_client)
 
-    cond do
-      target_height == 0 && wallet_height == daemon_height ->
-        # We're all synced up
+    if target_height == 0 do
+      # Wait until wallet and daemon are connected before we accept notifies.
+      # Protects against race conditions where we try to make RPC calls that will
+      # fail because they aren't ready yet.
+      # Since we do this in continue that won't happen anyway, but this way we ignore
+      # notifies that we shouldn't act on anyway.
+      ExtNotificationHandler.subscribe("monero:block-notify")
+      ExtNotificationHandler.subscribe("monero:reorg-notify")
 
-        # Wait until wallet and daemon are connected before we accept notifies.
-        # Protects against race conditions where we try to make RPC calls that will
-        # fail because they aren't ready yet.
-        # Since we do this in continue that won't happen anyway, but this way we ignore
-        # notifies that we shouldn't act on anyway.
-        ExtNotificationHandler.subscribe("monero:tx-notify")
-        ExtNotificationHandler.subscribe("monero:block-notify")
-        ExtNotificationHandler.subscribe("monero:reorg-notify")
+      {:ok, state} = update_info(state)
 
-        {:ok, state} = get_info(state, force_address_check: true)
+      # We should poll regularly even though we also use notifications.
+      Process.send_after(self(), :update_info, state.daemon_check_interval)
 
-        # We should poll regularly even though we also use notifications.
-        Process.send_after(self(), :update_info, state.daemon_check_interval)
+      sync_done()
 
-        sync_done()
+      state
+    else
+      set_syncing({daemon_height, target_height})
 
-        state
+      Process.send_after(self(), :update_sync, state.sync_check_interval)
 
-      target_height == 0 ->
-        # Daemon is synced, but wallet is not
-        set_syncing({wallet_height, daemon_height})
-
-        Process.send_after(self(), :update_sync, state.sync_check_interval)
-
-        state
-
-      true ->
-        # Daemon isn't synced
-        set_syncing({min(wallet_height, daemon_height), target_height})
-
-        Process.send_after(self(), :update_sync, state.sync_check_interval)
-
-        state
+      state
     end
+  end
+
+  defp wallet_opts(state) do
+    Map.take(state, [:rpc_client, :reconnect_timeout, :log_level])
+    |> Enum.into([])
   end
 
   defp create_info(state) do

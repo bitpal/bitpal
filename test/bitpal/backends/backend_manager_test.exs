@@ -55,7 +55,7 @@ defmodule BackendManagerTest do
       assert_receive {:DOWN, ^mock_ref, _, _, _}
 
       # And then wait until it's been restarted again
-      # FIXME this sometimes times out
+      # NOTE this sometimes times out
       assert eventually(fn -> BackendManager.status(manager, c) == :ready end)
     end
 

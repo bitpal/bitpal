@@ -77,7 +77,7 @@ defmodule BitPalSchemas.InvoiceStatusTest do
 
       valid = %{
         :draft => [:open],
-        :open => [:processing, :uncollectible, :void],
+        :open => [:processing, :paid, :uncollectible, :void],
         :processing => [:paid, :uncollectible],
         :uncollectible => [:paid, :void]
       }

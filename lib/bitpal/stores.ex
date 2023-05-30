@@ -1,6 +1,6 @@
 defmodule BitPal.Stores do
   import Ecto.Changeset
-  import Ecto.Query, only: [from: 2]
+  import Ecto.Query
   alias BitPal.Invoices
   alias BitPal.Repo
   alias BitPal.UserEvents
@@ -150,6 +150,16 @@ defmodule BitPal.Stores do
       select: a,
       order_by: [asc: a.inserted_at, asc: a.address_index]
     )
+    |> Repo.all()
+  end
+
+  @spec with_open_invoice_currency(Currency.id()) :: [Store.t()]
+  def with_open_invoice_currency(currency_id) do
+    Invoice
+    |> Invoices.with_status(:open)
+    |> where([i], i.payment_currency_id == ^currency_id)
+    |> join(:inner, [i], s in Store, on: i.store_id == s.id)
+    |> select([i, s], s)
     |> Repo.all()
   end
 

@@ -11,7 +11,7 @@ defmodule BitPal.Backend.FloweeTest do
   alias BitPal.MockTCPClient
 
   @currency :BCH
-  @xpub Application.compile_env!(:bitpal, [:BCH, :xpub])
+  @xpub "xpub6C23JpFE6ABbBudoQfwMU239R5Bm6QGoigtLq1BD3cz3cC6DUTg89H3A7kf95GDzfcTis1K1m7ypGuUPmXCaCvoxDKbeNv6wRBEGEnt1NV7"
   @client BitPal.FloweeMock
 
   setup :set_mox_from_context
@@ -369,9 +369,6 @@ defmodule BitPal.Backend.FloweeTest do
              last == FloweeFixtures.get_block_690932_1() ||
                last == FloweeFixtures.get_block_690932_2()
            end)
-
-    # FIXME if this never pass, we get an "updating stale scruct" error.
-    # That should not happen!
 
     # At this point, Flowee should not report being ready.
     assert {:recovering, {690_931, 690_933}} = BackendManager.status(@currency)

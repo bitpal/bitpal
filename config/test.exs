@@ -43,8 +43,6 @@ config :bitpal, BitPal.Repo,
   pool_size: 20,
   queue_target: 2_000
 
-# queue_limit: 2_000
-
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :bitpal, BitPalApi.Endpoint,
@@ -60,10 +58,6 @@ config :argon2_elixir, t_cost: 1, m_cost: 8
 
 # In test we don't send emails.
 config :bitpal, BitPal.Mailer, adapter: Swoosh.Adapters.Test
-
-config :bitpal, :BCH,
-  xpub:
-    "xpub6C23JpFE6ABbBudoQfwMU239R5Bm6QGoigtLq1BD3cz3cC6DUTg89H3A7kf95GDzfcTis1K1m7ypGuUPmXCaCvoxDKbeNv6wRBEGEnt1NV7"
 
 config :bitpal, BitPalFactory, init: true
 config :bitpal, BitPal.InvoiceSupervisor, pass_parent_pid: true

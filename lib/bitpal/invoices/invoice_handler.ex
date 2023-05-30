@@ -407,13 +407,16 @@ defmodule BitPal.InvoiceHandler do
       invoice.transactions
       |> Enum.sort_by(fn tx -> tx.id end)
       |> Enum.map(fn tx ->
-        [tx.height, tx.failed, tx.double_spent]
+        [tx.height, boolean_key(tx.failed), boolean_key(tx.double_spent)]
       end)
       |> List.flatten()
 
     [invoice.confirmations_due | tx_info]
     |> Enum.join(":")
   end
+
+  defp boolean_key(true), do: "1"
+  defp boolean_key(false), do: "0"
 
   @spec via_tuple(Invoice.id()) :: {:via, Registry, any}
   def via_tuple(invoice_id) do

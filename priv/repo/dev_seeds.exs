@@ -20,6 +20,7 @@ defmodule BitPal.DevSeeds do
       },
       currency_id: :BCH
     )
+    # restore_height = 1_349_159
     |> with_address_key(
       data: %{
         address:

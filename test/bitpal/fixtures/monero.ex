@@ -101,65 +101,30 @@ defmodule BitPal.Backend.MoneroFixtures do
     {:ok, %{"height" => height}}
   end
 
-  def create_address(index) do
-    addresses = [
-      %{
-        "address" =>
-          "7BSZWuzWzdC21DUUe7GsP633YjU9B5VjpA6mngJxLykBhWJy3Zye6QrE8kx2jZHbzDGJFM1qwKyscBKj9toScSF76Bz6qPg",
-        "address_index" => 1,
-        "address_indices" => [1],
-        "addresses" => [
-          "7BSZWuzWzdC21DUUe7GsP633YjU9B5VjpA6mngJxLykBhWJy3Zye6QrE8kx2jZHbzDGJFM1qwKyscBKj9toScSF76Bz6qPg"
-        ]
-      },
-      %{
-        "address" =>
-          "77vB4KhCg4Za8dZsBmpPbZ7yGAT5riypR4KUa2QBe5t7PWuh37hFkYb8MF99esxJg1DpRMo3e92Y1Vf1LaotfLgRHvCLwVE",
-        "address_index" => 2,
-        "address_indices" => [2],
-        "addresses" => [
-          "77vB4KhCg4Za8dZsBmpPbZ7yGAT5riypR4KUa2QBe5t7PWuh37hFkYb8MF99esxJg1DpRMo3e92Y1Vf1LaotfLgRHvCLwVE"
-        ]
-      },
-      %{
-        "address" =>
-          "7BGsmtChJUrKUCk3EuPCsBfFaRNe7vSGJ5oJfPnc3K9v5meaVUyCAumRCCJwfEtRd1QxXktYdc1LFJJKiyav2UUVCUK654R",
-        "address_index" => 3,
-        "address_indices" => [3],
-        "addresses" => [
-          "7BGsmtChJUrKUCk3EuPCsBfFaRNe7vSGJ5oJfPnc3K9v5meaVUyCAumRCCJwfEtRd1QxXktYdc1LFJJKiyav2UUVCUK654R"
-        ]
-      },
-      %{
-        "address" =>
-          "78fEno52zxyG1fpNmCU3QiJH7xReDnsusZ1UsKNLEPVmFaMXeEBEaY8BmksbpsKmm1DKrVg6pbbAcEkr32qM7J6gEBrSTYU",
-        "address_index" => 4,
-        "address_indices" => [4],
-        "addresses" => [
-          "78fEno52zxyG1fpNmCU3QiJH7xReDnsusZ1UsKNLEPVmFaMXeEBEaY8BmksbpsKmm1DKrVg6pbbAcEkr32qM7J6gEBrSTYU"
-        ]
-      },
-      %{
-        "address" =>
-          "75vp9o2ksjsSiwbRXkQxpditaJiNJ3Ytfhgj3SD78zimVKPSqGfZUu3Ti6oE67ek1a1rSFwnRb7LAioA5vui9xAgGjjCy7w",
-        "address_index" => 5,
-        "address_indices" => [5],
-        "addresses" => [
-          "75vp9o2ksjsSiwbRXkQxpditaJiNJ3Ytfhgj3SD78zimVKPSqGfZUu3Ti6oE67ek1a1rSFwnRb7LAioA5vui9xAgGjjCy7w"
-        ]
-      },
-      %{
-        "address" =>
-          "72br8qdco9TAy3DP6C92mqHdq1T6biBgYYxeyYD9HWzSPpjLa8GBogXcX5uXXNHT7Zegb1RSL6yyH4Q1pYu4fEH6NZVzSW6",
-        "address_index" => 6,
-        "address_indices" => [6],
-        "addresses" => [
-          "72br8qdco9TAy3DP6C92mqHdq1T6biBgYYxeyYD9HWzSPpjLa8GBogXcX5uXXNHT7Zegb1RSL6yyH4Q1pYu4fEH6NZVzSW6"
-        ]
-      }
+  def addresses do
+    [
+      "7BSZWuzWzdC21DUUe7GsP633YjU9B5VjpA6mngJxLykBhWJy3Zye6QrE8kx2jZHbzDGJFM1qwKyscBKj9toScSF76Bz6qPg",
+      "77vB4KhCg4Za8dZsBmpPbZ7yGAT5riypR4KUa2QBe5t7PWuh37hFkYb8MF99esxJg1DpRMo3e92Y1Vf1LaotfLgRHvCLwVE",
+      "7BGsmtChJUrKUCk3EuPCsBfFaRNe7vSGJ5oJfPnc3K9v5meaVUyCAumRCCJwfEtRd1QxXktYdc1LFJJKiyav2UUVCUK654R",
+      "78fEno52zxyG1fpNmCU3QiJH7xReDnsusZ1UsKNLEPVmFaMXeEBEaY8BmksbpsKmm1DKrVg6pbbAcEkr32qM7J6gEBrSTYU",
+      "75vp9o2ksjsSiwbRXkQxpditaJiNJ3Ytfhgj3SD78zimVKPSqGfZUu3Ti6oE67ek1a1rSFwnRb7LAioA5vui9xAgGjjCy7w",
+      "72br8qdco9TAy3DP6C92mqHdq1T6biBgYYxeyYD9HWzSPpjLa8GBogXcX5uXXNHT7Zegb1RSL6yyH4Q1pYu4fEH6NZVzSW6"
     ]
+  end
 
-    {:ok, Enum.at(addresses, index - 1)}
+  def create_address(opts \\ []) do
+    index = opts[:index] || 1
+    address = opts[:address] || Enum.at(addresses(), index - 1)
+
+    {:ok,
+     %{
+       "address" => address,
+       "address_index" => index,
+       "address_indices" => [index],
+       "addresses" => [
+         address
+       ]
+     }}
   end
 
   def get_accounts do

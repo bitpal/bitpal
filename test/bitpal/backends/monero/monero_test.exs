@@ -2,7 +2,9 @@ defmodule BitPal.Backend.MoneroTest do
   use ExUnit.Case, async: false
   use BitPal.CaseHelpers
   import Mox
+  alias BitPal.InvoiceEvents
   alias BitPal.Backend.Monero
+  alias BitPal.Backend.Monero.Wallet
   alias BitPal.Backend.Monero.Settings
   alias BitPal.Backend.MoneroFixtures
   alias BitPal.BackendManager
@@ -32,13 +34,13 @@ defmodule BitPal.Backend.MoneroTest do
 
     MockRPCClient.init_mock(@client, missing_call_reply: tags[:missing_call_reply])
 
-    MockRPCClient.stub(@client, "store", fn _ ->
-      {:ok, %{}}
-    end)
-
     if Map.get(tags, :init_backend, true) do
       if Map.get(tags, :init_messages, true) do
-        init_messages(tags)
+        node_init_messages(tags)
+      end
+
+      if Map.get(tags, :init_wallet_messages, true) do
+        wallet_init_messages(tags)
       end
 
       res = init_backend(tags)
@@ -53,21 +55,12 @@ defmodule BitPal.Backend.MoneroTest do
     end
   end
 
-  defp init_messages(opts \\ []) do
+  defp node_init_messages(opts \\ []) do
     height = opts[:height] || 10
     block_hash = opts[:block_hash] || CurrencyFactory.unique_block_id()
 
-    # Yeah it's confusing that we have the same mock function for both wallets and daemons...
     MockRPCClient.expect(@client, "get_version", fn _ ->
       MoneroFixtures.daemon_get_version()
-    end)
-
-    MockRPCClient.expect(@client, "get_version", fn _ ->
-      MoneroFixtures.wallet_get_version()
-    end)
-
-    MockRPCClient.expect(@client, "get_height", fn _ ->
-      MoneroFixtures.get_height(height: height)
     end)
 
     MockRPCClient.expect(@client, "sync_info", fn _ ->
@@ -76,6 +69,12 @@ defmodule BitPal.Backend.MoneroTest do
 
     MockRPCClient.expect(@client, "get_info", fn _ ->
       MoneroFixtures.get_info(height: height, hash: block_hash)
+    end)
+  end
+
+  defp wallet_init_messages(opts \\ []) do
+    MockRPCClient.expect(@client, "get_version", fn _ ->
+      MoneroFixtures.wallet_get_version()
     end)
 
     MockRPCClient.expect(@client, "get_transfers", fn _ ->
@@ -110,8 +109,8 @@ defmodule BitPal.Backend.MoneroTest do
       })
 
     if params.status != :draft do
-      MockRPCClient.expect(@client, "create_address", fn %{account_index: 0} ->
-        MoneroFixtures.create_address(1)
+      MockRPCClient.expect(@client, "create_address", fn _key ->
+        MoneroFixtures.create_address(Map.take(params, [:address, :index]))
       end)
     end
 
@@ -145,60 +144,37 @@ defmodule BitPal.Backend.MoneroTest do
   defp notify_tx(opts) do
     opts = Keyword.put_new_lazy(opts, :txid, &TransactionFactory.unique_txid/0)
     txid = Keyword.fetch!(opts, :txid)
+    store_id = Keyword.fetch!(opts, :store_id)
 
     MockRPCClient.expect(@client, "get_transfer_by_txid", fn %{txid: ^txid, account_index: 0} ->
       MoneroFixtures.get_transfer_by_txid(opts)
     end)
 
-    send(ExtNotificationHandler, {:notify, ["monero:tx-notify", txid], 0})
+    send(ExtNotificationHandler, {:notify, ["monero:tx-notify", txid, "#{store_id}"], 0})
 
     txid
   end
 
   describe "setup and sync" do
+    @tag init_wallet_messages: false
     @tag missing_call_reply: {:error, :connerror}, init_backend: false
     test "successful setup with sync reporting" do
       BackendStatusSupervisor.configure_status_handler(@currency, %{rate_limit: 1})
 
-      # Connection with daemon
       MockRPCClient.expect(@client, "get_version", fn _ ->
         MoneroFixtures.daemon_get_version()
-      end)
-
-      # Connection with wallet
-      MockRPCClient.expect(@client, "get_version", fn _ ->
-        MoneroFixtures.wallet_get_version()
-      end)
-
-      # Initial sync request
-      MockRPCClient.expect(@client, "get_height", fn _ ->
-        MoneroFixtures.get_height(height: 10)
       end)
 
       MockRPCClient.expect(@client, "sync_info", fn _ ->
         MoneroFixtures.sync_info(height: 10, target_height: 20)
       end)
 
-      # Daemon has synced, but not the wallet
-      MockRPCClient.expect(@client, "get_height", fn _ ->
-        MoneroFixtures.get_height(height: 15)
+      MockRPCClient.expect(@client, "sync_info", fn _ ->
+        MoneroFixtures.sync_info(height: 15, target_height: 20)
       end)
 
       MockRPCClient.expect(@client, "sync_info", fn _ ->
         MoneroFixtures.sync_info(height: 20, target_height: 0)
-      end)
-
-      # Wallet has also synced
-      MockRPCClient.expect(@client, "get_height", fn _ ->
-        MoneroFixtures.get_height(height: 20)
-      end)
-
-      MockRPCClient.expect(@client, "sync_info", fn _ ->
-        MoneroFixtures.sync_info(height: 20, target_height: 0)
-      end)
-
-      MockRPCClient.stub(@client, "get_transfers", fn _ ->
-        MoneroFixtures.get_transfers()
       end)
 
       MockRPCClient.expect(@client, "get_info", fn _ ->
@@ -216,15 +192,21 @@ defmodule BitPal.Backend.MoneroTest do
       eventually(fn ->
         Blocks.fetch_height(@currency) == {:ok, 21}
       end)
+
+      MockRPCClient.verify!(@client)
     end
 
+    @tag init_wallet_messages: false
     @tag missing_call_reply: {:error, :connerror}, init_messages: false
     test "stops after init if we can't connect" do
       assert eventually(fn ->
                BackendManager.status(@currency) == {:stopped, {:shutdown, :connerror}}
              end)
+
+      MockRPCClient.verify!(@client)
     end
 
+    @tag init_wallet_messages: false
     @tag restart: :transient, log_level: :critical
     test "restart after closed connection" do
       assert eventually(fn ->
@@ -235,21 +217,22 @@ defmodule BitPal.Backend.MoneroTest do
         {:error, :econnerror}
       end)
 
-      init_messages()
+      node_init_messages()
 
       send(ExtNotificationHandler, {:notify, ["monero:block-notify", "block-id"], 0})
 
       assert_receive {{:backend, :status},
                       %{
-                        status: {:stopped, {:error, :unknown}},
-                        currency_id: @currency
+                        status: {:stopped, {:error, :unknown}}
                       }}
 
-      assert_receive {{:backend, :status}, %{status: :starting, currency_id: @currency}}
+      assert_receive {{:backend, :status}, %{status: :starting}}
+      assert_receive {{:backend, :status}, %{status: :ready}}
     end
   end
 
   describe "blocks" do
+    @tag init_wallet_messages: false
     test "increase block height" do
       assert eventually(fn ->
                Blocks.fetch_height(@currency) == {:ok, 10}
@@ -268,7 +251,7 @@ defmodule BitPal.Backend.MoneroTest do
       invoice = test_invoice(store: store)
 
       MockRPCClient.expect(@client, "create_address", fn %{account_index: 0} ->
-        MoneroFixtures.create_address(1)
+        MoneroFixtures.create_address()
       end)
 
       assert invoice.address_id == nil
@@ -279,7 +262,7 @@ defmodule BitPal.Backend.MoneroTest do
     test "assigns new subaddresses", %{store: store} do
       for i <- 1..4 do
         MockRPCClient.expect(@client, "create_address", fn %{account_index: 0} ->
-          MoneroFixtures.create_address(i)
+          MoneroFixtures.create_address(index: i)
         end)
 
         invoice = test_invoice(store: store)
@@ -323,7 +306,8 @@ defmodule BitPal.Backend.MoneroTest do
         txid: txid,
         height: 0,
         amount: inv.expected_payment.amount,
-        address: inv.address_id
+        address: inv.address_id,
+        store_id: store.id
       )
 
       HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
@@ -368,7 +352,8 @@ defmodule BitPal.Backend.MoneroTest do
         txid: txid,
         height: 0,
         amount: inv.expected_payment.amount,
-        address: inv.address_id
+        address: inv.address_id,
+        store_id: store.id
       )
 
       HandlerSubscriberCollector.await_msg(stub, {:invoice, :uncollectible})
@@ -390,7 +375,12 @@ defmodule BitPal.Backend.MoneroTest do
           manager: manager
         )
 
-      notify_tx(height: 10, amount: inv.expected_payment.amount, address: inv.address_id)
+      notify_tx(
+        height: 10,
+        amount: inv.expected_payment.amount,
+        address: inv.address_id,
+        store_id: store.id
+      )
 
       HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
 
@@ -414,9 +404,19 @@ defmodule BitPal.Backend.MoneroTest do
           manager: manager
         )
 
+      InvoiceEvents.subscribe(inv)
+
       # First we see an unconfirmed tx
 
-      txid = notify_tx(amount: inv.expected_payment.amount, height: 0, address: inv.address_id)
+      txid =
+        notify_tx(
+          amount: inv.expected_payment.amount,
+          height: 0,
+          address: inv.address_id,
+          store_id: store.id
+        )
+
+      assert_receive {{:invoice, :processing}, %{confirmations_due: 3}}
 
       # Then issue block and mark tx as included in the block
 
@@ -430,12 +430,14 @@ defmodule BitPal.Backend.MoneroTest do
       end)
 
       increase_block(height: 11)
+      assert_receive {{:invoice, :processing}, %{confirmations_due: 2}}
 
       # Then more blocks
 
       increase_block(height: 12)
-      increase_block(height: 13)
+      assert_receive {{:invoice, :processing}, %{confirmations_due: 1}}
 
+      increase_block(height: 13)
       HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
 
       assert [
@@ -445,6 +447,67 @@ defmodule BitPal.Backend.MoneroTest do
                {{:invoice, :processing}, %{confirmations_due: 1}},
                {{:invoice, :paid}, _}
              ] = HandlerSubscriberCollector.received(stub)
+
+      # MockRPCClient.verify!(@client)
+    end
+
+    @tag do: true
+    test "multiple stores and wallets", %{store: store1, manager: manager} do
+      store2 = create_store()
+      _key2 = get_or_create_address_key(store2.id, @currency)
+
+      {:ok, inv1, stub1, _handler} =
+        test_invoice(
+          store: store1,
+          required_confirmations: 2,
+          payment_currency: :XMR,
+          status: :open,
+          manager: manager,
+          address: Enum.at(MoneroFixtures.addresses(), 0)
+        )
+
+      InvoiceEvents.subscribe(inv1)
+      inv1_id = inv1.id
+
+      wallet_init_messages()
+
+      {:ok, inv2, stub2, _handler} =
+        test_invoice(
+          store: store2,
+          required_confirmations: 2,
+          payment_currency: :XMR,
+          status: :open,
+          manager: manager,
+          address: Enum.at(MoneroFixtures.addresses(), 1)
+        )
+
+      InvoiceEvents.subscribe(inv2)
+      inv2_id = inv2.id
+
+      _txid1 =
+        notify_tx(
+          amount: inv1.expected_payment.amount,
+          height: 10,
+          address: inv1.address_id,
+          store_id: store1.id
+        )
+
+      assert_receive {{:invoice, :processing}, %{id: ^inv1_id, confirmations_due: 1}}
+      refute_receive {{:invoice, :processing}, %{id: ^inv2_id, confirmations_due: 1}}
+
+      _txid2 =
+        notify_tx(
+          amount: inv2.expected_payment.amount,
+          height: 10,
+          address: inv2.address_id,
+          store_id: store2.id
+        )
+
+      assert_receive {{:invoice, :processing}, %{id: ^inv2_id, confirmations_due: 1}}
+
+      increase_block(height: 12)
+      HandlerSubscriberCollector.await_msg(stub1, {:invoice, :paid})
+      HandlerSubscriberCollector.await_msg(stub2, {:invoice, :paid})
     end
   end
 
@@ -456,11 +519,11 @@ defmodule BitPal.Backend.MoneroTest do
 
       valid_block_count = Settings.acceptable_unlock_time_blocks()
 
-      assert Monero.reasonable_unlock_time?(0)
-      assert Monero.reasonable_unlock_time?(100)
+      assert Wallet.reasonable_unlock_time?(0)
+      assert Wallet.reasonable_unlock_time?(100)
 
-      assert Monero.reasonable_unlock_time?(100 + valid_block_count)
-      assert !Monero.reasonable_unlock_time?(101 + valid_block_count)
+      assert Wallet.reasonable_unlock_time?(100 + valid_block_count)
+      assert !Wallet.reasonable_unlock_time?(101 + valid_block_count)
 
       valid_minutes = Settings.acceptable_unlock_time_minutes()
 
@@ -469,11 +532,11 @@ defmodule BitPal.Backend.MoneroTest do
         |> NaiveDateTime.truncate(:second)
         |> NaiveDateTime.diff(~N[1970-01-01 00:00:00])
 
-      assert Monero.reasonable_unlock_time?(500_000_000)
-      assert Monero.reasonable_unlock_time?(seconds_since_epoch)
-      assert Monero.reasonable_unlock_time?(seconds_since_epoch + valid_minutes * 60)
-      assert !Monero.reasonable_unlock_time?(seconds_since_epoch + valid_minutes * 60 + 1)
-      assert !Monero.reasonable_unlock_time?(999_999_999_999)
+      assert Wallet.reasonable_unlock_time?(500_000_000)
+      assert Wallet.reasonable_unlock_time?(seconds_since_epoch)
+      assert Wallet.reasonable_unlock_time?(seconds_since_epoch + valid_minutes * 60)
+      assert !Wallet.reasonable_unlock_time?(seconds_since_epoch + valid_minutes * 60 + 1)
+      assert !Wallet.reasonable_unlock_time?(999_999_999_999)
     end
 
     test "fail tx with unreasonable unlock time", %{store: store, manager: manager} do
@@ -499,7 +562,7 @@ defmodule BitPal.Backend.MoneroTest do
         )
       end)
 
-      send(ExtNotificationHandler, {:notify, ["monero:tx-notify", txid], 0})
+      send(ExtNotificationHandler, {:notify, ["monero:tx-notify", txid, store.id], 0})
 
       HandlerSubscriberCollector.await_msg(stub, {:invoice, :uncollectible})
     end
@@ -528,11 +591,12 @@ defmodule BitPal.Backend.MoneroTest do
 
       txid = TransactionFactory.unique_txid()
 
-      init_messages(
+      node_init_messages(block_hash: "block-hash")
+
+      wallet_init_messages(
         txs: [
           %{amount: inv.expected_payment.amount, height: 0, txid: txid, address: inv.address_id}
-        ],
-        block_hash: "block-hash"
+        ]
       )
 
       MockRPCClient.expect(@client, "get_transfers", fn %{
@@ -571,6 +635,8 @@ defmodule BitPal.Backend.MoneroTest do
           manager: manager
         )
 
+      InvoiceEvents.subscribe(inv)
+
       BackendManager.stop_backend(manager, :XMR)
 
       assert_receive {{:backend, :status}, %{status: {:stopped, _}}}
@@ -581,18 +647,24 @@ defmodule BitPal.Backend.MoneroTest do
 
       txid = TransactionFactory.unique_txid()
 
-      init_messages(
+      node_init_messages(height: 12)
+
+      wallet_init_messages(
         txs: [
           %{amount: inv.expected_payment.amount, height: 11, txid: txid, address: inv.address_id}
-        ],
-        height: 12
+        ]
       )
+
+      MockRPCClient.expect(@client, "get_transfers", fn _ ->
+        MoneroFixtures.get_transfers()
+      end)
 
       BackendManager.restart_backend(manager, :XMR)
 
       # Must wait until the backend is ready and has subscribed to block-notify
       # before we send the bLock
       assert eventually(fn -> BackendManager.is_ready(:XMR) end)
+      assert_receive {{:invoice, :processing}, %{confirmations_due: 1}}
 
       increase_block(height: 13)
 
@@ -616,6 +688,8 @@ defmodule BitPal.Backend.MoneroTest do
           manager: manager
         )
 
+      InvoiceEvents.subscribe(inv)
+
       BackendManager.stop_backend(manager, :XMR)
 
       assert_receive {{:backend, :status}, %{status: {:stopped, _}}}
@@ -626,7 +700,9 @@ defmodule BitPal.Backend.MoneroTest do
 
       txid = TransactionFactory.unique_txid()
 
-      init_messages(
+      node_init_messages(height: 13)
+
+      wallet_init_messages(
         txs: [
           %{
             amount: inv.expected_payment.amount,
@@ -634,23 +710,18 @@ defmodule BitPal.Backend.MoneroTest do
             txid: txid,
             address: inv.address_id
           }
-        ],
-        height: 13
+        ]
       )
+
+      MockRPCClient.expect(@client, "get_transfers", fn _ ->
+        MoneroFixtures.get_transfers()
+      end)
 
       BackendManager.restart_backend(manager, :XMR)
 
-      # Must wait until the backend is ready and has subscribed to block-notify
-      # before we send the bLock
       assert eventually(fn -> BackendManager.is_ready(:XMR) end)
 
       HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
-
-      assert [
-               {{:invoice, :finalized}, _},
-               {{:invoice, :processing}, _},
-               {{:invoice, :paid}, _}
-             ] = HandlerSubscriberCollector.received(stub)
     end
   end
 
@@ -665,9 +736,21 @@ defmodule BitPal.Backend.MoneroTest do
           manager: manager
         )
 
-      txid = notify_tx(height: 10, amount: inv.expected_payment.amount, address: inv.address_id)
+      txid =
+        notify_tx(
+          height: 10,
+          amount: inv.expected_payment.amount,
+          address: inv.address_id,
+          store_id: store.id
+        )
+
+      HandlerSubscriberCollector.await_msg(stub, {:invoice, :processing})
+
       increase_block(height: 11)
+      HandlerSubscriberCollector.await_msg(stub, {:invoice, :processing})
+
       increase_block(height: 12)
+      HandlerSubscriberCollector.await_msg(stub, {:invoice, :processing})
 
       # Reorg both blocks above the tx with a longer chain
 
@@ -706,8 +789,19 @@ defmodule BitPal.Backend.MoneroTest do
           manager: manager
         )
 
+      InvoiceEvents.subscribe(inv)
+
       increase_block(height: 11)
-      txid = notify_tx(height: 11, amount: inv.expected_payment.amount, address: inv.address_id)
+
+      txid =
+        notify_tx(
+          height: 11,
+          amount: inv.expected_payment.amount,
+          address: inv.address_id,
+          store_id: store.id
+        )
+
+      assert_receive {{:invoice, :processing}, %{confirmations_due: 3}}
 
       # Reorg tx and make it unconfirmed
 
@@ -725,6 +819,10 @@ defmodule BitPal.Backend.MoneroTest do
         {:notify, ["monero:reorg-notify", 13, 10], 0}
       )
 
+      assert_receive {{:invoice, :processing}, %{confirmations_due: 4}}
+
+      HandlerSubscriberCollector.await_msg(stub, {:invoice, :processing})
+
       increase_block(
         height: 14,
         txs: [
@@ -732,10 +830,15 @@ defmodule BitPal.Backend.MoneroTest do
         ]
       )
 
-      increase_block(height: 15)
-      increase_block(height: 16)
-      increase_block(height: 17)
+      assert_receive {{:invoice, :processing}, %{confirmations_due: 3}}
 
+      increase_block(height: 15)
+      assert_receive {{:invoice, :processing}, %{confirmations_due: 2}}
+
+      increase_block(height: 16)
+      assert_receive {{:invoice, :processing}, %{confirmations_due: 1}}
+
+      increase_block(height: 17)
       HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
 
       assert [

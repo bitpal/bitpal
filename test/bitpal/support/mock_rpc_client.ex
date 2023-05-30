@@ -83,7 +83,10 @@ defmodule BitPal.MockRPCClient do
 
   @impl GenServer
   def handle_call(:verify!, _, state) do
-    assert Enum.empty?(state.expected), "unused expected: #{inspect(state.expected)}"
+    for {method, calls} <- state.expected do
+      assert Enum.empty?(calls), "unused expected: #{method} #{inspect(calls)}"
+    end
+
     {:reply, :ok, state}
   end
 

@@ -2,14 +2,17 @@ defmodule BitPal.Backend.Monero.Settings do
   def net, do: fetch_config!(:net)
   def daemon_ip, do: fetch_config!(:daemon_ip)
   def daemon_port, do: fetch_config!(:daemon_port)
-  def wallet_port, do: fetch_config!(:wallet_port)
 
   def daemon_uri do
-    "http://localhost:#{daemon_port()}/json_rpc"
+    "http://#{daemon_address()}/json_rpc"
   end
 
-  def wallet_uri do
-    "http://localhost:#{wallet_port()}/json_rpc"
+  def daemon_address do
+    "#{daemon_ip()}:#{daemon_port()}"
+  end
+
+  def wallet_uri(port) do
+    "http://localhost:#{port}/json_rpc"
   end
 
   def acceptable_unlock_time_blocks do
