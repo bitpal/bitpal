@@ -153,13 +153,16 @@ defmodule BitPal.Stores do
     |> Repo.all()
   end
 
-  @spec with_open_invoice_currency(Currency.id()) :: [Store.t()]
-  def with_open_invoice_currency(currency_id) do
-    Invoice
-    |> Invoices.with_status(:open)
-    |> where([i], i.payment_currency_id == ^currency_id)
-    |> join(:inner, [i], s in Store, on: i.store_id == s.id)
-    |> select([i, s], s)
+  @spec with_address_key(Currency.id()) :: [{Store.t(), AddressKey.t()}]
+  def with_address_key(currency_id) do
+    from(s in Store,
+      inner_join: set in CurrencySettings,
+      on: s.id == set.store_id,
+      where: set.currency_id == ^currency_id,
+      inner_join: key in AddressKey,
+      on: key.currency_settings_id == set.id,
+      select: {s, key}
+    )
     |> Repo.all()
   end
 

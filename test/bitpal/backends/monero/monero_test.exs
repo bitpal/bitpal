@@ -80,6 +80,15 @@ defmodule BitPal.Backend.MoneroTest do
     MockRPCClient.expect(@client, "get_transfers", fn _ ->
       MoneroFixtures.get_transfers(opts[:txs] || [])
     end)
+
+    # FIXME this is a hack to prevent some tests from sometimes
+    # needing a response to this.
+    # But other times "sync_info" is missing...
+    MockRPCClient.stub(@client, "get_transfers", fn _ ->
+      MoneroFixtures.get_transfers([])
+    end)
+
+    # FIXME DBConnection.ConnectionError error sometimes appears
   end
 
   defp init_backend(tags) do

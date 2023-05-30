@@ -121,12 +121,10 @@ defmodule BitPal.Backend.Monero.Wallet do
   end
 
   @impl true
-  def handle_info({:notify, "monero:tx-notify", msg = [txid, store_id]}, state) do
+  def handle_info({:notify, "monero:tx-notify", [txid, store_id]}, state) do
     if match_store?(state.store_id, store_id) do
       Logger.info("tx notify: #{txid}")
       update_tx(txid, state)
-    else
-      Logger.info("skip notify")
     end
 
     {:noreply, state}

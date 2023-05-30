@@ -77,11 +77,15 @@ defmodule BitPal.Backend.Monero do
   def handle_continue(:init_wallets, state) do
     WalletSupervisor.start_link(Map.take(state, [:log_level]) |> Enum.into([]))
 
-    # We must start wallets for all stores that have an open invoice,
-    # in order to recover transactions that may have happened while
-    # the wallet was offline.
-    for store <- Stores.with_open_invoice_currency(:XMR) do
-      WalletSupervisor.ensure_wallet(store.id, wallet_opts(state))
+    # Immediately start wallets for all stores with an (hopefully) valid address key.
+    # - To identify transactions/confirmations that may have happened while we were offline.
+    # - To make the first invoice creation fast (otherwise starting up the wallet will cause a noticeable lag).
+    for {store, key} <- Stores.with_address_key(:XMR) do
+      viewkey = key.data[:viewkey]
+
+      if viewkey != nil && viewkey != "" do
+        WalletSupervisor.ensure_wallet(store.id, wallet_opts(state))
+      end
     end
 
     {:noreply, state, {:continue, :finalize_setup}}
