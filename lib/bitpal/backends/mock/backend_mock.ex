@@ -1,16 +1,15 @@
 defmodule BitPal.BackendMock do
   @behaviour BitPal.Backend
-
   use BitPalFactory
   use GenServer
   import BitPalSettings.ConfigHelpers
   alias BitPal.Backend
+  alias BitPal.Repo
   alias BitPal.BackendManager
   alias BitPal.BackendStatusSupervisor
   alias BitPal.BlockchainEvents
   alias BitPal.Blocks
   alias BitPal.Cache
-  alias BitPal.Invoices
   alias BitPal.ProcessRegistry
   alias BitPal.Transactions
   alias BitPalSchemas.Currency
@@ -18,18 +17,30 @@ defmodule BitPal.BackendMock do
   alias BitPalSchemas.TxOutput
   alias Ecto.Adapters.SQL.Sandbox
 
+  @log_level Application.compile_env(:bitpal, [__MODULE__, :log_level], :error)
+
   @type backend :: pid()
 
   @impl Backend
-  def register(backend, invoice) do
-    GenServer.call(backend, {:register, invoice})
+  def assign_address(backend, invoice) do
+    GenServer.call(backend, {:assign_address, invoice})
+  end
+
+  @impl Backend
+  def watch_invoice(backend, invoice) do
+    GenServer.call(backend, {:watch_invoice, invoice})
+  end
+
+  @impl Backend
+  def update_address(_backend, _invoice) do
+    :ok
   end
 
   @impl Backend
   def supported_currency(pid) when is_pid(pid) do
     # Avoid GenServer calls, which is relevant if the backend is shut down instantly.
     # Only relevant for backends that have dynamically different currencies.
-    Cache.fetch!(BitPal.RuntimeStorage, pid)
+    {:ok, Cache.fetch!(BitPal.RuntimeStorage, pid)}
   end
 
   def supported_currency(backend) do
@@ -47,7 +58,7 @@ defmodule BitPal.BackendMock do
   end
 
   @impl Backend
-  def poll_info(_backend), do: :ok
+  def refresh_info(_backend), do: :ok
 
   def stop_with_error(backend, error) do
     GenServer.cast(backend, {:stop_with_error, error})
@@ -101,6 +112,24 @@ defmodule BitPal.BackendMock do
     GenServer.call(server(ref), {:issue_blocks, block_count, time_between_blocks})
   end
 
+  @spec reverse_block(Currency.id() | Invoice.t(), keyword) :: :ok
+  def reverse_block(ref, opts \\ []) do
+    GenServer.call(server(ref), {:reverse_block, opts})
+  end
+
+  @spec set_height(Currency.id() | Invoice.t(), non_neg_integer) :: :ok
+  def set_height(ref, height) do
+    GenServer.call(server(ref), {:set_height, height})
+  end
+
+  @doc """
+  Reorgs the block with the invoice, and increases the block height but without the tx included.
+  """
+  @spec reverse(Invoice.t(), keyword) :: :ok
+  def reverse(invoice, opts \\ []) do
+    GenServer.call(server(invoice), {:reverse, invoice, opts})
+  end
+
   defp via_tuple(currency_id) do
     Backend.via_tuple(currency_id)
   end
@@ -125,6 +154,8 @@ defmodule BitPal.BackendMock do
       Backend.via_tuple(currency_id),
       __MODULE__
     )
+
+    Logger.put_process_level(self(), @log_level)
 
     Cache.put(BitPal.RuntimeStorage, self(), currency_id)
 
@@ -199,7 +230,7 @@ defmodule BitPal.BackendMock do
 
   @impl true
   def handle_call(:supported_currency, _, state) do
-    {:reply, state.currency_id, state}
+    {:reply, {:ok, state.currency_id}, state}
   end
 
   @impl true
@@ -208,28 +239,44 @@ defmodule BitPal.BackendMock do
   end
 
   @impl true
-  def handle_call({:register, invoice}, _from, state) do
+  def handle_call({:assign_address, invoice}, _from, state) do
     invoice = with_address(invoice, state)
+    {:reply, {:ok, invoice}, state}
+  end
 
+  @impl true
+  def handle_call({:watch_invoice, invoice}, _from, state) do
     if state.auto do
       setup_auto_invoice(invoice, state)
     end
 
-    {:reply, {:ok, invoice}, state}
+    {:reply, :ok, state}
   end
 
   @impl true
   def handle_call({:tx_seen, invoice}, _from, state) do
     txid = unique_txid()
-    :ok = Transactions.seen(txid, [{invoice.address_id, invoice.expected_payment}])
+
+    {:ok, _} =
+      Transactions.update(txid, outputs: [{invoice.address_id, invoice.expected_payment}])
+
     {:reply, txid, state}
   end
 
   @impl true
   def handle_call({:doublespend, invoice}, _from, state) do
-    {:ok, tx} = Invoices.one_tx_output(invoice)
-    :ok = Transactions.double_spent(tx.txid, [{invoice.address_id, tx.amount}])
-    {:reply, tx.txid, state}
+    {:ok, tx} =
+      case Repo.preload(invoice, :transactions, force: true).transactions do
+        [] ->
+          Transactions.update(unique_txid(),
+            outputs: [{invoice.address_id, invoice.expected_payment}]
+          )
+
+        [tx | _rest] ->
+          Transactions.update(tx.id, double_spent: true)
+      end
+
+    {:reply, tx.id, state}
   end
 
   @impl true
@@ -243,6 +290,49 @@ defmodule BitPal.BackendMock do
   def handle_call({:issue_blocks, block_count, time_between_blocks}, _from, state) do
     schedule_issue_blocks(block_count, time_between_blocks)
     {:reply, :ok, state}
+  end
+
+  @impl true
+  def handle_call({:set_height, height}, _from, state) do
+    Blocks.new(state.currency_id, height, unique_block_id())
+    {:reply, :ok, %{state | height: height}}
+  end
+
+  @impl true
+  def handle_call({:reverse, invoice, opts}, _from, state) do
+    txs = Repo.preload(invoice, :transactions).transactions
+
+    min_tx_height =
+      txs
+      |> Enum.map(fn t -> t.height end)
+      |> Enum.min()
+
+    split_height = opts[:split_height] || min_tx_height - 1
+
+    if split_height <= 0 do
+      {:reply, :ok, state}
+    else
+      new_height = opts[:new_height] || state.height + 1
+
+      Blocks.reorg(invoice.payment_currency_id, new_height, split_height)
+
+      tx_height = opts[:tx_height] || 0
+
+      for tx <- txs do
+        Transactions.update(tx.id, height: tx_height, reorg: true)
+      end
+
+      {:reply, :ok, %{state | height: new_height}}
+    end
+  end
+
+  @impl true
+  def handle_call({:reverse_block, opts}, _from, state) do
+    new_height = opts[:new_height] || state.height - 1
+    split_height = opts[:split_height] || state.height
+    Blocks.reorg(state.currency_id, new_height, split_height)
+
+    {:reply, :ok, %{state | height: new_height}}
   end
 
   @impl true
@@ -261,14 +351,21 @@ defmodule BitPal.BackendMock do
   end
 
   @impl true
-  def handle_info({{:block, _}, %{height: height}}, state) do
+  def handle_info({{:block, :new}, %{height: height}}, state) do
     # Allows us to set block height in tests after initiolizing backend.
     {:noreply, %{state | height: height}}
   end
 
   @impl true
+  def handle_info({{:block, :reorg}, %{new_height: height}}, state) do
+    {:noreply, %{state | height: height}}
+  end
+
+  @impl true
   def handle_info({:auto_tx_seen, invoice}, state) do
-    :ok = Transactions.seen(unique_txid(), [{invoice.address_id, invoice.expected_payment}])
+    {:ok, _} =
+      Transactions.update(unique_txid(), outputs: [{invoice.address_id, invoice.expected_payment}])
+
     {:noreply, append_auto_confirm(state, invoice)}
   end
 
@@ -320,7 +417,7 @@ defmodule BitPal.BackendMock do
 
   defp incr_height(state) do
     height = state.height + 1
-    :ok = Blocks.new_block(state.currency_id, height)
+    Blocks.new(state.currency_id, height, unique_block_id())
 
     %{state | height: height}
     |> auto_confirm_invoices
@@ -352,14 +449,18 @@ defmodule BitPal.BackendMock do
   end
 
   defp confirm_transactions(invoice, state) do
-    txid =
-      case Invoices.one_tx_output(invoice) do
-        {:ok, tx} -> tx.txid
-        _ -> unique_txid()
-      end
+    existing = Repo.preload(invoice, :transactions, force: true).transactions
 
-    :ok =
-      Transactions.confirmed(txid, [{invoice.address_id, invoice.expected_payment}], state.height)
+    if Enum.empty?(existing) do
+      Transactions.update(unique_txid(),
+        height: state.height,
+        outputs: [{invoice.address_id, invoice.expected_payment}]
+      )
+    else
+      for tx <- existing do
+        {:ok, _} = Transactions.update(tx.id, height: state.height)
+      end
+    end
 
     state
   end

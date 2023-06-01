@@ -7,7 +7,6 @@ defmodule BitPalWeb.StoreSettingsLive do
   alias BitPal.Repo
   alias BitPal.Stores
   alias BitPalSchemas.AccessToken
-  alias BitPalSchemas.AddressKey
   alias BitPalSchemas.CurrencySettings
   alias BitPalSettings.StoreSettings
   alias BitPalWeb.StoreLiveAuth
@@ -125,13 +124,36 @@ defmodule BitPalWeb.StoreSettingsLive do
   end
 
   defp address_key_changeset(settings = %CurrencySettings{}) do
-    data = if settings.address_key, do: settings.address_key.data, else: nil
-    address_key_changeset(data)
+    if settings.address_key do
+      address_key_changeset(settings.address_key.data)
+    else
+      default_address_key(settings.currency_id)
+    end
   end
 
-  defp address_key_changeset(data) do
-    %AddressKey{}
-    |> change(data: data)
+  defp address_key_changeset(params = %{xpub: _xpub}) do
+    form = %{xpub: :string}
+
+    {%{}, form}
+    |> cast(params, Map.keys(form))
+    |> validate_required(:xpub)
+  end
+
+  defp address_key_changeset(params = %{viewkey: _viewkey}) do
+    form = %{viewkey: :string, address: :string, account: :integer}
+
+    {%{}, form}
+    |> cast(params, Map.keys(form))
+    |> validate_required([:viewkey, :address, :account])
+    |> validate_number(:account, greater_than_or_equal_to: 0)
+  end
+
+  defp default_address_key(currency_id) do
+    if Currencies.has_xpub?(currency_id) do
+      address_key_changeset(%{xpub: ""})
+    else
+      address_key_changeset(%{viewkey: "", address: "", account: 0})
+    end
   end
 
   @impl true
@@ -185,11 +207,13 @@ defmodule BitPalWeb.StoreSettingsLive do
   end
 
   @impl true
-  def handle_event("address_key", %{"address_key" => %{"data" => data}}, socket) do
+  def handle_event("address_key", %{"address_key" => data}, socket) do
     case StoreSettings.set_address_key(socket.assigns.store.id, socket.assigns.currency_id, data) do
       {:ok, address_key} ->
         {:noreply,
-         assign(socket, address_key_changeset: %{change(address_key) | action: :success})}
+         assign(socket,
+           address_key_changeset: %{address_key_changeset(address_key.data) | action: :success}
+         )}
 
       {:error, changeset} ->
         {:noreply, assign(socket, address_key_changeset: %{changeset | action: :fail})}

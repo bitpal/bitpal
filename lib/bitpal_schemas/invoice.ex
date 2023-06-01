@@ -34,7 +34,9 @@ defmodule BitPalSchemas.Invoice do
     belongs_to(:payment_currency, Currency, type: Ecto.Atom)
     # The generated cryptocurrency address, matching the :payment_currency.
     belongs_to(:address, Address, type: :string, on_replace: :mark_as_invalid)
-    # Any transactions belonging to the above address.
+    # Any transactions related to the above address.
+    has_many(:transactions, through: [:address, :tx_outputs, :transaction])
+    # Outputs belonging to the address.
     has_many(:tx_outputs, through: [:address, :tx_outputs])
     # How many confirmations do we require?
     # Can be overridden by txs.

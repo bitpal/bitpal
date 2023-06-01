@@ -103,24 +103,28 @@ defmodule BitPalWeb.StoreHTML do
     live_redirect(label, to: ~p"/invoices/#{id}")
   end
 
-  def tx_status(assigns) do
-    ~H"""
-    <span class="tx-status">
-      <%= cond do %>
-        <% @tx.confirmed_height -> %>
-          <span class="confirmed">Confirmed</span>
-        <% @tx.double_spent -> %>
-          <span class="double-spent">Double spent</span>
-        <% true -> %>
-          <span class="unconfirmed">Unconfirmed</span>
-      <% end %>
-      <%= if @tx.confirmed_height do %>
-        <span class="block-height">
-          <%= "Block #{@tx.confirmed_height}" %>
-        </span>
-      <% end %>
-    </span>
-    """
+  def tx_status(_assigns) do
+    # FIXME need a proper status
+    "TODO"
+    # ~H"""
+    # <span class="tx-status">
+    #   <%= cond do %>
+    #     <% @tx.height -> %>
+    #       <span class="confirmed">Confirmed</span>
+    #     <% @tx.failed -> %>
+    #       <span class="failed">Failed</span>
+    #     <% @tx.double_spent -> %>
+    #       <span class="double-spent">Double spent</span>
+    #     <% true -> %>
+    #       <span class="unconfirmed">Unconfirmed</span>
+    #   <% end %>
+    #   <%= if @tx.height do %>
+    #     <span class="block-height">
+    #       <%= "Block #{@tx.height}" %>
+    #     </span>
+    #   <% end %>
+    # </span>
+    # """
   end
 
   def format_created_at(token = %AccessToken{}) do

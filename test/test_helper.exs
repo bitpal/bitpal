@@ -5,6 +5,7 @@ alias BitPal.ServerSetup
 alias BitPalSchemas.ExchangeRate
 
 Mox.defmock(BitPal.FloweeMock, for: BitPal.TCPClientAPI)
+Mox.defmock(BitPal.MoneroMock, for: BitPal.RPCClientAPI)
 Mox.defmock(BitPal.ExchangeRate.MockSource, for: BitPal.ExchangeRate.Source)
 Mox.defmock(BitPal.ExchangeRate.MockSource2, for: BitPal.ExchangeRate.Source)
 
@@ -37,6 +38,8 @@ Repo.insert_all(ExchangeRate, seeded_rates,
 )
 
 ServerSetup.set_state(:completed)
+
+Supervisor.start_link([{DynamicSupervisor, name: BitPal.TestSupervisor}], strategy: :one_for_one)
 
 ExUnit.start()
 Faker.start()

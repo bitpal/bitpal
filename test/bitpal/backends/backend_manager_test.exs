@@ -1,7 +1,5 @@
 defmodule BackendManagerTest do
-  # We have some weird crashes that happens sometimes.
-  # Set async: false for this test to see if backend crashes is the cause.
-  use BitPal.IntegrationCase, async: false
+  use BitPal.IntegrationCase, async: true
   alias BitPal.BackendManager
   alias BitPal.BackendMock
   alias BitPal.BackendStatusSupervisor
@@ -55,6 +53,7 @@ defmodule BackendManagerTest do
       assert_receive {:DOWN, ^mock_ref, _, _, _}
 
       # And then wait until it's been restarted again
+      # NOTE this sometimes times out
       assert eventually(fn -> BackendManager.status(manager, c) == :ready end)
     end
 
@@ -134,7 +133,7 @@ defmodule BackendManagerTest do
     test "initializing a disabled backend should not start it", %{
       currency_id: currency_id
     } do
-      refute_receive {{:backend, :status}, %{status: :starting, currency_id: ^currency_id}}
+      assert eventually(fn -> BackendManager.status(currency_id) == :stopped end)
     end
   end
 
@@ -237,18 +236,18 @@ defmodule BackendManagerTest do
       assert eventually(fn -> BackendManager.status(manager, c2) == :ready end)
 
       BackendManager.stop_backend(manager, c1)
-      BackendStatusSupervisor.set_recovering(c2, 1, 2)
+      BackendStatusSupervisor.set_recovering(c2, {1, 2})
 
       assert eventually(fn -> BackendManager.status(manager, c1) == :stopped end)
 
       assert eventually(fn ->
-               BackendManager.status(manager, c2) == {:recovering, 1, 2}
+               BackendManager.status(manager, c2) == {:recovering, {1, 2}}
              end)
 
       list = BackendManager.status_list(manager)
       assert {^c0, {_, BackendMock}, :ready} = find_status(list, c0)
       assert {^c1, {:undefined, BackendMock}, :stopped} = find_status(list, c1)
-      assert {^c2, {_, BackendMock}, {:recovering, 1, 2}} = find_status(list, c2)
+      assert {^c2, {_, BackendMock}, {:recovering, {1, 2}}} = find_status(list, c2)
     end
 
     defp find_status(list, currency_id) do
@@ -301,6 +300,9 @@ defmodule BackendManagerTest do
       end)
 
       assert BackendManager.backends(manager) |> Enum.count() == 2
+
+      # Manually remove backends to avoid the occasional Repo disconnected error.
+      BackendManager.remove_backends(manager)
     end
   end
 end

@@ -14,6 +14,9 @@ config :money, :custom_currencies, %{
   XMR: %{name: "Monero", exponent: 12, symbol: "XMR"}
 }
 
+# Maybe in the future one might check what ports are used in the system
+config :bitpal, BitPal.PortsHandler, available: 23000..23100
+
 config :main_proxy,
   http: [:inet6, port: 4000]
 

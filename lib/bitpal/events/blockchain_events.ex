@@ -3,12 +3,13 @@ defmodule BitPal.BlockchainEvents do
   alias BitPalSchemas.Currency
 
   @type height :: non_neg_integer()
-  @type msg ::
-          {{:block, :set_height}, %{currency_id: Currency.id(), height: height}}
-          | {{:block, :new}, %{currency_id: Currency.id(), height: height}}
-          | {{:block, :reversed}, %{currency_id: Currency.id(), height: height}}
-
-  @spec subscribe(Currency.id()) :: :ok | {:error, term}
+  @type(
+    msg ::
+      {{:block, :new}, %{currency_id: Currency.id(), height: height}}
+      | {{:block, :reorg},
+         %{currency_id: Currency.id(), new_height: height, split_height: height}},
+    @spec(subscribe(Currency.id()) :: :ok | {:error, term})
+  )
   def subscribe(id) do
     EventHelpers.subscribe(topic(id))
   end

@@ -5,7 +5,7 @@ defmodule BitPal.MockTCPClient do
   import Mox
 
   def init_mock(name) do
-    client = start_supervised!({BitPal.MockTCPClient, name: name})
+    client = start_supervised!({__MODULE__, name: name})
 
     name
     |> stub(:connect, fn _, _, _ -> {:ok, client} end)
@@ -113,16 +113,6 @@ defmodule BitPal.MockTCPClient do
   @impl GenServer
   def handle_call(:sent, _, state) do
     {:reply, state.sent, state}
-  end
-
-  @impl GenServer
-  def handle_call(:send_ok, _, state) do
-    {:reply, :ok, Map.delete(state, :send_error)}
-  end
-
-  @impl GenServer
-  def handle_call(:send_error, _, state) do
-    {:reply, :ok, Map.put(state, :send_error, true)}
   end
 
   @impl GenServer

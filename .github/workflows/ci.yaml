@@ -102,8 +102,8 @@ jobs:
     - name: Credo checks
       run: mix credo --all --strict
 
-    # - name: Security issues
-    #   run: mix sobelow --skip --private --exit
+    - name: Security issues
+      run: mix sobelow --skip --private --exit
 
     - name: Dependency audit
       run: mix deps.audit

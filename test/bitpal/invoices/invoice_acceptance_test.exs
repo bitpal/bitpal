@@ -1,5 +1,6 @@
 defmodule BitPal.InvoiceAcceptanceTest do
   use BitPal.IntegrationCase, async: true
+  alias BitPal.InvoiceEvents
 
   test "accept after no double spend in timeout", %{currency_id: currency_id} do
     {:ok, inv, stub, _invoice_handler} =
@@ -232,7 +233,7 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
     assert [
              {{:invoice, :finalized}, _},
-             {{:invoice, :underpaid}, %{amount_paid: ^paid, txs: [_]}}
+             {{:invoice, :underpaid}, %{amount_paid: ^paid}}
            ] = HandlerSubscriberCollector.received(stub)
 
     paid2 = Money.parse!(0.7, currency_id)
@@ -243,9 +244,9 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
     assert [
              {{:invoice, :finalized}, _},
-             {{:invoice, :underpaid}, %{amount_paid: ^paid, txs: [_]}},
+             {{:invoice, :underpaid}, %{amount_paid: ^paid}},
              {{:invoice, :processing}, %{status: {:processing, :verifying}}},
-             {{:invoice, :paid}, %{amount_paid: ^fully_paid, txs: [_, _]}}
+             {{:invoice, :paid}, %{amount_paid: ^fully_paid}}
            ] = HandlerSubscriberCollector.received(stub)
   end
 
@@ -269,10 +270,190 @@ defmodule BitPal.InvoiceAcceptanceTest do
 
     assert [
              {{:invoice, :finalized}, _},
-             {{:invoice, :underpaid}, %{amount_paid: ^amount1, txs: [_]}},
-             {{:invoice, :overpaid}, %{amount_paid: ^total_paid, txs: [_, _]}},
+             {{:invoice, :underpaid}, %{amount_paid: ^amount1}},
+             {{:invoice, :overpaid}, %{amount_paid: ^total_paid}},
              {{:invoice, :processing}, %{status: {:processing, :verifying}}},
-             {{:invoice, :paid}, %{amount_paid: ^total_paid, txs: [_, _]}}
+             {{:invoice, :paid}, %{amount_paid: ^total_paid}}
            ] = HandlerSubscriberCollector.received(stub)
+  end
+
+  describe "reorgs" do
+    test "reverse tx to unconfirmed", %{currency_id: currency_id} do
+      BackendMock.set_height(currency_id, 10)
+
+      {:ok, inv, stub, _handler} =
+        HandlerSubscriberCollector.create_invoice(
+          required_confirmations: 3,
+          payment_currency_id: currency_id
+        )
+
+      # NOTE there's a bit of a race condition hidden here.
+      # It doesn't do much other than cause some missing :processing messages if blocks come
+      # very quickly, and I haven't been able to make it go away completely,
+      # so maybe it's fine to just leave it here?
+
+      InvoiceEvents.subscribe(inv)
+
+      BackendMock.tx_seen(inv)
+
+      assert_receive {{:invoice, :processing}, %{confirmations_due: 3, txs: [%{height: 0}]}}
+
+      BackendMock.confirmed_in_new_block(inv)
+
+      assert_receive {{:invoice, :processing}, %{confirmations_due: 2, txs: [%{height: 11}]}}
+
+      BackendMock.issue_blocks(currency_id, 1)
+
+      assert_receive {{:invoice, :processing}, %{confirmations_due: 1, txs: [%{height: 11}]}}
+
+      BackendMock.reverse(inv, new_height: 13)
+
+      assert_receive {{:invoice, :processing}, %{confirmations_due: 3, txs: [%{height: 0}]}}
+
+      BackendMock.confirmed_in_new_block(inv)
+
+      assert_receive {{:invoice, :processing}, %{confirmations_due: 2, txs: [%{height: 14}]}}
+
+      BackendMock.issue_blocks(currency_id, 2)
+
+      HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
+
+      assert [
+               {{:invoice, :finalized}, _},
+               {{:invoice, :processing}, %{confirmations_due: 3, txs: [%{height: 0}]}},
+               {{:invoice, :processing}, %{confirmations_due: 2, txs: [%{height: 11}]}},
+               {{:invoice, :processing}, %{confirmations_due: 1, txs: [%{height: 11}]}},
+               {{:invoice, :processing}, %{confirmations_due: 3, txs: [%{height: 0}]}},
+               {{:invoice, :processing}, %{confirmations_due: 2, txs: [%{height: 14}]}},
+               {{:invoice, :processing}, %{confirmations_due: 1, txs: [%{height: 14}]}},
+               {{:invoice, :paid}, _}
+             ] = HandlerSubscriberCollector.received(stub)
+    end
+
+    test "reverse tx on split height", %{currency_id: currency_id} do
+      BackendMock.set_height(currency_id, 10)
+
+      {:ok, inv, stub, _handler} =
+        HandlerSubscriberCollector.create_invoice(
+          required_confirmations: 4,
+          payment_currency_id: currency_id
+        )
+
+      InvoiceEvents.subscribe(inv)
+
+      # confirmed at 11
+      BackendMock.confirmed_in_new_block(inv)
+
+      assert_receive {{:invoice, :processing}, %{confirmations_due: 3, txs: [%{height: 11}]}}
+
+      BackendMock.issue_blocks(currency_id, 1)
+      BackendMock.reverse_block(currency_id, new_height: 13, split_height: 11)
+      BackendMock.issue_blocks(currency_id, 1)
+
+      HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
+
+      assert [
+               {{:invoice, :finalized}, _},
+               {{:invoice, :processing}, %{confirmations_due: 3, txs: [%{height: 11}]}},
+               {{:invoice, :processing}, %{confirmations_due: 2, txs: [%{height: 11}]}},
+               {{:invoice, :processing}, %{confirmations_due: 1, txs: [%{height: 11}]}},
+               {{:invoice, :paid}, _}
+             ] = HandlerSubscriberCollector.received(stub)
+    end
+
+    test "reverse tx but confirmed in other chain new height", %{currency_id: currency_id} do
+      BackendMock.set_height(currency_id, 10)
+
+      {:ok, inv, stub, _handler} =
+        HandlerSubscriberCollector.create_invoice(
+          required_confirmations: 4,
+          payment_currency_id: currency_id
+        )
+
+      InvoiceEvents.subscribe(inv)
+
+      # confirmed at 11
+      BackendMock.confirmed_in_new_block(inv)
+
+      assert_receive {{:invoice, :processing}, %{confirmations_due: 3, txs: [%{height: 11}]}}
+
+      BackendMock.issue_blocks(currency_id, 1)
+      BackendMock.reverse(inv, new_height: 14, split_height: 10, tx_height: 13)
+      BackendMock.issue_blocks(currency_id, 2)
+
+      HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
+
+      assert [
+               {{:invoice, :finalized}, _},
+               {{:invoice, :processing}, %{confirmations_due: 3, txs: [%{height: 11}]}},
+               {{:invoice, :processing}, %{confirmations_due: 2, txs: [%{height: 11}]}},
+               {{:invoice, :processing}, %{confirmations_due: 2, txs: [%{height: 13}]}},
+               {{:invoice, :processing}, %{confirmations_due: 1, txs: [%{height: 13}]}},
+               {{:invoice, :paid}, _}
+             ] = HandlerSubscriberCollector.received(stub)
+    end
+
+    # Should force through a :confirmed message even if it's the same height?
+    # Via backend.
+    test "reverse tx but confirmed in other chain same height", %{currency_id: currency_id} do
+      BackendMock.set_height(currency_id, 10)
+
+      {:ok, inv, stub, _handler} =
+        HandlerSubscriberCollector.create_invoice(
+          required_confirmations: 4,
+          payment_currency_id: currency_id
+        )
+
+      InvoiceEvents.subscribe(inv)
+
+      # confirmed at 11
+      BackendMock.confirmed_in_new_block(inv)
+
+      assert_receive {{:invoice, :processing}, %{confirmations_due: 3, txs: [%{height: 11}]}}
+
+      BackendMock.issue_blocks(currency_id, 1)
+      BackendMock.reverse(inv, new_height: 12, split_height: 10, tx_height: 11)
+      BackendMock.issue_blocks(currency_id, 2)
+
+      HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
+
+      # Duplicate message, even though it's in a new chain doesn't show up
+      assert [
+               {{:invoice, :finalized}, _},
+               {{:invoice, :processing}, %{confirmations_due: 3, txs: [%{height: 11}]}},
+               {{:invoice, :processing}, %{confirmations_due: 2, txs: [%{height: 11}]}},
+               {{:invoice, :processing}, %{confirmations_due: 1, txs: [%{height: 11}]}},
+               {{:invoice, :paid}, _}
+             ] = HandlerSubscriberCollector.received(stub)
+    end
+
+    # Should be manageable by invoice handler (tx is unchanged)
+    test "reverse a block above tx", %{currency_id: currency_id} do
+      BackendMock.set_height(currency_id, 10)
+
+      {:ok, inv, stub, _handler} =
+        HandlerSubscriberCollector.create_invoice(
+          required_confirmations: 3,
+          payment_currency_id: currency_id
+        )
+
+      BackendMock.tx_seen(inv)
+      BackendMock.confirmed_in_new_block(inv)
+      BackendMock.issue_blocks(currency_id, 1)
+      BackendMock.reverse_block(currency_id)
+      BackendMock.issue_blocks(currency_id, 2)
+
+      HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
+
+      assert [
+               {{:invoice, :finalized}, _},
+               {{:invoice, :processing}, %{confirmations_due: 3}},
+               {{:invoice, :processing}, %{confirmations_due: 2}},
+               {{:invoice, :processing}, %{confirmations_due: 1}},
+               {{:invoice, :processing}, %{confirmations_due: 2}},
+               {{:invoice, :processing}, %{confirmations_due: 1}},
+               {{:invoice, :paid}, _}
+             ] = HandlerSubscriberCollector.received(stub)
+    end
   end
 end

@@ -16,5 +16,6 @@ defmodule BitPalSchemas.Address do
     belongs_to(:address_key, AddressKey)
     has_one(:invoice, Invoice)
     has_many(:tx_outputs, TxOutput)
+    has_many(:transactions, through: [:tx_outputs, :transaction])
   end
 end

@@ -1,6 +1,15 @@
 import Config
 
-config :bitpal,
+config :bitpal, BitPal.Backend.Monero,
+  net: :stagenet,
+  daemon_ip: "localhost",
+  daemon_port: 38_081,
+  wallet_port: 8332,
+  # To avoid running the monero-wallet-rpc binary
+  init_wallet: false
+
+config :bitpal, BitPal.BackendManager,
+  restart_timeout: 10,
   backends: []
 
 config :bitpal, BitPal.ExchangeRate,
@@ -31,8 +40,8 @@ config :bitpal, BitPal.Repo,
   show_sensitive_data_on_connection_error: true,
   pool: Ecto.Adapters.SQL.Sandbox,
   # Try to avoid connection drop timeouts
-  queue_target: 500,
-  queue_limit: 2_000
+  pool_size: 20,
+  queue_target: 2_000
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
@@ -50,19 +59,11 @@ config :argon2_elixir, t_cost: 1, m_cost: 8
 # In test we don't send emails.
 config :bitpal, BitPal.Mailer, adapter: Swoosh.Adapters.Test
 
-config :bitpal, :BCH,
-  xpub:
-    "xpub6C23JpFE6ABbBudoQfwMU239R5Bm6QGoigtLq1BD3cz3cC6DUTg89H3A7kf95GDzfcTis1K1m7ypGuUPmXCaCvoxDKbeNv6wRBEGEnt1NV7"
-
 config :bitpal, BitPalFactory, init: true
 config :bitpal, BitPal.InvoiceSupervisor, pass_parent_pid: true
 
-config :bitpal, BitPal.BackendManager, reconnect_timeout: 10
+config :bitpal, BitPal.BackendMock, log_level: :alert
 
-config :ex_unit, assert_receive_timeout: 200
+config :ex_unit, assert_receive_timeout: 500
 
-config :logger, level: :warning
-# Can use this to hide GenServer shutdown errors, generated from our backend tests
-# when the backends are made to crash or killed after a local test.
-config :logger, level: :critical
-# config :logger, level: :error
+config :logger, level: :error

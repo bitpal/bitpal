@@ -1,6 +1,7 @@
 defmodule BitPalSettings.StoreSettings do
   import Ecto.Query, only: [from: 2]
   import Ecto.Changeset
+  alias BitPalSchemas.AddressKeyData
   alias BitPal.Currencies
   alias BitPal.Repo
   alias BitPalSchemas.Address
@@ -32,9 +33,9 @@ defmodule BitPalSettings.StoreSettings do
     key
   end
 
-  @spec set_address_key(Store.id(), Currency.id(), String.t()) ::
+  @spec set_address_key(Store.id(), Currency.id(), map) ::
           {:ok, AddressKey.t()} | {:error, Changeset.t()}
-  def set_address_key(store_id, currency_id, key) when is_binary(key) do
+  def set_address_key(store_id, currency_id, key) do
     settings =
       get_or_create_currency_settings(store_id, currency_id)
       |> Repo.preload(:address_key)
@@ -42,13 +43,15 @@ defmodule BitPalSettings.StoreSettings do
     set_address_key(settings, key)
   end
 
-  @spec set_address_key(CurrencySettings.t(), String.t()) ::
+  @spec set_address_key(CurrencySettings.t(), map) ::
           {:ok, AddressKey.t()} | {:error, Changeset.t()}
-  def set_address_key(settings = %CurrencySettings{address_key: address_key = %AddressKey{}}, key)
-      when is_binary(key) do
+  def set_address_key(
+        settings = %CurrencySettings{address_key: address_key = %AddressKey{}},
+        data
+      ) do
     cond do
       # We're already up to date.
-      address_key.data == key ->
+      address_key.data == data ->
         {:ok, address_key}
 
       # Key exists and has address references we'd like to keep, so disconnect it from settings.
@@ -56,17 +59,17 @@ defmodule BitPalSettings.StoreSettings do
         change(address_key, currency_settings_id: nil)
         |> Repo.update!()
 
-        insert_address_key(settings.id, settings.currency_id, key)
+        insert_address_key(settings.id, settings.currency_id, data)
 
       # Key exists, but hasn't been used yet so we can just update it.
       true ->
         address_key
-        |> address_key_change(key, settings.currency_id)
+        |> address_key_change(data, settings.currency_id)
         |> Repo.update()
     end
   end
 
-  def set_address_key(settings, key) when is_binary(key) do
+  def set_address_key(settings, key) do
     insert_address_key(settings.id, settings.currency_id, key)
   end
 
@@ -75,16 +78,17 @@ defmodule BitPalSettings.StoreSettings do
     |> Repo.exists?()
   end
 
-  defp address_key_change(address_key, key, currency_id) do
+  defp address_key_change(address_key, data, currency_id) do
     address_key
-    |> change(%{data: key})
+    |> change(%{data: data})
     |> validate_address_key_data(:data, currency_id: currency_id)
     |> foreign_key_constraint(:currency_settings_id)
     |> foreign_key_constraint(:currency_id)
-    |> unique_constraint(:data, name: :address_keys_data_index)
+    |> unique_constraint(:data, name: :address_keys_xpub_idx)
+    |> unique_constraint(:data, name: :address_keys_viewkey_idx)
   end
 
-  defp insert_address_key(settings_id, currency_id, key) when is_binary(key) do
+  defp insert_address_key(settings_id, currency_id, key) do
     %AddressKey{currency_settings_id: settings_id, currency_id: currency_id}
     |> address_key_change(key, currency_id)
     |> Repo.insert()
@@ -113,15 +117,16 @@ defmodule BitPalSettings.StoreSettings do
     currency_id = Keyword.fetch!(opts, :currency_id)
     data = get_change(changeset, data_key)
 
-    cond do
-      data == "" ->
-        add_error(changeset, :data, "cannot be empty")
-
-      Currencies.valid_address_key?(currency_id, data) ->
-        changeset
-
-      true ->
-        add_error(changeset, :data, "invalid key")
+    if data == nil do
+      add_error(changeset, :data, "cannot be empty")
+    else
+      with {:ok, data} <- AddressKeyData.cast(data),
+           true <- Currencies.valid_address_key?(currency_id, data) do
+        force_change(changeset, data_key, data)
+      else
+        _ ->
+          add_error(changeset, :data, "invalid key")
+      end
     end
   end
 

@@ -1,5 +1,5 @@
 defmodule BackendMockTest do
-  use BitPal.IntegrationCase, async: true
+  use BitPal.IntegrationCase, async: false
   alias BitPal.BackendManager
   alias BitPal.BackendMock
   alias BitPal.Blocks
@@ -12,15 +12,13 @@ defmodule BackendMockTest do
       {:ok, _inv1, stub1, _invoice_handler} =
         HandlerSubscriberCollector.create_invoice(
           payment_currency_id: currency_id,
-          required_confirmations: 1,
-          amount: 1.0
+          required_confirmations: 1
         )
 
       {:ok, _inv3, stub3, _invoice_handler} =
         HandlerSubscriberCollector.create_invoice(
           payment_currency_id: currency_id,
-          required_confirmations: 3,
-          amount: 3.0
+          required_confirmations: 3
         )
 
       HandlerSubscriberCollector.await_msg(stub1, {:invoice, :paid})
@@ -34,9 +32,9 @@ defmodule BackendMockTest do
 
       assert [
                {{:invoice, :finalized}, _},
-               {{:invoice, :processing}, _},
-               {{:invoice, :processing}, _},
-               {{:invoice, :processing}, _},
+               {{:invoice, :processing}, %{confirmations_due: 3}},
+               {{:invoice, :processing}, %{confirmations_due: 2}},
+               {{:invoice, :processing}, %{confirmations_due: 1}},
                {{:invoice, :paid}, _}
              ] = HandlerSubscriberCollector.received(stub3)
     end
@@ -82,15 +80,15 @@ defmodule BackendMockTest do
       assert BackendManager.stop_backend(currency_id) == :ok
       assert eventually(fn -> BackendManager.status(currency_id) == :stopped end)
 
-      height = Blocks.fetch_block_height!(currency_id)
+      height = Blocks.fetch_height!(currency_id)
 
       Process.sleep(21)
-      assert Blocks.fetch_block_height!(currency_id) == height
+      assert Blocks.fetch_height!(currency_id) == height
 
       assert {:ok, _} = BackendManager.restart_backend(currency_id)
 
       assert eventually(fn ->
-               Blocks.fetch_block_height!(currency_id) > height
+               Blocks.fetch_height!(currency_id) > height
              end)
     end
   end

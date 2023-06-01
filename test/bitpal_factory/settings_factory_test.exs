@@ -29,8 +29,13 @@ defmodule BitPalFactory.SettingsFactoryTest do
     end
 
     test "with raw key data" do
-      address_key = create_address_key(data: "myxpub")
-      assert address_key.data == "myxpub"
+      address_key = create_address_key(data: %{xpub: "myxpub"})
+      assert address_key.data == %{xpub: "myxpub"}
+    end
+
+    test "with xpub" do
+      address_key = create_address_key(xpub: "myxpub")
+      assert address_key.data == %{xpub: "myxpub"}
     end
   end
 end

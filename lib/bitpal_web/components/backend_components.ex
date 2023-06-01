@@ -4,11 +4,33 @@ defmodule BitPalWeb.BackendComponents do
   alias BitPal.Backend.Flowee.Connection.Binary
   require Logger
 
-  def collect_rows(info_to_display, %{plugin: plugin, status: status, info: info}) do
+  def info_to_display(:BCH) do
+    [
+      {:version, "Version"},
+      {:blocks, "Processed blocks"},
+      {:difficulty, "Difficulty"},
+      {:verification_progress, "Verification progress"},
+      {:chain, "Chain"},
+      {:best_block_hash, "Chain tip block hash"}
+    ]
+  end
+
+  def info_to_display(:XMR) do
+    [
+      {"version", "Version"},
+      {"update_available", "Update available?"},
+      {"height", "Processed blocks"},
+      {"difficulty", "Difficulty"},
+      {"nettype", "Chain"},
+      {"top_block_hash", "Chain tip block hash"}
+    ]
+  end
+
+  def collect_rows(%{plugin: plugin, status: status, info: info, currency_id: currency_id}) do
     [
       {"Status", format_backend_status(%{status: status})},
       {"Plugin", plugin}
-      | collect_info_rows(info_to_display, info)
+      | collect_info_rows(info_to_display(currency_id), info)
     ]
   end
 
@@ -57,13 +79,17 @@ defmodule BitPalWeb.BackendComponents do
           <span class="starting">
             Starting
           </span>
-        <% {:recovering, current, target} -> %>
+        <% {:recovering, {current, target}} -> %>
           <span class="recovering">
-            Recovering<%= current %>/<%= target %>
+            Recovering <%= current %>/<%= target %>
+          </span>
+        <% {:syncing, {current, target}} -> %>
+          <span class="syncing">
+            Syncing <%= current %>/<%= target %> (<%= Float.round(current / target * 100, 1) %>%)
           </span>
         <% {:syncing, progress} -> %>
           <span class="syncing">
-            Syncing<%= Float.round(progress * 100, 1) %>%
+            Syncing <%= Float.round(progress * 100, 1) %>%
           </span>
         <% :ready -> %>
           <span class="ready">
@@ -73,9 +99,13 @@ defmodule BitPalWeb.BackendComponents do
           <span class="stopped">
             Stopped
           </span>
+        <% {:stopped, {:shutdown, :econnrefused}} -> %>
+          <span class="error">
+            Connection refused
+          </span>
         <% {:stopped, {:shutdown, reason}} -> %>
           <span class="stopped">
-            Stopped<%= inspect(reason) %>
+            Stopped <%= inspect(reason) %>
           </span>
         <% {:stopped, {:error, :econnrefused}} -> %>
           <span class="error">
@@ -83,7 +113,7 @@ defmodule BitPalWeb.BackendComponents do
           </span>
         <% {:stopped, {:error, error}} -> %>
           <span class="error">
-            Unknown error<%= inspect(error) %>
+            Unknown error <%= inspect(error) %>
           </span>
         <% :plugin_not_found -> %>
           <span class="not-found">

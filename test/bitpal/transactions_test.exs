@@ -1,192 +1,315 @@
 defmodule BitPal.TransactionsTest do
   use BitPal.IntegrationCase, async: true
-  alias BitPalSchemas.TxOutput
+  alias BitPal.AddressEvents
 
   setup tags do
+    %{}
+    |> setup_address(tags)
+    |> setup_tx(tags)
+  end
+
+  defp setup_address(res, tags) do
     address = create_address()
 
-    res = %{
-      address: address,
-      txid: unique_txid()
-    }
+    res =
+      Map.merge(
+        res,
+        %{
+          address: address,
+          address_id: address.id,
+          currency_id: address.currency_id,
+          txid: unique_txid(),
+          amount: create_money(address.currency_id)
+        }
+      )
+
+    AddressEvents.subscribe(address.id)
 
     if tags[:other_address] do
       other_address = create_address(currency_id: address.currency_id)
 
-      Map.put(res, :other_address, other_address)
+      AddressEvents.subscribe(other_address.id)
+
+      res
+      |> Map.put(:other_address, other_address)
+      |> Map.put(:other_amount, create_money(address.currency_id))
     else
       res
     end
   end
 
-  describe "seen/2" do
-    test "seen", %{address: address, txid: txid} do
-      assert :ok = Transactions.seen(txid, [{address.id, create_money(address.currency_id)}])
-      tx = Repo.get_by!(TxOutput, txid: txid)
-      assert tx.txid == txid
-      assert tx.address_id == address.id
-      assert tx.confirmed_height == nil
-    end
-
-    test "2x output seen", %{address: address, txid: txid} do
-      assert :ok =
-               Transactions.seen(txid, [
-                 {address.id, create_money(address.currency_id)},
-                 {address.id, create_money(address.currency_id)}
-               ])
-
-      txs = Repo.all(TxOutput)
-
-      assert Enum.count(txs) == 2
-
-      Enum.each(txs, fn tx ->
-        assert tx.txid == txid
-        assert tx.address_id == address.id
-        assert tx.confirmed_height == nil
-      end)
-    end
-
-    @tag other_address: true
-    test "2x output seen separate addresses", %{
-      address: address,
-      txid: txid,
-      other_address: other_address
-    } do
-      assert :ok =
-               Transactions.seen(txid, [
-                 {address.id, create_money(address.currency_id)},
-                 {other_address.id, create_money(address.currency_id)}
-               ])
-
-      tx0 = Repo.get_by!(TxOutput, txid: txid, address_id: address.id)
-      assert tx0.txid == txid
-      assert tx0.confirmed_height == nil
-
-      tx1 = Repo.get_by!(TxOutput, txid: txid, address_id: other_address.id)
-      assert tx1.txid == txid
-      assert tx1.confirmed_height == nil
+  defp setup_tx(res, tags) do
+    if params = tags[:tx] do
+      res
+      |> Map.put(:tx, create_tx(res.address, Map.put_new(params, :txid, res[:txid])))
+    else
+      res
     end
   end
 
-  describe "confirmed/2" do
-    test "confirmed", %{address: address, txid: txid} do
-      assert :ok =
-               Transactions.confirmed(txid, [{address.id, create_money(address.currency_id)}], 0)
+  describe "insert new transaction" do
+    test "creates output", %{address: address, txid: txid, amount: amount} do
+      assert {:ok, tx} =
+               Transactions.update(txid,
+                 outputs: [{address.id, amount}]
+               )
 
-      tx = Repo.get_by!(TxOutput, txid: txid)
-      assert tx.txid == txid
-      assert tx.address_id == address.id
-      assert tx.confirmed_height == 0
+      [output] = tx.outputs
+
+      output = Repo.preload(output, [:address, :invoice, :currency])
+      address = Repo.preload(address, [:invoice])
+
+      assert output.amount == amount
+      assert output.address_id == address.id
+      assert output.address != nil
+      assert output.invoice.id == address.invoice.id
+      assert output.currency.id == address.currency_id
+
+      # Ensure that it was inserted
+      assert {:ok, _} = Transactions.fetch(txid)
+    end
+
+    test "regular unconfirmed", %{address: address, txid: txid, amount: amount} do
+      assert {:ok, tx} =
+               Transactions.update(txid,
+                 outputs: [{address.id, amount}]
+               )
+
+      assert tx.height == 0
+
+      assert_receive {{:tx, :pending}, %{id: ^txid}}
+    end
+
+    test "confirmed", %{address: address, txid: txid, amount: amount} do
+      assert {:ok, tx} =
+               Transactions.update(txid,
+                 outputs: [{address.id, amount}],
+                 height: 10
+               )
+
+      assert tx.height == 10
+
+      assert_receive {{:tx, :confirmed}, %{id: ^txid, height: 10}}
+    end
+
+    test "double spend", %{address: address, txid: txid, amount: amount} do
+      assert {:ok, _tx} =
+               Transactions.update(txid,
+                 outputs: [{address.id, amount}],
+                 double_spent: true
+               )
+
+      assert_receive {{:tx, :double_spent}, %{id: ^txid}}
+    end
+
+    test "failed", %{address: address, txid: txid, amount: amount} do
+      assert {:ok, _tx} =
+               Transactions.update(txid,
+                 outputs: [{address.id, amount}],
+                 failed: true
+               )
+
+      assert_receive {{:tx, :failed}, %{id: ^txid}}
     end
 
     @tag other_address: true
-    test "2x output confirmed separate addresses", %{
+    test "2x unconfirmed outputs", %{
       address: address,
       txid: txid,
-      other_address: other_address
+      amount: amount,
+      other_address: other_address,
+      other_amount: other_amount
     } do
-      assert :ok =
-               Transactions.seen(txid, [
-                 {address.id, create_money(address.currency_id)},
-                 {other_address.id, create_money(address.currency_id)}
-               ])
+      assert {:ok, _tx} =
+               Transactions.update(txid,
+                 outputs: [{address.id, amount}, {other_address.id, other_amount}]
+               )
 
-      assert :ok =
-               Transactions.confirmed(
-                 txid,
-                 [
-                   {address.id, create_money(address.currency_id)},
-                   {other_address.id, create_money(address.currency_id)}
+      address1 = address.id
+      address2 = other_address.id
+
+      assert_receive {{:tx, :pending}, %{id: ^txid, address_id: ^address1}}
+      assert_receive {{:tx, :pending}, %{id: ^txid, address_id: ^address2}}
+    end
+
+    test "2x outputs to separate addresses, not all are known to us", %{
+      address: address,
+      txid: txid,
+      amount: amount
+    } do
+      other_address = "some-not-tracked"
+      other_amount = create_money(address.currency_id)
+
+      assert {:ok, _tx} =
+               Transactions.update(txid,
+                 outputs: [{address.id, amount}, {other_address, other_amount}]
+               )
+
+      address_id = address.id
+
+      assert_receive {{:tx, :pending}, %{id: ^txid, address_id: ^address_id}}
+      refute_receive {{:tx, :pending}, %{id: ^txid, address_id: ^other_address}}
+    end
+
+    test "invalid address", %{txid: txid, amount: amount} do
+      assert {:error, :no_known_output} =
+               Transactions.update(txid,
+                 outputs: [{"xxx", amount}]
+               )
+    end
+
+    test "no known address from multiple outputs", %{txid: txid, amount: amount} do
+      assert {:error, :no_known_output} =
+               Transactions.update(txid,
+                 outputs: [{"xxx", amount}, {"yyy", amount}]
+               )
+    end
+
+    test "invalid amount", %{txid: txid, address: address} do
+      assert {:error, _} =
+               Transactions.update(txid,
+                 outputs: [{address.id, 2.1}]
+               )
+    end
+
+    test "invalid currency in amount", %{txid: txid, address: address} do
+      assert {:error, _} =
+               Transactions.update(txid,
+                 outputs: [{address.id, Money.new(100, :USD)}]
+               )
+    end
+
+    test "missing outputs", %{txid: txid} do
+      assert {:error, _} = Transactions.update(txid, [])
+    end
+  end
+
+  describe "updates transaction" do
+    @tag tx: %{height: 0}
+    test "confirms an unconfirmed tx", %{tx: tx, txid: txid, address_id: address_id} do
+      assert {:ok, _tx} = Transactions.update(tx.id, height: 20)
+      assert_receive {{:tx, :confirmed}, %{id: ^txid, address_id: ^address_id, height: 20}}
+    end
+
+    @tag tx: %{height: 0}
+    test "double spends an unconfirmed tx", %{tx: tx, txid: txid, address_id: address_id} do
+      assert {:ok, _tx} = Transactions.update(tx.id, double_spent: true)
+      assert_receive {{:tx, :double_spent}, %{id: ^txid, address_id: ^address_id}}
+    end
+
+    @tag tx: %{height: 0}
+    test "fails an unconfirmed tx", %{tx: tx, txid: txid, address_id: address_id} do
+      assert {:ok, _tx} = Transactions.update(tx.id, failed: true)
+      assert_receive {{:tx, :failed}, %{id: ^txid, address_id: ^address_id}}
+    end
+
+    @tag tx: %{height: 5}
+    test "reverses a confirmed tx", %{tx: tx, txid: txid, address_id: address_id} do
+      assert {:ok, _tx} = Transactions.update(tx.id, height: 0)
+      assert_receive {{:tx, :reversed}, %{id: ^txid, address_id: ^address_id}}
+    end
+
+    @tag tx: %{height: 5}
+    test "fails a confirmed tx", %{tx: tx, txid: txid, address_id: address_id} do
+      # Implies that it's also reversed
+      assert {:ok, _tx} = Transactions.update(tx.id, height: 0, failed: true)
+      assert_receive {{:tx, :failed}, %{id: ^txid, address_id: ^address_id}}
+    end
+
+    @tag tx: %{height: 5}
+    test "double spends a confirmed tx", %{tx: tx, txid: txid, address_id: address_id} do
+      # It means that a double spend attempt failed
+      assert {:ok, _tx} = Transactions.update(tx.id, double_spent: true)
+      assert_receive {{:tx, :double_spent}, %{id: ^txid, address_id: ^address_id}}
+    end
+  end
+
+  describe "address_tx_info" do
+    @tag other_address: true
+    test "filter and sum outputs", %{address: address, other_address: other_address} do
+      assert {:ok, _tx} =
+               Transactions.update(unique_txid(),
+                 outputs: [
+                   {address.id, Money.new(100, address.currency_id)},
+                   {other_address.id, Money.new(30, address.currency_id)}
                  ],
-                 1
+                 height: 1
                )
 
-      tx0 = Repo.get_by!(TxOutput, txid: txid, address_id: address.id)
-      assert tx0.txid == txid
-      assert tx0.address_id == address.id
-      assert tx0.confirmed_height == 1
-
-      tx1 = Repo.get_by!(TxOutput, txid: txid, address_id: other_address.id)
-      assert tx1.txid == txid
-      assert tx1.address_id == other_address.id
-      assert tx1.confirmed_height == 1
-    end
-
-    test "seen then confirmed", %{address: address, txid: txid} do
-      assert :ok = Transactions.seen(txid, [{address.id, create_money(address.currency_id)}])
-      tx = Repo.get_by!(TxOutput, txid: txid)
-      assert tx.confirmed_height == nil
-
-      assert :ok =
-               Transactions.confirmed(
-                 txid,
-                 [{address.id, create_money(address.currency_id)}],
-                 1
+      assert {:ok, _tx} =
+               Transactions.update(unique_txid(),
+                 outputs: [
+                   {address.id, Money.new(18, address.currency_id)},
+                   {address.id, Money.new(2, address.currency_id)}
+                 ],
+                 height: 2
                )
 
-      tx2 = Repo.get_by!(TxOutput, txid: txid)
-      assert tx.id == tx2.id
-      assert tx2.confirmed_height == 1
-    end
-  end
-
-  describe "reversed/2" do
-    test "reversed", %{address: address, txid: txid} do
-      assert :ok =
-               Transactions.confirmed(
-                 txid,
-                 [{address.id, create_money(address.currency_id)}],
-                 0
+      assert {:ok, _tx} =
+               Transactions.update(unique_txid(),
+                 outputs: [{other_address.id, Money.new(111, address.currency_id)}],
+                 height: 3
                )
 
-      tx = Repo.get_by!(TxOutput, txid: txid)
-      assert tx.confirmed_height == 0
+      m100 = Money.new(100, address.currency_id)
+      m20 = Money.new(20, address.currency_id)
 
-      assert :ok = Transactions.reversed(txid, [{address.id, create_money(address.currency_id)}])
-
-      tx = Repo.get_by!(TxOutput, txid: txid)
-      assert tx.confirmed_height == nil
-      assert !tx.double_spent
+      assert [
+               %{
+                 txid: _,
+                 height: 1,
+                 failed: false,
+                 double_spent: false,
+                 amount: ^m100
+               },
+               %{
+                 txid: _,
+                 height: 2,
+                 failed: false,
+                 double_spent: false,
+                 amount: ^m20
+               }
+             ] =
+               Transactions.address_tx_info(address.id)
+               |> Enum.sort_by(fn info -> info.height end)
     end
   end
 
-  describe "double_spent/2" do
-    test "0-conf double spent", %{address: address, txid: txid} do
-      assert :ok = Transactions.seen(txid, [{address.id, create_money(address.currency_id)}])
-      tx = Repo.get_by!(TxOutput, txid: txid)
-      assert !tx.double_spent
+  describe "active/1" do
+    test "get active transactions", %{currency_id: currency_id} do
+      _draft = create_invoice(payment_currency_id: currency_id, status: :draft)
 
-      assert :ok =
-               Transactions.double_spent(txid, [
-                 {address.id, create_money(address.currency_id)}
-               ])
+      open =
+        create_invoice(payment_currency_id: currency_id, status: :open, txs: :auto)
+        |> Repo.preload(:transactions)
 
-      tx = Repo.get_by!(TxOutput, txid: txid)
-      assert tx.double_spent
-    end
+      processing =
+        create_invoice(payment_currency_id: currency_id, status: :processing, txs: :auto)
+        |> Repo.preload(:transactions)
 
-    test "failed delayed double spend attempt", %{address: address, txid: txid} do
-      # It's possible to mark a transaction as both a double spend and as having a confirmation.
-      # This means that the double spend attempt failed.
-      assert :ok =
-               Transactions.confirmed(
-                 txid,
-                 [{address.id, create_money(address.currency_id)}],
-                 0
-               )
+      _paid = create_invoice(payment_currency_id: currency_id, status: :paid, txs: :auto)
 
-      tx = Repo.get_by!(TxOutput, txid: txid)
-      assert !tx.double_spent
-      assert tx.confirmed_height == 0
+      _double_spent =
+        create_invoice(
+          payment_currency_id: currency_id,
+          status: {:uncollectible, :double_spent},
+          txs: :auto
+        )
 
-      assert :ok =
-               Transactions.double_spent(txid, [
-                 {address.id, create_money(address.currency_id)}
-               ])
+      expected =
+        (open.transactions ++ processing.transactions)
+        |> MapSet.new(fn t -> t.id end)
 
-      tx = Repo.get_by!(TxOutput, txid: txid)
-      assert tx.double_spent
-      assert tx.confirmed_height == 0
+      # At least one tx should exist in the processing invoice, and maybe some in the open invoice.
+      assert Enum.any?(expected)
+
+      active = Transactions.active(currency_id)
+
+      assert Enum.count(expected) == Enum.count(active)
+
+      for x <- active do
+        assert MapSet.member?(expected, x.id)
+      end
     end
   end
 end

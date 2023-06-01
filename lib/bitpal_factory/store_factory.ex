@@ -84,10 +84,6 @@ defmodule BitPalFactory.StoreFactory do
     invoice_count = params[:invoice_count] || Faker.random_between(1, 3)
     generate_txs = params[:txs] == :auto
 
-    if params[:currency_id] do
-      raise "trying to set currency_id!"
-    end
-
     invoices =
       Stream.repeatedly(fn ->
         payment_currency_id = pick_payment_currency_id(params)

@@ -4,11 +4,20 @@ defmodule BitPal.InvoiceEvents do
   """
 
   alias BitPal.EventHelpers
+  alias BitPalSchemas.Address
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.InvoiceStatus
-  alias BitPalSchemas.TxOutput
+  alias BitPalSchemas.Transaction
 
-  @type tx :: TxOutput.t()
+  @type txinfo :: %{
+          txid: Transaction.id(),
+          height: Transaction.height(),
+          failed: boolean,
+          double_spent: boolean,
+          amount: Money.t(),
+          address_id: Address.id()
+        }
+  @type txs :: [txinfo]
   @type additional_confirmations :: non_neg_integer
 
   @type msg ::
@@ -18,21 +27,21 @@ defmodule BitPal.InvoiceEvents do
           | {{:invoice, :uncollectible}, %{id: Invoice.id(), status: InvoiceStatus.t()}}
           | {
               {:invoice, :underpaid},
-              %{id: Invoice.id(), status: InvoiceStatus.t(), amount_paid: Money.t(), txs: [tx]}
+              %{id: Invoice.id(), status: InvoiceStatus.t(), amount_paid: Money.t(), txs: txs}
             }
           | {
               {:invoice, :overpaid},
-              %{id: Invoice.id(), status: InvoiceStatus.t(), amount_paid: Money.t(), txs: [tx]}
+              %{id: Invoice.id(), status: InvoiceStatus.t(), amount_paid: Money.t(), txs: txs}
             }
           | {{:invoice, :processing},
              %{
                id: Invoice.id(),
                status: InvoiceStatus.t(),
                confirmations_due: additional_confirmations,
-               txs: [tx]
+               txs: txs
              }}
           | {{:invoice, :paid},
-             %{id: Invoice.id(), status: InvoiceStatus.t(), amount_paid: Money.t(), txs: [tx]}}
+             %{id: Invoice.id(), status: InvoiceStatus.t(), amount_paid: Money.t(), txs: txs}}
 
   @spec subscribe(Invoice.id() | Invoice.t()) :: :ok | {:error, term}
   def subscribe(%Invoice{id: id}), do: EventHelpers.subscribe(topic(id))

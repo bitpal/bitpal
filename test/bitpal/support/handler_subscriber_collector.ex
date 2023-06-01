@@ -27,9 +27,13 @@ defmodule BitPal.HandlerSubscriberCollector do
     end
 
     {:ok, stub} = GenServer.start_link(__MODULE__, name: via_tuple(invoice.id), parent: self())
-    {invoice, handler} = GenServer.call(stub, {:track_and_finalize, invoice, opts})
+    {invoice, handler} = track_and_finalize(stub, invoice, opts)
 
     {:ok, invoice, stub, handler}
+  end
+
+  defp track_and_finalize(stub, invoice, opts) do
+    GenServer.call(stub, {:track_and_finalize, invoice, opts})
   end
 
   defp via_tuple(invoice_id) do
@@ -101,7 +105,8 @@ defmodule BitPal.HandlerSubscriberCollector do
     manager_opts = %{
       parent: state.parent,
       double_spend_timeout: opts[:double_spend_timeout],
-      manager_name: opts[:manager_name] || BitPal.BackendManager
+      manager: opts[:manager] || BitPal.BackendManager,
+      restart: opts[:restart] || :transient
     }
 
     if Invoices.finalized?(invoice) do

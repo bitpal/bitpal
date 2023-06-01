@@ -1,6 +1,6 @@
 import Config
 
-if Config.config_env() == :prod do
+if config_env() == :prod do
   secret_key_base =
     System.get_env("SECRET_KEY_BASE") ||
       raise """
@@ -24,3 +24,10 @@ if Config.config_env() == :prod do
     url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
 end
+
+# user_config = "user_settings.#{config_env()}.exs"
+#
+# # Import user settings, that can be set from the web UI.
+# if File.exists?(user_config) do
+#   import_config(user_config)
+# end

@@ -1,16 +1,16 @@
 defmodule BitPal.Stores do
   import Ecto.Changeset
-  import Ecto.Query, only: [from: 2]
+  import Ecto.Query
   alias BitPal.Invoices
   alias BitPal.Repo
   alias BitPal.UserEvents
   alias BitPalSchemas.AccessToken
   alias BitPalSchemas.Address
   alias BitPalSchemas.AddressKey
+  alias BitPalSchemas.Currency
   alias BitPalSchemas.CurrencySettings
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.Store
-  alias BitPalSchemas.TxOutput
   alias BitPalSchemas.User
   alias Ecto.Changeset
 
@@ -134,16 +134,6 @@ defmodule BitPal.Stores do
     user.stores
   end
 
-  @spec tx_outputs(Store.id()) :: [TxOutput.t()]
-  def tx_outputs(store_id) do
-    from(t in TxOutput,
-      left_join: i in Invoice,
-      on: t.address_id == i.address_id,
-      where: i.store_id == ^store_id
-    )
-    |> Repo.all()
-  end
-
   @spec all_addresses(Store.id() | Store.t()) :: [Address.t()]
   def all_addresses(store = %Store{}) do
     all_addresses(store.id)
@@ -160,6 +150,19 @@ defmodule BitPal.Stores do
       where: i.store_id == ^store_id or settings.store_id == ^store_id,
       select: a,
       order_by: [asc: a.inserted_at, asc: a.address_index]
+    )
+    |> Repo.all()
+  end
+
+  @spec with_address_key(Currency.id()) :: [{Store.t(), AddressKey.t()}]
+  def with_address_key(currency_id) do
+    from(s in Store,
+      inner_join: set in CurrencySettings,
+      on: s.id == set.store_id,
+      where: set.currency_id == ^currency_id,
+      inner_join: key in AddressKey,
+      on: key.currency_settings_id == set.id,
+      select: {s, key}
     )
     |> Repo.all()
   end

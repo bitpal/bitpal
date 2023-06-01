@@ -146,7 +146,7 @@ https://github.com/websockets/wscat
 > Channel
 
 > ~~~
->invoice:<invoice_id>
+> invoice:<invoice_id>
 > ~~~
 
 ### Processing

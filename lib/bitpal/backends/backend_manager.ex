@@ -10,10 +10,6 @@ defmodule BitPal.BackendManager do
   alias Ecto.Adapters.SQL.Sandbox
   require Logger
 
-  # Maybe we could do something smarter in the future, like:
-  # 1 sec, 2 sec, 4 sec, 8 sec, 16 sec, 32 sec, 64 sec, ...
-  @reconnect_timeout Application.compile_env!(:bitpal, [__MODULE__, :reconnect_timeout])
-
   @type server_name :: atom | {:via, term, term} | pid
   @type backend_spec :: Supervisor.child_spec() | {module, term} | module
   @type backend_name :: atom
@@ -26,10 +22,18 @@ defmodule BitPal.BackendManager do
 
   # Invoices
 
-  @spec register(server_name, Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
-  def register(server \\ __MODULE__, invoice) do
+  @spec register_invoice(server_name, Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
+  def register_invoice(server \\ __MODULE__, invoice) do
     case fetch_backend(server, invoice.payment_currency_id) do
-      {:ok, ref} -> Backend.register(ref, invoice)
+      {:ok, ref} -> Backend.register_invoice(ref, invoice)
+      error -> error
+    end
+  end
+
+  @spec update_address(server_name, Invoice.t()) :: :ok | {:error, term}
+  def update_address(server \\ __MODULE__, invoice) do
+    case fetch_backend(server, invoice.payment_currency_id) do
+      {:ok, ref} -> Backend.update_address(ref, invoice)
       error -> error
     end
   end
@@ -57,6 +61,36 @@ defmodule BitPal.BackendManager do
           _ ->
             false
         end) || {:error, :plugin_not_found}
+    end
+  end
+
+  @spec fetch_backend_module(server_name, Currency.id()) ::
+          {:ok, module} | {:error, :plugin_not_found}
+  def fetch_backend_module(server \\ __MODULE__, currency_id) do
+    case ProcessRegistry.get_process_value(Backend.via_tuple(currency_id)) do
+      {:ok, {_pid, module}} ->
+        {:ok, module}
+
+      {:error, :not_found} ->
+        Enum.find_value(Supervisor.which_children(backend_supervisor(server)), fn
+          {^currency_id, _status, _worker, [module | _rest]} ->
+            {:ok, module}
+
+          _ ->
+            false
+        end) || {:error, :plugin_not_found}
+    end
+  end
+
+  @spec fetch_backend_pid(server_name, Currency.id()) ::
+          {:ok, pid}
+          | {:error, :plugin_not_found}
+          | {:error, :stopped}
+          | {:error, :starting}
+  def fetch_backend_pid(server \\ __MODULE__, currency_id) do
+    case fetch_backend(server, currency_id) do
+      {:ok, {pid, _}} -> {:ok, pid}
+      err -> err
     end
   end
 
@@ -115,9 +149,11 @@ defmodule BitPal.BackendManager do
 
       {:ok, pid} when is_pid(pid) ->
         try do
+          {:ok, currency_id} = backend.supported_currency(pid)
+
           GenServer.call(
             server,
-            {:backend_added, pid, backend.supported_currency(pid), Enum.into(opts, %{})}
+            {:backend_added, pid, currency_id, Enum.into(opts, %{})}
           )
 
           {:ok, {pid, backend}}
@@ -134,16 +170,41 @@ defmodule BitPal.BackendManager do
 
   @spec remove_currency_backends(server_name, [Currency.id()]) :: :ok
   def remove_currency_backends(server \\ __MODULE__, currencies) when is_list(currencies) do
-    supervisor = backend_supervisor(server)
-
     Enum.each(currencies, fn id ->
-      remove_backend(supervisor, id)
+      remove_backend(server, id)
     end)
   end
 
-  defp remove_backend(supervisor, child_id) do
-    Supervisor.terminate_child(supervisor, child_id)
-    Supervisor.delete_child(supervisor, child_id)
+  @spec remove_backends(server_name) :: :ok
+  def remove_backends(server \\ __MODULE__) do
+    Enum.each(currencies(server), fn {id, _} ->
+      remove_backend(server, id)
+    end)
+  end
+
+  defp remove_backend(server, currency_id) do
+    supervisor = backend_supervisor(server)
+
+    # Manually stop the GenServer before removal to avoid Repo sandbox errors during testing.
+    # They're not critical, but in some rare cases they may cause cascading test errors
+    # which is super annoying to debug.
+    # This shouldn't be necessary in general when stopping a backend outside that particular
+    # case I don't think.
+    case fetch_backend_pid(server, currency_id) do
+      {:ok, pid} ->
+        try do
+          GenServer.stop(pid)
+        catch
+          :exit, err ->
+            Logger.debug("Error when stopping backend: #{inspect(err)}")
+        end
+
+      _ ->
+        nil
+    end
+
+    Supervisor.terminate_child(supervisor, currency_id)
+    Supervisor.delete_child(supervisor, currency_id)
   end
 
   # Supervised backends
@@ -202,6 +263,15 @@ defmodule BitPal.BackendManager do
       {:ok, _backend} ->
         BackendStatusSupervisor.get_status(currency_id)
 
+      # Should check status supervisor here again, as sometimes
+      # the backend has stopped/crashed and can't be found by the supervisor
+      # but the status handler holds the stopped error status.
+      {:error, :plugin_not_found} ->
+        case BackendStatusSupervisor.get_status(currency_id) do
+          :unknown -> :plugin_not_found
+          status -> status
+        end
+
       {:error, status} ->
         status
     end
@@ -241,7 +311,7 @@ defmodule BitPal.BackendManager do
     Supervisor.which_children(supervisor)
     |> Enum.each(fn {child_id, pid, _, _} ->
       if !MapSet.member?(to_keep, pid) do
-        remove_backend(supervisor, child_id)
+        remove_backend(server, child_id)
       end
     end)
   end
@@ -299,7 +369,8 @@ defmodule BitPal.BackendManager do
         {:ok, pid} ->
           {:noreply, monitor(pid, currency_id, state)}
 
-        _ ->
+        err ->
+          Logger.debug("Error when restarting backend: #{inspect(err)}")
           {:noreply, state}
       end
     else
@@ -325,13 +396,13 @@ defmodule BitPal.BackendManager do
   def handle_info({:DOWN, ref, :process, _pid, reason = {:shutdown, _}}, state) do
     # Controlled shut down due to some error after init is successful, probably a connection error.
     # Because it's some connection error, we'll reconnect after a timeout.
-    {:noreply, handle_down(state, ref, reason, delayed_restart: true)}
+    {:noreply, handle_down(state, ref, reason, delayed_restart: true, log_error: true)}
   end
 
   @impl true
   def handle_info({:DOWN, ref, :process, _pid, reason = {:error, _error}}, state) do
     # We crashed but handled it manually. The supervisor will restart directly.
-    {:noreply, handle_down(state, ref, reason, log_error: true)}
+    {:noreply, handle_down(state, ref, reason, delayed_restart: true, log_error: true)}
   end
 
   @impl true
@@ -340,12 +411,14 @@ defmodule BitPal.BackendManager do
     Logger.error("unhandled backend crash: #{inspect(reason)}")
 
     error_reason = if is_atom(reason), do: reason, else: :unknown
-    {:noreply, handle_down(state, ref, {:error, error_reason}, log_error: true)}
+
+    {:noreply,
+     handle_down(state, ref, {:error, error_reason}, delayed_restart: true, log_error: true)}
   end
 
   @impl true
   def handle_info({:EXIT, _pid, reason}, state) do
-    Logger.warn("unhandled backend EXIT: #{inspect(reason)}")
+    Logger.error("unhandled backend EXIT: #{inspect(reason)}")
     {:noreply, state}
   end
 
@@ -353,15 +426,18 @@ defmodule BitPal.BackendManager do
     currency_id = monitored_currency_id(ref, state)
 
     if opts[:log_error] do
-      Logger.error("Backend for #{currency_id} crashed with code #{inspect(reason)}")
-      Logger.error("ref: #{inspect(ref)} manager: #{inspect(self())}")
+      Logger.critical("Backend for #{currency_id} crashed with code #{inspect(reason)}")
     end
 
     if currency_id != :unknown do
       BackendStatusSupervisor.set_down(currency_id, reason)
 
       if opts[:delayed_restart] do
-        Process.send_after(self(), {:restart_backend_if_enabled, currency_id}, @reconnect_timeout)
+        Process.send_after(
+          self(),
+          {:restart_backend_if_enabled, currency_id},
+          BackendSettings.restart_timeout()
+        )
       end
     end
 
@@ -383,15 +459,25 @@ defmodule BitPal.BackendManager do
       Sandbox.allow(BitPal.Repo, parent, self())
     end
 
-    backends = Map.get(opts, :backends, BitPalSettings.currency_backends())
+    if log_level = opts[:log_level] do
+      Logger.put_process_level(self(), log_level)
+    end
+
+    backends = Map.get(opts, :backends, BackendSettings.backends())
 
     {:ok, backend_supervisor} =
       Supervisor.start_link(backends, strategy: :one_for_one, max_restarts: 50, max_seconds: 5)
 
-    state =
-      opts
-      |> Map.take([:enabled_state])
-      |> Map.put(:backend_supervisor, backend_supervisor)
+    state = %{backend_supervisor: backend_supervisor}
+
+    added_opts =
+      case Map.get(opts, :init_enabled, :not_found) do
+        :not_found ->
+          %{}
+
+        enabled ->
+          %{enabled: enabled}
+      end
 
     state =
       Supervisor.which_children(backend_supervisor)
@@ -399,7 +485,7 @@ defmodule BitPal.BackendManager do
         state,
         fn
           {currency_id, pid, _, _}, acc when is_pid(pid) ->
-            backend_added(pid, currency_id, acc)
+            backend_added(pid, currency_id, acc, added_opts)
 
           _, acc ->
             acc
@@ -413,7 +499,7 @@ defmodule BitPal.BackendManager do
     backend_added(pid, currency_id, store_enabled(state, currency_id, is_enabled))
   end
 
-  defp backend_added(pid, currency_id, state, %{}) when is_pid(pid) do
+  defp backend_added(pid, currency_id, state, _) when is_pid(pid) do
     backend_added(pid, currency_id, state)
   end
 

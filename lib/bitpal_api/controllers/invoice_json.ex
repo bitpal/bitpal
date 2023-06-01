@@ -98,7 +98,7 @@ defmodule BitPalApi.InvoiceJSON do
   end
 
   defp render_txs(txs) do
-    Enum.map(txs, fn tx -> TransactionJSON.show(%{tx: tx}) end)
+    Enum.map(txs, fn tx -> TransactionJSON.show(tx) end)
   end
 
   defp add_status(res, %{status: status}) do

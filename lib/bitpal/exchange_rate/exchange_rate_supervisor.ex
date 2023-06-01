@@ -4,6 +4,7 @@ defmodule BitPal.ExchangeRateSupervisor do
   alias BitPalSchemas.Currency
   require Logger
 
+  # FIXME ExchangeRateSupervisor ?
   @sources Application.compile_env!(:bitpal, [BitPal.ExchangeRate, :sources])
 
   @spec sources(module) :: [%{source: module, prio: non_neg_integer}]

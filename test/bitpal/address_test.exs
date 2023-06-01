@@ -1,10 +1,10 @@
-defmodule AddressTest do
-  use BitPal.IntegrationCase, async: true
+defmodule BitPal.AddressTest do
+  use BitPal.DataCase, async: true
   alias BitPal.Addresses
   alias BitPal.Invoices
 
-  setup tags do
-    currency_id = Map.fetch!(tags, :currency_id)
+  setup _tags do
+    currency_id = unique_currency_id()
     store = create_store()
     address_key = create_address_key(store: store, currency_id: currency_id)
     %{store: store, address_key: address_key, currency_id: currency_id}
@@ -61,21 +61,22 @@ defmodule AddressTest do
   end
 
   describe "generate_address/2" do
-    test "generates", %{address_key: address_key} do
-      data = address_key.data
+    defp key_data_id(%{xpub: xpub}), do: xpub
+    defp key_data_id(%{viewkey: viewkey}), do: viewkey
 
-      for i <- 0..3 do
-        {:ok, address} = Addresses.generate_address(address_key, &test_address_generator/1)
-        # Tests the compound of indata to the generator
-        assert "#{data}-#{i}-#{address_key.currency_id}" == address.id
-      end
+    defp test_address_generator(key) do
+      i = Addresses.next_address_index(key)
+      {:ok, %{address_id: "#{key_data_id(key.data)}-#{i}-#{key.currency_id}", address_index: i}}
     end
 
-    test "generate multiple addresses", %{address_key: address_key} do
-      addresses = Addresses.generate_addresses!(address_key, &test_address_generator/1, 5)
+    test "generates", %{address_key: address_key} do
+      for i <- 0..3 do
+        {:ok, address} = Addresses.generate_address(address_key, &test_address_generator/1)
 
-      assert length(addresses) == 5
-      assert Addresses.next_address_index(address_key) == 5
+        assert address.address_index == i
+        # Tests the compound of indata to the generator
+        assert "#{key_data_id(address_key.data)}-#{i}-#{address_key.currency_id}" == address.id
+      end
     end
   end
 
@@ -133,11 +134,20 @@ defmodule AddressTest do
       }
     end
 
-    test "all_open/1", %{
+    test "all_open_ids/1", %{
       currency_id: currency_id,
       open_address: open_address
     } do
-      assert [open_address] == Addresses.all_open(currency_id)
+      assert [open_address] == Addresses.all_open_ids(currency_id)
+    end
+
+    test "all_active_ids/1", %{
+      currency_id: currency_id,
+      open_address: open_address,
+      processing_address: processing_address
+    } do
+      assert Enum.sort([open_address, processing_address]) ==
+               Enum.sort(Addresses.all_active_ids(currency_id))
     end
 
     test "all_active/1", %{
@@ -146,12 +156,10 @@ defmodule AddressTest do
       processing_address: processing_address
     } do
       assert Enum.sort([open_address, processing_address]) ==
-               Enum.sort(Addresses.all_active(currency_id))
+               Addresses.all_active(currency_id)
+               |> Enum.map(fn a -> a.id end)
+               |> Enum.sort()
     end
-  end
-
-  defp test_address_generator(%{key: key, index: i, currency_id: currency_id}) do
-    "#{key}-#{i}-#{currency_id}"
   end
 
   defp assign_address(address) do

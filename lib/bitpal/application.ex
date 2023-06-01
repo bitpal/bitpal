@@ -32,6 +32,7 @@ defmodule BitPal.Application do
           BitPal.BackendManager,
           BitPal.ExchangeRateSupervisor,
           BitPal.ServerSetup,
+          BitPal.ExtNotificationHandler,
           BitPal.Proxy,
           BitPalApi.Endpoint,
           BitPalWeb.Telemetry,

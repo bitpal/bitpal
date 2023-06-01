@@ -63,6 +63,7 @@ defmodule BitPal.Repo.Migrations.NewBeginning do
     create table(:currencies, primary_key: false) do
       add :id, :string, size: 8, primary_key: true
       add :block_height, :integer
+      add :top_block_hash, :string
     end
 
     create unique_index(:currencies, :id)
@@ -78,13 +79,18 @@ defmodule BitPal.Repo.Migrations.NewBeginning do
     create unique_index(:currency_settings, [:store_id, :currency_id])
 
     create table(:address_keys) do
-      add :data, :string, null: false
+      add :data, :map, null: false
       add :currency_id, references(:currencies, type: :string, size: 8), null: false
       add :currency_settings_id, references(:currency_settings)
       timestamps()
     end
 
-    create unique_index(:address_keys, :data)
+    execute("CREATE UNIQUE INDEX address_keys_xpub_idx ON address_keys((data->'xpub'));")
+
+    execute(
+      "CREATE UNIQUE INDEX address_keys_viewkey_idx ON address_keys((data->'viewkey'), (data->'address'), (data->'account'));"
+    )
+
     create index(:address_keys, :currency_settings_id)
 
     create table(:addresses, primary_key: false) do
@@ -99,15 +105,22 @@ defmodule BitPal.Repo.Migrations.NewBeginning do
     create unique_index(:addresses, [:address_index, :address_key_id])
     create index(:addresses, :address_key_id)
 
-    create table(:tx_outputs) do
-      add :txid, :string, null: false
-      add :amount, :money_with_currency, null: false
-      add :confirmed_height, :integer
-      add :double_spent, :boolean
-      add :address_id, references(:addresses, type: :string), null: false
+    create table(:transactions, primary_key: false) do
+      add :id, :string, primary_key: true
+      add :height, :integer, null: false
+      add :failed, :boolean, null: false
+      add :double_spent, :boolean, null: false
+      add :currency_id, references(:currencies, type: :string, size: 8), null: false
+      timestamps(updated_at: false)
     end
 
-    create index(:tx_outputs, :txid)
+    create unique_index(:transactions, :id)
+
+    create table(:tx_outputs) do
+      add :amount, :money_with_currency, null: false
+      add :address_id, references(:addresses, type: :string), null: false
+      add :transaction_id, references(:transactions, type: :string), null: false
+    end
 
     create table(:backend_settings) do
       add :enabled, :boolean, null: false

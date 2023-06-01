@@ -7,12 +7,14 @@ defmodule BitPal.RateLimiter do
   Adapted from: https://akoutmos.com/post/rate-limiting-with-genservers/
   """
   use GenServer
+  require Logger
 
   @type settings :: [
           timeframe: non_neg_integer,
           timeframe_max_requests: non_neg_integer,
           timeframe_unit: :hours | :minutes | :seconds | :milliseconds,
-          retry_timeout: non_neg_integer
+          retry_timeout: non_neg_integer,
+          log_level: atom
         ]
 
   @type request_handler :: {module, atom, list}
@@ -51,7 +53,8 @@ defmodule BitPal.RateLimiter do
         retry_timeout: opts.retry_timeout,
         task_supervisor: task_supervisor,
         request_queue: :queue.new(),
-        request_queue_size: 0
+        request_queue_size: 0,
+        log_level: Map.get(opts, :log_level, :error)
       }
       |> schedule_refresh()
 
@@ -82,7 +85,7 @@ defmodule BitPal.RateLimiter do
 
     state =
       state
-      |> async_request(request_handler, response_handler)
+      |> async_request(request_handler, response_handler, state.log_level)
       |> schedule_refresh()
       |> Map.replace!(:request_queue, updated_queue)
       |> Map.update!(:request_queue_size, &(&1 - 1))
@@ -123,7 +126,7 @@ defmodule BitPal.RateLimiter do
 
   defp handle_request(request_handler, response_handler, state) do
     state
-    |> async_request(request_handler, response_handler)
+    |> async_request(request_handler, response_handler, state.log_level)
     |> Map.update!(:available_tokens, &(&1 - 1))
   end
 
@@ -132,9 +135,10 @@ defmodule BitPal.RateLimiter do
     state
   end
 
-  defp async_request(state, request_handler, response_handler) do
+  defp async_request(state, request_handler, response_handler, log_level) do
     task =
       Task.Supervisor.async_nolink(state.task_supervisor, fn ->
+        Logger.put_process_level(self(), log_level)
         {req_module, req_function, req_args} = request_handler
 
         {resp_module, resp_function, resp_args} = response_handler

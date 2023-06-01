@@ -1,6 +1,6 @@
+# NOTE should rework how this renders.
 defmodule BitPalApi.TransactionController do
   use BitPalApi, :controller
-  alias BitPal.Stores
   alias BitPal.Transactions
 
   def action(conn, _) do
@@ -9,7 +9,7 @@ defmodule BitPalApi.TransactionController do
   end
 
   def index(conn, _params, current_store) do
-    render(conn, :index, txs: Stores.tx_outputs(current_store))
+    render(conn, :index, txs: Transactions.store_tx_info(current_store))
   end
 
   def show(conn, %{"txid" => txid}, current_store) do

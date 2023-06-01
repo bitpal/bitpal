@@ -2,7 +2,6 @@ defmodule BitPal.Backend.FloweeTest do
   use ExUnit.Case, async: false
   use BitPal.CaseHelpers
   import Mox
-  import BitPal.MockTCPClient
   alias BitPal.Backend.FloweeFixtures
   alias BitPal.BackendEvents
   alias BitPal.BackendManager
@@ -12,13 +11,15 @@ defmodule BitPal.Backend.FloweeTest do
   alias BitPal.MockTCPClient
 
   @currency :BCH
-  @xpub Application.compile_env!(:bitpal, [:BCH, :xpub])
+  @xpub "xpub6C23JpFE6ABbBudoQfwMU239R5Bm6QGoigtLq1BD3cz3cC6DUTg89H3A7kf95GDzfcTis1K1m7ypGuUPmXCaCvoxDKbeNv6wRBEGEnt1NV7"
   @client BitPal.FloweeMock
 
   setup :set_mox_from_context
 
   setup tags do
-    init_mock(@client)
+    IntegrationCase.remove_invoice_handlers([@currency])
+
+    MockTCPClient.init_mock(@client)
 
     # Some tests don't want to have the initialization automatically enabled.
     if Map.get(tags, :init_message, true) do
@@ -27,7 +28,9 @@ defmodule BitPal.Backend.FloweeTest do
 
     backends = [
       {BitPal.Backend.Flowee,
-       tcp_client: @client, ping_timeout: tags[:ping_timeout] || :timer.minutes(1)}
+       tcp_client: @client,
+       ping_timeout: tags[:ping_timeout] || :timer.minutes(1),
+       log_level: :alert}
     ]
 
     IntegrationCase.setup_integration(local_manager: true, backends: backends, async: false)
@@ -37,7 +40,7 @@ defmodule BitPal.Backend.FloweeTest do
   defp test_invoice(params) do
     params
     |> Enum.into(%{
-      address_key: @xpub,
+      address_key: %{xpub: @xpub},
       price: Money.parse!(Keyword.fetch!(params, :amount), @currency)
     })
     |> HandlerSubscriberCollector.create_invoice()
@@ -54,13 +57,13 @@ defmodule BitPal.Backend.FloweeTest do
 
   test "new block" do
     assert eventually(fn ->
-             Blocks.fetch_block_height(@currency) == {:ok, 690_637}
+             Blocks.fetch_height(@currency) == {:ok, 690_637}
            end)
 
     MockTCPClient.response(@client, FloweeFixtures.new_block())
 
     assert eventually(fn ->
-             Blocks.fetch_block_height(@currency) == {:ok, 690_638}
+             Blocks.fetch_height(@currency) == {:ok, 690_638}
            end)
   end
 
@@ -187,7 +190,6 @@ defmodule BitPal.Backend.FloweeTest do
            ] = HandlerSubscriberCollector.received(stub2)
   end
 
-  @tag double_spend_timeout: 1
   test "single tx 1-conf to multiple monitored addresses", %{store: store} do
     {:ok, _invoice, stub1, _invoice_handler} =
       test_invoice(
@@ -224,7 +226,7 @@ defmodule BitPal.Backend.FloweeTest do
 
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_1_conf())
     # Manually set blocks to avoid having to find fixtures for all things
-    Blocks.new_block(@currency, 690_933)
+    Blocks.new(@currency, 690_933)
 
     HandlerSubscriberCollector.await_msg(stub1, {:invoice, :paid})
     HandlerSubscriberCollector.await_msg(stub2, {:invoice, :paid})
@@ -268,7 +270,7 @@ defmodule BitPal.Backend.FloweeTest do
     # Confirm the first transaction.
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_1_conf())
     # Manually set blocks to avoid having to find fixtures for all things
-    Blocks.new_block(@currency, 690_933)
+    Blocks.new(@currency, 690_933)
 
     HandlerSubscriberCollector.await_msg(stub1, {:invoice, :finalized})
     HandlerSubscriberCollector.await_msg(stub2, {:invoice, :paid})
@@ -290,7 +292,7 @@ defmodule BitPal.Backend.FloweeTest do
     # And confirm.
     MockTCPClient.response(@client, FloweeFixtures.multi_tx_a_1_conf())
     # Manually set blocks to avoid having to find fixtures for all things
-    Blocks.new_block(@currency, 690_934)
+    Blocks.new(@currency, 690_934)
 
     HandlerSubscriberCollector.await_msg(stub1, {:invoice, :paid})
 
@@ -307,17 +309,17 @@ defmodule BitPal.Backend.FloweeTest do
     # Send it an incomplete startup message to get it going.
     MockTCPClient.response(@client, FloweeFixtures.blockchain_verifying_info_reply())
 
-    # Wait a bit to let it act.
-    :timer.sleep(10)
-
     # It should not be ready yet, Flowee is still preparing.
-    assert {:syncing, _} = BackendManager.status(@currency)
+    assert eventually(fn ->
+             {:syncing, _} = BackendManager.status(@currency)
+           end)
 
     # Give it a new message, now it should be done!
     MockTCPClient.response(@client, FloweeFixtures.blockchain_info_reply())
     assert eventually(fn -> BackendManager.status(@currency) == :ready end)
   end
 
+  @tag double_spend_timeout: 1
   @tag init_message: false
   test "make sure recovery works", %{store: store} do
     # During startup it will ask for blockchain info.
@@ -353,7 +355,7 @@ defmodule BitPal.Backend.FloweeTest do
 
     # Simulate the state stored in the DB:
     # We are now at height 690933, but we have only registered up to 690_931
-    Blocks.set_block_height(@currency, 690_931)
+    Blocks.new(@currency, 690_931)
 
     # Now, we tell Flowee the current block height. It will try to recover
     # and ask for the missing blocks.
@@ -369,7 +371,7 @@ defmodule BitPal.Backend.FloweeTest do
            end)
 
     # At this point, Flowee should not report being ready.
-    assert {:recovering, 690_931, 690_933} = BackendManager.status(@currency)
+    assert {:recovering, {690_931, 690_933}} = BackendManager.status(@currency)
 
     # Give them an empty block 690932
     MockTCPClient.response(@client, FloweeFixtures.block_info_690932_reply())
@@ -381,7 +383,7 @@ defmodule BitPal.Backend.FloweeTest do
                FloweeFixtures.get_block_690933_reused_hashes()
            end)
 
-    assert {:recovering, 690_932, 690_933} = BackendManager.status(@currency)
+    assert {:recovering, {690_932, 690_933}} = BackendManager.status(@currency)
 
     # Give them the block 690933 with transactions.
     MockTCPClient.response(@client, FloweeFixtures.block_info_690933_reply())

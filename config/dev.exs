@@ -1,13 +1,21 @@
 import Config
 
-config :bitpal,
+config :bitpal, BitPal.Backend.Monero,
+  # 18081 for mainnet, 28081 for testnet and 38081 for stagenet
+  net: :stagenet,
+  daemon_ip: "localhost",
+  daemon_port: 38081
+
+config :bitpal, BitPal.BackendManager,
+  restart_timeout: 3_000,
   backends: [
     # BitPal.Backend.Flowee,
+    BitPal.Backend.Monero
     # This uses a completely unique currency that's only used for testing.
     # {BitPal.BackendMock, auto: true, time_between_blocks: 2_000, sync_time: 10_000}
     # These specifies currencies directly.
-    {BitPal.BackendMock, auto: true, time_between_blocks: 10 * 60 * 1_000, currency_id: :BCH},
-    {BitPal.BackendMock, auto: true, time_between_blocks: 3 * 60 * 1_000, currency_id: :XMR}
+    # {BitPal.BackendMock, auto: true, time_between_blocks: 10 * 60 * 1_000, currency_id: :BCH},
+    # {BitPal.BackendMock, auto: true, time_between_blocks: 3 * 60 * 1_000, currency_id: :XMR}
   ]
 
 config :bitpal, BitPal.ExchangeRate,
@@ -56,7 +64,8 @@ config :bitpal, BitPal.Repo,
   database: "bitpal_dev",
   hostname: "localhost",
   show_sensitive_data_on_connection_error: true,
-  pool_size: 10
+  pool_size: 20,
+  queue_target: 5000
 
 config :bitpal, BitPalApi.Endpoint,
   http: [port: 4001],
@@ -100,8 +109,7 @@ config :phoenix, :plug_init_mode, :runtime
 config :bitpal, BitPal.Mailer, adapter: Swoosh.Adapters.Local
 
 config :bitpal, BitPalFactory, init: true
-config :bitpal, BitPal.BackendManager, reconnect_timeout: 3_000
 
-config :swoosh, serve_mailbox: true, preview_port: 4011
+config :swoosh, serve_mailbox: true, preview_port: 4012
 
 config :logger, level: :info

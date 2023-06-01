@@ -16,26 +16,34 @@ defmodule BitPalFactory.SettingsFactory do
       %{
         "required_confirmations" => Faker.random_between(0, 100),
         "double_spend_timeout" => Faker.random_between(1, 1_000_000),
-        "address_key" => unique_address_key_id()
+        "address_key" => unique_address_key_xpub()
       }
     )
   end
 
-  @spec unique_address_key_id :: String.t()
-  def unique_address_key_id do
-    sequence("testkey")
+  @spec unique_address_key_xpub :: %{xpub: String.t()}
+  def unique_address_key_xpub do
+    %{xpub: sequence("xpub:test")}
   end
 
-  def unique_address_key_id(currency_id) do
-    cond do
-      Currencies.is_test_currency?(currency_id) ->
-        sequence("testkey")
+  @spec unique_address_key_viewkey :: %{
+          viewkey: String.t(),
+          address: String.t(),
+          account: non_neg_integer
+        }
+  def unique_address_key_viewkey do
+    %{
+      viewkey: sequence("test_viewkey"),
+      address: sequence("test_address_key_address"),
+      account: 0
+    }
+  end
 
-      Currencies.has_xpub?(currency_id) ->
-        sequence("xpub:test")
-
-      currency_id == :XMR ->
-        sequence("xmr:test")
+  def unique_address_key_data(currency_id) do
+    if Currencies.has_xpub?(currency_id) do
+      unique_address_key_xpub()
+    else
+      unique_address_key_viewkey()
     end
   end
 
@@ -52,11 +60,15 @@ defmodule BitPalFactory.SettingsFactory do
     store_id = StoreFactory.get_or_create_store_id(attrs)
     currency_id = CurrencyFactory.get_or_create_currency_id(attrs)
 
-    data = attrs[:data] || unique_address_key_id(currency_id)
+    data = address_key_data(attrs, currency_id)
 
     {:ok, address_key} = StoreSettings.set_address_key(store_id, currency_id, data)
     address_key
   end
+
+  defp address_key_data(%{data: data}, _), do: data
+  defp address_key_data(%{xpub: xpub}, _), do: %{xpub: xpub}
+  defp address_key_data(_, currency_id), do: unique_address_key_data(currency_id)
 
   @spec with_address_key(Store.t()) :: Store.t()
   def with_address_key(store, opts \\ %{}) do
@@ -78,7 +90,7 @@ defmodule BitPalFactory.SettingsFactory do
       _ ->
         data =
           attrs[:data] ||
-            unique_address_key_id(currency_id)
+            unique_address_key_data(currency_id)
 
         {:ok, address_key} = StoreSettings.set_address_key(store_id, currency_id, data)
 

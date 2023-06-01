@@ -55,11 +55,12 @@ defmodule BitPal.InvoiceSupervisor do
       name,
       {
         InvoiceHandler,
-        manager_name: opts[:manager_name],
+        manager: opts[:manager],
         parent: opts[:parent],
         invoice_id: invoice.id,
         double_spend_timeout:
-          opts[:double_spend_timeout] || Invoices.double_spend_timeout(invoice)
+          opts[:double_spend_timeout] || Invoices.double_spend_timeout(invoice),
+        restart: opts[:restart] || :transient
       }
     )
   end
@@ -130,6 +131,7 @@ defmodule BitPal.InvoiceSupervisor do
 
   @spec terminate_handler(pid) :: :ok | {:error, :not_found}
   def terminate_handler(name \\ __MODULE__, pid) do
+    GenServer.stop(pid)
     DynamicSupervisor.terminate_child(name, pid)
   end
 

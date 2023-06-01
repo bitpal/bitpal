@@ -1,11 +1,18 @@
 defmodule BitPal.Transactions do
-  import Ecto.Query, only: [from: 2]
+  import Ecto.Changeset
+  import Ecto.Query
   alias BitPal.AddressEvents
+  alias BitPal.Addresses
   alias BitPal.Blocks
+  alias BitPal.InvoiceEvents
+  alias BitPal.Invoices
   alias BitPal.Repo
+  alias BitPal.Stores
   alias BitPalSchemas.Address
+  alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.Store
+  alias BitPalSchemas.Transaction
   alias BitPalSchemas.TxOutput
   require Logger
 
@@ -15,9 +22,9 @@ defmodule BitPal.Transactions do
 
   # External
 
-  @spec fetch(TxOutput.txid()) :: {:ok, TxOutput.t()} | {:error, :not_found}
+  @spec fetch(Transaction.id()) :: {:ok, Transaction.t()} | {:error, :not_found}
   def fetch(txid) do
-    if tx = Repo.get_by(TxOutput, txid: txid) do
+    if tx = Repo.get_by(Transaction, id: txid) do
       {:ok, tx}
     else
       {:error, :not_found}
@@ -26,13 +33,15 @@ defmodule BitPal.Transactions do
     _ -> {:error, :not_found}
   end
 
-  @spec fetch(TxOutput.txid(), Store.id()) :: {:ok, TxOutput.t()} | {:error, :not_found}
+  @spec fetch(Transaction.id(), Store.id()) :: {:ok, Transaction.t()} | {:error, :not_found}
   def fetch(txid, store_id) do
     tx =
-      from(t in TxOutput,
-        where: t.txid == ^txid,
+      from(t in Transaction,
+        where: t.id == ^txid,
+        left_join: out in TxOutput,
+        on: out.transaction_id == t.id,
         left_join: i in Invoice,
-        on: t.address_id == i.address_id,
+        on: i.address_id == out.address_id,
         where: i.store_id == ^store_id,
         limit: 1
       )
@@ -48,27 +57,75 @@ defmodule BitPal.Transactions do
       {:error, :not_found}
   end
 
-  @spec all :: [TxOutput.t()]
+  @spec all :: [Transaction.t()]
   def all do
-    Repo.all(TxOutput)
+    Repo.all(Transaction)
+  end
+
+  @spec active(Currency.id()) :: [Transaction.t()]
+  def active(currency_id) do
+    Invoice
+    |> Invoices.with_status([:open, :processing])
+    |> Invoices.with_currency(currency_id)
+    |> join(:inner, [i], out in TxOutput, on: out.address_id == i.address_id)
+    |> join(:inner, [i, out], t in Transaction, on: out.transaction_id == t.id)
+    |> select([i, out, t], t)
+    |> Repo.all()
+  end
+
+  @spec address_tx_info(Address.id()) :: InvoiceEvents.txs()
+  def address_tx_info(address_id) do
+    # When we can aggregate money with sql using ex_money, we can rewrite this
+    from(t in Transaction,
+      left_join: out in TxOutput,
+      on: out.transaction_id == t.id,
+      where: out.address_id == ^address_id,
+      group_by: t.id
+    )
+    |> Repo.all()
+    |> Repo.preload(:outputs)
+    |> Enum.map(fn tx ->
+      %{
+        txid: tx.id,
+        height: tx.height,
+        failed: tx.failed,
+        double_spent: tx.double_spent,
+        address_id: address_id,
+        amount:
+          Enum.reduce(tx.outputs, Money.new(0, tx.currency_id), fn out, acc ->
+            if out.address_id == address_id do
+              Money.add(out.amount, acc)
+            else
+              acc
+            end
+          end)
+      }
+    end)
+  end
+
+  @spec store_tx_info(Store.id()) :: InvoiceEvents.txs()
+  def store_tx_info(store) do
+    Stores.all_addresses(store)
+    |> Enum.map(fn a -> address_tx_info(a.id) end)
+    |> List.flatten()
   end
 
   # Data
 
-  @spec num_confirmations!(TxOutput.t()) :: confirmations
-  def num_confirmations!(tx = %TxOutput{currency: currency}) do
-    num_confirmations(tx, Blocks.fetch_block_height!(currency))
+  @spec num_confirmations!(Transaction.t()) :: confirmations
+  def num_confirmations!(tx = %Transaction{currency: currency}) do
+    num_confirmations(tx, Blocks.fetch_height!(currency))
   end
 
-  @spec num_confirmations(TxOutput.t(), height) :: confirmations
-  def num_confirmations(%TxOutput{confirmed_height: tx_height}, block_height) do
+  @spec num_confirmations(Transaction.t(), height) :: confirmations
+  def num_confirmations(%Transaction{height: tx_height}, block_height) do
     calc_confirmations(tx_height, block_height)
   end
 
   @spec calc_confirmations(height, height) :: confirmations
   def calc_confirmations(tx_height, block_height)
-      when is_integer(tx_height) and tx_height >= 0 and is_integer(block_height) and
-             block_height >= 0 do
+      when is_integer(tx_height) and tx_height > 0 and is_integer(block_height) and
+             block_height > 0 do
     max(0, block_height - tx_height + 1)
   end
 
@@ -78,73 +135,166 @@ defmodule BitPal.Transactions do
 
   # Internal updates
 
-  @spec seen(TxOutput.txid(), outputs) :: :ok | :error
-  def seen(txid, outputs) do
-    insert(txid, outputs, {{:tx, :seen}, %{id: txid}})
-  end
+  @spec update(Transaction.id(), map | keyword) :: {:ok, Transaction.t()} | {:error, term}
+  def update(txid, params) do
+    params = Map.new(params)
 
-  @spec confirmed(TxOutput.txid(), outputs, height) :: :ok | :error
-  def confirmed(txid, outputs, height) do
-    update(txid, outputs, {{:tx, :confirmed}, %{id: txid, height: height}},
-      confirmed_height: height
-    )
-  end
-
-  @spec double_spent(TxOutput.txid(), outputs) :: :ok | :error
-  def double_spent(txid, outputs) do
-    update(txid, outputs, {{:tx, :double_spent}, %{id: txid}}, double_spent: true)
-  end
-
-  @spec reversed(TxOutput.txid(), outputs) :: :ok | :error
-  def reversed(txid, outputs) do
-    update(txid, outputs, {{:tx, :reversed}, %{id: txid}}, confirmed_height: nil)
-  end
-
-  @spec update(TxOutput.txid(), outputs, AddressEvents.msg(), keyword) :: :ok | :error
-  defp update(txid, outputs, msg, changes) do
-    output_count = Enum.count(outputs)
-
-    case Repo.update_all(from(t in TxOutput, where: t.txid == ^txid, update: [set: ^changes]), []) do
-      {^output_count, _} ->
-        broadcast(outputs, msg)
+    case fetch(txid) do
+      {:ok, tx} ->
+        update_tx(tx, params)
 
       _ ->
-        insert(txid, outputs, msg, changes)
+        insert_tx(txid, params)
     end
   end
 
-  @spec insert(TxOutput.txid(), outputs, AddressEvents.msg(), keyword) :: :ok | :error
-  defp insert(txid, outputs, msg, extra \\ []) do
-    output_count = Enum.count(outputs)
+  defp update_tx(existing, params) do
+    case update_changeset(existing, params)
+         |> Repo.update() do
+      {:ok, updated} ->
+        # During reorg, force through :confirmed message even if it's on the same height as previous.
+        reorg? = params[:reorg]
 
-    case Repo.insert_all(
-           TxOutput,
-           Enum.map(outputs, fn {address_id, amount} ->
-             %{
-               txid: txid,
-               address_id: address_id,
-               amount: amount
-             }
-             |> Map.merge(Enum.into(extra, %{}))
-           end)
-         ) do
-      {^output_count, _} ->
-        broadcast(outputs, msg)
+        cond do
+          !reorg? && updated == existing ->
+            nil
+
+          updated.double_spent && !existing.double_spent ->
+            broadcast(updated, {:tx, :double_spent})
+
+          updated.failed && !existing.failed ->
+            broadcast(updated, {:tx, :failed})
+
+          updated.height > 0 && existing.height == 0 ->
+            broadcast(updated, {:tx, :confirmed}, height: updated.height)
+
+          # There's an argument for sending :reversed instead of :failed when a confirmed
+          # transaction is failed.
+          # Prefer :failed because a :reversed is more temporary, while :failed is more definite
+          # (although nothing is -really- permanent, so we should still recheck tx states).
+          updated.height == 0 && existing.height > 0 ->
+            broadcast(updated, {:tx, :reversed})
+
+          updated.height != existing.height ->
+            # Confirmed height changed. That's weird, but may happen after a reorg.
+            # Just resend the confirmed message, I don't think we need a new :reorg message just for this?
+            broadcast(updated, {:tx, :confirmed}, height: updated.height)
+
+          reorg? ->
+            broadcast(updated, {:tx, :confirmed}, height: updated.height)
+
+          true ->
+            Logger.error("Unknown update")
+        end
+
+        {:ok, updated}
 
       err ->
-        Logger.error("Failed to insert tx #{txid}: #{inspect(err)}")
-        :error
+        err
     end
   end
 
-  # Broadcasting
+  defp insert_tx(txid, params) do
+    with {:ok, outputs} <- filter_outputs(params),
+         {:ok, tx} <-
+           %Transaction{id: txid}
+           |> insert_changeset(params, outputs)
+           |> Repo.insert() do
+      cond do
+        tx.double_spent ->
+          broadcast(tx, {:tx, :double_spent})
 
-  @spec broadcast(outputs, AddressEvents.msg()) :: :ok
-  defp broadcast(outputs, msg) do
-    outputs
-    |> Enum.uniq_by(fn {address, _} -> address end)
-    |> Enum.each(fn {address_id, _} ->
-      AddressEvents.broadcast(address_id, msg)
+        tx.failed ->
+          broadcast(tx, {:tx, :failed})
+
+        tx.height > 0 ->
+          broadcast(tx, {:tx, :confirmed}, height: tx.height)
+
+        true ->
+          broadcast(tx, {:tx, :pending})
+      end
+
+      {:ok, tx}
+    else
+      err -> err
+    end
+  end
+
+  defp filter_outputs(%{outputs: outputs}) do
+    known =
+      Enum.map(outputs, fn {address, _} -> address end)
+      |> Addresses.filter_exists()
+      |> Enum.map(fn address -> address.id end)
+      |> MapSet.new()
+
+    res =
+      outputs
+      |> Enum.filter(fn {address, _} ->
+        MapSet.member?(known, address)
+      end)
+
+    if Enum.empty?(res) do
+      {:error, :no_known_output}
+    else
+      {:ok, res}
+    end
+  end
+
+  defp filter_outputs(_) do
+    {:error, :no_outputs}
+  end
+
+  defp insert_changeset(tx, params, outputs = [{_, %Money{currency: currency_id}} | _]) do
+    change(tx, currency_id: currency_id)
+    |> cast(params, [
+      :height,
+      :failed,
+      :double_spent
+    ])
+    |> put_assoc(:outputs, Enum.map(outputs, &output_changeset/1))
+    |> validate_number(:height, greater_than_or_equal_to: 0)
+    |> unique_constraint(:id)
+    |> foreign_key_constraint(:currency_id)
+  end
+
+  defp insert_changeset(tx, _params, _outputs) do
+    change(tx)
+    |> add_error(:outputs, "is invalid")
+  end
+
+  defp output_changeset({address, amount}) do
+    change(%TxOutput{address_id: address})
+    |> cast(%{amount: amount}, [:amount])
+    |> foreign_key_constraint(:address_id)
+  end
+
+  defp update_changeset(tx, params) do
+    # FIXME should be able to update outputs
+    #
+    # Is it fine to just ignore outputs? They should -never- change if things work as they should,
+    # so I think it's fine to ignore them in all updates?
+    change(tx)
+    |> cast(params, [
+      :height,
+      :failed,
+      :double_spent
+    ])
+    |> validate_number(:height, greater_than_or_equal_to: 0)
+  end
+
+  @spec broadcast(Transaction.t(), {atom, atom}, keyword) :: :ok
+  defp broadcast(tx, tag, opts \\ []) do
+    tx = Repo.preload(tx, :outputs)
+
+    params = Enum.into(opts, %{id: tx.id})
+
+    tx.outputs
+    |> Enum.uniq_by(fn %{address_id: address_id} -> address_id end)
+    |> Enum.each(fn %{address_id: address_id} ->
+      AddressEvents.broadcast(
+        address_id,
+        {tag, Map.put(params, :address_id, address_id)}
+      )
     end)
   end
 end
