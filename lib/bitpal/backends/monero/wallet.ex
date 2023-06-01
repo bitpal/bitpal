@@ -11,6 +11,7 @@ defmodule BitPal.Backend.Monero.Wallet do
   alias BitPal.ProcessRegistry
   alias BitPal.Transactions
   alias BitPal.PortsHandler
+  alias BitPalSchemas.Store
   require Logger
 
   @start_wallet Application.compile_env(:bitpal, [BitPal.Backend.Monero, :init_wallet], true)

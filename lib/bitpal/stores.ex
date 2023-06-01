@@ -7,6 +7,7 @@ defmodule BitPal.Stores do
   alias BitPalSchemas.AccessToken
   alias BitPalSchemas.Address
   alias BitPalSchemas.AddressKey
+  alias BitPalSchemas.Currency
   alias BitPalSchemas.CurrencySettings
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.Store
