@@ -111,6 +111,7 @@ defmodule BitPalApi.InvoiceControllerTest do
              } = json_response(conn, 200)
     end
 
+    @tag init_rates: true
     test "create and finalize", %{conn: conn, currency_id: currency_id} do
       currency = Atom.to_string(currency_id)
 

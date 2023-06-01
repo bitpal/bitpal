@@ -39,6 +39,8 @@ Repo.insert_all(ExchangeRate, seeded_rates,
 
 ServerSetup.set_state(:completed)
 
+Supervisor.start_link([{DynamicSupervisor, name: BitPal.TestSupervisor}], strategy: :one_for_one)
+
 ExUnit.start()
 Faker.start()
 Ecto.Adapters.SQL.Sandbox.mode(BitPal.Repo, :manual)

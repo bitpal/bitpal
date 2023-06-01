@@ -27,9 +27,13 @@ defmodule BitPal.HandlerSubscriberCollector do
     end
 
     {:ok, stub} = GenServer.start_link(__MODULE__, name: via_tuple(invoice.id), parent: self())
-    {invoice, handler} = GenServer.call(stub, {:track_and_finalize, invoice, opts})
+    {invoice, handler} = track_and_finalize(stub, invoice, opts)
 
     {:ok, invoice, stub, handler}
+  end
+
+  defp track_and_finalize(stub, invoice, opts) do
+    GenServer.call(stub, {:track_and_finalize, invoice, opts})
   end
 
   defp via_tuple(invoice_id) do

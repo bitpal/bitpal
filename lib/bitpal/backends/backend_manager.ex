@@ -192,7 +192,12 @@ defmodule BitPal.BackendManager do
     # case I don't think.
     case fetch_backend_pid(server, currency_id) do
       {:ok, pid} ->
-        GenServer.stop(pid)
+        try do
+          GenServer.stop(pid)
+        catch
+          :exit, err ->
+            Logger.debug("Error when stopping backend: #{inspect(err)}")
+        end
 
       _ ->
         nil
@@ -463,10 +468,16 @@ defmodule BitPal.BackendManager do
     {:ok, backend_supervisor} =
       Supervisor.start_link(backends, strategy: :one_for_one, max_restarts: 50, max_seconds: 5)
 
-    state =
-      opts
-      |> Map.take([:enabled_state])
-      |> Map.put(:backend_supervisor, backend_supervisor)
+    state = %{backend_supervisor: backend_supervisor}
+
+    added_opts =
+      case Map.get(opts, :init_enabled, :not_found) do
+        :not_found ->
+          %{}
+
+        enabled ->
+          %{enabled: enabled}
+      end
 
     state =
       Supervisor.which_children(backend_supervisor)
@@ -474,7 +485,7 @@ defmodule BitPal.BackendManager do
         state,
         fn
           {currency_id, pid, _, _}, acc when is_pid(pid) ->
-            backend_added(pid, currency_id, acc)
+            backend_added(pid, currency_id, acc, added_opts)
 
           _, acc ->
             acc
@@ -488,7 +499,7 @@ defmodule BitPal.BackendManager do
     backend_added(pid, currency_id, store_enabled(state, currency_id, is_enabled))
   end
 
-  defp backend_added(pid, currency_id, state, %{}) when is_pid(pid) do
+  defp backend_added(pid, currency_id, state, _) when is_pid(pid) do
     backend_added(pid, currency_id, state)
   end
 

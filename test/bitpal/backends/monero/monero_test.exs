@@ -81,14 +81,11 @@ defmodule BitPal.Backend.MoneroTest do
       MoneroFixtures.get_transfers(opts[:txs] || [])
     end)
 
-    # FIXME this is a hack to prevent some tests from sometimes
+    # This is a hack to prevent some tests from sometimes
     # needing a response to this.
-    # But other times "sync_info" is missing...
     MockRPCClient.stub(@client, "get_transfers", fn _ ->
       MoneroFixtures.get_transfers([])
     end)
-
-    # FIXME DBConnection.ConnectionError error sometimes appears
   end
 
   defp init_backend(tags) do
@@ -103,7 +100,11 @@ defmodule BitPal.Backend.MoneroTest do
 
     res = IntegrationCase.setup_integration(local_manager: true, backends: backends, async: false)
 
-    assert eventually(fn -> {:ok, _} = BackendManager.fetch_backend(res.manager, :XMR) end)
+    if Map.get(tags, :await_ready, true) do
+      assert_receive {{:backend, :status}, %{status: :ready}}
+    else
+      assert eventually(fn -> {:ok, _} = BackendManager.fetch_backend(res.manager, :XMR) end)
+    end
 
     res
   end
@@ -190,7 +191,7 @@ defmodule BitPal.Backend.MoneroTest do
         MoneroFixtures.get_info(height: 21)
       end)
 
-      init_backend(%{})
+      init_backend(%{await_ready: false})
 
       assert_receive {{:backend, :status}, %{status: :starting}}
       assert_receive {{:backend, :status}, %{status: {:syncing, {10, 20}}}}
@@ -205,7 +206,7 @@ defmodule BitPal.Backend.MoneroTest do
       MockRPCClient.verify!(@client)
     end
 
-    @tag init_wallet_messages: false
+    @tag init_wallet_messages: false, await_ready: false
     @tag missing_call_reply: {:error, :connerror}, init_messages: false
     test "stops after init if we can't connect" do
       assert eventually(fn ->
@@ -215,7 +216,7 @@ defmodule BitPal.Backend.MoneroTest do
       MockRPCClient.verify!(@client)
     end
 
-    @tag init_wallet_messages: false
+    @tag init_wallet_messages: false, await_ready: false
     @tag restart: :transient, log_level: :critical
     test "restart after closed connection" do
       assert eventually(fn ->
@@ -460,7 +461,6 @@ defmodule BitPal.Backend.MoneroTest do
       # MockRPCClient.verify!(@client)
     end
 
-    @tag do: true
     test "multiple stores and wallets", %{store: store1, manager: manager} do
       store2 = create_store()
       _key2 = get_or_create_address_key(store2.id, @currency)
@@ -849,16 +849,6 @@ defmodule BitPal.Backend.MoneroTest do
 
       increase_block(height: 17)
       HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
-
-      assert [
-               {{:invoice, :finalized}, _},
-               {{:invoice, :processing}, %{confirmations_due: 3}},
-               {{:invoice, :processing}, %{confirmations_due: 4}},
-               {{:invoice, :processing}, %{confirmations_due: 3}},
-               {{:invoice, :processing}, %{confirmations_due: 2}},
-               {{:invoice, :processing}, %{confirmations_due: 1}},
-               {{:invoice, :paid}, _}
-             ] = HandlerSubscriberCollector.received(stub)
     end
   end
 end

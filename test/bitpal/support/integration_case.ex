@@ -58,19 +58,20 @@ defmodule BitPal.IntegrationCase do
         setup_global_integration(tags)
       end
 
+    init_currencies(res.currencies, tags)
+
     on_exit(fn ->
       # Shut down in order to prevent race conditions if we kill the Repo owner
       # but we have some processes lying around that wants db access.
       remove_invoice_handlers(res.currencies)
 
-      # It would be best if we could shut down the local manager after removing invoice handlers,
-      # but maybe it's fine to have the local manager only for cases without invoices?
-      # Don't remove backends for these as the local manager will be killed before this point.
-      if !tags[:local_manager] do
-        remove_backends(res.currencies)
+      if tags[:local_manager] do
+        remove_local_manager(res)
+      else
+        remove_global_backends(res.currencies)
       end
 
-      remove_status_handlers(res.currencies)
+      BackendStatusSupervisor.remove_status_handlers(res.currencies)
 
       Sandbox.stop_owner(repo_pid)
     end)
@@ -79,34 +80,31 @@ defmodule BitPal.IntegrationCase do
   end
 
   defp setup_local_integration(tags) do
-    {currencies, backends} = backends_and_currencies(tags)
-
-    enabled_state =
-      currencies
-      |> Enum.map(fn currency_id ->
-        {currency_id, !tags[:disable]}
-      end)
-      |> Enum.into(%{})
+    backends = backends_with_opts(tags)
 
     manager = CaseHelpers.unique_server_name()
 
-    # NOTE if we start this under a supervisor instead, then we can do cleanup in on_exit
-    # in an orderly manner
-    start_supervised!(
-      {BackendManager,
-       backends: backends,
-       parent: self(),
-       name: manager,
-       enabled_state: enabled_state,
-       log_level: :alert}
-    )
+    {:ok, pid} =
+      DynamicSupervisor.start_child(
+        BitPal.TestSupervisor,
+        {
+          BackendManager,
+          init_enabled: !tags[:disable],
+          backends: backends,
+          parent: self(),
+          name: manager,
+          log_level: :alert
+        }
+      )
 
-    %{currencies: currencies, manager: manager}
+    currencies = BackendManager.currency_list(manager)
+
+    %{currencies: currencies, manager: manager, manager_pid: pid}
     |> add_state_convenience()
   end
 
   defp setup_global_integration(tags) do
-    {currencies, backends} = backends_and_currencies(tags)
+    backends = backends_with_opts(tags)
 
     backend_refs =
       Enum.flat_map(backends, fn backend ->
@@ -116,6 +114,12 @@ defmodule BitPal.IntegrationCase do
         end
       end)
 
+    currencies =
+      Enum.map(backend_refs, fn {pid, backend} ->
+        {:ok, currency_id} = backend.supported_currency(pid)
+        currency_id
+      end)
+
     %{
       currencies: currencies,
       backends: backend_refs
@@ -123,11 +127,42 @@ defmodule BitPal.IntegrationCase do
     |> add_state_convenience()
   end
 
-  defp backends_and_currencies(tags) do
-    backends = backends_to_start(tags[:backends])
-    currencies = Enum.map(backends, fn _ -> unique_currency_id() end)
+  defp backends_with_opts(tags) do
+    backends_to_start(tags[:backends])
+    |> Enum.map(fn backend ->
+      BackendManager.add_extra_backend_opts(
+        backend,
+        extra_backend_opts(backend)
+      )
+    end)
+  end
 
+  defp extra_backend_opts(backend) do
+    general = [parent: self()]
+
+    if is_mock?(backend) do
+      currency_id = unique_currency_id()
+      BackendStatusSupervisor.allow_parent(currency_id, self())
+
+      general
+      |> Keyword.put(:currency_id, currency_id)
+    else
+      general
+    end
+  end
+
+  defp is_mock?(BackendMock), do: true
+  defp is_mock?({BackendMock, _}), do: true
+  defp is_mock?(_), do: false
+
+  defp init_currencies(currencies, tags) do
     for currency_id <- currencies do
+      init_currency(currency_id, tags)
+    end
+  end
+
+  defp init_currency(currency_id, tags) do
+    if tags[:init_rates] do
       for fiat_id <- [:USD, :EUR, :SEK] do
         %ExchangeRate{
           base: currency_id,
@@ -138,28 +173,15 @@ defmodule BitPal.IntegrationCase do
         }
         |> Repo.insert!()
       end
-
-      if tags[:subscribe] do
-        BackendEvents.subscribe(currency_id)
-      end
-
-      if tags[:disable] do
-        BackendSettings.disable(currency_id)
-      end
-
-      BackendStatusSupervisor.allow_parent(currency_id, self())
     end
 
-    backends =
-      Enum.zip([backends, currencies])
-      |> Enum.map(fn {backend, currency_id} ->
-        BackendManager.add_extra_backend_opts(backend,
-          currency_id: currency_id,
-          parent: self()
-        )
-      end)
+    if tags[:subscribe] do
+      BackendEvents.subscribe(currency_id)
+    end
 
-    {currencies, backends}
+    if tags[:disable] do
+      BackendSettings.disable(currency_id)
+    end
   end
 
   defp backends_to_start([]), do: []
@@ -211,7 +233,12 @@ defmodule BitPal.IntegrationCase do
     end
   end
 
-  defp remove_backends(currencies) do
+  defp remove_local_manager(%{manager: manager, manager_pid: pid}) do
+    BackendManager.remove_backends(manager)
+    DynamicSupervisor.terminate_child(BitPal.TestSupervisor, pid)
+  end
+
+  defp remove_global_backends(currencies) do
     BackendManager.remove_currency_backends(currencies)
   end
 

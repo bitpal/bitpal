@@ -1,7 +1,5 @@
 defmodule BackendManagerTest do
-  # We have some weird crashes that happens sometimes.
-  # Set async: false for this test to see if backend crashes is the cause.
-  use BitPal.IntegrationCase, async: false
+  use BitPal.IntegrationCase, async: true
   alias BitPal.BackendManager
   alias BitPal.BackendMock
   alias BitPal.BackendStatusSupervisor
@@ -135,7 +133,7 @@ defmodule BackendManagerTest do
     test "initializing a disabled backend should not start it", %{
       currency_id: currency_id
     } do
-      refute_receive {{:backend, :status}, %{status: :starting, currency_id: ^currency_id}}
+      assert eventually(fn -> BackendManager.status(currency_id) == :stopped end)
     end
   end
 
