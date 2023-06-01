@@ -5,6 +5,7 @@
   {"lib/bitpal/backends/flowee/flowee.ex", :unused_fun, 282},
   {"lib/bitpal/backends/flowee/flowee.ex", :pattern_match_cov, 309},
   {"lib/bitpal/backends/monero/wallet.ex", :pattern_match, 1},
+  {"lib/bitpal/backends/monero/wallet.ex", :unused_fun},
   {"lib/bitpal/blocks.ex", :no_return, 39},
   {"lib/bitpal/blocks.ex", :no_return, 62},
   {"lib/bitpal/blocks.ex", :call, 39},
