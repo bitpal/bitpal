@@ -67,7 +67,7 @@ defmodule BitPal.MixProject do
       {:nimble_publisher, git: "https://github.com/treeman/nimble_publisher.git"},
       {:makeup_elixir, ">= 0.0.0"},
       {:floki, "~> 0.34.2"},
-      {:beam_notify, "~> 0.2.0"},
+      {:beam_notify, "~> 1.1.0"},
       {:temp, "~> 0.4.7"},
       {:jsonrpc2, "~> 2.0"},
 
@@ -78,9 +78,9 @@ defmodule BitPal.MixProject do
       {:phoenix_ecto, "~> 4.4.0"},
       {:phoenix_html, "~> 3.3"},
       {:phoenix_inline_svg, "~> 1.4"},
-      {:phoenix_live_dashboard, "~> 0.7.2"},
+      {:phoenix_live_dashboard, "~> 0.8"},
       {:phoenix_live_reload, "~> 1.3", only: :dev},
-      {:phoenix_live_view, "~> 0.18.18"},
+      {:phoenix_live_view, "~> 0.19"},
       {:phoenix_pubsub, "~> 2.0"},
       {:plug_cowboy, "~> 2.5"},
       {:argon2_elixir, "~> 3.1"},
@@ -93,7 +93,7 @@ defmodule BitPal.MixProject do
 
       # CI and tests
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.2", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.3", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.11", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
 
