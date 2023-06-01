@@ -1,5 +1,5 @@
 defmodule BackendMockTest do
-  use BitPal.IntegrationCase, async: true
+  use BitPal.IntegrationCase, async: false
   alias BitPal.BackendManager
   alias BitPal.BackendMock
   alias BitPal.Blocks
