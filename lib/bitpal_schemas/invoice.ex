@@ -39,14 +39,11 @@ defmodule BitPalSchemas.Invoice do
     # Outputs belonging to the address.
     has_many(:tx_outputs, through: [:address, :tx_outputs])
     # How many confirmations do we require?
-    # Can be overridden by txs.
     field(:required_confirmations, :integer) :: non_neg_integer | nil
 
     # Calculated from transactions.
     field(:amount_paid, NumericType, virtual: true) :: Money.t() | nil
     field(:confirmations_due, :integer, virtual: true) :: non_neg_integer | nil
-
-    # Also keep a virtual map of exchange rates that is set when finalized...?
 
     # Description of the payment, displayed in payment uri and the customer's wallet.
     field(:description, :string)
@@ -57,14 +54,11 @@ defmodule BitPalSchemas.Invoice do
     # Pass through variable provided by the merchant, allows for arbitrary data storage.
     field(:pos_data, :map)
 
+    # Payment uri, use to embed in QR codes or import directly into wallets.
+    field(:payment_uri, :string)
+
     belongs_to(:store, Store)
 
     timestamps()
   end
-
-  # @primary_key false
-  # typed_schema "invoices" do
-  #   # What's this? bitcoincash:myadderss?x=y&description=boyah ?
-  #   # field(:payment_uri, :string, virtual: true)
-  # end
 end

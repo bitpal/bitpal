@@ -1,6 +1,7 @@
 defmodule BitPal.Invoices do
   import Ecto.Changeset
   import Ecto.Query
+  alias BitPal.PaymentUri
   alias BitPal.Addresses
   alias BitPal.Blocks
   alias BitPal.Currencies
@@ -348,6 +349,21 @@ defmodule BitPal.Invoices do
     end
   end
 
+  @spec assign_payment_uri(Invoice.t(), PaymentUri.encode_params()) ::
+          {:ok, Invoice.t()} | {:error, Changeset.t()}
+  def assign_payment_uri(invoice, params) do
+    invoice = Repo.preload(invoice, :store)
+    uri = PaymentUri.encode_invoice(invoice, params)
+    set_payment_uri(invoice, uri)
+  end
+
+  @spec set_payment_uri(Invoice.t(), String.t()) :: {:ok, Invoice.t()} | {:error, Changeset.t()}
+  def set_payment_uri(invoice, uri) do
+    invoice
+    |> change(payment_uri: uri)
+    |> Repo.update()
+  end
+
   # Aux data
 
   def rate(invoice = %Invoice{}) do
@@ -605,7 +621,8 @@ defmodule BitPal.Invoices do
       :rates,
       :payment_currency_id,
       :address_id,
-      :required_confirmations
+      :required_confirmations,
+      :payment_uri
     ])
     # Technically these validations shouldn't be necessary as all invoice changes should
     # pass through register() or update(), but we try to be extra safe.

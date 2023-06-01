@@ -4,13 +4,14 @@ defmodule BitPal.BackendMock do
   use GenServer
   import BitPalSettings.ConfigHelpers
   alias BitPal.Backend
-  alias BitPal.Repo
   alias BitPal.BackendManager
   alias BitPal.BackendStatusSupervisor
   alias BitPal.BlockchainEvents
   alias BitPal.Blocks
   alias BitPal.Cache
+  alias BitPal.Invoices
   alias BitPal.ProcessRegistry
+  alias BitPal.Repo
   alias BitPal.Transactions
   alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
@@ -24,6 +25,16 @@ defmodule BitPal.BackendMock do
   @impl Backend
   def assign_address(backend, invoice) do
     GenServer.call(backend, {:assign_address, invoice})
+  end
+
+  @impl Backend
+  def assign_payment_uri(_backend, invoice) do
+    Invoices.assign_payment_uri(invoice, %{
+      prefix: "monero",
+      decimal_amount_key: "amount",
+      description_key: "description",
+      recipient_name_key: "recipient"
+    })
   end
 
   @impl Backend
