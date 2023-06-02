@@ -1,4 +1,6 @@
 defmodule BitPal.PaymentUri do
+  alias BitPalSchemas.Invoice
+
   @doc """
   Encode an invoice with transformation mappings.
   """

@@ -145,4 +145,4 @@ jobs:
           priv/plts
 
     - name: Type checks
-      run: mix dialyzer --format short
+      run: mix dialyzer --format github
