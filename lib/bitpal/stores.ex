@@ -58,17 +58,19 @@ defmodule BitPal.Stores do
   def create_changeset(params \\ %{}) do
     %Store{}
     |> change()
-    |> cast(params, [:label])
-    |> validate_required([:label])
-    |> validate_length(:label, min: 1)
-    |> create_slug()
+    |> valdidate_create(params)
   end
 
   @spec create_changeset(User.t(), map) :: Changeset.t()
   def create_changeset(user = %User{}, params) do
     %Store{users: [user]}
     |> change()
-    |> cast(params, [:label])
+    |> valdidate_create(params)
+  end
+
+  defp valdidate_create(changeset, params) do
+    changeset
+    |> cast(params, [:label, :recipient_name])
     |> validate_required([:label])
     |> validate_length(:label, min: 1)
     |> create_slug()
@@ -106,7 +108,7 @@ defmodule BitPal.Stores do
   def update_changeset(store, params \\ %{}) do
     store
     |> change()
-    |> cast(params, [:label])
+    |> cast(params, [:label, :recipient_name])
     |> validate_required([:label])
     |> validate_length(:label, min: 1)
   end

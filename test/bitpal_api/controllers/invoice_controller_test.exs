@@ -134,6 +134,7 @@ defmodule BitPalApi.InvoiceControllerTest do
                "paymentSubAmount" => payment_sub_amount,
                "paymentDisplay" => payment_display,
                "requiredConfirmations" => 0,
+               "paymentUri" => payment_uri,
                "rates" => %{
                  ^currency => %{"USD" => rate}
                },
@@ -143,6 +144,7 @@ defmodule BitPalApi.InvoiceControllerTest do
       assert id != nil
       assert address != nil
       assert is_float(rate)
+      assert payment_uri != nil
 
       assert RenderHelpers.money_to_string(Money.new(payment_sub_amount, currency)) ==
                payment_display

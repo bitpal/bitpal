@@ -4,6 +4,7 @@ defmodule BitPal.Backend.Monero do
   alias BitPal.Backend.Monero.Wallet
   alias BitPal.Backend.Monero.WalletSupervisor
   alias BitPal.Blocks
+  alias BitPal.Invoices
   alias BitPal.ExtNotificationHandler
   alias BitPal.Stores
   require Logger
@@ -13,6 +14,16 @@ defmodule BitPal.Backend.Monero do
   @impl Backend
   def assign_address(backend, invoice) do
     GenServer.call(backend, {:assign_address, invoice})
+  end
+
+  @impl Backend
+  def assign_payment_uri(_backend, invoice) do
+    Invoices.assign_payment_uri(invoice, %{
+      prefix: "monero",
+      decimal_amount_key: "tx_amount",
+      description_key: "tx_description",
+      recipient_name_key: "recipient_name"
+    })
   end
 
   @impl Backend

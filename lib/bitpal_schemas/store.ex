@@ -12,6 +12,7 @@ defmodule BitPalSchemas.Store do
   typed_schema "stores" do
     field(:label, :string)
     field(:slug, :string)
+    field(:recipient_name, :string)
 
     many_to_many(:users, User, join_through: "users_stores")
     has_many(:invoices, Invoice, references: :id)

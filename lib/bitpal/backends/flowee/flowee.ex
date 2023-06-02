@@ -25,6 +25,16 @@ defmodule BitPal.Backend.Flowee do
   end
 
   @impl Backend
+  def assign_payment_uri(_backend, invoice) do
+    Invoices.assign_payment_uri(invoice, %{
+      prefix: "bitcoincash",
+      decimal_amount_key: :amount,
+      description_key: :message,
+      recipient_name_key: :label
+    })
+  end
+
+  @impl Backend
   def watch_invoice(backend, invoice) do
     GenServer.call(backend, {:watch_invoice, invoice})
   end

@@ -59,6 +59,12 @@ defmodule BitPal.Backend do
   @callback assign_address(pid(), Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
 
   @doc """
+  Assign the payment uri.
+  Should use the descripton from the invoice and the recipent name from the associated store.
+  """
+  @callback assign_payment_uri(pid(), Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
+
+  @doc """
   Start watching the invoice for transaction updates.
   """
   @callback watch_invoice(pid(), Invoice.t()) :: :ok | {:error, term}
@@ -172,6 +178,7 @@ defmodule BitPal.Backend do
   @spec register_invoice(backend_ref(), Invoice.t()) :: {:ok, Invoice.t()} | {:error, term}
   def register_invoice(ref, invoice) do
     with {:ok, invoice} <- assign_address(ref, invoice),
+         {:ok, invoice} <- assign_payment_uri(ref, invoice),
          :ok <- watch_invoice(ref, invoice) do
       {:ok, invoice}
     else
@@ -182,6 +189,7 @@ defmodule BitPal.Backend do
   end
 
   defp assign_address(ref, invoice), do: call(ref, :assign_address, [invoice])
+  defp assign_payment_uri(ref, invoice), do: call(ref, :assign_payment_uri, [invoice])
   defp watch_invoice(ref, invoice), do: call(ref, :watch_invoice, [invoice])
 
   @spec update_address(backend_ref(), Invoice.t()) :: :ok | {:error, term}

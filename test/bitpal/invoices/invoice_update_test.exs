@@ -1,5 +1,6 @@
 defmodule BitPal.InvoiceUpdateTest do
   use BitPal.DataCase, async: true
+  alias BitPal.Stores
   alias BitPal.Invoices
   alias BitPalSettings.ExchangeRateSettings
 
@@ -218,7 +219,8 @@ defmodule BitPal.InvoiceUpdateTest do
             price: nil,
             rates: nil,
             payment_currency_id: nil,
-            required_confirmations: nil
+            required_confirmations: nil,
+            payment_uri: nil
         })
 
       assert "can't be blank" in errors_on(changeset).address_id
@@ -226,9 +228,13 @@ defmodule BitPal.InvoiceUpdateTest do
       assert "can't be blank" in errors_on(changeset).rates
       assert "can't be blank" in errors_on(changeset).payment_currency_id
       assert "can't be blank" in errors_on(changeset).required_confirmations
+      assert "can't be blank" in errors_on(changeset).payment_uri
     end
 
-    @tag payment_currency_id: :BCH, price: Money.parse!(2.0, :USD), address_id: :auto
+    @tag payment_currency_id: :BCH,
+         price: Money.parse!(2.0, :USD),
+         address_id: :auto,
+         payment_uri: "uri"
     test "updates rates if they don't contain fiat/crypto pairs", %{invoice: invoice} do
       new_rate = Decimal.from_float(6.0)
 
@@ -244,6 +250,7 @@ defmodule BitPal.InvoiceUpdateTest do
     @tag payment_currency_id: :BCH,
          price: Money.parse!(2.0, :USD),
          address_id: :auto,
+         payment_uri: "uri",
          rates: %{BCH: %{USD: Decimal.from_float(1.0)}}
     test "leaves rates if recent", %{invoice: invoice} do
       {:ok, updated} = Invoices.finalize(invoice)
@@ -253,6 +260,7 @@ defmodule BitPal.InvoiceUpdateTest do
     @tag payment_currency_id: :BCH,
          price: Money.parse!(2.0, :USD),
          address_id: :auto,
+         payment_uri: "uri",
          rates: %{BCH: %{USD: Decimal.from_float(1.0)}}
     test "updates rates if too old", %{invoice: invoice} do
       now = NaiveDateTime.utc_now()
@@ -285,6 +293,7 @@ defmodule BitPal.InvoiceUpdateTest do
       assert "must be a cryptocurrency" in errors_on(changeset).payment_currency_id
     end
 
+    @tag payment_uri: "uri"
     test "requires an address", %{invoice: invoice} do
       assert invoice.address_id == nil
 
@@ -300,7 +309,7 @@ defmodule BitPal.InvoiceUpdateTest do
       assert invoice.rates != nil
     end
 
-    @tag address_id: :auto
+    @tag address_id: :auto, payment_uri: "uri"
     test "calculates expected_payment", %{invoice: invoice} do
       # We shouldn't really do this (updating other info),
       # but it's an easier test to create.
@@ -372,6 +381,69 @@ defmodule BitPal.InvoiceUpdateTest do
     test "cannot delete an opened invoice", %{invoice: invoice} do
       {:error, :finalized} = Invoices.delete(invoice)
       {:ok, _} = Invoices.fetch(invoice.id)
+    end
+  end
+
+  describe "assign_payment_uri/2" do
+    setup tags = %{invoice: invoice} do
+      store = Stores.fetch!(invoice.store_id)
+      {:ok, store} = Stores.update(store, %{recipient_name: tags[:recipient_name] || ""})
+      invoice = %{invoice | store: store}
+      %{invoice: invoice}
+    end
+
+    @tag recipient_name: "The awesome store"
+    @tag status: :open
+    test "with recipient description", %{invoice: invoice} do
+      Invoices.assign_payment_uri(invoice, %{
+        prefix: "x",
+        decimal_amount_key: "amount",
+        description_key: "descr",
+        recipient_name_key: "rec"
+      })
+
+      invoice = Invoices.fetch!(invoice.id)
+      assert String.contains?(invoice.payment_uri, "rec=" <> URI.encode("The awesome store"))
+    end
+
+    @tag recipient_name: ""
+    @tag status: :open
+    test "without recipient description", %{invoice: invoice} do
+      Invoices.assign_payment_uri(invoice, %{
+        prefix: "x",
+        decimal_amount_key: "amount",
+        description_key: "descr",
+        recipient_name_key: "recipient_name"
+      })
+
+      invoice = Invoices.fetch!(invoice.id)
+      refute String.contains?(invoice.payment_uri, "recipient_name")
+    end
+
+    @tag status: :open, payment_currency_id: :BCH, price: Money.parse!(1.0, :BCH)
+    test "format amount", %{invoice: invoice} do
+      Invoices.assign_payment_uri(invoice, %{
+        prefix: "x",
+        decimal_amount_key: "amount",
+        description_key: "descr",
+        recipient_name_key: "recipient_name"
+      })
+
+      invoice = Invoices.fetch!(invoice.id)
+      assert String.contains?(invoice.payment_uri, "amount=1.0")
+    end
+
+    @tag status: :open, description: "My description"
+    test "other keys", %{invoice: invoice} do
+      Invoices.assign_payment_uri(invoice, %{
+        prefix: "x",
+        decimal_amount_key: "amount",
+        description_key: "descr",
+        recipient_name_key: "recipient_name"
+      })
+
+      invoice = Invoices.fetch!(invoice.id)
+      assert String.contains?(invoice.payment_uri, URI.encode("My description"))
     end
   end
 end

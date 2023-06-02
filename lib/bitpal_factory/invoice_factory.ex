@@ -12,6 +12,7 @@ defmodule BitPalFactory.InvoiceFactory do
   alias BitPal.ExchangeRates
   alias BitPal.Invoices
   alias BitPal.InvoiceSupervisor
+  alias BitPal.PaymentUri
   alias BitPal.Repo
   alias BitPalApi.Authentication.BasicAuth
   alias BitPalFactory.AddressFactory
@@ -53,7 +54,8 @@ defmodule BitPalFactory.InvoiceFactory do
       :order_id,
       :pos_data,
       :address_id,
-      :store_id
+      :store_id,
+      :payment_uri
     ])
   end
 
@@ -373,6 +375,7 @@ defmodule BitPalFactory.InvoiceFactory do
   defp ensure_consistency(invoice, opts) do
     invoice
     |> ensure_address()
+    |> generate_payment_uri(opts)
     |> with_txs(opts)
   end
 
@@ -382,6 +385,30 @@ defmodule BitPalFactory.InvoiceFactory do
       |> create_address()
     else
       invoice
+    end
+  end
+
+  defp generate_payment_uri(invoice, opts) do
+    cond do
+      uri = opts[:payment_uri] ->
+        %{invoice | payment_uri: uri}
+
+      !invoice.payment_uri && Invoices.finalized?(invoice) ->
+        invoice = Repo.preload(invoice, :store)
+
+        %{
+          invoice
+          | payment_uri:
+              PaymentUri.encode_invoice(invoice, %{
+                prefix: "test",
+                decimal_amount_key: "amount",
+                description_key: "description",
+                recipient_name_key: "recipient"
+              })
+        }
+
+      true ->
+        invoice
     end
   end
 
