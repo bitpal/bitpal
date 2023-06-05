@@ -191,8 +191,7 @@ defmodule BitPalApi.ExchangeRateChannelTest do
 
   describe "reply on join" do
     test "replies with all rates", %{reply: reply} do
-      assert rates = reply
-      assert Enum.count(rates) > 0
+      assert Enum.count(reply) > 0
     end
   end
 end
