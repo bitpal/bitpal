@@ -7,6 +7,7 @@ defmodule BitPalApi.StoreSocket do
   channel("invoices", BitPalApi.InvoiceChannel)
   channel("invoice:*", BitPalApi.InvoiceChannel)
   channel("exchange_rates", BitPalApi.ExchangeRateChannel)
+  channel("status", BitPalApi.StatusChannel)
 
   @impl true
   def connect(%{"token" => token}, socket, _connect_info) do
