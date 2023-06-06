@@ -35,12 +35,17 @@ if config_env() == :prod do
       For example: mydomain.com
       """
 
+  check_origin = [
+    "https://#{host}",
+    "https://#{host}:#{port}"
+  ]
+
   config :bitpal, BitPalApi.Endpoint,
-    check_origin: :conn,
+    check_origin: check_origin,
     url: [host: host]
 
   config :bitpal, BitPalWeb.Endpoint,
-    check_origin: :conn,
+    check_origin: check_origin,
     url: [host: host]
 
   config :bitpal, BitPal.Mailer,
