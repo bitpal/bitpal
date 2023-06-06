@@ -35,8 +35,13 @@ if config_env() == :prod do
       For example: mydomain.com
       """
 
-  config :bitpal, BitPalApi.Endpoint, url: [host: host]
-  config :bitpal, BitPalWeb.Endpoint, url: [host: host]
+  config :bitpal, BitPalApi.Endpoint,
+    check_origin: ["https://#{host}"],
+    url: [host: host, port: 443]
+
+  config :bitpal, BitPalWeb.Endpoint,
+    check_origin: ["https://#{host}"],
+    url: [host: host, port: 443]
 
   config :bitpal, BitPal.Mailer,
     adapter: Swoosh.Adapters.SMTP,
