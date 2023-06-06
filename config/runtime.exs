@@ -36,20 +36,23 @@ if config_env() == :prod do
       """
 
   config :bitpal, BitPalApi.Endpoint,
-    check_origin: ["https://#{host}"],
-    url: [host: host, port: 443]
+    check_origin: :conn,
+    url: [host: host]
 
   config :bitpal, BitPalWeb.Endpoint,
-    check_origin: ["https://#{host}"],
-    url: [host: host, port: 443]
+    check_origin: :conn,
+    url: [host: host]
 
   config :bitpal, BitPal.Mailer,
     adapter: Swoosh.Adapters.SMTP,
     relay: "smtp.fastmail.com",
-    ssl: true,
+    # ssl: true,
+    # port: 465,
+    # Use STARTTLS because some providers block port 465
+    ssl: false,
+    port: 587,
     tls: :if_available,
     auth: :always,
-    port: 465,
     retries: 2,
     no_mx_lookups: false,
     username: System.get_env("EMAIL_USERNAME"),
