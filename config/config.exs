@@ -6,6 +6,13 @@ config :bitpal,
   required_confirmations: 0,
   double_spend_timeout: 2_000
 
+# Should contain all supported backends.
+config :bitpal, BitPal.BackendManager,
+  backends: [
+    BitPal.Backend.Flowee,
+    BitPal.Backend.Monero
+  ]
+
 config :money, :custom_currencies, %{
   BCH: %{name: "Bitcoin Cash", exponent: 8, symbol: "BCH"},
   BTC: %{name: "Bitcoin", exponent: 8, symbol: "BTC"},
@@ -16,12 +23,6 @@ config :money, :custom_currencies, %{
 
 # Maybe in the future one might check what ports are used in the system
 config :bitpal, BitPal.PortsHandler, available: 23000..23100
-
-config :main_proxy,
-  http: [:inet6, port: 4000]
-
-# Needs a ssl keyfile
-# https: [:inet6, port: 4443],
 
 config :bitpal, :ecto_repos, [BitPal.Repo]
 

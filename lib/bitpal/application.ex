@@ -36,6 +36,7 @@ defmodule BitPal.Application do
           BitPal.Proxy,
           BitPalApi.Endpoint,
           BitPalWeb.Telemetry,
+          {Finch, name: BitPal.Finch},
           BitPalWeb.Endpoint
         ]
 
