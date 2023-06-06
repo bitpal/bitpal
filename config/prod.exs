@@ -48,17 +48,18 @@ config :bitpal, BitPal.ExchangeRate,
 
 # Fixed settings
 
-config :bitpal, BitPalApi.Endpoint,
-  force_ssl: [
-    rewrite_on: [:x_forwarded_port, :x_forwarded_proto],
-    hsts: true
-  ]
-
-config :bitpal, BitPalWeb.Endpoint,
-  force_ssl: [
-    rewrite_on: [:x_forwarded_port, :x_forwarded_proto],
-    hsts: true
-  ]
+# These should be used if we serve using ssl.
+# Can be skipped if site is served behind a reverse proxy such as nginx that manages ssl.
+# config :bitpal, BitPalApi.Endpoint,
+#   force_ssl: [
+#     rewrite_on: [:x_forwarded_port, :x_forwarded_proto],
+#     hsts: true
+#   ]
+# config :bitpal, BitPalWeb.Endpoint,
+#   force_ssl: [
+#     rewrite_on: [:x_forwarded_port, :x_forwarded_proto],
+#     hsts: true
+#   ]
 
 config :swoosh, api_client: Swoosh.ApiClient.Finch, finch_name: BitPal.Finch
 
