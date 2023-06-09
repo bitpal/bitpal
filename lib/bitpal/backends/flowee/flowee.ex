@@ -1,4 +1,11 @@
 defmodule BitPal.Backend.Flowee do
+  @moduledoc """
+  Support for Flowee the hub.
+
+  IMPORTANT to note that as of the May 2023 Bitcoin Cash upgrade, the hub is no longer
+  up to date with the consensus rules, so this plugin should not be used live anymore.
+  """
+
   use BitPal.Backend, currency_id: :BCH
   alias BitPal.Addresses
   alias BitPal.Backend.Flowee.Connection
