@@ -5,7 +5,7 @@ defmodule BitPal.MixProject do
     [
       app: :bitpal,
       version: "0.1.0",
-      elixir: "~> 1.14.3",
+      elixir: "~> 1.14.0",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
@@ -65,8 +65,7 @@ defmodule BitPal.MixProject do
       {:muontrap, "~> 1.2"},
 
       # Server docs
-      # FIXME lock at git hash
-      {:nimble_publisher, git: "https://github.com/treeman/nimble_publisher.git"},
+      {:nimble_publisher, git: "https://github.com/treeman/nimble_publisher.git", ref: "faeafe0"},
       {:makeup_elixir, ">= 0.0.0"},
       {:floki, "~> 0.34.2"},
       {:beam_notify, "~> 1.1.0"},
@@ -87,7 +86,8 @@ defmodule BitPal.MixProject do
       {:plug_cowboy, "~> 2.5"},
       {:argon2_elixir, "~> 3.1"},
       {:swoosh, "~> 1.0"},
-      {:hackney, "~> 1.0"},
+      {:gen_smtp, "~> 1.1"},
+      {:finch, "~> 0.13"},
       {:dart_sass, "~> 0.2", runtime: Mix.env() == :dev},
       {:esbuild, "~> 0.2", runtime: Mix.env() == :dev},
       {:telemetry_metrics, "~> 0.6.1"},
@@ -130,7 +130,7 @@ defmodule BitPal.MixProject do
       "assets.deploy": [
         "sass default --no-source-map --style=compressed",
         "esbuild default --minify",
-        "copy-static-assets.sh"
+        "phx.digest"
       ]
     ]
   end

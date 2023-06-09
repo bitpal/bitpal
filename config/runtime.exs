@@ -20,14 +20,46 @@ if config_env() == :prod do
       """
 
   config :bitpal, BitPal.Repo,
-    # ssl: true,
     url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
-end
 
-# user_config = "user_settings.#{config_env()}.exs"
-#
-# # Import user settings, that can be set from the web UI.
-# if File.exists?(user_config) do
-#   import_config(user_config)
-# end
+  port = String.to_integer(System.get_env("PORT") || "4000")
+
+  config :main_proxy,
+    http: [:inet6, port: port]
+
+  host =
+    System.get_env("PHX_HOST") ||
+      raise """
+      environment variable PHX_HOST is missing.
+      For example: mydomain.com
+      """
+
+  check_origin = [
+    "https://#{host}",
+    "https://#{host}:#{port}"
+  ]
+
+  config :bitpal, BitPalApi.Endpoint,
+    check_origin: check_origin,
+    url: [host: host]
+
+  config :bitpal, BitPalWeb.Endpoint,
+    check_origin: check_origin,
+    url: [host: host]
+
+  config :bitpal, BitPal.Mailer,
+    adapter: Swoosh.Adapters.SMTP,
+    relay: "smtp.fastmail.com",
+    # ssl: true,
+    # port: 465,
+    # Use STARTTLS because some providers block port 465
+    ssl: false,
+    port: 587,
+    tls: :if_available,
+    auth: :always,
+    retries: 2,
+    no_mx_lookups: false,
+    username: System.get_env("EMAIL_USERNAME"),
+    password: System.get_env("EMAIL_PASSWORD")
+end

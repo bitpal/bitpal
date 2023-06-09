@@ -102,6 +102,7 @@ defmodule BitPal.Backend do
       alias BitPal.BackendEvents
       alias BitPal.BackendStatusSupervisor
       alias BitPal.ProcessRegistry
+      alias BitPal.Currencies
 
       @currency_id Keyword.fetch!(unquote(params), :currency_id)
 
@@ -141,6 +142,8 @@ defmodule BitPal.Backend do
         end
 
         BackendStatusSupervisor.set_starting(@currency_id)
+
+        Currencies.ensure_exists!(@currency_id)
 
         # Customization and enhancements should be done via continue
         # so we don't block init().
