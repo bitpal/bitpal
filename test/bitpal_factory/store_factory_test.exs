@@ -1,6 +1,6 @@
 defmodule BitPalFactory.StoreFactoryTest do
   use BitPal.IntegrationCase, async: true
-  alias BitPal.Invoices
+  alias BitPalSchemas.InvoiceStatus
 
   setup tags do
     Map.put(tags, :store, create_store())
@@ -67,7 +67,11 @@ defmodule BitPalFactory.StoreFactoryTest do
 
     @tag txs: :auto, invoice_count: 10
     test "autogenerate txs", %{store: store} do
-      have_txs = Enum.any?(store.invoices, &Invoices.finalized?/1)
+      # Can have txs in other configurations, this is to avoid false positives.
+      have_txs =
+        Enum.any?(store.invoices, fn invoice ->
+          InvoiceStatus.state(invoice.status) in [:paid, :processing]
+        end)
 
       # Should be true in most cases, just have this check to avoid possible failure
       if have_txs do
