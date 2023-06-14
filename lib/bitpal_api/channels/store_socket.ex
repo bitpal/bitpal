@@ -11,15 +11,13 @@ defmodule BitPalApi.StoreSocket do
 
   @impl true
   def connect(%{"token" => token}, socket, _connect_info) do
-    Logger.info("Trying to connect: #{inspect(token)}")
-
     case Tokens.authenticate_token(token) do
       {:ok, store_id} ->
+        Logger.info("Store socket connected: `#{store_id}`")
         {:ok, assign(socket, :store_id, store_id)}
 
       err ->
         Logger.warn("Failed token auth: #{inspect(err)}")
-        # Logger.debug("Failed token auth: #{inspect(err)}")
         :error
     end
   end

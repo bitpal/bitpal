@@ -15,7 +15,7 @@
         <span class="price">Price</span>
         <span class="description">Description</span>
       </div>
-      <%= for invoice <- @store.invoices do %>
+      <%= for invoice <- Enum.sort(@store.invoices, fn a, b -> NaiveDateTime.compare(a.inserted_at, b.inserted_at) == :gt end) do %>
         <div class="row">
           <span class="link">
             <%= live_invoice_link(id: invoice.id, label: "Invoice") %>
