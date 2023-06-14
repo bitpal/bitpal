@@ -9,7 +9,7 @@ config :bitpal,
 # Should contain all supported backends.
 config :bitpal, BitPal.BackendManager,
   backends: [
-    BitPal.Backend.Flowee,
+    BitPal.Backend.BCHN,
     BitPal.Backend.Monero
   ]
 

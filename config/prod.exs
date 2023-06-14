@@ -1,6 +1,13 @@
 import Config
 
-# Settings that should be controllable from the web UI
+# Settings that should be controllable from the web UI?
+
+config :bitpal, BitPal.Backend.BCHN,
+  net: :mainnet,
+  daemon_ip: "localhost",
+  daemon_port: 8332,
+  username: "username",
+  password: "password"
 
 config :bitpal, BitPal.Backend.Monero,
   # 18081 for mainnet, 28081 for testnet and 38081 for stagenet
@@ -11,7 +18,7 @@ config :bitpal, BitPal.Backend.Monero,
 config :bitpal, BitPal.BackendManager,
   restart_timeout: 3_000,
   enabled: [
-    BitPal.Backend.Flowee,
+    BitPal.Backend.BCHN,
     BitPal.Backend.Monero
   ]
 

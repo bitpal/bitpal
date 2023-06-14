@@ -1,9 +1,19 @@
 defmodule BitPal.Files do
   alias BitPalSchemas.Store
 
+  @spec wallet_file(atom, atom) :: Path.t()
+  def wallet_file(coin, net) do
+    Path.join(coin_dir(coin), wallet_filename(net))
+  end
+
   @spec wallet_file(Store.id(), atom, atom) :: Path.t()
   def wallet_file(store_id, coin, net) do
     Path.join(coin_dir(coin), wallet_filename(store_id, net))
+  end
+
+  @spec wallet_filename(atom) :: Path.t()
+  def wallet_filename(net) do
+    "#{net}-wallet"
   end
 
   @spec wallet_filename(Store.id(), atom) :: Path.t()

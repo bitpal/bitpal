@@ -1,5 +1,12 @@
 import Config
 
+config :bitpal, BitPal.Backend.BCHN,
+  net: :testnet,
+  daemon_ip: "127.0.0.1",
+  daemon_port: 8332,
+  username: "username",
+  password: "password"
+
 config :bitpal, BitPal.Backend.Monero,
   net: :stagenet,
   daemon_ip: "localhost",

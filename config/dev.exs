@@ -2,10 +2,18 @@ import Config
 
 # Settings that should be controllable from the web UI
 
+config :bitpal, BitPal.Backend.BCHN,
+  net: :mainnet,
+  daemon_ip: "localhost",
+  daemon_port: 8332,
+  username: "username",
+  password: "password"
+
 config :bitpal, BitPal.Backend.Monero,
   # 18081 for mainnet, 28081 for testnet and 38081 for stagenet
-  net: :stagenet,
+  # Remember that a mainneet wallet setup isn't valid on stagenet
   daemon_ip: "localhost",
+  net: :stagenet,
   daemon_port: 38081
 
 config :bitpal, BitPal.ExchangeRate,
@@ -30,13 +38,13 @@ config :main_proxy,
 config :bitpal, BitPal.BackendManager,
   restart_timeout: 3_000,
   backends: [
-    # BitPal.Backend.Flowee,
+    BitPal.Backend.BCHN
     # BitPal.Backend.Monero
     # This uses a completely unique currency that's only used for testing.
     # {BitPal.BackendMock, auto: true, time_between_blocks: 2_000, sync_time: 10_000}
     # These specifies currencies directly.
-    {BitPal.BackendMock, auto: true, time_between_blocks: 10 * 60 * 1_000, currency_id: :BCH},
-    {BitPal.BackendMock, auto: true, time_between_blocks: 3 * 60 * 1_000, currency_id: :XMR}
+    # {BitPal.BackendMock, auto: true, time_between_blocks: 10 * 60 * 1_000, currency_id: :BCH},
+    # {BitPal.BackendMock, auto: true, time_between_blocks: 3 * 60 * 1_000, currency_id: :XMR}
   ]
 
 config :bitpal, BitPal.Repo,
