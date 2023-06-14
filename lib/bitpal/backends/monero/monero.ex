@@ -48,7 +48,6 @@ defmodule BitPal.Backend.Monero do
   @impl true
   def handle_continue(:init, opts) do
     Logger.notice("Starting Monero backend")
-    Process.flag(:trap_exit, true)
 
     state =
       Enum.into(opts, %{

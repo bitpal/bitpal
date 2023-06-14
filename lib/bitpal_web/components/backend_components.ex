@@ -6,23 +6,44 @@ defmodule BitPalWeb.BackendComponents do
 
   def info_to_display(:BCH) do
     [
-      {:version, "Version"},
-      {:blocks, "Processed blocks"},
-      {:difficulty, "Difficulty"},
-      {:verification_progress, "Verification progress"},
-      {:chain, "Chain"},
-      {:best_block_hash, "Chain tip block hash"}
+      {"version", "Version"},
+      {"subversion", "Subversion"},
+      {"protocolversion", "Protocol version"},
+      {"blocks", "Processed blocks"},
+      {"headers", "Processed headers"},
+      {"difficulty", "Difficulty"},
+      {"verificationprogress", "Verification progress"},
+      {"chain", "Chain"},
+      {"chainwork", "Chain work"},
+      {"bestblockhash", "Chain tip block hash"},
+      {"initialblockdownload", "Initial block download?"},
+      {"pruned", "Pruned?"},
+      {"size_on_disk", "Size on disk"},
+      {"warnings", "Warnings"}
     ]
   end
 
   def info_to_display(:XMR) do
     [
       {"version", "Version"},
-      {"update_available", "Update available?"},
+      {"status", "Status"},
+      {"nettype", "Chain"},
+      {"top_block_hash", "Chain tip block hash"},
       {"height", "Processed blocks"},
       {"difficulty", "Difficulty"},
-      {"nettype", "Chain"},
-      {"top_block_hash", "Chain tip block hash"}
+      {"cumulative_difficulty", "Cumulative difficulty"},
+      {"wide_difficulty", "Wide difficulty"},
+      {"wide_cumulative_difficulty", "Wide cumulative difficulty"},
+      {"alt_blocks_count", "Alt blocks count"},
+      {"synchronized", "Synchronized?"},
+      {"offline", "Offline?"},
+      {"block_size_limit", "Block size limit"},
+      {"block_weight_median", "Block weight median"},
+      {"block_weight_limit", "Block weight limit"},
+      {"database_size", "Database size"},
+      {"start_time", "Start time"},
+      {"adjusted_time", "Adjusted time"},
+      {"update_available", "Update available?"}
     ]
   end
 

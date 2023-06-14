@@ -131,6 +131,8 @@ defmodule BitPal.Backend do
       @doc false
       @impl GenServer
       def init(opts) do
+        Process.flag(:trap_exit, true)
+
         Registry.register(
           ProcessRegistry,
           Backend.via_tuple(@currency_id),
