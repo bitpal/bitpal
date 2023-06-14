@@ -8,7 +8,7 @@ defmodule BitPal.InvoiceTransactionsTest do
     expected_payment = Money.parse!(amount, currency_id)
 
     invoice =
-      Map.take(tags, [:required_confirmations])
+      Map.take(tags, [:required_confirmations, :status])
       |> Map.merge(%{
         address_id: :auto,
         expected_payment: expected_payment
@@ -73,6 +73,12 @@ defmodule BitPal.InvoiceTransactionsTest do
       Blocks.new(currency_id, 14)
       assert Invoices.num_confirmations(invoice) == 0
     end
+  end
+
+  @tag status: :draft, required_confirmations: nil
+  test "info from txs when draft", %{invoice: invoice} do
+    invoice = Invoices.update_info_from_txs(invoice, 3)
+    assert invoice.confirmations_due == nil
   end
 
   @tag amount: 1.2

@@ -495,6 +495,10 @@ defmodule BitPal.Invoices do
     required
   end
 
+  def calculate_confirmations_due(%Invoice{required_confirmations: nil}, _) do
+    nil
+  end
+
   def calculate_confirmations_due(invoice, block_height) do
     max(invoice.required_confirmations - num_confirmations(invoice, block_height), 0)
   end
