@@ -10,7 +10,8 @@ config :bitpal, BitPal.Backend.Monero,
 
 config :bitpal, BitPal.BackendManager,
   restart_timeout: 10,
-  backends: []
+  backends: [],
+  ensure_handlers_when_added: false
 
 config :bitpal, BitPal.ExchangeRate,
   sources: [

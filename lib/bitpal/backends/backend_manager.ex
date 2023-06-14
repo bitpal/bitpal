@@ -1,5 +1,6 @@
 defmodule BitPal.BackendManager do
   use GenServer
+  alias BitPal.InvoiceSupervisor
   alias BitPal.Backend
   alias BitPal.BackendEvents
   alias BitPal.BackendStatusSupervisor
@@ -9,6 +10,12 @@ defmodule BitPal.BackendManager do
   alias BitPalSettings.BackendSettings
   alias Ecto.Adapters.SQL.Sandbox
   require Logger
+
+  @ensure_handlers_when_added Application.compile_env(
+                                :bitpal,
+                                [__MODULE__, :ensure_handlers_when_added],
+                                true
+                              )
 
   @type server_name :: atom | {:via, term, term} | pid
   @type backend_spec :: Supervisor.child_spec() | {module, term} | module
@@ -505,7 +512,13 @@ defmodule BitPal.BackendManager do
 
   defp backend_added(pid, currency_id, state) when is_pid(pid) do
     if is_enabled(currency_id, state) do
-      monitor(pid, currency_id, state)
+      state = monitor(pid, currency_id, state)
+
+      if @ensure_handlers_when_added do
+        InvoiceSupervisor.ensure_handlers(currency_id, [])
+      end
+
+      state
     else
       # Hack to prevent a disabled backend from starting, by starting it and killing it!
       # Maybe there's another way of adding a child_spec to a supervisor without starting it?
