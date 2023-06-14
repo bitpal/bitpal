@@ -35,9 +35,9 @@ defmodule BitPal.Backend.Flowee do
   def assign_payment_uri(_backend, invoice) do
     Invoices.assign_payment_uri(invoice, %{
       prefix: "bitcoincash",
-      decimal_amount_key: :amount,
-      description_key: :message,
-      recipient_name_key: :label
+      decimal_amount_key: "amount",
+      description_key: "message",
+      recipient_name_key: "label"
     })
   end
 
@@ -62,6 +62,9 @@ defmodule BitPal.Backend.Flowee do
 
   @impl true
   def handle_continue(:init, opts) do
+    # Prevent us from accidentally using Flowee.
+    raise "Flowee not up to date with BCH consensus rules"
+
     Logger.notice("Starting Flowee backend")
 
     state =

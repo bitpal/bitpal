@@ -10,6 +10,10 @@ defmodule BitPal.Backend.FloweeTest do
   alias BitPal.IntegrationCase
   alias BitPal.MockTCPClient
 
+  # NOTE that Flowee isn't up-to-date with BCH consensus rules and the Flowee
+  # backend is set to raise during init.
+  # That's why all these tests are marked as skipped.
+
   @currency :BCH
   @xpub "xpub6C23JpFE6ABbBudoQfwMU239R5Bm6QGoigtLq1BD3cz3cC6DUTg89H3A7kf95GDzfcTis1K1m7ypGuUPmXCaCvoxDKbeNv6wRBEGEnt1NV7"
   @client BitPal.FloweeMock
@@ -46,6 +50,7 @@ defmodule BitPal.Backend.FloweeTest do
     |> HandlerSubscriberCollector.create_invoice()
   end
 
+  @tag skip: true
   @tag ping_timeout: 1
   test "ping/pong" do
     # Pong doesn't do anything, just ensure we parse it
@@ -55,6 +60,7 @@ defmodule BitPal.Backend.FloweeTest do
     assert eventually(fn -> MockTCPClient.last_sent(@client) == FloweeFixtures.ping() end)
   end
 
+  @tag skip: true
   test "new block" do
     assert eventually(fn ->
              Blocks.fetch_height(@currency) == {:ok, 690_637}
@@ -67,6 +73,7 @@ defmodule BitPal.Backend.FloweeTest do
            end)
   end
 
+  @tag skip: true
   test "transaction 0-conf acceptance", %{store: store, manager: manager} do
     {:ok, _inv, stub, _invoice_handler} =
       test_invoice(
@@ -87,6 +94,7 @@ defmodule BitPal.Backend.FloweeTest do
            ] = HandlerSubscriberCollector.received(stub)
   end
 
+  @tag skip: true
   test "transaction confirmation acceptance", %{store: store} do
     {:ok, _inv, stub, _invoice_handler} =
       test_invoice(
@@ -106,6 +114,7 @@ defmodule BitPal.Backend.FloweeTest do
            ] = HandlerSubscriberCollector.received(stub)
   end
 
+  @tag skip: true
   test "single tx 0-conf to multiple monitored addresses", %{store: store} do
     {:ok, _invoice, stub1, _invoice_handler} =
       test_invoice(
@@ -142,6 +151,7 @@ defmodule BitPal.Backend.FloweeTest do
            ] = HandlerSubscriberCollector.received(stub2)
   end
 
+  @tag skip: true
   @tag double_spend_timeout: 1
   test "multiple tx 0-conf to multiple monitored addresses", %{store: store} do
     {:ok, _invoice, stub1, _invoice_handler} =
@@ -190,6 +200,7 @@ defmodule BitPal.Backend.FloweeTest do
            ] = HandlerSubscriberCollector.received(stub2)
   end
 
+  @tag skip: true
   test "single tx 1-conf to multiple monitored addresses", %{store: store} do
     {:ok, _invoice, stub1, _invoice_handler} =
       test_invoice(
@@ -244,6 +255,7 @@ defmodule BitPal.Backend.FloweeTest do
            ] = HandlerSubscriberCollector.received(stub2)
   end
 
+  @tag skip: true
   @tag double_spend_timeout: 1
   test "multiple tx 1-conf to multiple monitored addresses", %{store: store} do
     {:ok, _invoice, stub1, _invoice_handler} =
@@ -304,6 +316,7 @@ defmodule BitPal.Backend.FloweeTest do
            ] = HandlerSubscriberCollector.received(stub1)
   end
 
+  @tag skip: true
   @tag init_message: false
   test "wait for Flowee to become ready" do
     # Send it an incomplete startup message to get it going.
@@ -319,6 +332,7 @@ defmodule BitPal.Backend.FloweeTest do
     assert eventually(fn -> BackendManager.status(@currency) == :ready end)
   end
 
+  @tag skip: true
   @tag double_spend_timeout: 1
   @tag init_message: false
   test "make sure recovery works", %{store: store} do
@@ -406,6 +420,7 @@ defmodule BitPal.Backend.FloweeTest do
            end)
   end
 
+  @tag skip: true
   test "restart after closed connection" do
     # Wait for Flowee to be ready
     assert eventually(fn -> BackendManager.status(@currency) == :ready end)
