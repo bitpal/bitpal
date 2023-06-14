@@ -14,6 +14,7 @@ defmodule BitPal.Invoices do
   alias BitPalApi.ApiHelpers
   alias BitPalSchemas.Address
   alias BitPalSchemas.AddressKey
+  alias BitPalSchemas.Currency
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.InvoiceRates
   alias BitPalSchemas.InvoiceStatus
@@ -211,6 +212,16 @@ defmodule BitPal.Invoices do
   def all_open do
     Invoice
     |> with_status(:open)
+    |> select([i], i)
+    |> Repo.all()
+    |> Enum.map(&update_expected_payment/1)
+  end
+
+  @spec all_active(Currency.id()) :: [Invoice.t()]
+  def all_active(currency_id) do
+    Invoice
+    |> with_status([:open, :processing])
+    |> with_currency(currency_id)
     |> select([i], i)
     |> Repo.all()
     |> Enum.map(&update_expected_payment/1)
