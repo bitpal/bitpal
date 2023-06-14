@@ -16,7 +16,7 @@
         <span class="txs">Transactions</span>
       </div>
       <%= for {_key_address, addresses} <- @addresses do %>
-        <%= for address <- addresses do %>
+        <%= for address <- Enum.sort(addresses, fn a, b -> NaiveDateTime.compare(a.inserted_at, b.inserted_at) == :gt end) do %>
           <div class="row">
             <span class="link">
               <%= if address.invoice do %>

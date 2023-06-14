@@ -13,8 +13,8 @@ defmodule BitPal.MockRPCClient do
     end)
   end
 
-  def expect(c, method, fun) do
-    GenServer.call(c, {:expect, method, fun})
+  def expect(c, method, n \\ 1, fun) do
+    GenServer.call(c, {:expect, method, n, fun})
   end
 
   def stub(c, method, fun) do
@@ -91,13 +91,15 @@ defmodule BitPal.MockRPCClient do
   end
 
   @impl GenServer
-  def handle_call({:expect, method, fun}, _, state) do
+  def handle_call({:expect, method, n, fun}, _, state) do
+    new_funs = Enum.map(1..n, fn _ -> fun end)
+
     state =
       state
       |> Map.update!(:expected, fn expected ->
-        Map.update(expected, method, [fun], fn method_expected ->
+        Map.update(expected, method, new_funs, fn method_expected ->
           # credo:disable-for-next-line
-          method_expected ++ [fun]
+          method_expected ++ new_funs
         end)
       end)
 

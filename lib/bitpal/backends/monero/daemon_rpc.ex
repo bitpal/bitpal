@@ -4,10 +4,6 @@ defmodule BitPal.Backend.Monero.DaemonRPC do
 
   # Client API
 
-  def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
-  end
-
   def get_block_count(client) do
     call(client, "get_block_count")
   end

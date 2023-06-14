@@ -4,6 +4,7 @@ defmodule BitPal.InvoiceSupervisor do
   alias BitPal.Invoices
   alias BitPal.ProcessRegistry
   alias BitPalSchemas.Invoice
+  alias BitPalSchemas.Currency
   alias Ecto.Changeset
 
   @pass_parent_pid Application.compile_env(:bitpal, [__MODULE__, :pass_parent_pid], false)
@@ -63,6 +64,13 @@ defmodule BitPal.InvoiceSupervisor do
         restart: opts[:restart] || :transient
       }
     )
+  end
+
+  @spec ensure_handlers(Currency.id(), keyword | map) :: [{:ok, pid} | {:error, term}]
+  def ensure_handlers(currency_id, opts) do
+    for invoice <- Invoices.all_active(currency_id) do
+      ensure_handler(invoice, opts)
+    end
   end
 
   @spec ensure_handler(Invoice.t(), keyword | map) :: {:ok, pid} | {:error, term}

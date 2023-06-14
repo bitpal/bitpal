@@ -14,7 +14,8 @@ defmodule BitPal.Addresses do
   require Logger
 
   @type address_index :: non_neg_integer
-  @type address_generator_res :: %{address_id: Address.id(), address_index: address_index}
+  @type address_generator_res ::
+          {:ok, %{address_id: Address.id(), address_index: address_index}} | {:error, term}
   @type address_generator :: (AddressKey.t() -> address_generator_res)
 
   # Retrieve

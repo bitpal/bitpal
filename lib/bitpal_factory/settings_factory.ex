@@ -1,5 +1,6 @@
 defmodule BitPalFactory.SettingsFactory do
   import BitPalFactory.FactoryHelpers
+  alias BitPal.BCH.KeyTree
   alias BitPal.Currencies
   alias BitPalFactory.CurrencyFactory
   alias BitPalFactory.StoreFactory
@@ -23,7 +24,13 @@ defmodule BitPalFactory.SettingsFactory do
 
   @spec unique_address_key_xpub :: %{xpub: String.t()}
   def unique_address_key_xpub do
-    %{xpub: sequence("xpub:test")}
+    xpub =
+      Faker.random_bytes(16)
+      |> KeyTree.from_seed()
+      |> KeyTree.to_public()
+      |> KeyTree.export_key()
+
+    %{xpub: xpub}
   end
 
   @spec unique_address_key_viewkey :: %{

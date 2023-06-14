@@ -147,7 +147,7 @@ defmodule BitPal.Crypto.Base58 do
   defp digit_to_num(value) do
     case Enum.find_index(@alphabet, &(&1 == value)) do
       nil ->
-        raise("Unknown character in base58 string.")
+        raise("Unknown character `#{value}` in base58 string.")
 
       x ->
         x

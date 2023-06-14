@@ -35,7 +35,10 @@ defmodule BitPal.Blocks do
     end
   end
 
-  @spec new(currency_id, height, hash) :: :ok | :not_updated
+  @spec new(currency_id, height, hash) ::
+          {:updated, %{prev_height: height, prev_hash: hash}}
+          | {:updated, :first_block}
+          | :not_updated
   def new(currency_id, height, top_block \\ nil) do
     existing = Repo.get(Currency, currency_id)
 
@@ -52,7 +55,11 @@ defmodule BitPal.Blocks do
         {{:block, :new}, %{currency_id: currency_id, height: height}}
       )
 
-      :ok
+      if existing do
+        {:updated, %{prev_height: existing.block_height, prev_hash: existing.top_block_hash}}
+      else
+        {:updated, :first_block}
+      end
     else
       :not_updated
     end

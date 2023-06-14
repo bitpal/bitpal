@@ -41,10 +41,10 @@
 
     <div class="txs">
       <div class="header">Transactions</div>
-      <%= for tx <- @invoice.tx_outputs do %>
+      <%= for tx <- @invoice.transactions do %>
         <div class="tx-details">
-          <span class="txid"><%= tx.transaction_id %></span>
-          <span class="amount"><%= money_to_string(tx.amount) %></span>
+          <span class="txid"><%= tx.id %></span>
+          <%!-- <span class="amount"><%= money_to_string(tx.amount) %></span> --%>
           <%= tx_status(%{tx: tx}) %>
         </div>
       <% end %>
