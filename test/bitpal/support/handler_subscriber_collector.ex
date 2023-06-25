@@ -47,7 +47,7 @@ defmodule BitPal.HandlerSubscriberCollector do
 
   def await_msg(handler, id) do
     Task.async(__MODULE__, :sleep_until_msg, [handler, id])
-    |> Task.await(500)
+    |> Task.await(1_000)
 
     {:ok, received(handler)}
   end

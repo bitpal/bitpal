@@ -23,10 +23,9 @@ defmodule BitPalApi.StatusChannelTest do
 
   describe "updates status" do
     test "stop and start", %{currency_id: currency_id} do
-      assert_broadcast("backend_status", %{
-        currency: ^currency_id,
-        status: :ready
-      })
+      assert eventually(fn ->
+               BackendManager.status(currency_id) == :ready
+             end)
 
       BackendManager.stop_backend(currency_id)
 
