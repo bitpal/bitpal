@@ -400,6 +400,8 @@ defmodule BitPal.InvoiceHandler do
   end
 
   defp accept_payment?(invoice, double_spend_timeouts) do
+    IO.puts("accept_payment? #{invoice.id} #{inspect(double_spend_timeouts)}")
+
     confs? = has_confirmations?(invoice) |> dbg()
     target_amount? = target_amount_reached?(invoice) |> dbg()
     valid_txs? = valid_txs?(invoice) |> dbg()
