@@ -42,6 +42,10 @@ defmodule BitPalSchemas.Invoice do
     field(:required_confirmations, :integer) :: non_neg_integer | nil
     # When does the invoice expire?
     field(:valid_until, :utc_datetime) :: DateTime.t() | nil
+    # When a status was reached
+    field(:finalized_at, :utc_datetime) :: DateTime.t() | nil
+    field(:paid_at, :utc_datetime) :: DateTime.t() | nil
+    field(:uncollectible_at, :utc_datetime) :: DateTime.t() | nil
 
     # Calculated from transactions.
     field(:amount_paid, NumericType, virtual: true) :: Money.t() | nil

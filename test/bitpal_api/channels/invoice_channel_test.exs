@@ -18,7 +18,9 @@ defmodule BitPalApi.InvoiceChannelTest do
         txs: [%{outputSubAmount: _, outputDisplay: _, txid: ^txid}]
       })
 
-      assert_broadcast("paid", %{id: ^id})
+      assert_broadcast("paid", %{id: ^id, paidAt: paid_at})
+
+      assert paid_at != nil
     end
 
     @tag required_confirmations: 3
@@ -64,7 +66,13 @@ defmodule BitPalApi.InvoiceChannelTest do
         txs: _
       })
 
-      assert_broadcast("uncollectible", %{id: ^id, statusReason: :double_spent})
+      assert_broadcast("uncollectible", %{
+        id: ^id,
+        statusReason: :double_spent,
+        uncollectibleAt: uncollectible_at
+      })
+
+      assert uncollectible_at != nil
     end
 
     @tag double_spend_timeout: 1, required_confirmations: 0, amount: 1.0

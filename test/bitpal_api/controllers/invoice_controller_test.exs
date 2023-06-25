@@ -31,11 +31,14 @@ defmodule BitPalApi.InvoiceControllerTest do
                "posData" => %{
                  "some" => "data",
                  "other" => %{"even_more" => 0.1337}
-               }
+               },
+               "createdAt" => created_at
              } = json_response(conn, 200)
 
       assert id != nil
       assert Invoices.fetch!(id).id == id
+      # FIXME should be DateTime
+      assert {:ok, _} = NaiveDateTime.from_iso8601(created_at)
     end
 
     test "with fiat priceSubAmount", %{conn: conn} do
@@ -138,8 +141,9 @@ defmodule BitPalApi.InvoiceControllerTest do
                "rates" => %{
                  ^currency => %{"USD" => rate}
                },
-               "status" => "open"
+               "status" => "open",
                "validUntil" => valid_until,
+               "finalizedAt" => finalized_at
              } = json_response(conn, 200)
 
       assert id != nil
@@ -147,6 +151,7 @@ defmodule BitPalApi.InvoiceControllerTest do
       assert is_float(rate)
       assert payment_uri != nil
       assert {:ok, _, 0} = DateTime.from_iso8601(valid_until)
+      assert {:ok, _, 0} = DateTime.from_iso8601(finalized_at)
 
       assert RenderHelpers.money_to_string(Money.new(payment_sub_amount, currency)) ==
                payment_display
