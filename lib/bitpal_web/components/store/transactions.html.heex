@@ -15,7 +15,7 @@
         <%!-- <span class="address-id">Address</span> --%>
         <span class="tx-status">Status</span>
       </div>
-      <%= for tx <- Enum.sort(@txs, fn a, b -> NaiveDateTime.compare(a.inserted_at, b.inserted_at) == :gt end) do %>
+      <%= for tx <- Enum.sort(@txs, fn a, b -> DateTime.compare(a.inserted_at, b.inserted_at) == :gt end) do %>
         <div class="row">
           <%!-- <span class="link"> --%>
           <%!--   <%= live_invoice_link(id: tx.address.invoice.id, label: "Invoice") %> --%>

@@ -314,13 +314,13 @@ defmodule BitPal.Backend.Monero.Wallet do
   # Values greater than or equal to 500,000,000 are interpreted as an absolute Unix epoch timestamp.
   def reasonable_unlock_time?(unlock_time) when unlock_time >= 500_000_000 do
     last_valid =
-      NaiveDateTime.utc_now()
-      |> NaiveDateTime.truncate(:second)
-      |> NaiveDateTime.add(Settings.acceptable_unlock_time_minutes(), :minute)
+      DateTime.utc_now()
+      |> DateTime.truncate(:second)
+      |> DateTime.add(Settings.acceptable_unlock_time_minutes(), :minute)
 
-    unlock_dt = NaiveDateTime.add(~N[1970-01-01 00:00:00], unlock_time)
+    unlock_dt = DateTime.add(~U[1970-01-01 00:00:00Z], unlock_time)
 
-    NaiveDateTime.compare(unlock_dt, last_valid) != :gt
+    DateTime.compare(unlock_dt, last_valid) != :gt
   rescue
     _ ->
       # Very large integer values cannot be converted to a datetime and will crash "add"

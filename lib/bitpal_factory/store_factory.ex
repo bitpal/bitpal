@@ -65,7 +65,7 @@ defmodule BitPalFactory.StoreFactory do
     token = AuthFactory.create_token(store, attrs)
 
     if last_accessed = attrs[:last_accessed] do
-      change(token, last_accessed: last_accessed |> NaiveDateTime.truncate(:second))
+      change(token, last_accessed: last_accessed |> DateTime.truncate(:second))
       |> Repo.update!()
     end
 

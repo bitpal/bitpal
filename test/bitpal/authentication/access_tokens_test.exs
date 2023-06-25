@@ -35,8 +35,7 @@ defmodule BitPal.AccessTokensTest do
                Tokens.create_token(store, valid_token_attributes(valid_until: "2021-01-01"))
 
       # Always sets time to end of day
-      assert t.valid_until ==
-               NaiveDateTime.new!(2021, 1, 1, 23, 59, 59, 0) |> NaiveDateTime.truncate(:second)
+      assert t.valid_until == ~U[2021-01-01 23:59:59Z] |> DateTime.truncate(:second)
     end
 
     test "parse error on valid_until", %{store: store} do
@@ -49,9 +48,9 @@ defmodule BitPal.AccessTokensTest do
     end
 
     test "pass naive datetime to valid_until", %{store: store} do
-      date = NaiveDateTime.new!(2021, 1, 1, 0, 0, 0, 0)
+      date = ~U[2021-01-01 00:00:00Z]
       assert {:ok, t} = Tokens.create_token(store, valid_token_attributes(valid_until: date))
-      assert t.valid_until == date |> NaiveDateTime.truncate(:second)
+      assert t.valid_until == date |> DateTime.truncate(:second)
     end
   end
 
@@ -63,7 +62,7 @@ defmodule BitPal.AccessTokensTest do
 
     test "valid token within exparation date", %{store: store} do
       signed_at = System.system_time(:second)
-      valid_until = (signed_at + 20) |> DateTime.from_unix!() |> DateTime.to_naive()
+      valid_until = (signed_at + 20) |> DateTime.from_unix!()
 
       t = create_token(store, signed_at: signed_at, valid_until: valid_until)
       assert {:ok, store.id} == Tokens.authenticate_token(t.data)
@@ -71,7 +70,7 @@ defmodule BitPal.AccessTokensTest do
 
     test "invalid token outside exparation date", %{store: store} do
       signed_at = System.system_time(:second) - 2
-      valid_until = (signed_at + 1) |> DateTime.from_unix!() |> DateTime.to_naive()
+      valid_until = (signed_at + 1) |> DateTime.from_unix!()
 
       t = create_token(store, signed_at: signed_at, valid_until: valid_until)
       assert {:error, :expired} == Tokens.authenticate_token(t.data)
@@ -96,12 +95,12 @@ defmodule BitPal.AccessTokensTest do
       t = create_token(store)
       assert t.last_accessed == nil
 
-      now = NaiveDateTime.utc_now()
+      now = DateTime.utc_now()
       assert {:ok, _} = Tokens.authenticate_token(t.data)
 
       t = Repo.get!(AccessToken, t.id)
       assert t.last_accessed
-      assert NaiveDateTime.diff(t.last_accessed, now) <= 2
+      assert DateTime.diff(t.last_accessed, now) <= 2
     end
   end
 
@@ -114,7 +113,7 @@ defmodule BitPal.AccessTokensTest do
     test "diff seconds", %{store: store} do
       # We can't control the virication time, so add a tolerance so tests have some leeway.
       tolerance = 5
-      valid_until = NaiveDateTime.add(NaiveDateTime.utc_now(), tolerance)
+      valid_until = DateTime.add(DateTime.utc_now(), tolerance)
 
       valid_age =
         create_token(store, valid_until: valid_until)

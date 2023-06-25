@@ -847,7 +847,7 @@ defmodule BitPal.Invoices do
     end
   end
 
-  defp expired_rates?(updated_at = %NaiveDateTime{}) do
+  defp expired_rates?(updated_at = %DateTime{}) do
     ExchangeRates.expired?(updated_at)
   end
 
@@ -900,7 +900,7 @@ defmodule BitPal.Invoices do
   end
 
   defp put_rates(changeset, rates) do
-    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
 
     changeset
     |> put_change(:rates, rates)

@@ -264,9 +264,9 @@ defmodule BitPal.InvoiceUpdateTest do
          payment_uri: "uri",
          rates: %{BCH: %{USD: Decimal.from_float(1.0)}}
     test "updates rates if too old", %{invoice: invoice} do
-      now = NaiveDateTime.utc_now()
+      now = DateTime.utc_now()
       ttl = ExchangeRateSettings.rates_ttl()
-      expired = NaiveDateTime.add(now, -ttl - 1, :millisecond)
+      expired = DateTime.add(now, -ttl - 1, :millisecond)
       {:ok, updated} = Invoices.finalize(%{invoice | rates_updated_at: expired})
       assert invoice.rates != updated.rates
     end
@@ -335,8 +335,8 @@ defmodule BitPal.InvoiceUpdateTest do
         )
 
       {:ok, invoice} = Invoices.finalize(invoice)
-      now = NaiveDateTime.utc_now()
-      time = NaiveDateTime.diff(invoice.valid_until, now, :second)
+      now = DateTime.utc_now()
+      time = DateTime.diff(invoice.valid_until, now, :second)
       assert time <= 1_000
     end
   end

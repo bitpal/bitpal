@@ -2,6 +2,8 @@ defmodule BitPalSchemas.ExchangeRate do
   use TypedEctoSchema
   alias BitPalSchemas.Currency
 
+  @timestamps_opts [type: :utc_datetime]
+
   @type pair :: {Currency.id(), Currency.id()}
   @type bundled :: %{Currency.t() => %{Currency.t() => t()}}
 

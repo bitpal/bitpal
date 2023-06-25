@@ -8,6 +8,8 @@ defmodule BitPalSchemas.Invoice do
   alias BitPalSchemas.Store
   alias Money.Ecto.NumericType
 
+  @timestamps_opts [type: :utc_datetime]
+
   @type id :: Ecto.UUID.t()
 
   @primary_key false
@@ -26,7 +28,7 @@ defmodule BitPalSchemas.Invoice do
     # Filled with all supported rates upon creation.
     # A map from cryptocurrency -> fiat
     field(:rates, InvoiceRates) :: InvoiceRates.t()
-    field(:rates_updated_at, :naive_datetime)
+    field(:rates_updated_at, :utc_datetime)
 
     # The amount + currency we're waiting for. Calculated from :rates and :payment_currency.
     field(:expected_payment, NumericType, virtual: true) :: Money.t() | nil
@@ -65,6 +67,6 @@ defmodule BitPalSchemas.Invoice do
 
     belongs_to(:store, Store)
 
-    timestamps()
+    timestamps(updated_at: false, inserted_at: :created_at)
   end
 end

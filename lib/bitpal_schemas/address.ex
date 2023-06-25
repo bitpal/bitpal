@@ -5,6 +5,8 @@ defmodule BitPalSchemas.Address do
   alias BitPalSchemas.Invoice
   alias BitPalSchemas.TxOutput
 
+  @timestamps_opts [type: :utc_datetime]
+
   @type id :: String.t()
 
   @primary_key {:id, :string, []}

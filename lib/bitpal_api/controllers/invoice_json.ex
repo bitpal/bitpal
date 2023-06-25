@@ -17,8 +17,7 @@ defmodule BitPalApi.InvoiceJSON do
       description: invoice.description,
       orderId: invoice.order_id,
       posData: invoice.pos_data,
-      # FIXME should be utc datetime
-      createdAt: NaiveDateTime.to_iso8601(invoice.inserted_at)
+      createdAt: DateTime.to_iso8601(invoice.created_at)
     }
     |> add_status(invoice)
     |> put_unless_empty(:rates, InvoiceRates.to_float(invoice.rates))

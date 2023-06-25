@@ -537,9 +537,9 @@ defmodule BitPal.Backend.MoneroTest do
       valid_minutes = Settings.acceptable_unlock_time_minutes()
 
       seconds_since_epoch =
-        NaiveDateTime.utc_now()
-        |> NaiveDateTime.truncate(:second)
-        |> NaiveDateTime.diff(~N[1970-01-01 00:00:00])
+        DateTime.utc_now()
+        |> DateTime.truncate(:second)
+        |> DateTime.diff(~U[1970-01-01 00:00:00Z])
 
       assert Wallet.reasonable_unlock_time?(500_000_000)
       assert Wallet.reasonable_unlock_time?(seconds_since_epoch)

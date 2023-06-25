@@ -37,8 +37,7 @@ defmodule BitPalApi.InvoiceControllerTest do
 
       assert id != nil
       assert Invoices.fetch!(id).id == id
-      # FIXME should be DateTime
-      assert {:ok, _} = NaiveDateTime.from_iso8601(created_at)
+      assert {:ok, _, 0} = DateTime.from_iso8601(created_at)
     end
 
     test "with fiat priceSubAmount", %{conn: conn} do
