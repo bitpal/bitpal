@@ -322,6 +322,7 @@ defmodule BitPalFactory.InvoiceFactory do
     invoice
     |> change_status(invoice_params)
     |> change_address(params)
+    |> change_valid_until(params)
     |> ensure_consistency(params)
   end
 
@@ -370,6 +371,13 @@ defmodule BitPalFactory.InvoiceFactory do
   defp change_address(invoice, _) do
     invoice
   end
+
+  defp change_valid_until(invoice, %{valid_until: valid_until}) do
+    change(invoice, valid_until: valid_until)
+    |> Repo.update!()
+  end
+
+  defp change_valid_until(invoice, _), do: invoice
 
   @spec ensure_consistency(Invoice.t(), keyword | map) :: Invoice.t()
   defp ensure_consistency(invoice, opts) do

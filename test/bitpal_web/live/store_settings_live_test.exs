@@ -94,8 +94,8 @@ defmodule BitPalWeb.StoreSettingsLiveTest do
       {:ok, view, _html} = live(conn, ~p"/stores/#{store}/settings/access_tokens")
 
       tomorrow =
-        NaiveDateTime.utc_now()
-        |> NaiveDateTime.add(60 * 60 * 24, :second)
+        DateTime.utc_now()
+        |> DateTime.add(60 * 60 * 24, :second)
         |> Timex.format!("{ISOdate}")
 
       rendered =

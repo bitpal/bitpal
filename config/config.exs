@@ -4,7 +4,11 @@ import Config
 # These should be overridable via BitPalSettings later
 config :bitpal,
   required_confirmations: 0,
-  double_spend_timeout: 2_000
+  # Time to wait before accepting a double spend, in seconds.
+  double_spend_timeout: 2_000,
+  # How long before an invoice should expire, in seconds.
+  # 60 * 60 * 6 = 6 hours
+  invoice_valid_time: 60 * 60 * 6
 
 # Should contain all supported backends.
 config :bitpal, BitPal.BackendManager,

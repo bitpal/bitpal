@@ -78,6 +78,9 @@ defmodule BitPal.Invoices do
   def finalize(invoice) do
     res =
       invoice
+      |> transition_validation(:open)
+      |> change_valid_until(invoice)
+      |> change_utc_now(:finalized_at)
       |> finalize_validation()
       |> Repo.update()
 
@@ -117,8 +120,7 @@ defmodule BitPal.Invoices do
   def pay_unchecked(invoice = %Invoice{}) do
     with {:ok, height} <- Blocks.fetch_height(invoice.payment_currency_id),
          invoice <- update_info_from_txs(invoice, height),
-         {:ok, invoice} <- transition(invoice, :paid) do
-      broadcast_paid(invoice)
+         {:ok, invoice} <- mark_paid(invoice) do
       {:ok, invoice}
     else
       :error ->
@@ -232,6 +234,11 @@ defmodule BitPal.Invoices do
     invoice.status != :draft
   end
 
+  @spec can_expire?(Invoice.t()) :: boolean
+  def can_expire?(invoice) do
+    InvoiceStatus.state(invoice.status) in [:open, :processing]
+  end
+
   # Internal updates
 
   @spec finalize!(Invoice.t()) :: Invoice.t()
@@ -299,20 +306,33 @@ defmodule BitPal.Invoices do
       raise "target amount not reached"
     end
 
-    invoice =
-      transition_validation(invoice, :paid)
-      |> Repo.update!()
-
-    broadcast_paid(invoice)
+    {:ok, invoice} = mark_paid(invoice)
     invoice
+  end
+
+  defp mark_paid(invoice) do
+    case transition_validation(invoice, :paid)
+         |> change_utc_now(:paid_at)
+         |> Repo.update() do
+      {:ok, invoice} ->
+        broadcast_paid(invoice)
+        {:ok, invoice}
+
+      err ->
+        err
+    end
   end
 
   @spec mark_uncollectible!(Invoice.t(), InvoiceStatus.uncollectible_reason()) :: Invoice.t()
   defp mark_uncollectible!(invoice, reason) do
-    {:ok, invoice} = transition(invoice, {:uncollectible, reason})
+    invoice =
+      transition_validation(invoice, {:uncollectible, reason})
+      |> change_utc_now(:uncollectible_at)
+      |> Repo.update!()
 
     InvoiceEvents.broadcast(
-      {{:invoice, :uncollectible}, %{id: invoice.id, status: invoice.status}}
+      {{:invoice, :uncollectible},
+       %{id: invoice.id, status: invoice.status, uncollectible_at: invoice.uncollectible_at}}
     )
 
     invoice
@@ -327,6 +347,32 @@ defmodule BitPal.Invoices do
   def set_status!(invoice, status) do
     change(invoice, status: status)
     |> Repo.update!()
+  end
+
+  def change_valid_until(changeset, invoice) do
+    put_new_change(changeset, :valid_until, fn ->
+      valid_time =
+        StoreSettings.get_invoice_valid_time(invoice.store_id, invoice.payment_currency_id)
+
+      DateTime.utc_now()
+      |> DateTime.truncate(:second)
+      |> DateTime.add(valid_time, :second)
+    end)
+  end
+
+  def change_utc_now(changeset, key) do
+    put_new_change(changeset, key, fn ->
+      DateTime.utc_now()
+      |> DateTime.truncate(:second)
+    end)
+  end
+
+  defp put_new_change(changeset, key, fun) do
+    if get_field(changeset, key) do
+      changeset
+    else
+      put_change(changeset, key, fun.())
+    end
   end
 
   # Updates
@@ -569,6 +615,7 @@ defmodule BitPal.Invoices do
          id: invoice.id,
          status: invoice.status,
          amount_paid: invoice.amount_paid,
+         paid_at: invoice.paid_at,
          txs: Transactions.address_tx_info(invoice.address_id)
        }}
     )
@@ -582,6 +629,7 @@ defmodule BitPal.Invoices do
          id: invoice.id,
          status: invoice.status,
          amount_paid: invoice.amount_paid,
+         paid_at: invoice.paid_at,
          txs: Transactions.address_tx_info(invoice.address_id)
        }}
     )
@@ -628,8 +676,8 @@ defmodule BitPal.Invoices do
     |> validate_email()
   end
 
-  defp finalize_validation(invoice = %Invoice{}) do
-    transition_validation(invoice, :open)
+  defp finalize_validation(changeset) do
+    changeset
     |> ensure_required_confirmations()
     |> validate_required([
       :price,
@@ -637,7 +685,8 @@ defmodule BitPal.Invoices do
       :payment_currency_id,
       :address_id,
       :required_confirmations,
-      :payment_uri
+      :payment_uri,
+      :valid_until
     ])
     # Technically these validations shouldn't be necessary as all invoice changes should
     # pass through register() or update(), but we try to be extra safe.
@@ -798,7 +847,7 @@ defmodule BitPal.Invoices do
     end
   end
 
-  defp expired_rates?(updated_at = %NaiveDateTime{}) do
+  defp expired_rates?(updated_at = %DateTime{}) do
     ExchangeRates.expired?(updated_at)
   end
 
@@ -851,7 +900,7 @@ defmodule BitPal.Invoices do
   end
 
   defp put_rates(changeset, rates) do
-    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
 
     changeset
     |> put_change(:rates, rates)

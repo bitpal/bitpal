@@ -5,6 +5,8 @@ defmodule BitPalSchemas.AddressKey do
   alias BitPalSchemas.Currency
   alias BitPalSchemas.CurrencySettings
 
+  @timestamps_opts [type: :utc_datetime]
+
   typed_schema "address_keys" do
     field(:data, AddressKeyData) :: AddressKeyData.t()
     timestamps()

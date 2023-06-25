@@ -16,7 +16,7 @@ Application.put_env(:bitpal, :http_client, BitPal.MockHTTPClient)
 crypto = [:BCH, :XMR, :DGC]
 Currencies.ensure_exists!(crypto)
 
-now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+now = DateTime.utc_now() |> DateTime.truncate(:second)
 
 seeded_rates =
   for crypto_id <- crypto do

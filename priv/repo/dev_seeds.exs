@@ -34,14 +34,14 @@ defmodule BitPal.DevSeeds do
     # These aren't valid addresses or transactions.
     #
     # invalid_time =
-    #   (System.system_time(:second) - 1_000) |> DateTime.from_unix!() |> DateTime.to_naive()
+    #   (System.system_time(:second) - 1_000) |> DateTime.from_unix!()
     # create_store(user: user, label: "Store with random data")
     # |> with_token(
-    #   last_accessed: NaiveDateTime.utc_now(),
+    #   last_accessed: DateTime.utc_now(),
     #   valid_until: invalid_time
     # )
     # |> with_token(
-    #   valid_until: NaiveDateTime.utc_now() |> NaiveDateTime.add(60 * 60 * 24 * 30, :second)
+    #   valid_until: DateTime.utc_now() |> DateTime.add(60 * 60 * 24 * 30, :second)
     # )
     # |> with_invoices(invoice_count: 100, payment_currencies: [:XMR, :BCH], txs: :auto)
 

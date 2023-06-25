@@ -3,6 +3,8 @@ defmodule BitPalSchemas.Transaction do
   alias BitPalSchemas.Currency
   alias BitPalSchemas.TxOutput
 
+  @timestamps_opts [type: :utc_datetime]
+
   @type id :: String.t()
   @type height :: non_neg_integer
 

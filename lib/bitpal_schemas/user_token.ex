@@ -2,6 +2,8 @@ defmodule BitPalSchemas.UserToken do
   use TypedEctoSchema
   alias BitPalSchemas.User
 
+  @timestamps_opts [type: :utc_datetime]
+
   @type id :: integer
 
   typed_schema "users_tokens" do

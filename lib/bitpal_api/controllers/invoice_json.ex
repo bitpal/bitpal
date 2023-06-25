@@ -16,13 +16,18 @@ defmodule BitPalApi.InvoiceJSON do
       email: invoice.email,
       description: invoice.description,
       orderId: invoice.order_id,
-      posData: invoice.pos_data
+      posData: invoice.pos_data,
+      createdAt: DateTime.to_iso8601(invoice.created_at)
     }
     |> add_status(invoice)
     |> put_unless_empty(:rates, InvoiceRates.to_float(invoice.rates))
     |> put_unless_nil(:requiredConfirmations, invoice.required_confirmations)
     |> put_unless_nil(:paymentCurrency, invoice.payment_currency_id)
     |> put_unless_nil(:paymentUri, invoice.payment_uri)
+    |> put_unless_nil(:validUntil, invoice.valid_until, &DateTime.to_iso8601/1)
+    |> put_unless_nil(:finalizedAt, invoice.finalized_at, &DateTime.to_iso8601/1)
+    |> put_unless_nil(:paidAt, invoice.paid_at, &DateTime.to_iso8601/1)
+    |> put_unless_nil(:uncollectibleAt, invoice.uncollectible_at, &DateTime.to_iso8601/1)
     |> put_expected_payment(invoice)
     |> add_paid(invoice)
   end
@@ -42,8 +47,8 @@ defmodule BitPalApi.InvoiceJSON do
     |> put_unless_nil(:confirmationsDue, data[:confirmations_due])
   end
 
-  def uncollectible(data = %{id: id}) do
-    %{id: id}
+  def uncollectible(data = %{id: id, uncollectible_at: uncollectible_at}) do
+    %{id: id, uncollectibleAt: uncollectible_at}
     |> add_status(data)
   end
 
@@ -74,6 +79,7 @@ defmodule BitPalApi.InvoiceJSON do
 
   defp render_pay_update(data = %{id: id}) do
     %{id: id}
+    |> add_paid_at(data)
     |> add_paid(data)
     |> add_status(data)
     |> add_txs(data)
@@ -92,6 +98,10 @@ defmodule BitPalApi.InvoiceJSON do
     |> Map.put(:paidDisplay, money_to_string(paid))
     |> Map.put(:paidSubAmount, paid.amount)
   end
+
+  defp add_paid_at(res, %{paid_at: nil}), do: res
+  defp add_paid_at(res, %{paid_at: paid_at}), do: Map.put(res, :paidAt, paid_at)
+  defp add_paid_at(res, _), do: res
 
   defp add_txs(res, %{txs: txs}) do
     res

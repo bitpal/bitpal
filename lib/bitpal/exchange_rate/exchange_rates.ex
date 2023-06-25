@@ -60,7 +60,7 @@ defmodule BitPal.ExchangeRates do
           prio: non_neg_integer
         }) :: [ExchangeRate.t()]
   def update_exchange_rates(%{rates: rates, source: source, prio: prio}) do
-    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
 
     to_insert =
       Enum.map(rates, fn {base, quotes} ->
@@ -199,20 +199,20 @@ defmodule BitPal.ExchangeRates do
   defp where_not_expired(query) do
     # Maybe there's a way to do this calculation on the postgres side, but this
     # works so I'm content.
-    now = NaiveDateTime.utc_now()
+    now = DateTime.utc_now()
     ttl = ExchangeRateSettings.rates_ttl()
 
     expire_at =
-      NaiveDateTime.add(now, -ttl, :millisecond)
-      |> NaiveDateTime.truncate(:second)
+      DateTime.add(now, -ttl, :millisecond)
+      |> DateTime.truncate(:second)
 
     from(r in query, where: r.updated_at > ^expire_at)
   end
 
-  def expired?(updated_at = %NaiveDateTime{}) do
-    now = NaiveDateTime.utc_now()
+  def expired?(updated_at = %DateTime{}) do
+    now = DateTime.utc_now()
     ttl = ExchangeRateSettings.rates_ttl()
-    valid_until = NaiveDateTime.add(updated_at, ttl, :millisecond)
-    NaiveDateTime.compare(valid_until, now) != :lt
+    valid_until = DateTime.add(updated_at, ttl, :millisecond)
+    DateTime.compare(valid_until, now) != :lt
   end
 end

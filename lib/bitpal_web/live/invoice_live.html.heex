@@ -4,7 +4,7 @@
   <div class="detailed-invoice">
     <div class="row">
       <span class="descr">Created at</span>
-      <span class="data"><%= NaiveDateTime.to_date(@invoice.inserted_at) %></span>
+      <span class="data"><%= DateTime.to_date(@invoice.created_at) %></span>
     </div>
     <div class="row">
       <span class="descr">Invoiced amount</span>

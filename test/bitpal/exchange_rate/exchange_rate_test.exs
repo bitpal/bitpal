@@ -424,12 +424,12 @@ defmodule BitPal.ExchangeRateTest do
   end
 
   test "filters old rates", %{rate: rate, pair: pair = {base, xquote}, source: source, prio: prio} do
-    now = NaiveDateTime.utc_now()
+    now = DateTime.utc_now()
     ttl = ExchangeRateSettings.rates_ttl()
 
     expired =
-      NaiveDateTime.add(now, -ttl - 1, :millisecond)
-      |> NaiveDateTime.truncate(:second)
+      DateTime.add(now, -ttl - 1, :millisecond)
+      |> DateTime.truncate(:second)
 
     %ExchangeRate{
       updated_at: expired,

@@ -14,7 +14,7 @@ defmodule BitPalWeb.StoreHTML do
       status: readable_status(invoice.status),
       reason: readable_status_reason(invoice),
       date: ""
-      # date: NaiveDateTime.to_date(invoice.updated_at)
+      # date: DateTime.to_date(invoice.updated_at)
     }
 
     ~H"""
@@ -137,15 +137,15 @@ defmodule BitPalWeb.StoreHTML do
     end
   end
 
-  def format_valid_until(token = %AccessToken{}, now = %NaiveDateTime{}) do
+  def format_valid_until(token = %AccessToken{}, now = %DateTime{}) do
     eod =
       now
-      |> NaiveDateTime.to_date()
-      |> NaiveDateTime.new!(Time.new!(23, 59, 59, 0))
-      |> NaiveDateTime.truncate(:second)
+      |> DateTime.to_date()
+      |> DateTime.new!(Time.new!(23, 59, 59, 0))
+      |> DateTime.truncate(:second)
 
     if token.valid_until do
-      if NaiveDateTime.compare(token.valid_until, eod) == :lt do
+      if DateTime.compare(token.valid_until, eod) == :lt do
         Timex.format!(token.valid_until, "{relative}", :relative)
       else
         Timex.format!(token.valid_until, "{ISOdate}")

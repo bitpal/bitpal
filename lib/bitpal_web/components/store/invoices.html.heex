@@ -10,18 +10,18 @@
       <div class="header">
         <span class="link"></span>
         <span class="status">Status</span>
-        <span class="date">Date</span>
+        <span class="date">Created</span>
         <span class="crypto-expected-payment">Amount</span>
         <span class="price">Price</span>
         <span class="description">Description</span>
       </div>
-      <%= for invoice <- Enum.sort(@store.invoices, fn a, b -> NaiveDateTime.compare(a.inserted_at, b.inserted_at) == :gt end) do %>
+      <%= for invoice <- Enum.sort(@store.invoices, fn a, b -> DateTime.compare(a.created_at, b.created_at) == :gt end) do %>
         <div class="row">
           <span class="link">
             <%= live_invoice_link(id: invoice.id, label: "Invoice") %>
           </span>
           <span class="status"><%= format_status(invoice) %></span>
-          <span class="date"><%= NaiveDateTime.to_date(invoice.updated_at) %></span>
+          <span class="date"><%= DateTime.to_date(invoice.created_at) %></span>
           <span class="crypto-expected-payment"><%= format_expected_payment(invoice) %></span>
           <span class="price"><%= format_price(invoice) %></span>
           <span class="description"><%= invoice.description %></span>

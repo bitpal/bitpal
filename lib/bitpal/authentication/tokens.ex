@@ -30,7 +30,7 @@ defmodule BitPal.Authentication.Tokens do
   @spec valid_age(AccessToken.t()) :: integer | :infinity
   def valid_age(token) do
     if token.valid_until do
-      NaiveDateTime.diff(token.valid_until, NaiveDateTime.utc_now())
+      DateTime.diff(token.valid_until, DateTime.utc_now())
     else
       :infinity
     end
@@ -57,20 +57,20 @@ defmodule BitPal.Authentication.Tokens do
       data: params[:data] || create_token_data(store, signed_at: params[:signed_at])
     )
     |> cast(params, [:label])
-    |> cast_naive_datetime(params, :valid_until)
+    |> cast_datetime(params, :valid_until)
     |> validate_required(:label)
     |> validate_length(:label, min: 1)
     |> unique_constraint(:data, name: :access_tokens_data_index)
     |> Repo.insert()
   end
 
-  defp cast_naive_datetime(changeset, params, key) do
+  defp cast_datetime(changeset, params, key) do
     val = params[key] || params[Atom.to_string(key)]
 
     if val && val != "" do
-      case parse_naive_datetime(val) do
-        {:ok, naive} ->
-          force_change(changeset, key, naive)
+      case parse_datetime(val) do
+        {:ok, dt} ->
+          force_change(changeset, key, dt)
 
         {:error, error} ->
           add_error(changeset, key, "bad date format: #{error}")
@@ -80,22 +80,23 @@ defmodule BitPal.Authentication.Tokens do
     end
   end
 
-  defp parse_naive_datetime(val) when is_binary(val) do
+  defp parse_datetime(val) when is_binary(val) do
+    # NOTE this will always parse as UTC
     case Timex.parse(val, "%Y-%m-%d", :strftime) do
       {:ok, datetime} ->
         {:ok,
          datetime
          |> Timex.set(hour: 23, minute: 59, second: 59)
-         |> Timex.to_naive_datetime()
-         |> NaiveDateTime.truncate(:second)}
+         |> Timex.to_datetime("Etc/UTC")
+         |> DateTime.truncate(:second)}
 
       err ->
         err
     end
   end
 
-  defp parse_naive_datetime(val = %NaiveDateTime{}) do
-    {:ok, val |> NaiveDateTime.truncate(:second)}
+  defp parse_datetime(val = %DateTime{}) do
+    {:ok, val |> DateTime.truncate(:second)}
   end
 
   @spec delete_token!(AccessToken.t()) :: :ok
@@ -108,7 +109,7 @@ defmodule BitPal.Authentication.Tokens do
   end
 
   defp update_last_accessed(token) do
-    change(token, last_accessed: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second))
+    change(token, last_accessed: DateTime.utc_now() |> DateTime.truncate(:second))
     |> Repo.update!()
   end
 end
