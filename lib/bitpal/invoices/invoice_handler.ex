@@ -128,12 +128,17 @@ defmodule BitPal.InvoiceHandler do
 
     # Should always have a block since we're trying to recover
     block_height = Blocks.fetch_height!(invoice.payment_currency_id)
-    invoice = Invoices.update_info_from_txs(invoice, block_height)
 
+    invoice =
+      Invoices.update_info_from_txs(invoice, block_height)
+      |> dbg()
+
+    # FIXME what if transactions are already confirmed?
     txs =
       invoice.transactions
       |> Map.new(fn tx ->
         if invoice.required_confirmations == 0 && tx.height == 0 do
+          IO.puts("sending double spend timeout #{inspect(tx)}")
           send_double_spend_timeout(tx.id, state)
         end
 
@@ -146,6 +151,7 @@ defmodule BitPal.InvoiceHandler do
     |> Map.put(:invoice, invoice)
     |> txs_seen(txs)
     |> ensure_processing!(txs)
+    |> issue_address_update()
     |> try_into_paid()
   end
 
@@ -394,10 +400,15 @@ defmodule BitPal.InvoiceHandler do
   end
 
   defp accept_payment?(invoice, double_spend_timeouts) do
-    has_confirmations?(invoice) &&
-      target_amount_reached?(invoice) &&
-      valid_txs?(invoice) &&
-      has_double_spend_timeouts?(invoice, double_spend_timeouts)
+    confs? = has_confirmations?(invoice) |> dbg()
+    target_amount? = target_amount_reached?(invoice) |> dbg()
+    valid_txs? = valid_txs?(invoice) |> dbg()
+    timeouts? = has_double_spend_timeouts?(invoice, double_spend_timeouts) |> dbg()
+
+    confs? &&
+      target_amount? &&
+      valid_txs? &&
+      timeouts?
   end
 
   defp valid_txs?(invoice) do
