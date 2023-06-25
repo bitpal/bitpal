@@ -23,6 +23,7 @@ defmodule BitPalApi.InvoiceJSON do
     |> put_unless_nil(:requiredConfirmations, invoice.required_confirmations)
     |> put_unless_nil(:paymentCurrency, invoice.payment_currency_id)
     |> put_unless_nil(:paymentUri, invoice.payment_uri)
+    |> put_unless_nil(:validUntil, invoice.valid_until, &DateTime.to_iso8601/1)
     |> put_expected_payment(invoice)
     |> add_paid(invoice)
   end

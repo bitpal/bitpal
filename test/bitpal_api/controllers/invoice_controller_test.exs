@@ -139,12 +139,14 @@ defmodule BitPalApi.InvoiceControllerTest do
                  ^currency => %{"USD" => rate}
                },
                "status" => "open"
+               "validUntil" => valid_until,
              } = json_response(conn, 200)
 
       assert id != nil
       assert address != nil
       assert is_float(rate)
       assert payment_uri != nil
+      assert {:ok, _, 0} = DateTime.from_iso8601(valid_until)
 
       assert RenderHelpers.money_to_string(Money.new(payment_sub_amount, currency)) ==
                payment_display

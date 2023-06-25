@@ -101,6 +101,8 @@ defmodule BitPal.InvoiceHandler do
         subscribe(invoice)
         invoice = Invoices.finalize!(invoice)
 
+        schedule_expiry(invoice)
+
         state =
           state
           |> Map.delete(:invoice_id)
@@ -122,6 +124,7 @@ defmodule BitPal.InvoiceHandler do
   @impl true
   def handle_continue(:recover, state = %{invoice: invoice}) do
     subscribe(invoice)
+    schedule_expiry(invoice)
 
     # Should always have a block since we're trying to recover
     block_height = Blocks.fetch_height!(invoice.payment_currency_id)
@@ -239,6 +242,17 @@ defmodule BitPal.InvoiceHandler do
   end
 
   @impl true
+  def handle_info(:expire, state) do
+    if Invoices.can_expire?(state.invoice) do
+      invoice = Invoices.expire!(state.invoice)
+      {:stop, :normal, %{state | invoice: invoice}}
+    else
+      Logger.debug("Can't expire invoice #{inspect(state.invoice)}")
+      {:noreply, state}
+    end
+  end
+
+  @impl true
   def handle_info({{:block, :new}, %{height: height}}, state) do
     state
     |> Map.put(:block_height, height)
@@ -288,6 +302,19 @@ defmodule BitPal.InvoiceHandler do
   defp subscribe(invoice) do
     :ok = AddressEvents.subscribe(invoice.address_id)
     :ok = BlockchainEvents.subscribe(invoice.payment_currency_id)
+  end
+
+  defp schedule_expiry(%Invoice{valid_until: nil}), do: nil
+
+  defp schedule_expiry(%Invoice{valid_until: valid_until}) do
+    now = DateTime.utc_now()
+    diff = DateTime.diff(valid_until, now, :millisecond)
+
+    if diff > 0 do
+      Process.send_after(self(), :expire, diff)
+    else
+      send(self(), :expire)
+    end
   end
 
   defp ensure_processing!(state, txs) do

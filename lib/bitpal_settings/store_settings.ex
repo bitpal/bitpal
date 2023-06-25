@@ -11,9 +11,10 @@ defmodule BitPalSettings.StoreSettings do
   alias BitPalSchemas.Store
   alias Ecto.Changeset
 
-  # Default vaLues can be overridden in config
+  # Default values can be overridden in config
   @default_required_confirmations Application.compile_env!(:bitpal, :required_confirmations)
   @default_double_spend_timeout Application.compile_env!(:bitpal, :double_spend_timeout)
+  @default_invoice_valid_time Application.compile_env!(:bitpal, :invoice_valid_time)
 
   # Currency settings
 
@@ -152,6 +153,17 @@ defmodule BitPalSettings.StoreSettings do
     update_simple(store_id, currency_id, double_spend_timeout: timeout)
   end
 
+  @spec get_invoice_valid_time(Store.id(), Currency.id()) :: non_neg_integer
+  def get_invoice_valid_time(store_id, currency_id) do
+    get_simple(store_id, currency_id, :invoice_valid_time) || @default_invoice_valid_time
+  end
+
+  @spec set_invoice_valid_time(Store.id(), Currency.id(), non_neg_integer()) ::
+          {:ok, CurrencySettings.t()} | {:error, Changeset.t()}
+  def set_invoice_valid_time(store_id, currency_id, seconds) do
+    update_simple(store_id, currency_id, invoice_valid_time: seconds)
+  end
+
   @spec get_or_create_currency_settings(Store.id(), Currency.id()) :: CurrencySettings.t() | nil
   def get_or_create_currency_settings(store_id, currency_id) do
     get_currency_settings(store_id, currency_id) ||
@@ -209,11 +221,16 @@ defmodule BitPalSettings.StoreSettings do
       nil -> %CurrencySettings{store_id: store_id, currency_id: currency_id}
       settings -> settings
     end
-    |> cast(Enum.into(params, %{}), [:required_confirmations, :double_spend_timeout])
+    |> cast(Enum.into(params, %{}), [
+      :required_confirmations,
+      :double_spend_timeout,
+      :invoice_valid_time
+    ])
     |> foreign_key_constraint(:currency_id)
     |> foreign_key_constraint(:store_id)
     |> validate_number(:required_confirmations, greater_than_or_equal_to: 0)
     |> validate_number(:double_spend_timeout, greater_than: 0)
+    |> validate_number(:invoice_valid_time, greater_than: 0)
     |> Repo.insert_or_update()
   end
 end

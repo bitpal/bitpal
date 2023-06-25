@@ -456,4 +456,50 @@ defmodule BitPal.InvoiceAcceptanceTest do
              ] = HandlerSubscriberCollector.received(stub)
     end
   end
+
+  describe "expire invoice" do
+    test "automatically expire", %{currency_id: currency_id} do
+      valid_until =
+        DateTime.utc_now()
+        |> DateTime.truncate(:second)
+        |> DateTime.add(1, :second)
+
+      {:ok, _inv, stub, _handler} =
+        HandlerSubscriberCollector.create_invoice(
+          expected_payment: Money.parse!(1.0, currency_id),
+          required_confirmations: 0,
+          double_spend_timeout: 1,
+          valid_until: valid_until
+        )
+
+      HandlerSubscriberCollector.await_msg(stub, {:invoice, :uncollectible})
+
+      assert [
+               {{:invoice, :finalized}, _},
+               {{:invoice, :uncollectible}, _}
+             ] = HandlerSubscriberCollector.received(stub)
+    end
+
+    test "expire immediately", %{currency_id: currency_id} do
+      valid_until =
+        DateTime.utc_now()
+        |> DateTime.truncate(:second)
+        |> DateTime.add(-1, :second)
+
+      {:ok, _inv, stub, _handler} =
+        HandlerSubscriberCollector.create_invoice(
+          expected_payment: Money.parse!(1.0, currency_id),
+          required_confirmations: 0,
+          double_spend_timeout: 1,
+          valid_until: valid_until
+        )
+
+      HandlerSubscriberCollector.await_msg(stub, {:invoice, :uncollectible})
+
+      assert [
+               {{:invoice, :finalized}, _},
+               {{:invoice, :uncollectible}, _}
+             ] = HandlerSubscriberCollector.received(stub)
+    end
+  end
 end

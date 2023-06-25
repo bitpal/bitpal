@@ -1,5 +1,4 @@
 defmodule BitPalFactory.InvoiceFactoryTest do
-  # use BitPal.IntegrationCase, async: true
   use BitPal.DataCase, async: true
   alias BitPalSchemas.Address
   alias BitPalSchemas.InvoiceStatus
@@ -267,6 +266,12 @@ defmodule BitPalFactory.InvoiceFactoryTest do
              ]
 
       assert InvoiceStatus.reason(create_invoice(store, status: :paid).status) == nil
+    end
+
+    test "specify valid_until" do
+      date = DateTime.new!(~D[2000-01-02], ~T[12:30:10], "Etc/UTC")
+      invoice = create_invoice(valid_until: date)
+      assert invoice.valid_until == date
     end
   end
 

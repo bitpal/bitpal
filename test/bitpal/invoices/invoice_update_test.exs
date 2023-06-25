@@ -1,5 +1,6 @@
 defmodule BitPal.InvoiceUpdateTest do
   use BitPal.DataCase, async: true
+  alias BitPalSettings.StoreSettings
   alias BitPal.Stores
   alias BitPal.Invoices
   alias BitPalSettings.ExchangeRateSettings
@@ -322,6 +323,21 @@ defmodule BitPal.InvoiceUpdateTest do
         })
 
       assert invoice.expected_payment == Money.parse!(Decimal.from_float(2.0), :BCH)
+    end
+
+    @tag address_id: :auto, payment_uri: "uri"
+    test "sets valid_until from store settings", %{invoice: invoice} do
+      {:ok, _} =
+        StoreSettings.set_invoice_valid_time(
+          invoice.store_id,
+          invoice.payment_currency_id,
+          1_000
+        )
+
+      {:ok, invoice} = Invoices.finalize(invoice)
+      now = NaiveDateTime.utc_now()
+      time = NaiveDateTime.diff(invoice.valid_until, now, :second)
+      assert time <= 1_000
     end
   end
 

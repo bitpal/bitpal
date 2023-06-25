@@ -78,6 +78,7 @@ defmodule BitPal.Invoices do
   def finalize(invoice) do
     res =
       invoice
+      |> change_valid_until(invoice)
       |> finalize_validation()
       |> Repo.update()
 
@@ -232,6 +233,11 @@ defmodule BitPal.Invoices do
     invoice.status != :draft
   end
 
+  @spec can_expire?(Invoice.t()) :: boolean
+  def can_expire?(invoice) do
+    InvoiceStatus.state(invoice.status) in [:open, :processing]
+  end
+
   # Internal updates
 
   @spec finalize!(Invoice.t()) :: Invoice.t()
@@ -329,6 +335,16 @@ defmodule BitPal.Invoices do
     |> Repo.update!()
   end
 
+  def change_valid_until(changeset, invoice) do
+    put_new_change(changeset, :valid_until, fn ->
+      valid_time =
+        StoreSettings.get_invoice_valid_time(invoice.store_id, invoice.payment_currency_id)
+
+      DateTime.utc_now()
+      |> DateTime.truncate(:second)
+      |> DateTime.add(valid_time, :second)
+    end)
+  end
   # Updates
 
   @spec assign_address(Invoice.t(), Address.t()) ::
@@ -637,7 +653,8 @@ defmodule BitPal.Invoices do
       :payment_currency_id,
       :address_id,
       :required_confirmations,
-      :payment_uri
+      :payment_uri,
+      :valid_until
     ])
     # Technically these validations shouldn't be necessary as all invoice changes should
     # pass through register() or update(), but we try to be extra safe.

@@ -40,6 +40,8 @@ defmodule BitPalSchemas.Invoice do
     has_many(:tx_outputs, through: [:address, :tx_outputs])
     # How many confirmations do we require?
     field(:required_confirmations, :integer) :: non_neg_integer | nil
+    # When does the invoice expire?
+    field(:valid_until, :utc_datetime) :: DateTime.t() | nil
 
     # Calculated from transactions.
     field(:amount_paid, NumericType, virtual: true) :: Money.t() | nil
