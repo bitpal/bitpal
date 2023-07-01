@@ -23,6 +23,10 @@ defmodule BitPalSchemas.InvoiceStatus do
     An address will be generated and will be watched for payments that will be counted
     towards the invoice.
 
+    May have an optional `status_reason`:
+    - `:underpaid`
+      The invoice was sent more than expected. Can be inferred from `expected_payment` and `amount_paid`.
+
   - `:processing`
     The invoice has received the payment but it's not considered paid yet.
 
@@ -57,6 +61,10 @@ defmodule BitPalSchemas.InvoiceStatus do
   - :`paid`
     The invoice was fully paid.
 
+    May have an optional `status_reason`:
+    - `:overpaid`
+      The invoice was sent more than expected. Can be inferred from `expected_payment` and `amount_paid`.
+
     See `@valid_combinations`.
 
 
@@ -68,23 +76,28 @@ defmodule BitPalSchemas.InvoiceStatus do
 
   @type status :: :draft | :open | :processing | :uncollectible | :void | :paid
 
+  @type open_reason :: :underpaid
+  @type paid_reason :: :overpaid
   @type processing_reason :: :verifying | :confirming
   @type uncollectible_reason :: :expired | :canceled | :timed_out | :double_spent | :failed
-  @type status_reason :: processing_reason() | uncollectible_reason() | nil
+  @type status_reason ::
+          open_reason() | processing_reason() | uncollectible_reason() | paid_reason()
 
   @type t ::
           :draft
           | :open
+          | {:open, open_reason()}
           | {:processing, processing_reason()}
           | {:uncollectible, uncollectible_reason()}
           | {:void, status_reason}
           | :void
           | :paid
+          | {:paid, paid_reason()}
 
   # state => reason (can be nil)
   @valid_combinations %{
     :draft => nil,
-    :open => nil,
+    :open => [nil, :underpaid],
     :processing => [:verifying, :confirming],
     :uncollectible => [:expired, :canceled, :timed_out, :double_spent, :failed],
     :void => [
@@ -97,7 +110,7 @@ defmodule BitPalSchemas.InvoiceStatus do
       :failed,
       nil
     ],
-    :paid => nil
+    :paid => [nil, :overpaid]
   }
 
   @valid_transitions %{

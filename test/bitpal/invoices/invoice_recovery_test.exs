@@ -30,6 +30,38 @@ defmodule BitPal.InvoiceRecoveryTest do
     HandlerSubscriberCollector.await_msg(stub, {:invoice, :paid})
   end
 
+  # FIXME this should work
+  @tag do: true
+  test "invoice recover underpaid status", %{currency_id: currency_id} do
+    {:ok, inv, stub, handler} =
+      HandlerSubscriberCollector.create_invoice(
+        expected_payment: Money.parse!(1.0, currency_id),
+        required_confirmations: 1,
+        payment_currency_id: currency_id
+      )
+
+    assert inv.status == :open
+
+    amount1 = Money.parse!(0.3, currency_id)
+    BackendMock.tx_seen(%{inv | expected_payment: amount1})
+    HandlerSubscriberCollector.await_msg(stub, {:invoice, :underpaid})
+
+    assert inv.status == {:open, :underpaid}
+
+    # Make sure handler is killed
+    assert_shutdown(handler)
+    # Then wait for it to be restarted
+    handler = wait_for_handler(inv.id, handler)
+
+    inv = InvoiceHandler.fetch_invoice!(handler)
+    assert inv.status == {:open, :underpaid}
+  end
+
+  # TODO tests
+  # - recover from :open to :underpaid
+  # - recover :overpaid invoice
+  # - recover from :open to :overpaid
+
   test "invoice recover missing tx seen", %{currency_id: currency_id} do
     {:ok, inv, stub, handler} =
       HandlerSubscriberCollector.create_invoice(

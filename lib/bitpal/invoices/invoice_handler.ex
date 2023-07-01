@@ -10,6 +10,12 @@ defmodule BitPal.InvoiceHandler do
   alias Ecto.Adapters.SQL.Sandbox
   require Logger
 
+  # TODO
+  # - :overpaid / :underpaid status_reasons
+  # - Reload invoice from db
+  # - Use postgres for notifications ??
+  #   https://www.peterullrich.com/listen-to-database-changes-with-postgres-triggers-and-elixir
+
   @type handler :: pid
 
   # Client API
@@ -150,7 +156,7 @@ defmodule BitPal.InvoiceHandler do
     |> Map.delete(:invoice_id)
     |> Map.put(:invoice, invoice)
     |> txs_seen(txs)
-    |> ensure_processing!(txs)
+    |> update_invoice_state()
     |> issue_address_update()
     |> try_into_paid()
   end
@@ -177,10 +183,10 @@ defmodule BitPal.InvoiceHandler do
 
       :overpaid ->
         if new_tx?, do: Invoices.broadcast_overpaid(state.invoice)
-        {:noreply, ensure_processing!(state)}
+        {:noreply, update_invoice_state(state)}
 
       :ok ->
-        {:noreply, ensure_processing!(state)}
+        {:noreply, update_invoice_state(state)}
     end
   end
 
@@ -206,12 +212,12 @@ defmodule BitPal.InvoiceHandler do
         if new_tx?, do: Invoices.broadcast_overpaid(state.invoice)
 
         state
-        |> ensure_processing!()
+        |> update_invoice_state()
         |> try_into_paid()
 
       :ok ->
         state
-        |> ensure_processing!()
+        |> update_invoice_state()
         |> try_into_paid()
     end
   end
@@ -323,9 +329,49 @@ defmodule BitPal.InvoiceHandler do
     end
   end
 
-  defp ensure_processing!(state, txs) do
-    if map_size(txs) > 0 do
-      ensure_processing!(state)
+  # defp ensure_invoice_state(invoice = %Invoice{}) do
+  #   cond do
+  #     has_txs? && target_reached? ->
+  #       # ensure_processing!(state)
+  #
+  #     has_txs? && !target_reached? ->
+  #       Invoices.underpaid!(invoice)
+  #
+  #     !has_txs? ->
+  #       state
+  #   end
+  # end
+
+  # NOTE if we use postgres notifications we can just subscribe there?
+  # The only thing we can't subscribe to do calculate confirmations_due there, that's still needed here.
+  # But can solved by subscribing to new block and then calculate previous message.
+  # But how to handle :uncollectible -> :void without a handler?
+  #  maybe do it all in a single GenServer?
+  defp stop_if_done(state) do
+    case InvoiceStatus.state(state.invoice) do
+      :uncollectible | :paid | :void ->
+        {:stop, :normal, state}
+
+      _ ->
+        {:noreply, state}
+    end
+  end
+
+  defp update_invoice_state(state) do
+    if Enum.any?(state.invoice.transactions) do
+      state = ensure_processing!(state)
+
+      case Invoices.target_amount_reached?(state.invoice) do
+        :underpaid ->
+          ensure_underpaid!(state)
+
+        _ ->
+          if accept_payment?(state.invoice, state.double_spend_timeouts) do
+            Map.put(state, :invoice, Invoices.pay!(state.invoice))
+          else
+            state
+          end
+      end
     else
       state
     end
@@ -344,6 +390,17 @@ defmodule BitPal.InvoiceHandler do
       state
     end
   end
+
+  def ensure_underpaid!(state) do
+    if state.invoice.status == :open do
+      Map.put(state, :invoice, Invoices.underpaid!(state.invoice))
+    else
+      state
+    end
+  end
+
+  #
+  # defp
 
   defp broadcast_processed_if_needed(
          state = %{invoice: invoice = %Invoice{status: {:processing, _}}}
@@ -386,11 +443,13 @@ defmodule BitPal.InvoiceHandler do
   end
 
   defp issue_address_update(state) do
+    # FIXME doesn't always pass (if backend isn't ready?)
     :ok = BackendManager.update_address(state.invoice)
     state
   end
 
   defp try_into_paid(state) do
+    # FIXME invoice shouldn't be in {:processing, :verifying} when it has been underpaid?
     if accept_payment?(state.invoice, state.double_spend_timeouts) do
       invoice = Invoices.pay!(state.invoice)
       {:stop, :normal, %{state | invoice: invoice}}
