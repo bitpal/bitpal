@@ -6,7 +6,8 @@ defmodule BitPalSchemas.InvoiceStatusTest do
     test "straight up valid casts" do
       ok = [
         :draft,
-        :paid,
+        :open,
+        {:open, :underpaid},
         {:processing, :verifying},
         {:processing, :confirming},
         {:uncollectible, :expired},
@@ -23,7 +24,8 @@ defmodule BitPalSchemas.InvoiceStatusTest do
         {:void, :confirming},
         {:void, :failed},
         :draft,
-        :paid
+        :paid,
+        {:paid, :overpaid}
       ]
 
       for x <- ok do
@@ -42,6 +44,8 @@ defmodule BitPalSchemas.InvoiceStatusTest do
         "open",
         :processing,
         :uncollectible,
+        {:open, :overpaid},
+        {:paid, :underpaid},
         {:uncollectible, :confirming},
         {:xx, :expired},
         {:void, :xx}
@@ -58,6 +62,13 @@ defmodule BitPalSchemas.InvoiceStatusTest do
       {:ok, _} = InvoiceStatus.validate_transition(:draft, :open)
       {:ok, _} = InvoiceStatus.validate_transition(:open, {:processing, :verifying})
       {:ok, _} = InvoiceStatus.validate_transition(:open, {:processing, :confirming})
+      {:ok, _} = InvoiceStatus.validate_transition({:open, :underpaid}, {:processing, :verifying})
+
+      {:ok, _} =
+        InvoiceStatus.validate_transition({:open, :underpaid}, {:processing, :confirming})
+
+      {:ok, _} = InvoiceStatus.validate_transition({:processing, :confirming}, :paid)
+      {:ok, _} = InvoiceStatus.validate_transition({:processing, :confirming}, {:paid, :overpaid})
 
       {:ok, _} =
         InvoiceStatus.validate_transition({:processing, :confirming}, {:uncollectible, :expired})

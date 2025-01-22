@@ -22,6 +22,7 @@ defmodule BitPal.InvoiceEvents do
 
   @type msg ::
           {{:invoice, :deleted}, %{id: Invoice.id(), status: InvoiceStatus.t()}}
+          # FIXME this event is never even used...?!
           | {{:invoice, :finalized}, Invoice.t()}
           | {{:invoice, :voided}, %{id: Invoice.id(), status: InvoiceStatus.t()}}
           | {{:invoice, :uncollectible},
@@ -33,6 +34,9 @@ defmodule BitPal.InvoiceEvents do
                confirmations_due: additional_confirmations,
                txs: txs
              }}
+          # FIXME :underpaid and :overpaid are only used in tests
+          # :underpaid makes sense (can be used by InvoiceChannel to update new amount to paid)
+          # but :overpaid can be baked into :paid message.
           | {
               {:invoice, :underpaid},
               %{id: Invoice.id(), status: InvoiceStatus.t(), amount_paid: Money.t(), txs: txs}

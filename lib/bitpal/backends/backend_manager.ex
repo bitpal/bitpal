@@ -514,6 +514,7 @@ defmodule BitPal.BackendManager do
     if is_enabled(currency_id, state) do
       state = monitor(pid, currency_id, state)
 
+      # FIXME will this always work?
       if @ensure_handlers_when_added do
         InvoiceSupervisor.ensure_handlers(currency_id, [])
       end

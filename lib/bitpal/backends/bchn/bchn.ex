@@ -156,6 +156,11 @@ defmodule BitPal.Backend.BCHN do
 
   @impl true
   def handle_call({:update_address, invoice}, _from, state) do
+    # FIXME
+    # It's possible this can miss certain transactions!
+    # For example, if we're waiting for a 0-conf but the service is shut down.
+    # Then we'll update the block (but miss the tx) and now when we ask about
+    # the state then we'll miss the last block! Ugh!
     update_address_txs(invoice.address_id, Blocks.fetch_height!(:BCH), state)
     {:reply, :ok, state}
   end

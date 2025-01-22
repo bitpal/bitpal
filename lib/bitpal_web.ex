@@ -120,7 +120,7 @@ defmodule BitPalWeb do
     quote do
       import Phoenix.HTML
       import Phoenix.HTML.Form
-      import Phoenix.HTML.Link
+      use PhoenixHTMLHelpers
 
       import Phoenix.LiveView.Helpers
       alias Phoenix.LiveView.JS
