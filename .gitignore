@@ -50,3 +50,5 @@ run.prod.sh
 monero-wallet-cli.log
 
 *.login
+.lexical
+.elixir-tools

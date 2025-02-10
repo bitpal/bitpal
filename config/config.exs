@@ -77,9 +77,9 @@ config :esbuild,
 
 # Config sass conversion
 config :dart_sass,
-  version: "1.58.0",
+  version: "1.77.8",
   default: [
-    args: ~w(css:../priv/static/css),
+    args: ~w(css ../priv/static/css),
     cd: Path.expand("../assets", __DIR__)
   ]
 

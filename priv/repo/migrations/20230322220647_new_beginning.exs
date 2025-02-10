@@ -61,7 +61,7 @@ defmodule BitPal.Repo.Migrations.NewBeginning do
     create unique_index(:users_tokens, [:context, :token])
 
     create table(:currencies, primary_key: false) do
-      add :id, :string, size: 8, primary_key: true
+      add :id, :string, primary_key: true
       add :block_height, :integer
       add :top_block_hash, :string
     end
@@ -71,7 +71,7 @@ defmodule BitPal.Repo.Migrations.NewBeginning do
     create table(:currency_settings) do
       add :required_confirmations, :integer
       add :double_spend_timeout, :integer
-      add :currency_id, references(:currencies, type: :string, size: 8), null: false
+      add :currency_id, references(:currencies, type: :string), null: false
       add :store_id, references(:stores), null: false
     end
 
@@ -80,7 +80,7 @@ defmodule BitPal.Repo.Migrations.NewBeginning do
 
     create table(:address_keys) do
       add :data, :map, null: false
-      add :currency_id, references(:currencies, type: :string, size: 8), null: false
+      add :currency_id, references(:currencies, type: :string), null: false
       add :currency_settings_id, references(:currency_settings)
       timestamps()
     end
@@ -97,7 +97,7 @@ defmodule BitPal.Repo.Migrations.NewBeginning do
       add :id, :string, primary_key: true
       add :address_key_id, references(:address_keys), null: false
       add :address_index, :integer, null: false
-      add :currency_id, references(:currencies, type: :string, size: 8), null: false
+      add :currency_id, references(:currencies, type: :string), null: false
       timestamps()
     end
 
@@ -110,7 +110,7 @@ defmodule BitPal.Repo.Migrations.NewBeginning do
       add :height, :integer, null: false
       add :failed, :boolean, null: false
       add :double_spent, :boolean, null: false
-      add :currency_id, references(:currencies, type: :string, size: 8), null: false
+      add :currency_id, references(:currencies, type: :string), null: false
       timestamps(updated_at: false)
     end
 
@@ -124,7 +124,7 @@ defmodule BitPal.Repo.Migrations.NewBeginning do
 
     create table(:backend_settings) do
       add :enabled, :boolean, null: false
-      add :currency_id, references(:currencies, type: :string, size: 8), null: false
+      add :currency_id, references(:currencies, type: :string), null: false
     end
 
     create unique_index(:backend_settings, :currency_id)
@@ -137,7 +137,7 @@ defmodule BitPal.Repo.Migrations.NewBeginning do
       add :rates, :map, null: false
       add :rates_updated_at, :naive_datetime, null: false
 
-      add :payment_currency_id, references(:currencies, type: :string, size: 8)
+      add :payment_currency_id, references(:currencies, type: :string)
       add :address_id, references(:addresses, type: :string)
       add :required_confirmations, :integer
 
@@ -155,8 +155,8 @@ defmodule BitPal.Repo.Migrations.NewBeginning do
 
     create table(:exchange_rates) do
       add :rate, :decimal, null: false
-      add :base, :string, size: 8, null: false
-      add :quote, :string, size: 8, null: false
+      add :base, :string, null: false
+      add :quote, :string, null: false
 
       add :source, :string, null: false
       add :prio, :integer, null: false
